@@ -1,0 +1,186 @@
+# Contexto: Proyecto Web HTML/JS (sql.js + Tailwind CSS + SQLite)
+
+App web 100% cliente-side para gestión de expedientes de contrataciones con historial de movimientos. SQLite en el navegador vía sql.js (WASM), UI con Tailwind CSS, sin backend ni servidor.
+
+---
+
+## ⚠️ RESTRICCIONES DE ENTORNO
+
+**No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
+
+**IMPORTANTE - LECTURA DE ARCHIVOS:**
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + Tablas6.sql + doc.md)
+- ❌ **NO LEAS:** Archivos individuales (index.html, Tablas6.sql por separado)
+- Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
+
+---
+
+## Rol
+
+Auditor de código estático. Buscas violaciones a las reglas del proyecto en el código HTML/JS contenido en `combined.txt`, usando `Tablas6.sql` como referencia estructural de la BD.
+
+---
+
+## REGLAS DEL PROYECTO (priorizadas)
+
+### 1. Cero hardcodeo de schema
+No debe haber strings literales que dependan del schema (nombres de tabla, columnas, prefijos `cat_`, `id_`, patrones de estado). Nombres de catálogos, columnas y vistas deben extraerse dinámicamente de la BD al cargar el archivo .db.
+
+### 2. DRY + Reutilización
+Toda lógica debe tener representación única. No copiar-pegar bloques. Si un patrón aparece en más de un lugar, extraer a función reutilizable.
+
+**Funciones ya extraídas (no reportar como duplicadas si se usan consistentemente):**
+- `dbToObjects` — convierte resultado SQL a array de objetos
+- `escapeSql` — sanitiza valores nulos/vacíos
+- `cargarCatalogos` — carga todos los catálogos de una vez
+- `poblarSelectores` — llena todos los `<select>` con opciones
+- `cargarSuperintendencias` — filtro dependiente de gerencia
+- `toggleDesplegable` — expande/colapsa detalle de expediente
+- `calcularBs` — convierte USD a Bs con tipo de cambio
+- `getEstatusClass` — devuelve clase CSS según estatus
+
+### 3. SQL correcto
+- Sin CAST innecesarios
+- ORDER BY en consultas paginadas
+- GROUP BY consistente con SELECT
+- Bound parameters o escape sanitizado (nunca interpolación directa de user input)
+- JOINs en vez de subqueries correlacionadas cuando sea práctico
+
+### 4. Manejo de errores
+- Sin `console.log` en producción (solo debugging temporal)
+- Errores de BD deben mostrarse al usuario (alert, o div de error), no silenciarse
+- Validar existencia de `db` antes de ejecutar consultas
+- Manejar casos donde `db.exec()` devuelva resultados vacíos
+
+---
+
+## SCHEMA (Tablas6.sql — leer este archivo para la estructura exacta)
+
+- **12 catálogos:** `cat_gerencia`, `cat_documento`, `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle`, `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_estado_accion`, `cat_superintendencia` (con FK a gerencia)
+- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, ~30 cols con fechas, montos, FK a catálogos, `fecha_creacion`/`fecha_actualizacion` DEFAULT)
+- **Historial:** `historial_movimientos` (PK `id_movimiento AUTOINCREMENT`, FK a expedientes + 8 catálogos, `fecha_recibido`, `fecha_devuelto`)
+- **Triggers:** `trg_exp_auditoria` AFTER UPDATE — inserta en historial cuando cambian campos clave, actualiza `fecha_actualizacion`
+- **Vistas:** `vw_reporte_excel_contrataciones` (JOIN completo expedientes + catálogos), `vw_historial_celdas_multilinea` (GROUP_CONCAT para LibreOffice)
+
+**NOTA:** El código SQL en JS debe ser consistente con este schema. Usar `SELECT *` cuando sea práctico, nombres de columna explícitos en JOINs.
+
+---
+
+## FUNCIONALIDAD YA IMPLEMENTADA
+
+- Carga de archivo .db / .sqlite vía input file + sql.js WASM
+- Catálogos cargados al abrir BD, selectores poblados dinámicamente
+- Tabla principal con vista `vw_reporte_excel_contrataciones` ordenada por `id_expediente DESC`
+- Filas desplegables con detalle completo del expediente (3 tarjetas + historial)
+- Modal de formulario para crear/editar expedientes con 6 secciones
+- Historial de movimientos cargado bajo demanda al expandir fila
+- Conversión automática USD→Bs en presupuesto base
+- Filtro instantáneo por texto (SOLPED, Proceso, Gerencia, Contrato, Empresa)
+- Botón "Eliminar" en modo edición
+- CRUD completo: INSERT/UPDATE/DELETE sobre expedientes
+
+---
+
+## 📁 ESTRUCTURA DEL PROYECTO (dentro de combined.txt)
+
+Identifica estas secciones dentro de `combined.txt` por su contenido:
+
+| Sección | Contenido clave |
+|---------|-----------------|
+| `index.html` (HEAD) | CDN Tailwind, sql.js, sql-wasm.js. Configuración inicial de `initSqlJs`, listener de `dbfile` change |
+| `index.html` (Tabla) | HTML de la tabla principal con 8 columnas, `toggleDesplegable`, botón editar |
+| `index.html` (Modal) | Formulario completo con 6 fieldset: Info Proceso, Presupuesto, Gestión, Adjudicación, Observaciones, Historial |
+| `index.html` (JS - Estado global) | `let db`, `expedientesCache`, `catalogosCache` |
+| `index.html` (JS - Catálogos) | `cargarCatalogos()`, `poblarSelectores()`, `cargarSuperintendencias()` |
+| `index.html` (JS - CRUD) | `cargarDatos()`, `renderizarTabla()`, `mostrarFormulario()`, `cargarExpediente()`, `guardarExpediente()`, `eliminarExpediente()` |
+| `index.html` (JS - Historial) | `toggleDesplegable()`, `cargarHistorialFormulario()` |
+| `Tablas6.sql` | Schema completo con catálogos, expedientes, historial, triggers, vistas, inserts |
+
+---
+
+## INSTRUCCIÓN ESPECÍFICA
+
+Realiza una auditoría completa del código HTML/JS (**leyendo únicamente `combined.txt`**) buscando:
+
+### a) VIOLACIONES DE HARDCODEO
+Literales que dependan del schema (nombres de columna, prefijos, patrones) que deberían obtenerse dinámicamente.
+
+### b) VIOLACIONES DE DRY/REUTILIZACIÓN
+Lógica duplicada (bloques copiados en >1 lugar), patrones que deberían ser funciones reutilizables. No importa el tamaño en líneas.
+
+### c) VIOLACIONES SQL
+Interpolación directa de strings en consultas (SQL injection), falta de ORDER BY, JOINs innecesariamente complejos.
+
+### d) ERRORES DE MANEJO
+Falta de validación de `db` antes de ejecutar, errores silenciados, casos borde no cubiertos (nulls, valores vacíos, tipos incorrectos).
+
+---
+
+## FORMATO DE REPORTE
+
+Para cada hallazgo indica:
+```
+[SEVERIDAD] archivo:línea
+- Regla violada: [descripción breve]
+- Problema: [código o patrón específico]
+- Fix sugerido: [acción concreta]
+```
+
+**Severidad:** Alta | Media | Baja
+
+---
+
+## ENTREGABLE FINAL
+
+Al final del reporte, genera un archivo llamado `plan_modificaciones.md` con:
+
+```markdown
+# Plan de Modificaciones - Auditoría de Código
+
+Prioridad: Alta > Media > Baja
+Estado inicial: pendiente
+
+---
+
+## 🔴 PRIORIDAD ALTA
+[Hallazgos Alta]
+
+## 🟡 PRIORIDAD MEDIA
+[Hallazgos Media]
+
+## 🟢 PRIORIDAD BAJA
+[Hallazgos Baja]
+
+## ✅ SIN ACCIÓN REQUERIDA (Compliant)
+[Verificaciones aprobadas]
+```
+
+Cada entrada debe incluir:
+- **Archivo:** ruta relativa dentro del proyecto
+- **Línea:** número aproximado (basado en `combined.txt`)
+- **Descripción del problema:** claro y específico
+- **Fix sugerido:** acción concreta implementable
+- **Estado:** `pendiente`
+
+Este archivo servirá como guía para implementar los fixes uno por uno.
+
+---
+
+## REGLAS DEL PROCESO PARA OPENCODE
+
+1. `plan_modificaciones.md` es la guía — opencode lee este archivo e implementa los fixes uno por uno de mayor a menor prioridad
+2. Después de cada fix, ejecutar `make build` para verificar que compila (si aplica) o `make combine` para regenerar `combined.txt`
+3. Al terminar todos los fixes, ejecutar `make combine` y actualizar `doc.md`
+4. Actualizar `doc.md` con historial de cambios (fecha, archivos, razón de cada fix)
+5. Subir a GitHub con `make github msg="mensaje"`
+
+---
+
+## FLUJO DE TRABAJO RECOMENDADO
+
+1. Lee `Tablas6.sql` para entender la estructura del schema
+2. Lee `combined.txt` completo (usa búsqueda por nombres de sección para navegar)
+3. Identifica violaciones a las 4 reglas
+4. Genera el reporte con hallazgos priorizados
+5. Crea `plan_modificaciones.md` con el formato especificado
+6. **No leas archivos .html, .sql individuales** — todo está en `combined.txt`

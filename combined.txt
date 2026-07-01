@@ -1,0 +1,1404 @@
+=== index.html ===
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Expedientes con Historial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans">
+
+    <div class="max-w-[1600px] mx-auto" id="app">
+
+        <!-- Encabezado -->
+        <header class="mb-6 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-teal-400 flex items-center gap-2">📂 Gestión de Expedientes con Historial</h1>
+                <p class="text-xs text-gray-400">Carga tu base de datos SQLite para trabajar de forma 100% local.</p>
+            </div>
+            <div class="flex items-center gap-3 flex-wrap">
+                <div class="bg-gray-800 p-2 rounded-lg border border-gray-700">
+                    <input type="file" id="dbfile" class="text-xs text-gray-400 file:mr-4 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-teal-600 file:text-white hover:file:bg-teal-700 cursor-pointer"/>
+                </div>
+                <button id="btn-nuevo" onclick="mostrarFormulario(null)" disabled
+                    class="bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    + Nuevo Expediente
+                </button>
+            </div>
+        </header>
+
+        <!-- Buscador -->
+        <div class="mb-4">
+            <input type="text" id="search" placeholder="🔍 Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-teal-500" disabled>
+        </div>
+
+        <!-- Tabla Principal -->
+        <div id="vista-tabla">
+            <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                                <th class="p-3 w-12 text-center">Ver</th>
+                                <th class="p-3 w-20 text-center">Acción</th>
+                                <th class="p-3">SOLPED</th>
+                                <th class="p-3">Gerencia</th>
+                                <th class="p-3">Documento</th>
+                                <th class="p-3">Estatus Detalle</th>
+                                <th class="p-3">Nro Proceso</th>
+                                <th class="p-3 text-right">Monto Adjudicado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+                            <tr>
+                                <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL DEL FORMULARIO DE EXPEDIENTE                           -->
+    <!-- ============================================================ -->
+    <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
+            
+            <!-- Cabecera del modal -->
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
+                <button onclick="cancelarFormulario()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+
+            <!-- Cuerpo del formulario -->
+            <div class="p-4 space-y-6 overflow-y-auto max-h-[75vh]">
+
+                <!-- SECCIÓN 1: INFORMACIÓN DEL PROCESO -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                    <legend class="text-sm font-bold text-teal-400 uppercase tracking-wider px-2">📋 Información del Proceso</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">SOLPED</label>
+                            <input type="text" id="f-solped" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nro. Proceso</label>
+                            <input type="text" id="f-nro_proceso" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Documento</label>
+                            <select id="f-id_documento" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div class="md:col-span-2 lg:col-span-3">
+                            <label class="block text-xs text-gray-400 mb-1">Descripción del Proceso</label>
+                            <textarea id="f-descripcion_proceso" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Gerencia</label>
+                            <select id="f-id_gerencia" onchange="cargarSuperintendencias()" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Superintendencia</label>
+                            <select id="f-id_superintendencia" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Plan Contratación</label>
+                            <select id="f-id_plan" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Modalidad</label>
+                            <select id="f-id_modalidad" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Art. Normativa</label>
+                            <select id="f-id_art" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tipo Contrato</label>
+                            <select id="f-id_tipo_contrato" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- SECCIÓN 2: PRESUPUESTO -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                    <legend class="text-sm font-bold text-amber-400 uppercase tracking-wider px-2">💰 Presupuesto</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Fecha Presupuesto Base</label>
+                            <input type="date" id="f-fecha_presupuesto_base" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (USD)</label>
+                            <input type="number" step="0.01" min="0" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tipo de Cambio</label>
+                            <input type="number" step="0.01" min="0" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (Bs)</label>
+                            <input type="number" step="0.01" min="0" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- SECCIÓN 3: GESTIÓN Y FIRMAS -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                    <legend class="text-sm font-bold text-blue-400 uppercase tracking-wider px-2">📑 Gestión y Firmas</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Emisor / Remitente</label>
+                            <select id="f-id_emisor" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Receptor</label>
+                            <select id="f-id_receptor" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Estado Acción</label>
+                            <select id="f-id_estado_accion" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Estatus Detalle</label>
+                            <select id="f-id_estatus" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Fecha Recibido</label>
+                            <input type="date" id="f-fecha_recibido" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Fecha Devuelto</label>
+                            <input type="date" id="f-fecha_devuelto" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nro. Acta Apertura</label>
+                            <input type="text" id="f-nro_acta_apertura" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Cant. Frentes</label>
+                            <input type="number" step="1" min="0" id="f-cantidad_frentes" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nro. Resolución JD</label>
+                            <input type="text" id="f-nro_resolucion_jd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- SECCIÓN 4: ADJUDICACIÓN -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                    <legend class="text-sm font-bold text-emerald-400 uppercase tracking-wider px-2">🏢 Adjudicación</legend>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Resultado Proceso</label>
+                            <select id="f-id_resultado" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Empresa Adjudicada</label>
+                            <select id="f-id_empresa" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nro. Contrato SICAC</label>
+                            <input type="text" id="f-nro_contrato_sicac" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Nro. Contrato SAP</label>
+                            <input type="number" step="1" min="0" id="f-nro_contrato_sap" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Tiempo Ejecución</label>
+                            <input type="text" id="f-tiempo_ejecucion" placeholder="ej: 6 meses" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (USD)</label>
+                            <input type="number" step="0.01" min="0" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (Bs)</label>
+                            <input type="number" step="0.01" min="0" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Fecha Firma Contrato</label>
+                            <input type="date" id="f-fecha_firma_contrato" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                        </div>
+                    </div>
+                </fieldset>
+
+                <!-- SECCIÓN 5: OBSERVACIONES -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
+                    <legend class="text-sm font-bold text-purple-400 uppercase tracking-wider px-2">📝 Observaciones</legend>
+                    <div class="mt-3">
+                        <textarea id="f-observaciones_generales" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></textarea>
+                    </div>
+                </fieldset>
+
+                <!-- SECCIÓN 6: SUBFORMULARIO DE HISTORIAL -->
+                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-amber-700/60">
+                    <legend class="text-sm font-bold text-amber-400 uppercase tracking-wider px-2">⏳ Subformulario: Historial de Movimientos</legend>
+                    <div id="form-historial" class="mt-3 text-xs text-gray-400 overflow-x-auto">
+                        <p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>
+                    </div>
+                </fieldset>
+
+                <!-- Campos ocultos -->
+                <input type="hidden" id="f-id_expediente" value="">
+
+            </div>
+
+            <!-- Footer del modal: Botones de acción -->
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
+                <button onclick="cancelarFormulario()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-lg transition-colors">Cancelar</button>
+                <button id="btn-eliminar" onclick="eliminarExpediente()" class="hidden px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm rounded-lg transition-colors">Eliminar</button>
+                <button onclick="guardarExpediente()" class="px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-lg transition-colors">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ================================================================
+        // ESTADO GLOBAL
+        // ================================================================
+        let db = null;
+        let expedientesCache = [];
+        let catalogosCache = {};
+
+        const config = { locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${filename}` };
+        
+        initSqlJs(config).then(SQL => {
+            document.getElementById('dbfile').addEventListener('change', function(e) {
+                const f = e.target.files[0];
+                if (!f) return;
+                const r = new FileReader();
+                r.onload = function() {
+                    const Uints = new Uint8Array(r.result);
+                    db = new SQL.Database(Uints);
+                    document.getElementById('search').disabled = false;
+                    document.getElementById('btn-nuevo').disabled = false;
+                    cargarCatalogos();
+                    cargarDatos();
+                }
+                r.readAsArrayBuffer(f);
+            });
+        });
+
+        // ================================================================
+        // UTILIDADES BD
+        // ================================================================
+        function dbToObjects(res) {
+            if (!res || res.length === 0) return [];
+            const columns = res[0].columns;
+            return res[0].values.map(row => {
+                let obj = {};
+                columns.forEach((col, i) => obj[col] = row[i]);
+                return obj;
+            });
+        }
+
+        function escapeSql(val) {
+            if (val === null || val === undefined || val === '') return null;
+            return val;
+        }
+
+        // ================================================================
+        // CATÁLOGOS
+        // ================================================================
+        function cargarCatalogos() {
+            const tablas = [
+                { id: 'gerencia',           tabla: 'cat_gerencia', cols: 'id, nombre' },
+                { id: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia' },
+                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre' },
+                { id: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
+                { id: 'modalidad',          tabla: 'cat_modalidad', cols: 'id, nombre' },
+                { id: 'art',                tabla: 'cat_art', cols: 'id, nombre' },
+                { id: 'tipo_contrato',      tabla: 'cat_tipo_contrato', cols: 'id, nombre' },
+                { id: 'estatus_detalle',    tabla: 'cat_estatus_detalle', cols: 'id, nombre' },
+                { id: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
+                { id: 'empresas',           tabla: 'cat_empresas', cols: 'id, nombre' },
+                { id: 'responsables',       tabla: 'cat_responsables', cols: 'id, nombre' },
+                { id: 'estado_accion',      tabla: 'cat_estado_accion', cols: 'id, nombre' }
+            ];
+            tablas.forEach(t => {
+                const res = db.exec(`SELECT ${t.cols} FROM ${t.tabla} ORDER BY nombre`);
+                catalogosCache[t.id] = dbToObjects(res);
+            });
+            poblarSelectores();
+        }
+
+        function poblarSelectores() {
+            const mapeo = {
+                'f-id_gerencia':         'gerencia',
+                'f-id_superintendencia': 'superintendencia',
+                'f-id_documento':        'documento',
+                'f-id_plan':             'plan_contratacion',
+                'f-id_modalidad':        'modalidad',
+                'f-id_art':              'art',
+                'f-id_tipo_contrato':    'tipo_contrato',
+                'f-id_estatus':          'estatus_detalle',
+                'f-id_resultado':        'resultado_proceso',
+                'f-id_empresa':          'empresas',
+                'f-id_emisor':           'responsables',
+                'f-id_receptor':         'responsables',
+                'f-id_estado_accion':    'estado_accion'
+            };
+            Object.entries(mapeo).forEach(([selectId, catKey]) => {
+                const sel = document.getElementById(selectId);
+                if (!sel) return;
+                sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+                catalogosCache[catKey].forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.nombre;
+                    sel.appendChild(opt);
+                });
+            });
+            // Cargar superintendencias según gerencia inicial
+            cargarSuperintendencias();
+        }
+
+        function cargarSuperintendencias() {
+            const gerenciaId = document.getElementById('f-id_gerencia').value;
+            const sel = document.getElementById('f-id_superintendencia');
+            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            catalogosCache['superintendencia']
+                .filter(item => !gerenciaId || item.id_gerencia === parseInt(gerenciaId))
+                .forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = item.nombre;
+                    sel.appendChild(opt);
+                });
+        }
+
+        // ================================================================
+        // CARGA Y RENDERIZADO DE TABLA
+        // ================================================================
+        function cargarDatos() {
+            if (!db) return;
+            const res = db.exec("SELECT * FROM vw_reporte_excel_contrataciones ORDER BY id_expediente DESC");
+            expedientesCache = dbToObjects(res);
+            renderizarTabla(expedientesCache);
+        }
+
+        function renderizarTabla(lista) {
+            const cuerpo = document.getElementById('tabla-cuerpo');
+            cuerpo.innerHTML = '';
+
+            if (lista.length === 0) {
+                cuerpo.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
+                return;
+            }
+
+            lista.forEach(exp => {
+                const filaPrincipal = document.createElement('tr');
+                filaPrincipal.className = "hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700";
+                filaPrincipal.innerHTML = `
+                    <td class="p-3 text-center">
+                        <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="text-teal-400 font-bold hover:text-teal-300 text-base focus:outline-none" id="btn-${exp.id_expediente}">➕</button>
+                    </td>
+                    <td class="p-3 text-center">
+                        <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="text-blue-400 hover:text-blue-300 text-sm focus:outline-none" title="Editar expediente">✏️</button>
+                    </td>
+                    <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
+                    <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${getEstatusClass(exp.estatus_detalle)}">
+                            ${exp.estatus_detalle || 'PENDIENTE'}
+                        </span>
+                    </td>
+                    <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
+                    <td class="p-3 text-right font-mono font-semibold text-emerald-400">
+                        ${exp.monto_adjudicado_usd ? '$' + exp.monto_adjudicado_usd.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '—'}
+                    </td>
+                `;
+                
+                filaPrincipal.addEventListener('click', (e) => {
+                    if(e.target.tagName !== 'BUTTON') toggleDesplegable(exp.id_expediente, e);
+                });
+
+                const filaDesplegable = document.createElement('tr');
+                filaDesplegable.id = `subfila-${exp.id_expediente}`;
+                filaDesplegable.className = "hidden bg-gray-950/40 border-l-4 border-teal-500 transition-all";
+                
+                filaDesplegable.innerHTML = `
+                    <td colspan="8" class="p-5">
+                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                            
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">📋 Información del Proceso</h4>
+                                <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">${exp.descripcion_proceso || 'Sin descripción.'}</span></p>
+                                <div class="grid grid-cols-2 gap-2 text-xs pt-2">
+                                    <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">${exp.superintendencia || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Plan Contratación:</span> <span class="text-gray-200 font-medium">${exp.plan_contrataciones || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Modalidad:</span> <span class="text-gray-200 font-medium">${exp.modalidad_contratacion || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">💰 Valores y Trazabilidad</h4>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">${exp.presupuesto_base_usd ? '$' + exp.presupuesto_base_usd.toLocaleString() : 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Presupuesto Base (Bs):</span> <span class="text-amber-500 block font-mono">${exp.presupuesto_base_bs ? 'Bs ' + exp.presupuesto_base_bs.toLocaleString() : 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Tipo de Cambio:</span> <span class="text-gray-300 block font-mono">${exp.tipo_cambio || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">${exp.monto_adjudicado_bs ? 'Bs ' + exp.monto_adjudicado_bs.toLocaleString() : 'N/A'}</span></div>
+                                    <div class="col-span-2 border-t border-gray-700/40 my-1"></div>
+                                    <div><span class="text-gray-400">Emisor / Remitente:</span> <span class="text-gray-200 block truncate">${exp.emisor || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Receptor Actual:</span> <span class="text-gray-200 block truncate">${exp.receptor || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">${exp.fecha_recibido || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">${exp.fecha_devuelto || 'N/A'}</span></div>
+                                </div>
+                            </div>
+
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">🏢 Adjudicación y Legal</h4>
+                                <p><span class="text-gray-400">Empresa Adjudicada:</span> <span class="text-gray-200 block font-medium truncate">${exp.empresa_adjudicada || 'N/A'}</span></p>
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <div><span class="text-gray-400 block">Nro Acta Apertura:</span> <span class="text-gray-200 font-mono">${exp.nro_acta_apertura || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Nro Resolución JD:</span> <span class="text-gray-200 font-mono">${exp.nro_resolucion_jd || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Contrato SICAC:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sicac || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Contrato SAP:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sap || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Tiempo Ejecución:</span> <span class="text-gray-200">${exp.tiempo_ejecucion || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400 block">Fecha Firma Contrato:</span> <span class="text-emerald-400 font-mono font-medium">${exp.fecha_firma_contrato || 'N/A'}</span></div>
+                                </div>
+                                <div class="pt-1"><span class="text-gray-400">Estado Acción / Detalle:</span> <span class="text-teal-300 block">${exp.estado_accion || 'N/A'}</span></div>
+                            </div>
+
+                        </div>
+
+                        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 border-t border-gray-700/50 pt-4">
+                            <div class="bg-gray-800/40 p-3 rounded border border-gray-700/40 text-xs h-full">
+                                <span class="text-gray-400 font-bold block mb-1">📝 Observaciones Generales:</span>
+                                <p class="text-gray-300 italic whitespace-pre-wrap">${exp.observaciones_generales || 'Sin observaciones registradas.'}</p>
+                                <div class="text-[10px] text-gray-500 mt-4 space-y-0.5">
+                                    <p>Creado el: ${exp.fecha_creacion}</p>
+                                    <p>Última actualización: ${exp.fecha_actualizacion}</p>
+                                </div>
+                            </div>
+
+                            <div class="lg:col-span-2 bg-gray-900/60 p-4 rounded-lg border border-gray-700/80">
+                                <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⏳ Subformulario: Historial de Movimientos del Expediente</h4>
+                                <div id="hist-content-${exp.id_expediente}" class="text-xs text-gray-400 overflow-x-auto">
+                                    Cargando traza de movimientos...
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                `;
+
+                cuerpo.appendChild(filaPrincipal);
+                cuerpo.appendChild(filaDesplegable);
+            });
+        }
+
+        // ================================================================
+        // DESPLEGABLE DE HISTORIAL
+        // ================================================================
+        function toggleDesplegable(id, event) {
+            if(event) event.stopPropagation();
+            
+            const subfila = document.getElementById(`subfila-${id}`);
+            const btn = document.getElementById(`btn-${id}`);
+            
+            if (subfila.classList.contains('hidden')) {
+                subfila.classList.remove('hidden');
+                btn.innerText = '➖';
+                
+                const query = `
+                    SELECT 
+                        h.id_movimiento,
+                        COALESCE(g.nombre, 'N/A') AS ger,
+                        COALESCE(em.nombre, 'N/A') AS emisor,
+                        COALESCE(rec.nombre, 'N/A') AS receptor,
+                        COALESCE(ed.nombre, 'N/A') AS estatus,
+                        COALESCE(h.fecha_recibido, 'Sin fecha') AS f_entrada,
+                        COALESCE(h.fecha_devuelto, 'Sin fecha') AS f_salida
+                    FROM historial_movimientos h
+                    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                    WHERE h.id_expediente = ${id}
+                    ORDER BY h.id_movimiento DESC
+                `;
+                
+                const resHist = db.exec(query);
+                const historial = dbToObjects(resHist);
+                const contenedor = document.getElementById(`hist-content-${id}`);
+
+                if(historial.length === 0) {
+                    contenedor.innerHTML = `<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos o cambios registrados en el historial todavía.</p>`;
+                } else {
+                    let tablaHist = `
+                        <table class="w-full text-left border-collapse text-[11px]">
+                            <thead>
+                                <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                                    <th class="p-2">Movimiento</th>
+                                    <th class="p-2">Gerencia Destino</th>
+                                    <th class="p-2">Emisor</th>
+                                    <th class="p-2">Receptor</th>
+                                    <th class="p-2">Estatus</th>
+                                    <th class="p-2 text-center">F. Recibido</th>
+                                    <th class="p-2 text-center">F. Devuelto</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-800">
+                    `;
+                    historial.forEach((h, index) => {
+                        tablaHist += `
+                            <tr class="hover:bg-gray-800/50">
+                                <td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>
+                                <td class="p-2 text-teal-300 font-medium">${h.ger}</td>
+                                <td class="p-2">${h.emisor}</td>
+                                <td class="p-2">${h.receptor}</td>
+                                <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
+                                <td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>
+                                <td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>
+                            </tr>
+                        `;
+                    });
+                    tablaHist += `</tbody></table>`;
+                    contenedor.innerHTML = tablaHist;
+                }
+            } else {
+                subfila.classList.add('hidden');
+                btn.innerText = '➕';
+            }
+        }
+
+        // ================================================================
+        // FORMULARIO DE EXPEDIENTE
+        // ================================================================
+        let editandoId = null;
+
+        function mostrarFormulario(id) {
+            editandoId = id;
+            const modal = document.getElementById('form-modal');
+            const titulo = document.getElementById('form-titulo');
+            const btnEliminar = document.getElementById('btn-eliminar');
+            const formHistorial = document.getElementById('form-historial');
+
+            // Limpiar formulario
+            document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
+            document.getElementById('f-id_expediente').value = '';
+            formHistorial.innerHTML = '<p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>';
+
+            if (id) {
+                // MODO EDICIÓN
+                titulo.textContent = `Editar Expediente #${id}`;
+                btnEliminar.classList.remove('hidden');
+                cargarExpediente(id);
+            } else {
+                // MODO NUEVO
+                titulo.textContent = 'Nuevo Expediente';
+                btnEliminar.classList.add('hidden');
+                document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
+            }
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cancelarFormulario() {
+            document.getElementById('form-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+            editandoId = null;
+        }
+
+        function cargarExpediente(id) {
+            const res = db.exec(`SELECT * FROM expedientes WHERE id_expediente = ${id}`);
+            if (!res || res.length === 0) {
+                alert('No se encontró el expediente.');
+                cancelarFormulario();
+                return;
+            }
+            const cols = res[0].columns;
+            const vals = res[0].values[0];
+            const data = {};
+            cols.forEach((col, i) => data[col] = vals[i]);
+
+            document.getElementById('f-id_expediente').value = data.id_expediente || '';
+            document.getElementById('f-solped').value = data.solped || '';
+            document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
+            document.getElementById('f-id_documento').value = data.id_documento || '';
+            document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
+            document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
+            cargarSuperintendencias();
+            document.getElementById('f-id_superintendencia').value = data.id_superintendencia || '';
+            document.getElementById('f-id_plan').value = data.id_plan || '';
+            document.getElementById('f-id_modalidad').value = data.id_modalidad || '';
+            document.getElementById('f-id_art').value = data.id_art || '';
+            document.getElementById('f-id_tipo_contrato').value = data.id_tipo_contrato || '';
+            document.getElementById('f-fecha_presupuesto_base').value = data.fecha_presupuesto_base || '';
+            document.getElementById('f-presupuesto_base_usd').value = data.presupuesto_base_usd || '';
+            document.getElementById('f-tipo_cambio').value = data.tipo_cambio || '';
+            document.getElementById('f-presupuesto_base_bs').value = data.presupuesto_base_bs || '';
+            document.getElementById('f-id_emisor').value = data.id_emisor || '';
+            document.getElementById('f-id_receptor').value = data.id_receptor || '';
+            document.getElementById('f-id_estado_accion').value = data.id_estado_accion || '';
+            document.getElementById('f-id_estatus').value = data.id_estatus || '1';
+            document.getElementById('f-fecha_recibido').value = data.fecha_recibido || '';
+            document.getElementById('f-fecha_devuelto').value = data.fecha_devuelto || '';
+            document.getElementById('f-nro_acta_apertura').value = data.nro_acta_apertura || '';
+            document.getElementById('f-cantidad_frentes').value = data.cantidad_frentes || '';
+            document.getElementById('f-nro_resolucion_jd').value = data.nro_resolucion_jd || '';
+            document.getElementById('f-id_resultado').value = data.id_resultado || '';
+            document.getElementById('f-id_empresa').value = data.id_empresa || '';
+            document.getElementById('f-nro_contrato_sicac').value = data.nro_contrato_sicac || '';
+            document.getElementById('f-nro_contrato_sap').value = data.nro_contrato_sap || '';
+            document.getElementById('f-tiempo_ejecucion').value = data.tiempo_ejecucion || '';
+            document.getElementById('f-monto_adjudicado_usd').value = data.monto_adjudicado_usd || '';
+            document.getElementById('f-monto_adjudicado_bs').value = data.monto_adjudicado_bs || '';
+            document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
+            document.getElementById('f-observaciones_generales').value = data.observaciones_generales || '';
+
+            // Cargar historial en el subformulario
+            cargarHistorialFormulario(id);
+        }
+
+        function cargarHistorialFormulario(id) {
+            const query = `
+                SELECT 
+                    h.id_movimiento,
+                    COALESCE(g.nombre, 'N/A') AS ger,
+                    COALESCE(em.nombre, 'N/A') AS emisor,
+                    COALESCE(rec.nombre, 'N/A') AS receptor,
+                    COALESCE(ed.nombre, 'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido, 'Sin fecha') AS f_entrada,
+                    COALESCE(h.fecha_devuelto, 'Sin fecha') AS f_salida
+                FROM historial_movimientos h
+                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC
+            `;
+            const res = db.exec(query);
+            const historial = dbToObjects(res);
+            const contenedor = document.getElementById('form-historial');
+
+            if (historial.length === 0) {
+                contenedor.innerHTML = `<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos registrados.</p>`;
+            } else {
+                let html = `
+                    <table class="w-full text-left border-collapse text-[11px]">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                                <th class="p-2">#</th>
+                                <th class="p-2">Gerencia</th>
+                                <th class="p-2">Emisor</th>
+                                <th class="p-2">Receptor</th>
+                                <th class="p-2">Estatus</th>
+                                <th class="p-2 text-center">F. Recibido</th>
+                                <th class="p-2 text-center">F. Devuelto</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-800">
+                `;
+                historial.forEach((h, index) => {
+                    html += `
+                        <tr class="hover:bg-gray-800/50">
+                            <td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>
+                            <td class="p-2 text-teal-300 font-medium">${h.ger}</td>
+                            <td class="p-2">${h.emisor}</td>
+                            <td class="p-2">${h.receptor}</td>
+                            <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
+                            <td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>
+                            <td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>
+                        </tr>
+                    `;
+                });
+                html += `</tbody></table>`;
+                contenedor.innerHTML = html;
+            }
+        }
+
+        function calcularBs() {
+            const usd = parseFloat(document.getElementById('f-presupuesto_base_usd').value) || 0;
+            const tc = parseFloat(document.getElementById('f-tipo_cambio').value) || 0;
+            if (usd && tc) {
+                document.getElementById('f-presupuesto_base_bs').value = (usd * tc).toFixed(2);
+            }
+        }
+
+        function guardarExpediente() {
+            if (!db) return;
+
+            const data = {
+                solped:                  escapeSql(document.getElementById('f-solped').value),
+                id_gerencia:             escapeSql(document.getElementById('f-id_gerencia').value),
+                id_superintendencia:     escapeSql(document.getElementById('f-id_superintendencia').value),
+                id_emisor:               escapeSql(document.getElementById('f-id_emisor').value),
+                id_documento:            escapeSql(document.getElementById('f-id_documento').value),
+                fecha_presupuesto_base:  escapeSql(document.getElementById('f-fecha_presupuesto_base').value),
+                presupuesto_base_usd:    escapeSql(document.getElementById('f-presupuesto_base_usd').value),
+                tipo_cambio:             escapeSql(document.getElementById('f-tipo_cambio').value),
+                presupuesto_base_bs:     escapeSql(document.getElementById('f-presupuesto_base_bs').value),
+                id_plan:                 escapeSql(document.getElementById('f-id_plan').value),
+                descripcion_proceso:     escapeSql(document.getElementById('f-descripcion_proceso').value),
+                id_modalidad:            escapeSql(document.getElementById('f-id_modalidad').value),
+                id_art:                  escapeSql(document.getElementById('f-id_art').value),
+                id_tipo_contrato:        escapeSql(document.getElementById('f-id_tipo_contrato').value),
+                nro_acta_apertura:       escapeSql(document.getElementById('f-nro_acta_apertura').value),
+                cantidad_frentes:        escapeSql(document.getElementById('f-cantidad_frentes').value),
+                nro_resolucion_jd:       escapeSql(document.getElementById('f-nro_resolucion_jd').value),
+                id_estatus:              escapeSql(document.getElementById('f-id_estatus').value) || 1,
+                id_estado_accion:        escapeSql(document.getElementById('f-id_estado_accion').value),
+                fecha_recibido:          escapeSql(document.getElementById('f-fecha_recibido').value),
+                fecha_devuelto:          escapeSql(document.getElementById('f-fecha_devuelto').value),
+                id_receptor:             escapeSql(document.getElementById('f-id_receptor').value),
+                nro_proceso:             escapeSql(document.getElementById('f-nro_proceso').value),
+                id_resultado:            escapeSql(document.getElementById('f-id_resultado').value),
+                nro_contrato_sicac:      escapeSql(document.getElementById('f-nro_contrato_sicac').value),
+                nro_contrato_sap:        escapeSql(document.getElementById('f-nro_contrato_sap').value),
+                id_empresa:              escapeSql(document.getElementById('f-id_empresa').value),
+                tiempo_ejecucion:        escapeSql(document.getElementById('f-tiempo_ejecucion').value),
+                monto_adjudicado_bs:     escapeSql(document.getElementById('f-monto_adjudicado_bs').value),
+                monto_adjudicado_usd:    escapeSql(document.getElementById('f-monto_adjudicado_usd').value),
+                fecha_firma_contrato:    escapeSql(document.getElementById('f-fecha_firma_contrato').value),
+                observaciones_generales: escapeSql(document.getElementById('f-observaciones_generales').value)
+            };
+
+            // Validar campos obligatorios
+            if (!data.solped) {
+                alert('El campo SOLPED es obligatorio.');
+                document.getElementById('f-solped').focus();
+                return;
+            }
+
+            try {
+                if (editandoId) {
+                    // UPDATE
+                    const sql = `
+                        UPDATE expedientes SET
+                            solped = ?,
+                            id_gerencia = ?,
+                            id_superintendencia = ?,
+                            id_emisor = ?,
+                            id_documento = ?,
+                            fecha_presupuesto_base = ?,
+                            presupuesto_base_usd = ?,
+                            tipo_cambio = ?,
+                            presupuesto_base_bs = ?,
+                            id_plan = ?,
+                            descripcion_proceso = ?,
+                            id_modalidad = ?,
+                            id_art = ?,
+                            id_tipo_contrato = ?,
+                            nro_acta_apertura = ?,
+                            cantidad_frentes = ?,
+                            nro_resolucion_jd = ?,
+                            id_estatus = ?,
+                            id_estado_accion = ?,
+                            fecha_recibido = ?,
+                            fecha_devuelto = ?,
+                            id_receptor = ?,
+                            nro_proceso = ?,
+                            id_resultado = ?,
+                            nro_contrato_sicac = ?,
+                            nro_contrato_sap = ?,
+                            id_empresa = ?,
+                            tiempo_ejecucion = ?,
+                            monto_adjudicado_bs = ?,
+                            monto_adjudicado_usd = ?,
+                            fecha_firma_contrato = ?,
+                            observaciones_generales = ?,
+                            fecha_actualizacion = CURRENT_DATE
+                        WHERE id_expediente = ?
+                    `;
+
+                    const params = [
+                        data.solped, data.id_gerencia, data.id_superintendencia,
+                        data.id_emisor, data.id_documento, data.fecha_presupuesto_base,
+                        data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
+                        data.id_plan, data.descripcion_proceso, data.id_modalidad,
+                        data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
+                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.id_estado_accion, data.fecha_recibido, data.fecha_devuelto,
+                        data.id_receptor, data.nro_proceso, data.id_resultado,
+                        data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
+                        data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
+                        data.fecha_firma_contrato, data.observaciones_generales,
+                        editandoId
+                    ];
+
+                    db.run(sql, params);
+                    alert('Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.');
+                } else {
+                    // INSERT
+                    const sql = `
+                        INSERT INTO expedientes (
+                            solped, id_gerencia, id_superintendencia, id_emisor,
+                            id_documento, fecha_presupuesto_base, presupuesto_base_usd,
+                            tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso,
+                            id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura,
+                            cantidad_frentes, nro_resolucion_jd, id_estatus, id_estado_accion,
+                            fecha_recibido, fecha_devuelto, id_receptor, nro_proceso,
+                            id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa,
+                            tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd,
+                            fecha_firma_contrato, observaciones_generales
+                        ) VALUES (
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                        )
+                    `;
+
+                    const params = [
+                        data.solped, data.id_gerencia, data.id_superintendencia,
+                        data.id_emisor, data.id_documento, data.fecha_presupuesto_base,
+                        data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
+                        data.id_plan, data.descripcion_proceso, data.id_modalidad,
+                        data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
+                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.id_estado_accion, data.fecha_recibido, data.fecha_devuelto,
+                        data.id_receptor, data.nro_proceso, data.id_resultado,
+                        data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
+                        data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
+                        data.fecha_firma_contrato, data.observaciones_generales
+                    ];
+
+                    db.run(sql, params);
+                    alert('Expediente creado correctamente.');
+                }
+
+                cancelarFormulario();
+                cargarDatos();
+
+            } catch (err) {
+                alert('Error al guardar: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        function eliminarExpediente() {
+            if (!editandoId) return;
+            if (!confirm(`¿Estás seguro de eliminar el expediente #${editandoId}?\nEsta acción también eliminará su historial de movimientos.`)) return;
+            if (!confirm(`CONFIRMACIÓN FINAL:\nSe eliminarán todos los datos del expediente #${editandoId} y su historial.\n¿Deseas continuar?`)) return;
+
+            try {
+                db.run('DELETE FROM historial_movimientos WHERE id_expediente = ?', [editandoId]);
+                db.run('DELETE FROM expedientes WHERE id_expediente = ?', [editandoId]);
+                alert('Expediente eliminado correctamente.');
+                cancelarFormulario();
+                cargarDatos();
+            } catch (err) {
+                alert('Error al eliminar: ' + err.message);
+                console.error(err);
+            }
+        }
+
+        // ================================================================
+        // BUSCADOR
+        // ================================================================
+        document.getElementById('search').addEventListener('input', function(e) {
+            const txt = e.target.value.toLowerCase();
+            const filtrados = expedientesCache.filter(exp => 
+                (exp.solped && exp.solped.toLowerCase().includes(txt)) ||
+                (exp.descripcion_proceso && exp.descripcion_proceso.toLowerCase().includes(txt)) ||
+                (exp.gerencia && exp.gerencia.toLowerCase().includes(txt)) ||
+                (exp.empresa_adjudicada && exp.empresa_adjudicada.toLowerCase().includes(txt)) ||
+                (exp.nro_contrato_sicac && exp.nro_contrato_sicac.toString().includes(txt)) ||
+                (exp.nro_proceso && exp.nro_proceso.toLowerCase().includes(txt))
+            );
+            renderizarTabla(filtrados);
+        });
+
+        // ================================================================
+        // UTILIDADES
+        // ================================================================
+        function getEstatusClass(estatus) {
+            if(!estatus) return 'bg-yellow-500/20 text-yellow-400';
+            switch(estatus.toUpperCase()) {
+                case 'FIRMADO': return 'bg-emerald-500/20 text-emerald-400';
+                case 'PENDIENTE': return 'bg-yellow-500/20 text-yellow-400';
+                case 'DEVUELTO PARA CORRECCIÓN': return 'bg-orange-500/20 text-orange-400';
+                case 'DEVUELTO SIN FIRMA': return 'bg-red-500/20 text-red-400';
+                default: return 'bg-gray-500/20 text-gray-400';
+            }
+        }
+    </script>
+</body>
+</html>
+
+=== Tablas6.sql ===
+PRAGMA foreign_keys = ON;
+
+-- ==========================================
+-- 🔹 1. CATÁLOGOS MAESTROS (Independientes)
+-- ==========================================
+CREATE TABLE cat_gerencia (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_plan_contratacion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_modalidad (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_art (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_tipo_contrato (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_estatus_detalle (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_resultado_proceso (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_empresas (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_responsables (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_estado_accion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+
+-- ==========================================
+-- 🔹 2. CATÁLOGOS CON RELACIONES
+-- ==========================================
+CREATE TABLE cat_superintendencia (
+    id INTEGER PRIMARY KEY,
+    nombre TEXT UNIQUE,
+    id_gerencia INTEGER,
+    CONSTRAINT fk_sup_ger FOREIGN KEY (id_gerencia) REFERENCES cat_gerencia(id)
+);
+
+-- ==========================================
+-- 🔹 3. TABLA PRINCIPAL: EXPEDIENTES
+-- ==========================================
+CREATE TABLE expedientes (
+    id_expediente           INTEGER PRIMARY KEY AUTOINCREMENT,
+    solped                  TEXT UNIQUE,
+    id_gerencia             INTEGER,
+    id_superintendencia     INTEGER,
+    id_emisor               INTEGER,
+    id_documento            INTEGER,
+    fecha_presupuesto_base  DATE,
+    presupuesto_base_usd    REAL,
+    tipo_cambio             REAL,
+    presupuesto_base_bs     REAL,
+    id_plan                 INTEGER,
+    descripcion_proceso     TEXT,
+    id_modalidad            INTEGER,
+    id_art                  INTEGER,
+    id_tipo_contrato        INTEGER,
+    nro_acta_apertura       TEXT,
+    cantidad_frentes        INTEGER,
+    nro_resolucion_jd       TEXT,
+    id_estatus              INTEGER DEFAULT 1,
+    id_estado_accion        INTEGER,
+    fecha_recibido          DATE,
+    fecha_devuelto          DATE,
+    id_receptor             INTEGER,
+    nro_proceso             TEXT,
+    id_resultado            INTEGER,
+    nro_contrato_sicac      TEXT,
+    nro_contrato_sap        INTEGER,
+    id_empresa              INTEGER,
+    tiempo_ejecucion        TEXT,
+    monto_adjudicado_bs     REAL,
+    monto_adjudicado_usd    REAL,
+    fecha_firma_contrato    DATE,
+    observaciones_generales TEXT,
+    fecha_creacion          DATE DEFAULT CURRENT_DATE,
+    fecha_actualizacion     DATE DEFAULT CURRENT_DATE,
+    CONSTRAINT fk_exp_ger      FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
+    CONSTRAINT fk_exp_sup      FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
+    CONSTRAINT fk_exp_emisor   FOREIGN KEY (id_emisor)           REFERENCES cat_responsables(id),
+    CONSTRAINT fk_exp_receptor FOREIGN KEY (id_receptor)         REFERENCES cat_responsables(id),
+    CONSTRAINT fk_exp_doc      FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
+    CONSTRAINT fk_exp_plan     FOREIGN KEY (id_plan)             REFERENCES cat_plan_contratacion(id),
+    CONSTRAINT fk_exp_mod      FOREIGN KEY (id_modalidad)        REFERENCES cat_modalidad(id),
+    CONSTRAINT fk_exp_art      FOREIGN KEY (id_art)              REFERENCES cat_art(id),
+    CONSTRAINT fk_exp_tc       FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
+    CONSTRAINT fk_exp_est      FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
+    CONSTRAINT fk_exp_res      FOREIGN KEY (id_resultado)        REFERENCES cat_resultado_proceso(id),
+    CONSTRAINT fk_exp_emp      FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id),
+    CONSTRAINT fk_exp_accion   FOREIGN KEY (id_estado_accion)    REFERENCES cat_estado_accion(id)
+);
+
+-- ==========================================
+-- 🔹 4. HISTORIAL DE MOVIMIENTOS (Normalizado)
+-- ==========================================
+CREATE TABLE historial_movimientos (
+    id_movimiento       INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_expediente       INTEGER NOT NULL,
+    id_tipo_contrato    INTEGER,
+    id_gerencia         INTEGER,
+    id_superintendencia INTEGER,
+    id_documento        INTEGER,
+    id_emisor           INTEGER,
+    id_receptor         INTEGER,
+    id_estatus          INTEGER,
+    id_estado_accion    INTEGER,
+    fecha_recibido      DATE,
+    fecha_devuelto      DATE,
+    FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
+    FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
+    FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
+    FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
+    FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
+    FOREIGN KEY (id_emisor)           REFERENCES cat_responsables(id),
+    FOREIGN KEY (id_receptor)         REFERENCES cat_responsables(id),
+    FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
+    FOREIGN KEY (id_estado_accion)    REFERENCES cat_estado_accion(id)
+);
+
+-- ==========================================
+-- 🔹 5. ÍNDICES PARA RENDIMIENTO
+-- ==========================================
+CREATE INDEX idx_exp_solped              ON expedientes(solped);
+CREATE INDEX idx_exp_gerencia            ON expedientes(id_gerencia);
+CREATE INDEX idx_exp_estatus             ON expedientes(id_estatus);
+CREATE INDEX idx_exp_empresa             ON expedientes(id_empresa);
+CREATE INDEX idx_exp_fecha_presup        ON expedientes(fecha_presupuesto_base);
+CREATE INDEX idx_exp_fecha_creacion      ON expedientes(fecha_creacion);
+CREATE INDEX idx_exp_fecha_actualizacion ON expedientes(fecha_actualizacion);
+
+CREATE INDEX idx_hist_mov_expediente     ON historial_movimientos(id_expediente);
+CREATE INDEX idx_hist_mov_estatus        ON historial_movimientos(id_estatus);
+CREATE INDEX idx_hist_mov_emisor         ON historial_movimientos(id_emisor);
+CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
+
+-- ==========================================
+-- 🔹 6. TRIGGER DE AUDITORÍA Y LÓGICA DE FIRMA
+-- ==========================================
+CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
+FOR EACH ROW
+WHEN (
+    OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR
+    OLD.id_emisor IS NOT NEW.id_emisor OR
+    OLD.id_receptor IS NOT NEW.id_receptor OR
+    OLD.id_gerencia IS NOT NEW.id_gerencia OR
+    OLD.id_superintendencia IS NOT NEW.id_superintendencia OR
+    OLD.id_documento IS NOT NEW.id_documento OR
+    OLD.id_estatus IS NOT NEW.id_estatus OR
+    OLD.id_estado_accion IS NOT NEW.id_estado_accion OR
+    OLD.fecha_recibido IS NOT NEW.fecha_recibido OR
+    OLD.fecha_devuelto IS NOT NEW.fecha_devuelto
+)
+BEGIN
+    INSERT INTO historial_movimientos (
+        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia, 
+        id_documento, id_emisor, id_receptor, id_estatus, id_estado_accion,
+        fecha_recibido, fecha_devuelto
+    ) VALUES (
+        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia, 
+        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus, NEW.id_estado_accion,
+        NEW.fecha_recibido, NEW.fecha_devuelto
+    );
+
+    UPDATE expedientes
+    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
+    WHERE NEW.fecha_firma_contrato IS NULL
+      AND OLD.fecha_firma_contrato IS NOT NULL
+      AND id_expediente = NEW.id_expediente;
+
+    UPDATE expedientes
+    SET fecha_actualizacion = CURRENT_DATE
+    WHERE id_expediente = NEW.id_expediente;
+END;
+
+-- ==========================================
+-- 🔹 7. VISTA PARA EXPORTAR A EXCEL
+-- ==========================================
+CREATE VIEW vw_reporte_excel_contrataciones AS
+SELECT 
+    e.id_expediente,
+    COALESCE(e.solped, 'SIN_SOLPED')            AS solped,
+    g.nombre                                     AS gerencia,
+    s.nombre                                     AS superintendencia,
+    emisor.nombre                                AS emisor,
+    d.nombre                                     AS documento,
+    e.fecha_presupuesto_base,
+    e.presupuesto_base_usd,
+    e.tipo_cambio,
+    e.presupuesto_base_bs,
+    p.nombre                                     AS plan_contrataciones,
+    e.descripcion_proceso,
+    m.nombre                                     AS modalidad_contratacion,
+    a.nombre                                     AS art,
+    tc.nombre                                    AS tipo_contrato,
+    COALESCE(e.nro_acta_apertura, 'NO POSEE')    AS nro_acta_apertura,
+    e.cantidad_frentes,
+    COALESCE(e.nro_resolucion_jd, 'NO APLICA')   AS nro_resolucion_jd,
+    COALESCE(ed.nombre, 'NO APLICA')             AS estatus_detalle,
+    ea.nombre                                    AS estado_accion,
+    e.fecha_recibido,
+    e.fecha_devuelto,
+    COALESCE(receptor.nombre, 'NO APLICA')       AS receptor,
+    COALESCE(e.nro_proceso, 'NO APLICA')         AS nro_proceso,
+    COALESCE(rp.nombre, 'NO APLICA')             AS resultados_proceso,
+    COALESCE(e.nro_contrato_sicac, 'NO POSEE')   AS nro_contrato_sicac,
+    e.nro_contrato_sap,
+    COALESCE(emp.nombre, 'NO APLICA')            AS empresa_adjudicada,
+    e.tiempo_ejecucion,
+    e.monto_adjudicado_bs,
+    e.monto_adjudicado_usd,
+    COALESCE(e.fecha_firma_contrato, 'NO APLICA') AS fecha_firma_contrato,
+    e.observaciones_generales,
+    e.fecha_creacion,
+    e.fecha_actualizacion
+FROM expedientes e
+LEFT JOIN cat_gerencia g          ON e.id_gerencia         = g.id
+LEFT JOIN cat_superintendencia s  ON e.id_superintendencia = s.id
+LEFT JOIN cat_documento d         ON e.id_documento        = d.id
+LEFT JOIN cat_plan_contratacion p ON e.id_plan             = p.id
+LEFT JOIN cat_modalidad m         ON e.id_modalidad        = m.id
+LEFT JOIN cat_art a               ON e.id_art              = a.id
+LEFT JOIN cat_tipo_contrato tc    ON e.id_tipo_contrato    = tc.id
+LEFT JOIN cat_estatus_detalle ed  ON e.id_estatus          = ed.id
+LEFT JOIN cat_estado_accion ea    ON e.id_estado_accion    = ea.id
+LEFT JOIN cat_resultado_proceso rp ON e.id_resultado       = rp.id
+LEFT JOIN cat_empresas emp        ON e.id_empresa          = emp.id
+LEFT JOIN cat_responsables emisor ON e.id_emisor           = emisor.id
+LEFT JOIN cat_responsables receptor ON e.id_receptor       = receptor.id;
+
+-- ==========================================
+-- 🔹 8. VISTA PARA LIBREOFFICE BASE (Multilínea / Separador Visual)
+-- ==========================================
+CREATE VIEW vw_historial_celdas_multilinea AS
+SELECT 
+    id_expediente,
+    GROUP_CONCAT(nro_cambio || ': ' || gerencia || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_gerencia,
+    GROUP_CONCAT(nro_cambio || ': ' || superintendencia || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_superintendencia,
+    GROUP_CONCAT(nro_cambio || ': ' || emisor || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_emisor,
+    GROUP_CONCAT(nro_cambio || ': ' || receptor || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_receptor,
+    GROUP_CONCAT(nro_cambio || ': ' || estatus || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_estatus,
+    GROUP_CONCAT(nro_cambio || ': ' || fecha_entrada || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_fechas_entrada,
+    GROUP_CONCAT(nro_cambio || ': ' || fecha_salida || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_fechas_salida
+FROM (
+    SELECT 
+        h.id_expediente,
+        'Cambio ' || (
+            SELECT COUNT(*) 
+            FROM historial_movimientos h2 
+            WHERE h2.id_expediente = h.id_expediente AND h2.id_movimiento <= h.id_movimiento
+        ) AS nro_cambio,
+        COALESCE(g.nombre, 'N/A') AS gerencia,
+        COALESCE(s.nombre, 'N/A') AS superintendencia,
+        COALESCE(em.nombre, 'N/A') AS emisor,
+        COALESCE(rec.nombre, 'N/A') AS receptor,
+        COALESCE(ed.nombre, 'N/A') AS estatus,
+        COALESCE(h.fecha_recibido, 'Sin fecha') AS fecha_entrada,
+        COALESCE(h.fecha_devuelto, 'Sin fecha') AS fecha_salida
+    FROM historial_movimientos h
+    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+    LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
+    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+    ORDER BY h.id_expediente, h.id_movimiento DESC
+)
+GROUP BY id_expediente;
+
+-- ==========================================
+-- 🔹 9. INSERCIÓN DE DATOS INICIALES (CATÁLOGOS)
+-- ==========================================
+
+-- 1. GERENCIAS
+INSERT INTO cat_gerencia (id, nombre) VALUES
+(1, 'SIHO-A'), (2, 'TÉCNICA'), (3, 'OPERACIONES'), (4, 'SSGG'), (5, 'JURÍDICO'),
+(6, 'FINANZAS'), (7, 'CONTRATACIÓN'), (8, 'RRHH'), (9, 'ASUNTOS GUBERNAMENTALES'), (10, 'COMISIÓN');
+
+-- 2. SUPERINTENDENCIAS
+INSERT INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
+(1, 'SIHO-A', 1),
+(2, 'INFRAESTRUCTURA', 2), (3, 'PERFORACIÓN', 2), (4, 'YACIMIENTOS', 2), (5, 'OPTIMIZACIÓN', 2),
+(6, 'OPERACIÓN DE PRODUCCIÓN', 3), (7, 'MANTENIMIENTO', 3),
+(8, 'SSGG', 4), (9, 'JURÍDICO', 5), (10, 'FINANZAS', 6),
+(11, 'CONTRATACIÓN', 7), (12, 'RRHH', 8),
+(13, 'ASUNTOS GUBERNAMENTALES', 9), (14, 'COMISIÓN', 10);
+
+-- ==========================================
+-- 3. DOCUMENTOS (Ordenados alfabéticamente)
+-- ==========================================
+INSERT INTO cat_documento (id, nombre) VALUES
+(1,  'ACTA DE INICIO SOLICITUD (A)'),
+(2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)'),
+(3,  'ACTA DE OTRAS CONSIDERACIONES (A)'),
+(4,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
+(5,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTO MOTIVADO / ACTA DE OTORGAMIENTO / NOTIFICACIÓN'),
+(6,  'ACTA DE OTRAS CONSIDERACIONES / ANÁLISIS ECONÓMICO'),
+(7,  'ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
+(8,  'ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
+(9,  'ACTO MOTIVADO'),
+(10, 'ACTO MOTIVADO Y ACTA DE OTRAS CONSIDERACIONES (A)'),
+(11, 'ACTUALIZACIÓN DE PRESUPUESTO BASE'),
+(12, 'ADDENDUM / DECISIÓN DE GERENCIA APROBACIÓN DE LA MODIFICACIÓN'),
+(13, 'ANÁLISIS ECONÓMICO / ACTA DE OTORGAMIENTO / CONTRATO'),
+(14, 'ANÁLISIS ECONÓMICO / ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
+(15, 'ANÁLISIS ECONÓMICO / CONTRATO'),
+(16, 'ANÁLISIS ECONÓMICO REV.1'),
+(17, 'CONTRATO'),
+(18, 'CONTRATO DE SERVICIOS'),
+(19, 'DECISIÓN DE GERENCIA'),
+(20, 'DECISIÓN DE GERENCIA INICIO'),
+(21, 'DECISIÓN DE GERENCIA MODIFICACIÓN / ADDENDUM'),
+(22, 'DESCRIPCIÓN DE PROCESO Y ESPECIFICACIONES TÉCNICAS'),
+(23, 'DESCRIPCIÓN DE PROCESO, ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN'),
+(24, 'ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
+(25, 'JUSTIFICACIÓN, MODIFICACIÓN Y ACTA DE OTRAS CONSIDERACIONES (A)'),
+(26, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS / ACTUALIZACIÓN DE PRESUPUESTO BASE'),
+(27, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
+(28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS');
+
+-- 4. PLANES DE CONTRATACIÓN
+INSERT INTO cat_plan_contratacion (id, nombre) VALUES
+(1, 'ARRASTRE 2025'), (2, 'PLAN 2026'), (3, 'ADICIONAL (DIRECTOS) 2026'), (4, 'PLAN-ADICIONAL 2026');
+
+-- 5. MODALIDADES
+INSERT INTO cat_modalidad (id, nombre) VALUES
+(1, 'CONCURSO ABIERTO'), (2, 'CONCURSO CERRADO'), (3, 'CONSULTA DE PRECIOS'), (4, 'CONTRATACIÓN DIRECTA');
+
+-- 6. ARTÍCULOS NORMATIVA INTERNA
+INSERT INTO cat_art (id, nombre) VALUES
+(1, '5 N - 08'), (2, '77 N - 01'), (3, '77 N - 02'), (4, '77 N - 03'),
+(5, '101 N - 01'), (6, '101 N - 02'), (7, '101 N - 03'), (8, '101 N - 04'), (9, '5 N - 06');
+
+-- 7. TIPO DE CONTRATO
+INSERT INTO cat_tipo_contrato (id, nombre) VALUES
+(1, 'PU'), (2, 'SG'), (3, 'MIXTO');
+
+-- 8. ESTATUS DETALLE
+INSERT INTO cat_estatus_detalle (id, nombre) VALUES
+(1, 'PENDIENTE'), (2, 'FIRMADO'), (3, 'DEVUELTO PARA CORRECCIÓN'), (4, 'DEVUELTO SIN FIRMA');
+
+-- 9. RESULTADOS DEL PROCESO
+INSERT INTO cat_resultado_proceso (id, nombre) VALUES
+(1, 'ADJUDICADO'),
+(2, 'DESIERTO 113 # 1'), (3, 'DESIERTO 113 # 2'), (4, 'DESIERTO 113 # 3'),
+(5, 'DESIERTO 113 # 4'), (6, 'DESIERTO 113 # 5'), (7, 'DAR POR TERMINADO');
+
+-- 10. EMPRESAS ADJUDICADAS
+INSERT INTO cat_empresas (id, nombre) VALUES
+(1, 'PRODUCTORA Y DISTRIBUIDORA VENEZOLANA DE ALIMENTOS, S.A (PDVAL)'),
+(2, 'TRANSPORTE ROJAS GARCÍA,C.A.'),
+(3, 'CRANE & HEAVY SERVICE DE VENEZUELA'),
+(4, 'AGROPECUARIA LA ROSALIERA'),
+(5, 'SERVICIOS Y SUMINISTROS KAMULY K&M C.A'),
+(6, 'IMSUPETROL, C.A'),
+(7, 'CORPORACIÓN SAN REMO, C.A'),
+(8, 'INVERSIONES ROYPA, S.A'),
+(9, 'CONCRELAND, C.A'),
+(10, 'SERVICIOS Y SUMINISTROS DAVNA, C.A.'),
+(11, 'METALMECANICA CONTRERAS, C.A'),
+(12, 'SERVICIOS Y TRANSPORTE LOS 2 HERMANOS, C.A'),
+(13, 'POWERLINE CONSTRUCCIONES, C.A');
+
+-- 11. ESTADO ACCIÓN (Valores iniciales)
+INSERT INTO cat_estado_accion (id, nombre) VALUES
+(1, 'SE ENTREGA CON LA FIRMA'),
+(2, 'SE ENTREGA CON LA MODIFICACIÓN'),
+(3, 'SE RECIBE PARA LA FIRMA');
+
+-- 12. RESPONSABLES (Placeholder temporal)
+INSERT INTO cat_responsables (id, nombre) VALUES
+(1, 'EMISOR/RECEPTOR POR CONFIGURAR');
+
+=== doc.md ===
+# Gestión de Expedientes con Historial — Documentación
+
+## Arquitectura
+
+App web 100% cliente-side. **HTML + Tailwind CSS = UI** | **sql.js (SQLite WASM) = Data Layer**.
+Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
+
+```
+┌───────────────────────────────────────────┐
+│  Navegador (cliente-side)                  │
+│  ├── index.html                           │
+│  │   ├── Tailwind CSS (CDN) — UI          │
+│  │   ├── sql.js (WASM) — SQLite en RAM    │
+│  │   └── JavaScript — lógica CRUD         │
+│  │                                         │
+│  └── Archivo .db / .sqlite (cargado       │
+│       por el usuario vía input file)       │
+└───────────────────────────────────────────┘
+```
+
+## Principio Fundamental
+
+**Cero assumptions del schema.** Todo se genera dinámicamente analizando la BD al cargarla:
+- Catálogos → selectores poblados con `cargarCatalogos()`
+- Vistas → tabla basada en `vw_reporte_excel_contrataciones`
+- Historial → consulta JOIN bajo demanda al expandir fila
+
+## Flujo de Datos
+
+```
+Usuario → [Selecciona .db] → FileReader → Uint8Array → SQL.Database
+                                                              │
+                    ┌─────────────────────────────────────────┤
+                    ▼                                         ▼
+           cargarCatalogos()                          cargarDatos()
+                    │                                         │
+                    ▼                                         ▼
+           poblarSelectores()                    vw_reporte_excel_contrataciones
+           (12 catálogos)                        → renderizarTabla()
+```
+
+## Esquema de Colores
+
+Tailwind CSS (dark mode personalizado):
+- Fondo: `bg-gray-900` | Superficie: `bg-gray-800` | Bordes: `border-gray-700`
+- Texto: `text-gray-100` | Secundario: `text-gray-400`
+- Acento: `teal-400` (botones, encabezados) | `teal-600` (botón primario)
+- Estados: `emerald-400` (adjudicado) | `amber-400` (presupuesto) | `red-700` (eliminar)
+
+## Estructura del Proyecto
+
+```
+baseaccess/
+├── index.html           # App completa (HTML + CSS + JS)
+├── Tablas6.sql           # Schema SQLite v6 (catálogos, expedientes, historial, triggers, vistas)
+├── doc.md                # Esta documentación
+├── prompt                # Prompt para auditorías (opencode/Qwen)
+├── Makefile              # combine / clean / commit / push / github
+├── intento               # (reservado)
+```
+
+## Tablas del Schema (Tablas6.sql)
+
+| Tabla | Propósito |
+|-------|-----------|
+| `cat_gerencia` | Catálogo de gerencias |
+| `cat_superintendencia` | Catálogo de superintendencias (FK → gerencia) |
+| `cat_documento` | Tipos de documento (28 registros) |
+| `cat_plan_contratacion` | Planes de contratación |
+| `cat_modalidad` | Modalidades de contratación |
+| `cat_art` | Artículos de normativa interna |
+| `cat_tipo_contrato` | Tipos de contrato (PU, SG, MIXTO) |
+| `cat_estatus_detalle` | Estatus (Pendiente, Firmado, Devuelto...) |
+| `cat_resultado_proceso` | Resultados (Adjudicado, Desierto...) |
+| `cat_empresas` | Empresas adjudicadas |
+| `cat_responsables` | Emisores/Receptores |
+| `cat_estado_accion` | Estado acción (Firma, Modificación, Recibo) |
+| `expedientes` | **Tabla principal**: ~30 columnas con fechas, montos, FK |
+| `historial_movimientos` | Traza de cambios: INSERT automático vía trigger |
+| `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
+| `vw_historial_celdas_multilinea` | Vista con GROUP_CONCAT para LibreOffice |
+
+## Makefile
+
+```bash
+make combine      # Concatena index.html + Tablas6.sql + doc.md → combined.txt
+make clean        # rm -f combined.txt
+make commit msg="x"  # git add -A + git commit
+make push         # git push
+make github msg="x"  # commit + push (shortcut)
+```
+
+## Reglas del Proceso
+
+1. **doc.md primero**: antes de cualquier implementación o cambio de código, actualizar esta documentación con lo que se planea hacer.
+2. **Makefile siempre**: después de cambios, ejecutar `make combine`.
+3. **Sin hardcodeo**: cero assumptions de naming conventions. Toda heurística debe ser configurable.
+4. **Historial de cambios**: cada cambio debe agregarse a la cronología en `doc.md` con fecha, archivo, y razón.
+5. **DRY + Reutilización**: toda pieza de lógica debe tener una representación única. No repetir código ni copiar-pegar bloques. Si un patrón aparece en más de un lugar, extraer a función reutilizable. La modularidad no se mide en líneas por archivo ni por función, sino en ausencia de redundancia y en que cada función tenga una única responsabilidad (SRP). Una función de 200 líneas sin duplicación interna es mejor que 4 funciones de 50 líneas con lógica repetida.
+
+---
+
+## Cambios Realizados
+
+### Migración a Web HTML/JS (Julio 2026)
+
+| # | Archivo | Cambio | Razón |
+|---|---------|--------|-------|
+| 1 | `index.html` | **Creado**: app web completa con Tailwind CSS + sql.js | Migración de Rust desktop a web cliente-side |
+| 2 | `Tablas6.sql` | **Creado**: schema v6 con historial_movimientos, trigger auditoría, 2 vistas, datos iniciales | Nueva versión del schema con trazabilidad |
+| 3 | `prompt` | Reescrito: contexto web (index.html + Tablas6.sql), reglas HTML/JS | Reflejar el nuevo proyecto en las auditorías |
+| 4 | `doc.md` | Reescrita: arquitectura web, dependencias, estructura, Tablas6.sql | Documentar el nuevo stack |
+| 5 | `Makefile` | Simplificado: eliminados targets Rust, combine ahora concatena index.html + SQL + doc | Adaptado a proyecto web |
