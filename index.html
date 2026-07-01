@@ -502,74 +502,147 @@
         // ================================================================
         function toggleDesplegable(id, event) {
             if(event) event.stopPropagation();
-            
             const subfila = document.getElementById(`subfila-${id}`);
             const btn = document.getElementById(`btn-${id}`);
-            
             if (subfila.classList.contains('hidden')) {
                 subfila.classList.remove('hidden');
                 btn.innerText = '➖';
-                
-                const query = `
-                    SELECT 
-                        h.id_movimiento,
-                        COALESCE(g.nombre, 'N/A') AS ger,
-                        COALESCE(em.nombre, 'N/A') AS emisor,
-                        COALESCE(rec.nombre, 'N/A') AS receptor,
-                        COALESCE(ed.nombre, 'N/A') AS estatus,
-                        COALESCE(h.fecha_recibido, 'Sin fecha') AS f_entrada,
-                        COALESCE(h.fecha_devuelto, 'Sin fecha') AS f_salida
-                    FROM historial_movimientos h
-                    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
-                    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
-                    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
-                    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                    WHERE h.id_expediente = ${id}
-                    ORDER BY h.id_movimiento DESC
-                `;
-                
-                const resHist = db.exec(query);
-                const historial = dbToObjects(resHist);
-                const contenedor = document.getElementById(`hist-content-${id}`);
-
-                if(historial.length === 0) {
-                    contenedor.innerHTML = `<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos o cambios registrados en el historial todavía.</p>`;
-                } else {
-                    let tablaHist = `
-                        <table class="w-full text-left border-collapse text-[11px]">
-                            <thead>
-                                <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
-                                    <th class="p-2">Movimiento</th>
-                                    <th class="p-2">Gerencia Destino</th>
-                                    <th class="p-2">Emisor</th>
-                                    <th class="p-2">Receptor</th>
-                                    <th class="p-2">Estatus</th>
-                                    <th class="p-2 text-center">F. Recibido</th>
-                                    <th class="p-2 text-center">F. Devuelto</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-800">
-                    `;
-                    historial.forEach((h, index) => {
-                        tablaHist += `
-                            <tr class="hover:bg-gray-800/50">
-                                <td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>
-                                <td class="p-2 text-teal-300 font-medium">${h.ger}</td>
-                                <td class="p-2">${h.emisor}</td>
-                                <td class="p-2">${h.receptor}</td>
-                                <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
-                                <td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>
-                                <td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>
-                            </tr>
-                        `;
-                    });
-                    tablaHist += `</tbody></table>`;
-                    contenedor.innerHTML = tablaHist;
-                }
+                cargarUltimoMovimiento(id);
             } else {
                 subfila.classList.add('hidden');
                 btn.innerText = '➕';
             }
+        }
+
+        function cargarUltimoMovimiento(id) {
+            const contenedor = document.getElementById(`hist-content-${id}`);
+            const res = db.exec(`
+                SELECT h.id_movimiento,
+                    COALESCE(g.nombre,'N/A') AS ger, COALESCE(em.nombre,'N/A') AS emisor,
+                    COALESCE(rec.nombre,'N/A') AS receptor, COALESCE(ed.nombre,'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido,'') AS f_entrada, COALESCE(h.fecha_devuelto,'') AS f_salida
+                FROM historial_movimientos h
+                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC LIMIT 1
+            `);
+            const data = dbToObjects(res);
+            if (data.length === 0) {
+                contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos registrados.</p>';
+                return;
+            }
+            const h = data[0];
+            contenedor.innerHTML = `
+                <div class="text-xs text-gray-400 mb-1 font-semibold tracking-wide">⏳ Último movimiento</div>
+                <table class="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                            <th class="p-2">Mov.</th>
+                            <th class="p-2">Gerencia</th>
+                            <th class="p-2">Emisor</th>
+                            <th class="p-2">Receptor</th>
+                            <th class="p-2">Estatus</th>
+                            <th class="p-2 text-center">F. Recibido</th>
+                            <th class="p-2 text-center">F. Devuelto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        <tr class="hover:bg-gray-800/50 cursor-pointer text-teal-300/80" onclick="expandirHistorialCompleto(${id})">
+                            <td class="p-2 font-mono font-bold">#1</td>
+                            <td class="p-2 font-medium">${h.ger}</td>
+                            <td class="p-2">${h.emisor}</td>
+                            <td class="p-2">${h.receptor}</td>
+                            <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
+                            <td class="p-2 text-center font-mono">${h.f_entrada}</td>
+                            <td class="p-2 text-center font-mono">${h.f_salida}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="text-center mt-2">
+                    <button onclick="expandirHistorialCompleto(${id})" class="text-xs text-teal-400 hover:text-teal-300 font-semibold bg-gray-900/40 px-3 py-1 rounded-lg transition-colors">📋 Ver historial completo</button>
+                </div>
+            `;
+        }
+
+        function expandirHistorialCompleto(id) {
+            const contenedor = document.getElementById(`hist-content-${id}`);
+            const res = db.exec(`
+                SELECT h.id_movimiento,
+                    COALESCE(g.nombre,'N/A') AS ger, COALESCE(em.nombre,'N/A') AS emisor,
+                    COALESCE(rec.nombre,'N/A') AS receptor, COALESCE(ed.nombre,'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido,'') AS f_entrada, COALESCE(h.fecha_devuelto,'') AS f_salida,
+                    h.observaciones_generales
+                FROM historial_movimientos h
+                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC
+            `);
+            const historial = dbToObjects(res);
+            if (historial.length === 0) {
+                contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Sin movimientos registrados.</p>';
+                return;
+            }
+            let html = `
+                <div class="text-xs text-teal-400 mb-1 font-semibold tracking-wide">⏳ Historial completo (${historial.length} movimientos)</div>
+                <table class="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                            <th class="p-2">Detalle</th>
+                            <th class="p-2">Mov.</th>
+                            <th class="p-2">Gerencia</th>
+                            <th class="p-2">Emisor</th>
+                            <th class="p-2">Receptor</th>
+                            <th class="p-2">Estatus</th>
+                            <th class="p-2 text-center">F. Recibido</th>
+                            <th class="p-2 text-center">F. Devuelto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+            `;
+            historial.forEach((h, index) => {
+                const mid = h.id_movimiento;
+                const obs = h.observaciones_generales || '';
+                html += `<tr class="hover:bg-gray-800/50 cursor-pointer" onclick="toggleDetalleMov(${mid}, event)">`;
+                html += `<td class="p-2 text-center"><span class="text-amber-400" id="mbtn-${mid}">➕</span></td>`;
+                html += `<td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>`;
+                html += `<td class="p-2 text-teal-300 font-medium">${h.ger}</td>`;
+                html += `<td class="p-2">${h.emisor}</td>`;
+                html += `<td class="p-2">${h.receptor}</td>`;
+                html += `<td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>`;
+                html += `<td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>`;
+                html += `<td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>`;
+                html += `</tr>`;
+                html += `<tr id="mdet-${mid}" class="hidden"><td colspan="8" style="padding:0;background:rgba(0,0,0,0.2)"><div style="padding:0.75rem 1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.5rem;font-size:0.75rem">`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">ID Movimiento</span><span style="color:#D1D5DB;font-weight:500">#${mid}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Gerencia</span><span style="color:#D1D5DB;font-weight:500">${h.ger}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Emisor</span><span style="color:#D1D5DB;font-weight:500">${h.emisor}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Receptor</span><span style="color:#D1D5DB;font-weight:500">${h.receptor}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Estatus</span><span style="color:#D1D5DB;font-weight:500">${h.estatus}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">F. Recibido</span><span style="color:#D1D5DB;font-weight:500">${h.f_entrada}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">F. Devuelto</span><span style="color:#D1D5DB;font-weight:500">${h.f_salida}</span></div>`;
+                if (obs) {
+                    html += `<div style="grid-column:1/-1"><span style="color:#6B7280;display:block;font-size:0.6875rem">Observaciones</span><span style="color:#FBBF24;font-style:italic;background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:0.375rem;display:block;margin-top:0.25rem">${obs}</span></div>`;
+                }
+                html += `</div></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            contenedor.innerHTML = html;
+        }
+
+        function toggleDetalleMov(id, event, prefix) {
+            if (event) event.stopPropagation();
+            prefix = prefix || 'm';
+            const sub = document.getElementById(prefix + 'det-' + id);
+            const btn = document.getElementById(prefix + 'btn-' + id);
+            if (!sub) return;
+            sub.classList.toggle('hidden');
+            btn.textContent = sub.classList.contains('hidden') ? '➕' : '➖';
         }
 
         // ================================================================
@@ -663,15 +736,66 @@
         }
 
         function cargarHistorialFormulario(id) {
-            const query = `
-                SELECT 
-                    h.id_movimiento,
-                    COALESCE(g.nombre, 'N/A') AS ger,
-                    COALESCE(em.nombre, 'N/A') AS emisor,
-                    COALESCE(rec.nombre, 'N/A') AS receptor,
-                    COALESCE(ed.nombre, 'N/A') AS estatus,
-                    COALESCE(h.fecha_recibido, 'Sin fecha') AS f_entrada,
-                    COALESCE(h.fecha_devuelto, 'Sin fecha') AS f_salida
+            const contenedor = document.getElementById('form-historial');
+            const res = db.exec(`
+                SELECT h.id_movimiento,
+                    COALESCE(g.nombre,'N/A') AS ger, COALESCE(em.nombre,'N/A') AS emisor,
+                    COALESCE(rec.nombre,'N/A') AS receptor, COALESCE(ed.nombre,'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido,'') AS f_entrada, COALESCE(h.fecha_devuelto,'') AS f_salida
+                FROM historial_movimientos h
+                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC LIMIT 1
+            `);
+            const data = dbToObjects(res);
+            if (data.length === 0) {
+                contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos registrados.</p>';
+                return;
+            }
+            const h = data[0];
+            contenedor.innerHTML = `
+                <div class="text-xs text-gray-400 mb-1 font-semibold tracking-wide">⏳ Último movimiento</div>
+                <table class="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                            <th class="p-2">Mov.</th>
+                            <th class="p-2">Gerencia</th>
+                            <th class="p-2">Emisor</th>
+                            <th class="p-2">Receptor</th>
+                            <th class="p-2">Estatus</th>
+                            <th class="p-2 text-center">F. Recibido</th>
+                            <th class="p-2 text-center">F. Devuelto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+                        <tr class="hover:bg-gray-800/50 cursor-pointer text-teal-300/80" onclick="expandirHistorialFormulario(${id})">
+                            <td class="p-2 font-mono font-bold">#1</td>
+                            <td class="p-2 font-medium">${h.ger}</td>
+                            <td class="p-2">${h.emisor}</td>
+                            <td class="p-2">${h.receptor}</td>
+                            <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
+                            <td class="p-2 text-center font-mono">${h.f_entrada}</td>
+                            <td class="p-2 text-center font-mono">${h.f_salida}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="text-center mt-2">
+                    <button onclick="expandirHistorialFormulario(${id})" class="text-xs text-teal-400 hover:text-teal-300 font-semibold bg-gray-900/40 px-3 py-1 rounded-lg transition-colors">📋 Ver historial completo</button>
+                </div>
+            `;
+        }
+
+        function expandirHistorialFormulario(id) {
+            const contenedor = document.getElementById('form-historial');
+            const res = db.exec(`
+                SELECT h.id_movimiento,
+                    COALESCE(g.nombre,'N/A') AS ger, COALESCE(em.nombre,'N/A') AS emisor,
+                    COALESCE(rec.nombre,'N/A') AS receptor, COALESCE(ed.nombre,'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido,'') AS f_entrada, COALESCE(h.fecha_devuelto,'') AS f_salida,
+                    h.observaciones_generales
                 FROM historial_movimientos h
                 LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
                 LEFT JOIN cat_responsables em ON h.id_emisor = em.id
@@ -679,45 +803,57 @@
                 LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
                 WHERE h.id_expediente = ${id}
                 ORDER BY h.id_movimiento DESC
-            `;
-            const res = db.exec(query);
+            `);
             const historial = dbToObjects(res);
-            const contenedor = document.getElementById('form-historial');
-
             if (historial.length === 0) {
-                contenedor.innerHTML = `<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos registrados.</p>`;
-            } else {
-                let html = `
-                    <table class="w-full text-left border-collapse text-[11px]">
-                        <thead>
-                            <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
-                                <th class="p-2">#</th>
-                                <th class="p-2">Gerencia</th>
-                                <th class="p-2">Emisor</th>
-                                <th class="p-2">Receptor</th>
-                                <th class="p-2">Estatus</th>
-                                <th class="p-2 text-center">F. Recibido</th>
-                                <th class="p-2 text-center">F. Devuelto</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-800">
-                `;
-                historial.forEach((h, index) => {
-                    html += `
-                        <tr class="hover:bg-gray-800/50">
-                            <td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>
-                            <td class="p-2 text-teal-300 font-medium">${h.ger}</td>
-                            <td class="p-2">${h.emisor}</td>
-                            <td class="p-2">${h.receptor}</td>
-                            <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
-                            <td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>
-                            <td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>
-                        </tr>
-                    `;
-                });
-                html += `</tbody></table>`;
-                contenedor.innerHTML = html;
+                contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Sin movimientos registrados.</p>';
+                return;
             }
+            let html = `
+                <div class="text-xs text-teal-400 mb-1 font-semibold tracking-wide">⏳ Historial completo (${historial.length} movimientos)</div>
+                <table class="w-full text-left border-collapse text-[11px]">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
+                            <th class="p-2">Detalle</th>
+                            <th class="p-2">Mov.</th>
+                            <th class="p-2">Gerencia</th>
+                            <th class="p-2">Emisor</th>
+                            <th class="p-2">Receptor</th>
+                            <th class="p-2">Estatus</th>
+                            <th class="p-2 text-center">F. Recibido</th>
+                            <th class="p-2 text-center">F. Devuelto</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-800">
+            `;
+            historial.forEach((h, index) => {
+                const mid = h.id_movimiento;
+                const obs = h.observaciones_generales || '';
+                html += `<tr class="hover:bg-gray-800/50 cursor-pointer" onclick="toggleDetalleMov(${mid}, event, 'fm')">`;
+                html += `<td class="p-2 text-center"><span class="text-amber-400" id="fmbtn-${mid}">➕</span></td>`;
+                html += `<td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>`;
+                html += `<td class="p-2 text-teal-300 font-medium">${h.ger}</td>`;
+                html += `<td class="p-2">${h.emisor}</td>`;
+                html += `<td class="p-2">${h.receptor}</td>`;
+                html += `<td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>`;
+                html += `<td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>`;
+                html += `<td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>`;
+                html += `</tr>`;
+                html += `<tr id="fmdet-${mid}" class="hidden"><td colspan="8" style="padding:0;background:rgba(0,0,0,0.2)"><div style="padding:0.75rem 1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.5rem;font-size:0.75rem">`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">ID Movimiento</span><span style="color:#D1D5DB;font-weight:500">#${mid}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Gerencia</span><span style="color:#D1D5DB;font-weight:500">${h.ger}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Emisor</span><span style="color:#D1D5DB;font-weight:500">${h.emisor}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Receptor</span><span style="color:#D1D5DB;font-weight:500">${h.receptor}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">Estatus</span><span style="color:#D1D5DB;font-weight:500">${h.estatus}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">F. Recibido</span><span style="color:#D1D5DB;font-weight:500">${h.f_entrada}</span></div>`;
+                html += `<div><span style="color:#6B7280;display:block;font-size:0.6875rem">F. Devuelto</span><span style="color:#D1D5DB;font-weight:500">${h.f_salida}</span></div>`;
+                if (obs) {
+                    html += `<div style="grid-column:1/-1"><span style="color:#6B7280;display:block;font-size:0.6875rem">Observaciones</span><span style="color:#FBBF24;font-style:italic;background:rgba(0,0,0,0.3);padding:0.5rem;border-radius:0.375rem;display:block;margin-top:0.25rem">${obs}</span></div>`;
+                }
+                html += `</div></td></tr>`;
+            });
+            html += `</tbody></table>`;
+            contenedor.innerHTML = html;
         }
 
         function calcularBs() {

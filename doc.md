@@ -94,7 +94,8 @@ baseaccess/
 │   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
 ├── main.js              # Electron main process (ventana 1400x900)
 ├── package.json         # Electron + electron-builder config
-├── Tablas6.sql           # Schema SQLite v6
+├── Tablas7.sql           # Schema SQLite v7 (con observaciones_generales en historial)
+├── Tablas6.sql           # Schema SQLite v6 (legacy, sin modificar)
 ├── doc.md                # Esta documentación
 ├── prompt                # Prompt para auditorías (opencode/Qwen)
 ├── Makefile              # combine / clean / commit / push / github
@@ -102,7 +103,7 @@ baseaccess/
 └── intento               # (reservado)
 ```
 
-## Tablas del Schema (Tablas6.sql)
+## Tablas del Schema (Tablas7.sql)
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -161,7 +162,7 @@ El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecut
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + Tablas6.sql + main.js + package.json + doc.md → combined.txt
+make combine          # Concatena index.html + Tablas7.sql + main.js + package.json + doc.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
@@ -196,3 +197,11 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 9 | `.gitignore` | **Creado**: node_modules/, dist/ | Prevenir commits de dependencias y builds |
 | 10 | `doc.md` | Agregada sección Contexto Termux + advertencia `file://` WASM | Documentar entorno de desarrollo y limitación conocida |
 | 11 | `Makefile` | Agregado target `serve` (python3 http.server) | Alternativa HTTP para evitar bloqueo WASM en file:// |
+| 12 | `Tablas7.sql` | **Creado** a partir de Tablas6.sql + columna `observaciones_generales` en `historial_movimientos` | Capturar snapshot de observaciones en cada movimiento |
+| 13 | `Tablas7.sql` | Trigger `trg_exp_auditoria` actualizado para detectar cambios en `observaciones_generales` | Sincronizar con el nuevo campo |
+| 14 | `index.html` | `toggleDesplegable` refactorizado: carga solo último movimiento, botón "Ver historial completo" para expandir | Click-to-expand historial en grilla |
+| 15 | `index.html` | `cargarHistorialFormulario` refactorizado con mismo patrón click-to-expand | Consistencia entre grilla y modal |
+| 16 | `index.html` | Agregadas `expandirHistorialCompleto`, `cargarUltimoMovimiento`, `expandirHistorialFormulario` | Lógica reutilizable para carga progresiva |
+| 17 | `index.html` | Agregada `toggleDetalleMov` con detalle expandible por movimiento (incluye observaciones) | Ver detalle completo sin recargar |
+| 18 | `Makefile` | combine target apunta a Tablas7.sql en lugar de Tablas6.sql | Reflejar schema actual |
+| 19 | `doc.md` | Documentación actualizada: Tablas6.sql→Tablas7.sql | Sincronizar documentación con schema v7 |
