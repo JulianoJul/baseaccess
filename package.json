@@ -1,0 +1,36 @@
+{
+  "name": "baseaccess",
+  "version": "1.0.0",
+  "description": "Gestión de Expedientes con Historial - Desktop App",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder build --win portable"
+  },
+  "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.baseaccess.expedientes",
+    "productName": "GestionExpedientes",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "vendor",
+        "to": "vendor"
+      }
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": null
+    },
+    "portable": {
+      "artifactName": "GestionExpedientes-${version}-portable.exe"
+    }
+  }
+}

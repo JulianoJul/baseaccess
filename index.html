@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Expedientes con Historial</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
+    <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <script src="vendor/sql-wasm.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans">
 
@@ -266,7 +266,7 @@
         let expedientesCache = [];
         let catalogosCache = {};
 
-        const config = { locateFile: filename => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${filename}` };
+        const config = { locateFile: filename => `vendor/${filename}` };
         
         initSqlJs(config).then(SQL => {
             document.getElementById('dbfile').addEventListener('change', function(e) {

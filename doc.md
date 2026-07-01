@@ -5,17 +5,25 @@
 App web 100% cliente-side. **HTML + Tailwind CSS = UI** | **sql.js (SQLite WASM) = Data Layer**.
 Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
 
+Dos modos de ejecución:
+
+1. **Navegador** — abrir `index.html` directo (dependencias locales en `vendor/`)
+2. **Electron portable** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
+
 ```
-┌───────────────────────────────────────────┐
-│  Navegador (cliente-side)                  │
-│  ├── index.html                           │
-│  │   ├── Tailwind CSS (CDN) — UI          │
-│  │   ├── sql.js (WASM) — SQLite en RAM    │
-│  │   └── JavaScript — lógica CRUD         │
-│  │                                         │
-│  └── Archivo .db / .sqlite (cargado       │
-│       por el usuario vía input file)       │
-└───────────────────────────────────────────┘
+┌─────────────────────────────────────────────────┐
+│  Modo Navegador (Firefox/Chrome/Edge)             │
+│  ├── index.html                                  │
+│  │   ├── vendor/tailwind.min.css — UI            │
+│  │   ├── vendor/sql-wasm.js — SQLite WASM loader │
+│  │   ├── vendor/sql-wasm.wasm — Motor SQLite     │
+│  │   └── JavaScript — lógica CRUD                │
+│  └── Archivo .db / .sqlite (cargado por usuario) │
+├─────────────────────────────────────────────────┤
+│  Modo Electron (portable, sin instalación)        │
+│  ├── GestionExpedientes.exe (Chromium + app)     │
+│  └── resources/vendor/ (CSS, WASM, etc.)         │
+└─────────────────────────────────────────────────┘
 ```
 
 ## Principio Fundamental
@@ -52,11 +60,18 @@ Tailwind CSS (dark mode personalizado):
 ```
 baseaccess/
 ├── index.html           # App completa (HTML + CSS + JS)
-├── Tablas6.sql           # Schema SQLite v6 (catálogos, expedientes, historial, triggers, vistas)
+├── vendor/              # Dependencias locales (sin CDN)
+│   ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
+│   ├── sql-wasm.js      # sql.js loader
+│   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
+├── main.js              # Electron main process (ventana 1400x900)
+├── package.json         # Electron + electron-builder config
+├── Tablas6.sql           # Schema SQLite v6
 ├── doc.md                # Esta documentación
 ├── prompt                # Prompt para auditorías (opencode/Qwen)
 ├── Makefile              # combine / clean / commit / push / github
-├── intento               # (reservado)
+├── .gitignore            # node_modules/, dist/
+└── intento               # (reservado)
 ```
 
 ## Tablas del Schema (Tablas6.sql)
@@ -80,15 +95,42 @@ baseaccess/
 | `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
 | `vw_historial_celdas_multilinea` | Vista con GROUP_CONCAT para LibreOffice |
 
-## Makefile
+## Dependencias Locales (vendor/)
 
+Para evitar CDNs y funcionar sin internet, todo está en `vendor/`:
+
+| Archivo | Fuente | Tamaño |
+|---------|--------|--------|
+| `tailwind.min.css` | Tailwind CSS v3.4.19 (JIT build, solo clases usadas) | ~16KB |
+| `sql-wasm.js` | sql.js v1.8.0 | ~51KB |
+| `sql-wasm.wasm` | sql.js WASM binary | ~600KB |
+
+Regenerar `tailwind.min.css` si se agregan nuevas clases:
 ```bash
-make combine      # Concatena index.html + Tablas6.sql + doc.md → combined.txt
-make clean        # rm -f combined.txt
-make commit msg="x"  # git add -A + git commit
-make push         # git push
-make github msg="x"  # commit + push (shortcut)
+npm install --save-dev --no-bin-links tailwindcss@3.4.19
+# crear tailwind.config.js apuntando a index.html
+npx tailwindcss -i input.css -o vendor/tailwind.min.css --minify
 ```
+
+## Electron Portable
+
+Para no depender de ningún navegador, se puede construir un `.exe` portable:
+
+### Source files
+- `main.js` — Electron main process (ventana 1400x900, sin menú)
+- `package.json` — `electron` + `electron-builder` como devDeps
+
+### Build (requiere Node.js + npm)
+```bash
+npm install --save-dev --no-bin-links electron@latest electron-builder@latest
+node node_modules/electron-builder/cli.js --win portable --x64
+```
+
+El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecuta sin instalación, sin admin, sin depender del navegador del sistema.
+
+> **Nota:** En Android/Termux el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
+
+## Makefile
 
 ## Reglas del Proceso
 
@@ -111,3 +153,7 @@ make github msg="x"  # commit + push (shortcut)
 | 3 | `prompt` | Reescrito: contexto web (index.html + Tablas6.sql), reglas HTML/JS | Reflejar el nuevo proyecto en las auditorías |
 | 4 | `doc.md` | Reescrita: arquitectura web, dependencias, estructura, Tablas6.sql | Documentar el nuevo stack |
 | 5 | `Makefile` | Simplificado: eliminados targets Rust, combine ahora concatena index.html + SQL + doc | Adaptado a proyecto web |
+| 6 | `vendor/` | **Creado**: tailwind.min.css, sql-wasm.js, sql-wasm.wasm | Dependencias locales para funcionar sin CDN ni internet |
+| 7 | `index.html` | CDNs reemplazadas por rutas locales `vendor/` | Offline-first: sin depender de CDNs corporativas bloqueadas |
+| 8 | `main.js` + `package.json` | **Creado**: Electron main process + electron-builder config | App de escritorio portable sin depender del navegador |
+| 9 | `.gitignore` | **Creado**: node_modules/, dist/ | Prevenir commits de dependencias y builds |
