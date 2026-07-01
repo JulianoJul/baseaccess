@@ -133,15 +133,15 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (USD)</label>
-                            <input type="number" step="0.01" min="0" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()">
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Tipo de Cambio</label>
-                            <input type="number" step="0.01" min="0" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()">
+                            <input type="text" inputmode="decimal" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (Bs)</label>
-                            <input type="number" step="0.01" min="0" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
                         </div>
                     </div>
                 </fieldset>
@@ -207,7 +207,7 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Nro. Contrato SAP</label>
-                            <input type="number" step="1" min="0" id="f-nro_contrato_sap" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="text" id="f-nro_contrato_sap" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Tiempo Ejecución</label>
@@ -215,11 +215,11 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (USD)</label>
-                            <input type="number" step="0.01" min="0" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (Bs)</label>
-                            <input type="number" step="0.01" min="0" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Fecha Firma Contrato</label>
@@ -498,6 +498,21 @@
         }
 
         // ================================================================
+        // FORMATEO DE NÚMEROS (miles con punto, decimal con coma)
+        // ================================================================
+        function formatNum(v) {
+            if (v === '' || v === null || v === undefined) return '';
+            let s = String(v).replace(/\./g, '').replace(',', '.');
+            let n = parseFloat(s);
+            if (isNaN(n)) return String(v);
+            return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        function parseNum(v) {
+            if (v === '' || v === null || v === undefined) return '';
+            return String(v).replace(/\./g, '').replace(',', '.');
+        }
+
+        // ================================================================
         // DESPLEGABLE DE HISTORIAL
         // ================================================================
         function toggleDesplegable(id, event) {
@@ -709,9 +724,9 @@
             document.getElementById('f-id_art').value = data.id_art || '';
             document.getElementById('f-id_tipo_contrato').value = data.id_tipo_contrato || '';
             document.getElementById('f-fecha_presupuesto_base').value = data.fecha_presupuesto_base || '';
-            document.getElementById('f-presupuesto_base_usd').value = data.presupuesto_base_usd || '';
-            document.getElementById('f-tipo_cambio').value = data.tipo_cambio || '';
-            document.getElementById('f-presupuesto_base_bs').value = data.presupuesto_base_bs || '';
+            document.getElementById('f-presupuesto_base_usd').value = formatNum(data.presupuesto_base_usd);
+            document.getElementById('f-tipo_cambio').value = formatNum(data.tipo_cambio);
+            document.getElementById('f-presupuesto_base_bs').value = formatNum(data.presupuesto_base_bs);
             document.getElementById('f-id_emisor').value = data.id_emisor || '';
             document.getElementById('f-id_receptor').value = data.id_receptor || '';
             document.getElementById('f-id_estado_accion').value = data.id_estado_accion || '';
@@ -726,8 +741,8 @@
             document.getElementById('f-nro_contrato_sicac').value = data.nro_contrato_sicac || '';
             document.getElementById('f-nro_contrato_sap').value = data.nro_contrato_sap || '';
             document.getElementById('f-tiempo_ejecucion').value = data.tiempo_ejecucion || '';
-            document.getElementById('f-monto_adjudicado_usd').value = data.monto_adjudicado_usd || '';
-            document.getElementById('f-monto_adjudicado_bs').value = data.monto_adjudicado_bs || '';
+            document.getElementById('f-monto_adjudicado_usd').value = formatNum(data.monto_adjudicado_usd);
+            document.getElementById('f-monto_adjudicado_bs').value = formatNum(data.monto_adjudicado_bs);
             document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
             document.getElementById('f-observaciones_generales').value = data.observaciones_generales || '';
 
@@ -857,10 +872,10 @@
         }
 
         function calcularBs() {
-            const usd = parseFloat(document.getElementById('f-presupuesto_base_usd').value) || 0;
-            const tc = parseFloat(document.getElementById('f-tipo_cambio').value) || 0;
+            const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
+            const tc = parseFloat(parseNum(document.getElementById('f-tipo_cambio').value)) || 0;
             if (usd && tc) {
-                document.getElementById('f-presupuesto_base_bs').value = (usd * tc).toFixed(2);
+                document.getElementById('f-presupuesto_base_bs').value = formatNum((usd * tc).toFixed(2));
             }
         }
 
@@ -874,9 +889,9 @@
                 id_emisor:               escapeSql(document.getElementById('f-id_emisor').value),
                 id_documento:            escapeSql(document.getElementById('f-id_documento').value),
                 fecha_presupuesto_base:  escapeSql(document.getElementById('f-fecha_presupuesto_base').value),
-                presupuesto_base_usd:    escapeSql(document.getElementById('f-presupuesto_base_usd').value),
-                tipo_cambio:             escapeSql(document.getElementById('f-tipo_cambio').value),
-                presupuesto_base_bs:     escapeSql(document.getElementById('f-presupuesto_base_bs').value),
+                presupuesto_base_usd:    escapeSql(parseNum(document.getElementById('f-presupuesto_base_usd').value)),
+                tipo_cambio:             escapeSql(parseNum(document.getElementById('f-tipo_cambio').value)),
+                presupuesto_base_bs:     escapeSql(parseNum(document.getElementById('f-presupuesto_base_bs').value)),
                 id_plan:                 escapeSql(document.getElementById('f-id_plan').value),
                 descripcion_proceso:     escapeSql(document.getElementById('f-descripcion_proceso').value),
                 id_modalidad:            escapeSql(document.getElementById('f-id_modalidad').value),
@@ -896,8 +911,8 @@
                 nro_contrato_sap:        escapeSql(document.getElementById('f-nro_contrato_sap').value),
                 id_empresa:              escapeSql(document.getElementById('f-id_empresa').value),
                 tiempo_ejecucion:        escapeSql(document.getElementById('f-tiempo_ejecucion').value),
-                monto_adjudicado_bs:     escapeSql(document.getElementById('f-monto_adjudicado_bs').value),
-                monto_adjudicado_usd:    escapeSql(document.getElementById('f-monto_adjudicado_usd').value),
+                monto_adjudicado_bs:     escapeSql(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
+                monto_adjudicado_usd:    escapeSql(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    escapeSql(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones_generales: escapeSql(document.getElementById('f-observaciones_generales').value)
             };
