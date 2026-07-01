@@ -1,4 +1,4 @@
-.PHONY: clean commit push github combine
+.PHONY: clean commit push github combine serve electron-install electron-build
 
 combine:
 	{ \
@@ -12,6 +12,15 @@ combine:
 
 clean:
 	rm -f combined.txt
+
+serve:
+	python3 -m http.server 8000
+
+electron-install:
+	npm install --save-dev --no-bin-links electron@latest electron-builder@latest
+
+electron-build:
+	node node_modules/electron-builder/cli.js --win portable --x64
 
 commit:
 	git add -A

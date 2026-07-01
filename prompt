@@ -169,7 +169,7 @@ Este archivo servirá como guía para implementar los fixes uno por uno.
 ## REGLAS DEL PROCESO PARA OPENCODE
 
 1. `plan_modificaciones.md` es la guía — opencode lee este archivo e implementa los fixes uno por uno de mayor a menor prioridad
-2. Después de cada fix, ejecutar `make build` para verificar que compila (si aplica) o `make combine` para regenerar `combined.txt`
+2. Después de cada fix, ejecutar `make combine` para regenerar `combined.txt`
 3. Al terminar todos los fixes, ejecutar `make combine` y actualizar `doc.md`
 4. Actualizar `doc.md` con historial de cambios (fecha, archivos, razón de cada fix)
 5. Subir a GitHub con `make github msg="mensaje"`

@@ -1353,6 +1353,34 @@ app.on('window-all-closed', () => app.quit())
 === doc.md ===
 # Gestión de Expedientes con Historial — Documentación
 
+## Contexto Termux (Android)
+
+Este proyecto se edita y construye desde **Termux** en Android. Si inicias una sesión nueva:
+
+| Ítem | Valor |
+|------|-------|
+| Directorio | `/storage/emulated/0/baseaccess` |
+| Repositorio | `git@github.com:JulianoJul/baseaccess.git` |
+| Node.js | `pkg install nodejs` (si no está) |
+| Descargas | `curl` viene preinstalado |
+
+**Comandos clave para reconstruir el `.exe`:**
+```bash
+npm install --save-dev --no-bin-links electron@latest electron-builder@latest
+node node_modules/electron-builder/cli.js --win portable --x64
+```
+El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
+
+**Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
+
+## ⚠️ Limitación: `file://` + WASM
+
+Al abrir `index.html` con doble click (`file://` protocol), los navegadores **bloquean la carga del binario WASM** por seguridad. Síntomas:
+- El botón "+ Nuevo Expediente" queda deshabilitado
+- Los registros de la BDD no se muestran en la tabla
+
+**Usar siempre el modo Electron portable** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
+
 ## Arquitectura
 
 App web 100% cliente-side. **HTML + Tailwind CSS = UI** | **sql.js (SQLite WASM) = Data Layer**.
@@ -1485,6 +1513,15 @@ El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecut
 
 ## Makefile
 
+```bash
+make combine          # Concatena index.html + Tablas6.sql + main.js + package.json + doc.md → combined.txt
+make clean            # rm -f combined.txt
+make commit msg="x"   # git add -A + git commit
+make push             # git push
+make github msg="x"   # commit + push (shortcut)
+make serve            # python3 -m http.server 8000 (sirve index.html por HTTP para evitar file://)
+```
+
 ## Reglas del Proceso
 
 1. **doc.md primero**: antes de cualquier implementación o cambio de código, actualizar esta documentación con lo que se planea hacer.
@@ -1510,3 +1547,5 @@ El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecut
 | 7 | `index.html` | CDNs reemplazadas por rutas locales `vendor/` | Offline-first: sin depender de CDNs corporativas bloqueadas |
 | 8 | `main.js` + `package.json` | **Creado**: Electron main process + electron-builder config | App de escritorio portable sin depender del navegador |
 | 9 | `.gitignore` | **Creado**: node_modules/, dist/ | Prevenir commits de dependencias y builds |
+| 10 | `doc.md` | Agregada sección Contexto Termux + advertencia `file://` WASM | Documentar entorno de desarrollo y limitación conocida |
+| 11 | `Makefile` | Agregado target `serve` (python3 http.server) | Alternativa HTTP para evitar bloqueo WASM en file:// |
