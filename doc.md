@@ -179,43 +179,6 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 
 ---
 
-## UI: Rediseño tipo LibreOffice Base (Plan)
-
-### Objetivo
-Reestructurar la interfaz para que tenga una navegación lateral (panel izquierdo) similar a LibreOffice Base, con vistas intercambiables.
-
-### Layout nuevo
-```
-┌──────────────────────────────────────────────────┐
-│  Header (input file, botones, búsqueda)           │
-├──────────┬───────────────────────────────────────┤
-│  NAV     │  VISTA PRINCIPAL (cambia según        │
-│  lateral │  selección del nav)                    │
-│          │                                        │
-│ 📋 Exp.  │  Home: selector de formularios        │
-│ ⏳ Hist. │  Expedientes: grid Excel              │
-│          │    └─ fila expandible → sub-grid      │
-│          │       historial                       │
-│          │         └─ fila expandible → detalle  │
-│          │            del movimiento             │
-└──────────┴───────────────────────────────────────┘
-```
-
-### Cambios en index.html
-- Layout `flex`: nav lateral (`<aside>`) + main content (`<section>`)
-- Nav con 2 entradas: "📋 Expedientes", "⏳ Historial"
-- Vista Home: tarjetas de formularios al cargar BD
-- Grid principal mejorado estilo Excel (alternar filas, mejor scroll)
-- Sub-grid de historial dentro de cada fila expandida, con filas expandibles
-
-### Lo que NO cambia
-- Esquema de colores oscuro (gray-900, teal-400)
-- Modal de formulario (nuevo/editar expediente)
-- Lógica CRUD (guardar, eliminar)
-- Dependencias vendor/
-
----
-
 ## Cambios Realizados
 
 ### Migración a Web HTML/JS (Julio 2026)
@@ -233,15 +196,3 @@ Reestructurar la interfaz para que tenga una navegación lateral (panel izquierd
 | 9 | `.gitignore` | **Creado**: node_modules/, dist/ | Prevenir commits de dependencias y builds |
 | 10 | `doc.md` | Agregada sección Contexto Termux + advertencia `file://` WASM | Documentar entorno de desarrollo y limitación conocida |
 | 11 | `Makefile` | Agregado target `serve` (python3 http.server) | Alternativa HTTP para evitar bloqueo WASM en file:// |
-
-### Rediseño LibreOffice Base (Julio 2026)
-
-| # | Archivo | Cambio | Razón |
-|---|---------|--------|-------|
-| 1 | `index.html` | Layout flex con nav lateral + main intercambiable | Navegación tipo LibreOffice Base |
-| 2 | `index.html` | Nueva vista inicio con tarjetas de formularios | Pantalla de selección al cargar BD |
-| 3 | `index.html` | Grid Excel con filas alternadas (even/odd) | Mejor legibilidad de datos |
-| 4 | `index.html` | Fila expandible con tabs: Movimientos (sub-grid) / Ficha (tarjetas) | Historial como grid expandible + ficha del expediente como vista alterna |
-| 5 | `index.html` | Sub-grid de historial con filas expandibles a detalle | Cada movimiento del historial expandible para ver información completa |
-| 6 | `index.html` | Nueva vista "Historial Global" en nav lateral | Traza completa de todos los movimientos |
-| 7 | `doc.md` | Documentado el plan de rediseño antes de implementar | Regla: doc.md primero |
