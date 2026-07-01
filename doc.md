@@ -205,3 +205,5 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 17 | `index.html` | Agregada `toggleDetalleMov` con detalle expandible por movimiento (incluye observaciones) | Ver detalle completo sin recargar |
 | 18 | `Makefile` | combine target apunta a Tablas7.sql en lugar de Tablas6.sql | Reflejar schema actual |
 | 19 | `doc.md` | Documentación actualizada: Tablas6.sql→Tablas7.sql | Sincronizar documentación con schema v7 |
+| 20 | `index.html` | Eliminada columna "Monto Adjudicado" de la tabla principal + colspan 8→7 | Simplificar vista principal, monto visible solo en detalle expandible |
+| 21 | `package.json` | Agregado script `build:linux`, sección `linux` con targets AppImage/deb, campo `author` | Build para Linux (AppImage generado) |

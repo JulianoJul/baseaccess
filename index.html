@@ -47,12 +47,11 @@
                                 <th class="p-3">Documento</th>
                                 <th class="p-3">Estatus Detalle</th>
                                 <th class="p-3">Nro Proceso</th>
-                                <th class="p-3 text-right">Monto Adjudicado</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
                             <tr>
-                                <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
+                                <td colspan="7" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -388,7 +387,7 @@
             cuerpo.innerHTML = '';
 
             if (lista.length === 0) {
-                cuerpo.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
+                cuerpo.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
                 return;
             }
 
@@ -411,9 +410,6 @@
                         </span>
                     </td>
                     <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
-                    <td class="p-3 text-right font-mono font-semibold text-emerald-400">
-                        ${exp.monto_adjudicado_usd ? '$' + exp.monto_adjudicado_usd.toLocaleString('es-ES', {minimumFractionDigits: 2}) : '—'}
-                    </td>
                 `;
                 
                 filaPrincipal.addEventListener('click', (e) => {
@@ -425,7 +421,7 @@
                 filaDesplegable.className = "hidden bg-gray-950/40 border-l-4 border-teal-500 transition-all";
                 
                 filaDesplegable.innerHTML = `
-                    <td colspan="8" class="p-5">
+                    <td colspan="7" class="p-5">
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                             
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
