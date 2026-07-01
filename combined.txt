@@ -7,15 +7,116 @@
     <title>Gestión de Expedientes con Historial</title>
     <link href="vendor/tailwind.min.css" rel="stylesheet">
     <script src="vendor/sql-wasm.js"></script>
+    <style>
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border-left: 3px solid transparent;
+            color: #9CA3AF;
+        }
+        .nav-item:hover {
+            background: rgba(45, 212, 191, 0.08);
+            color: #E5E7EB;
+        }
+        .nav-item.active {
+            background: rgba(45, 212, 191, 0.12);
+            color: #2DD4BF;
+            border-left-color: #2DD4BF;
+            font-weight: 600;
+        }
+        .nav-icon { font-size: 1.125rem; }
+        .tr-expanded { }
+        .subgrid-cell {
+            padding: 0 !important;
+            background: rgba(3, 7, 18, 0.3);
+        }
+        .subgrid-table { width: 100%; border-collapse: collapse; }
+        .subgrid-table th {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.6875rem;
+            color: #FBBF24;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            text-align: left;
+            background: rgba(251, 191, 36, 0.06);
+            border-bottom: 1px solid rgba(55, 65, 81, 0.6);
+        }
+        .subgrid-table td {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            border-bottom: 1px solid rgba(55, 65, 81, 0.3);
+        }
+        .subgrid-table tr:last-child td { border-bottom: none; }
+        .subgrid-table tr { cursor: pointer; transition: background 0.1s; }
+        .subgrid-table tr:hover { background: rgba(251, 191, 36, 0.04); }
+        .subgrid-table .sub-subgrid td {
+            padding: 0 !important;
+            background: rgba(0, 0, 0, 0.25);
+        }
+        .sub-detail {
+            padding: 0.75rem 1rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+        .sub-detail div span:first-child {
+            color: #6B7280;
+            display: block;
+            font-size: 0.6875rem;
+        }
+        .sub-detail div span:last-child {
+            color: #D1D5DB;
+            font-weight: 500;
+        }
+        .home-card {
+            background: #1F2937;
+            border: 1px solid #374151;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+        .home-card:hover {
+            border-color: #2DD4BF;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(45, 212, 191, 0.15);
+        }
+        .home-card .icon { font-size: 2.5rem; margin-bottom: 0.75rem; }
+        .home-card h3 { font-size: 1.125rem; font-weight: 700; color: #2DD4BF; margin-bottom: 0.25rem; }
+        .home-card p { font-size: 0.8125rem; color: #6B7280; }
+        .excel-row-even { background: rgba(31, 41, 55, 0.3); }
+        .excel-row-odd { background: transparent; }
+        .excel-row-even:hover, .excel-row-odd:hover { background: rgba(45, 212, 191, 0.04); }
+        .subtab-btn {
+            background: transparent;
+            color: #6B7280;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .subtab-btn:hover { color: #D1D5DB; background: rgba(45, 212, 191, 0.06); }
+        .subtab-btn.active {
+            color: #2DD4BF;
+            background: rgba(45, 212, 191, 0.12);
+            border-color: rgba(45, 212, 191, 0.3);
+            font-weight: 600;
+        }
+    </style>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans">
 
     <div class="max-w-[1600px] mx-auto" id="app">
 
         <!-- Encabezado -->
-        <header class="mb-6 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
+        <header class="mb-4 border-b border-gray-700 pb-3 flex flex-wrap justify-between items-center gap-3">
             <div>
-                <h1 class="text-2xl font-bold text-teal-400 flex items-center gap-2">📂 Gestión de Expedientes con Historial</h1>
+                <h1 class="text-xl font-bold text-teal-400 flex items-center gap-2">📂 Gestión de Expedientes con Historial</h1>
                 <p class="text-xs text-gray-400">Carga tu base de datos SQLite para trabajar de forma 100% local.</p>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
@@ -29,36 +130,96 @@
             </div>
         </header>
 
-        <!-- Buscador -->
-        <div class="mb-4">
-            <input type="text" id="search" placeholder="🔍 Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-teal-500" disabled>
-        </div>
+        <div class="flex gap-4 items-start">
 
-        <!-- Tabla Principal -->
-        <div id="vista-tabla">
-            <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                                <th class="p-3 w-12 text-center">Ver</th>
-                                <th class="p-3 w-20 text-center">Acción</th>
-                                <th class="p-3">SOLPED</th>
-                                <th class="p-3">Gerencia</th>
-                                <th class="p-3">Documento</th>
-                                <th class="p-3">Estatus Detalle</th>
-                                <th class="p-3">Nro Proceso</th>
-                                <th class="p-3 text-right">Monto Adjudicado</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
-                            <tr>
-                                <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- PANEL DE NAVEGACIÓN IZQUIERDO -->
+            <aside id="panel-nav" class="hidden w-48 shrink-0 bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                <div class="p-3 border-b border-gray-700 bg-gray-700/30">
+                    <h3 class="text-xs font-bold text-teal-400 uppercase tracking-wider">Formularios</h3>
                 </div>
-            </div>
+                <ul class="text-sm">
+                    <li id="nav-expedientes" class="nav-item" onclick="mostrarVista('expedientes')">
+                        <span class="nav-icon">📋</span> Expedientes
+                    </li>
+                    <li id="nav-historial" class="nav-item" onclick="mostrarVista('historial')">
+                        <span class="nav-icon">⏳</span> Historial Global
+                    </li>
+                </ul>
+            </aside>
+
+            <!-- CONTENIDO PRINCIPAL -->
+            <main class="flex-1 min-w-0">
+
+                <!-- VISTA INICIO: selector de formularios -->
+                <div id="vista-home">
+                    <div class="text-center mb-6">
+                        <p class="text-gray-500 text-sm">Carga tu base de datos para comenzar.</p>
+                    </div>
+                    <div id="home-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-3xl mx-auto">
+                    </div>
+                </div>
+
+                <!-- VISTA EXPEDIENTES: Buscador + Tabla Excel -->
+                <div id="vista-expedientes" class="hidden">
+                    <div class="mb-3 flex items-center gap-3">
+                        <input type="text" id="search" placeholder="🔍 Filtrar por SOLPED, Proceso, Gerencia, Contrato o Empresa..."
+                            class="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-teal-500" disabled>
+                        <span id="total-count" class="text-xs text-gray-500 whitespace-nowrap"></span>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                                        <th class="p-3 w-12 text-center">Ver</th>
+                                        <th class="p-3 w-20 text-center">Acción</th>
+                                        <th class="p-3">SOLPED</th>
+                                        <th class="p-3">Gerencia</th>
+                                        <th class="p-3">Documento</th>
+                                        <th class="p-3">Estatus</th>
+                                        <th class="p-3">Nro Proceso</th>
+                                        <th class="p-3 text-right">Monto Adj.</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+                                    <tr>
+                                        <td colspan="8" class="p-8 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- VISTA HISTORIAL GLOBAL -->
+                <div id="vista-historial" class="hidden">
+                    <div class="mb-3">
+                        <input type="text" id="search-hist" placeholder="🔍 Filtrar por expediente, gerencia, emisor..."
+                            class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-200 focus:outline-none focus:border-teal-500">
+                    </div>
+                    <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                                        <th class="p-3 w-12 text-center">Detalle</th>
+                                        <th class="p-3">Exp.</th>
+                                        <th class="p-3">Gerencia</th>
+                                        <th class="p-3">Emisor</th>
+                                        <th class="p-3">Receptor</th>
+                                        <th class="p-3">Estatus</th>
+                                        <th class="p-3">F. Recibido</th>
+                                        <th class="p-3">F. Devuelto</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historial-cuerpo" class="divide-y divide-gray-700 text-sm">
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
         </div>
     </div>
 
@@ -281,10 +442,112 @@
                     document.getElementById('btn-nuevo').disabled = false;
                     cargarCatalogos();
                     cargarDatos();
+                    document.getElementById('panel-nav').classList.remove('hidden');
+                    mostrarVista('home');
                 }
                 r.readAsArrayBuffer(f);
             });
         });
+
+        // ================================================================
+        // NAVEGACIÓN
+        // ================================================================
+        function mostrarVista(vista) {
+            document.querySelectorAll('[id^="vista-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById('vista-' + vista);
+            if (target) target.classList.remove('hidden');
+            const navItem = document.getElementById('nav-' + vista);
+            if (navItem) navItem.classList.add('active');
+            if (vista === 'historial') cargarHistorialGlobal();
+            if (vista === 'home') mostrarHomeCards();
+        }
+
+        // ================================================================
+        // HOME / NAVEGACIÓN
+        // ================================================================
+        function mostrarHomeCards() {
+            const contenedor = document.getElementById('home-cards');
+            contenedor.innerHTML = `
+                <div class="home-card" onclick="mostrarVista('expedientes')">
+                    <div class="icon">📋</div>
+                    <h3>Expedientes</h3>
+                    <p>Gestión de expedientes de contrataciones con historial de movimientos.</p>
+                </div>
+                <div class="home-card" onclick="mostrarVista('historial')">
+                    <div class="icon">⏳</div>
+                    <h3>Historial Global</h3>
+                    <p>Traza completa de movimientos de todos los expedientes.</p>
+                </div>
+                <div class="home-card" onclick="mostrarFormulario(null)">
+                    <div class="icon">➕</div>
+                    <h3>Nuevo Expediente</h3>
+                    <p>Crear un nuevo registro de expediente desde cero.</p>
+                </div>
+            `;
+        }
+
+        function cargarHistorialGlobal() {
+            const cuerpo = document.getElementById('historial-cuerpo');
+            if (!db) { cuerpo.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-500">Carga una base de datos primero.</td></tr>'; return; }
+            try {
+                const res = db.exec(`
+                    SELECT h.id_movimiento, h.id_expediente,
+                        COALESCE(g.nombre,'N/A') AS gerencia,
+                        COALESCE(em.nombre,'N/A') AS emisor,
+                        COALESCE(rec.nombre,'N/A') AS receptor,
+                        COALESCE(ed.nombre,'N/A') AS estatus,
+                        COALESCE(h.fecha_recibido,'') AS f_entrada,
+                        COALESCE(h.fecha_devuelto,'') AS f_salida
+                    FROM historial_movimientos h
+                    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                    ORDER BY h.id_movimiento DESC LIMIT 200
+                `);
+                const datos = dbToObjects(res);
+                if (datos.length === 0) {
+                    cuerpo.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-gray-500">No hay movimientos registrados en el historial.</td></tr>';
+                    return;
+                }
+                let html = '';
+                datos.forEach((h, i) => {
+                    html += '<tr class="' + (i % 2 === 0 ? 'excel-row-even' : 'excel-row-odd') + '" onclick="toggleHistDetail(' + h.id_movimiento + ', event)">';
+                    html += '<td class="p-3 text-center"><span class="text-teal-400 cursor-pointer" id="hbtn-' + h.id_movimiento + '">➕</span></td>';
+                    html += '<td class="p-3 font-mono font-bold text-gray-300">#' + h.id_expediente + '</td>';
+                    html += '<td class="p-3 text-teal-300">' + h.gerencia + '</td>';
+                    html += '<td class="p-3">' + h.emisor + '</td>';
+                    html += '<td class="p-3">' + h.receptor + '</td>';
+                    html += '<td class="p-3"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ' + getEstatusClass(h.estatus) + '">' + h.estatus + '</span></td>';
+                    html += '<td class="p-3 font-mono text-gray-300">' + h.f_entrada + '</td>';
+                    html += '<td class="p-3 font-mono text-gray-300">' + h.f_salida + '</td>';
+                    html += '</tr>';
+                    html += '<tr id="hsub-' + h.id_movimiento + '" class="hidden"><td colspan="8" class="subgrid-cell"><div class="sub-detail">';
+                    html += '<div><span>ID Movimiento</span><span>#' + h.id_movimiento + '</span></div>';
+                    html += '<div><span>Expediente</span><span>#' + h.id_expediente + '</span></div>';
+                    html += '<div><span>Gerencia Destino</span><span>' + h.gerencia + '</span></div>';
+                    html += '<div><span>Emisor</span><span>' + h.emisor + '</span></div>';
+                    html += '<div><span>Receptor</span><span>' + h.receptor + '</span></div>';
+                    html += '<div><span>Estatus</span><span>' + h.estatus + '</span></div>';
+                    html += '<div><span>Fecha Recibido</span><span>' + h.f_entrada + '</span></div>';
+                    html += '<div><span>Fecha Devuelto</span><span>' + h.f_salida + '</span></div>';
+                    html += '</div></td></tr>';
+                });
+                cuerpo.innerHTML = html;
+            } catch (err) {
+                cuerpo.innerHTML = '<tr><td colspan="8" class="p-8 text-center text-red-400">Error al cargar historial: ' + err.message + '</td></tr>';
+            }
+        }
+
+        function toggleHistDetail(id, event) {
+            if (event) event.stopPropagation();
+            const sub = document.getElementById('hsub-' + id);
+            const btn = document.getElementById('hbtn-' + id);
+            if (!sub) return;
+            sub.classList.toggle('hidden');
+            btn.textContent = sub.classList.contains('hidden') ? '➕' : '➖';
+        }
 
         // ================================================================
         // UTILIDADES BD
@@ -382,6 +645,9 @@
             const res = db.exec("SELECT * FROM vw_reporte_excel_contrataciones ORDER BY id_expediente DESC");
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
+            mostrarVista('expedientes');
+            const totalSpan = document.getElementById('total-count');
+            if (totalSpan) totalSpan.textContent = expedientesCache.length + ' registros';
         }
 
         function renderizarTabla(lista) {
@@ -393,9 +659,9 @@
                 return;
             }
 
-            lista.forEach(exp => {
+            lista.forEach((exp, idx) => {
                 const filaPrincipal = document.createElement('tr');
-                filaPrincipal.className = "hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700";
+                filaPrincipal.className = (idx % 2 === 0 ? 'excel-row-even' : 'excel-row-odd') + ' hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700';
                 filaPrincipal.innerHTML = `
                     <td class="p-3 text-center">
                         <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="text-teal-400 font-bold hover:text-teal-300 text-base focus:outline-none" id="btn-${exp.id_expediente}">➕</button>
@@ -425,68 +691,82 @@
                 filaDesplegable.id = `subfila-${exp.id_expediente}`;
                 filaDesplegable.className = "hidden bg-gray-950/40 border-l-4 border-teal-500 transition-all";
                 
+                const expId = exp.id_expediente;
                 filaDesplegable.innerHTML = `
-                    <td colspan="8" class="p-5">
-                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-                            
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">📋 Información del Proceso</h4>
-                                <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">${exp.descripcion_proceso || 'Sin descripción.'}</span></p>
-                                <div class="grid grid-cols-2 gap-2 text-xs pt-2">
-                                    <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">${exp.superintendencia || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Plan Contratación:</span> <span class="text-gray-200 font-medium">${exp.plan_contrataciones || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Modalidad:</span> <span class="text-gray-200 font-medium">${exp.modalidad_contratacion || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">💰 Valores y Trazabilidad</h4>
-                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                                    <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">${exp.presupuesto_base_usd ? '$' + exp.presupuesto_base_usd.toLocaleString() : 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Presupuesto Base (Bs):</span> <span class="text-amber-500 block font-mono">${exp.presupuesto_base_bs ? 'Bs ' + exp.presupuesto_base_bs.toLocaleString() : 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Tipo de Cambio:</span> <span class="text-gray-300 block font-mono">${exp.tipo_cambio || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">${exp.monto_adjudicado_bs ? 'Bs ' + exp.monto_adjudicado_bs.toLocaleString() : 'N/A'}</span></div>
-                                    <div class="col-span-2 border-t border-gray-700/40 my-1"></div>
-                                    <div><span class="text-gray-400">Emisor / Remitente:</span> <span class="text-gray-200 block truncate">${exp.emisor || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Receptor Actual:</span> <span class="text-gray-200 block truncate">${exp.receptor || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">${exp.fecha_recibido || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">${exp.fecha_devuelto || 'N/A'}</span></div>
-                                </div>
-                            </div>
-
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">🏢 Adjudicación y Legal</h4>
-                                <p><span class="text-gray-400">Empresa Adjudicada:</span> <span class="text-gray-200 block font-medium truncate">${exp.empresa_adjudicada || 'N/A'}</span></p>
-                                <div class="grid grid-cols-2 gap-2 pt-1">
-                                    <div><span class="text-gray-400 block">Nro Acta Apertura:</span> <span class="text-gray-200 font-mono">${exp.nro_acta_apertura || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Nro Resolución JD:</span> <span class="text-gray-200 font-mono">${exp.nro_resolucion_jd || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Contrato SICAC:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sicac || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Contrato SAP:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sap || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Tiempo Ejecución:</span> <span class="text-gray-200">${exp.tiempo_ejecucion || 'N/A'}</span></div>
-                                    <div><span class="text-gray-400 block">Fecha Firma Contrato:</span> <span class="text-emerald-400 font-mono font-medium">${exp.fecha_firma_contrato || 'N/A'}</span></div>
-                                </div>
-                                <div class="pt-1"><span class="text-gray-400">Estado Acción / Detalle:</span> <span class="text-teal-300 block">${exp.estado_accion || 'N/A'}</span></div>
-                            </div>
-
+                    <td colspan="8" class="p-4">
+                        <div class="flex gap-3 mb-3 border-b border-gray-700/60 pb-2">
+                            <button onclick="alternarSubVista(${expId}, 'mov')" class="subtab-btn active text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors" id="subtab-btn-${expId}-mov">⏳ Movimientos</button>
+                            <button onclick="alternarSubVista(${expId}, 'ficha')" class="subtab-btn text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors" id="subtab-btn-${expId}-ficha">📋 Ficha del Expediente</button>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-6 border-t border-gray-700/50 pt-4">
-                            <div class="bg-gray-800/40 p-3 rounded border border-gray-700/40 text-xs h-full">
+                        <div id="subview-${expId}-mov">
+                            <table class="subgrid-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width:50px">Detalle</th>
+                                        <th>Mov.</th>
+                                        <th>Gerencia</th>
+                                        <th>Emisor</th>
+                                        <th>Receptor</th>
+                                        <th>Estatus</th>
+                                        <th>F. Recibido</th>
+                                        <th>F. Devuelto</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subgrid-body-${expId}">
+                                    <tr><td colspan="8" style="padding:1rem;text-align:center;color:#6B7280;font-size:0.75rem">Cargando movimientos...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="subview-${expId}-ficha" class="hidden">
+                            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                                <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
+                                    <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">📋 Información del Proceso</h4>
+                                    <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">${exp.descripcion_proceso || 'Sin descripción.'}</span></p>
+                                    <div class="grid grid-cols-2 gap-2 text-xs pt-2">
+                                        <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">${exp.superintendencia || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Plan Contratación:</span> <span class="text-gray-200 font-medium">${exp.plan_contrataciones || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Modalidad:</span> <span class="text-gray-200 font-medium">${exp.modalidad_contratacion || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                    <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">💰 Valores y Trazabilidad</h4>
+                                    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                        <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">${exp.presupuesto_base_usd ? '$' + exp.presupuesto_base_usd.toLocaleString() : 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Presupuesto Base (Bs):</span> <span class="text-amber-500 block font-mono">${exp.presupuesto_base_bs ? 'Bs ' + exp.presupuesto_base_bs.toLocaleString() : 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Tipo de Cambio:</span> <span class="text-gray-300 block font-mono">${exp.tipo_cambio || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">${exp.monto_adjudicado_bs ? 'Bs ' + exp.monto_adjudicado_bs.toLocaleString() : 'N/A'}</span></div>
+                                        <div class="col-span-2 border-t border-gray-700/40 my-1"></div>
+                                        <div><span class="text-gray-400">Emisor / Remitente:</span> <span class="text-gray-200 block truncate">${exp.emisor || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Receptor Actual:</span> <span class="text-gray-200 block truncate">${exp.receptor || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">${exp.fecha_recibido || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">${exp.fecha_devuelto || 'N/A'}</span></div>
+                                    </div>
+                                </div>
+                                <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                    <h4 class="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">🏢 Adjudicación y Legal</h4>
+                                    <p><span class="text-gray-400">Empresa Adjudicada:</span> <span class="text-gray-200 block font-medium truncate">${exp.empresa_adjudicada || 'N/A'}</span></p>
+                                    <div class="grid grid-cols-2 gap-2 pt-1">
+                                        <div><span class="text-gray-400 block">Nro Acta Apertura:</span> <span class="text-gray-200 font-mono">${exp.nro_acta_apertura || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Nro Resolución JD:</span> <span class="text-gray-200 font-mono">${exp.nro_resolucion_jd || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Contrato SICAC:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sicac || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Contrato SAP:</span> <span class="text-gray-200 font-mono">${exp.nro_contrato_sap || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Tiempo Ejecución:</span> <span class="text-gray-200">${exp.tiempo_ejecucion || 'N/A'}</span></div>
+                                        <div><span class="text-gray-400 block">Fecha Firma Contrato:</span> <span class="text-emerald-400 font-mono font-medium">${exp.fecha_firma_contrato || 'N/A'}</span></div>
+                                    </div>
+                                    <div class="pt-1"><span class="text-gray-400">Estado Acción / Detalle:</span> <span class="text-teal-300 block">${exp.estado_accion || 'N/A'}</span></div>
+                                </div>
+                            </div>
+                            <div class="mt-4 bg-gray-800/40 p-3 rounded border border-gray-700/40 text-xs">
                                 <span class="text-gray-400 font-bold block mb-1">📝 Observaciones Generales:</span>
                                 <p class="text-gray-300 italic whitespace-pre-wrap">${exp.observaciones_generales || 'Sin observaciones registradas.'}</p>
                                 <div class="text-[10px] text-gray-500 mt-4 space-y-0.5">
                                     <p>Creado el: ${exp.fecha_creacion}</p>
                                     <p>Última actualización: ${exp.fecha_actualizacion}</p>
-                                </div>
-                            </div>
-
-                            <div class="lg:col-span-2 bg-gray-900/60 p-4 rounded-lg border border-gray-700/80">
-                                <h4 class="text-xs font-bold text-amber-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">⏳ Subformulario: Historial de Movimientos del Expediente</h4>
-                                <div id="hist-content-${exp.id_expediente}" class="text-xs text-gray-400 overflow-x-auto">
-                                    Cargando traza de movimientos...
                                 </div>
                             </div>
                         </div>
@@ -496,6 +776,16 @@
                 cuerpo.appendChild(filaPrincipal);
                 cuerpo.appendChild(filaDesplegable);
             });
+        }
+
+        // ================================================================
+        // ALTERNAR SUB-VISTAS (Movimientos / Ficha)
+        // ================================================================
+        function alternarSubVista(expId, vista) {
+            document.getElementById('subview-' + expId + '-mov').classList.toggle('hidden', vista !== 'mov');
+            document.getElementById('subview-' + expId + '-ficha').classList.toggle('hidden', vista !== 'ficha');
+            document.getElementById('subtab-btn-' + expId + '-mov').classList.toggle('active', vista === 'mov');
+            document.getElementById('subtab-btn-' + expId + '-ficha').classList.toggle('active', vista === 'ficha');
         }
 
         // ================================================================
@@ -510,67 +800,71 @@
             if (subfila.classList.contains('hidden')) {
                 subfila.classList.remove('hidden');
                 btn.innerText = '➖';
-                
-                const query = `
-                    SELECT 
-                        h.id_movimiento,
-                        COALESCE(g.nombre, 'N/A') AS ger,
-                        COALESCE(em.nombre, 'N/A') AS emisor,
-                        COALESCE(rec.nombre, 'N/A') AS receptor,
-                        COALESCE(ed.nombre, 'N/A') AS estatus,
-                        COALESCE(h.fecha_recibido, 'Sin fecha') AS f_entrada,
-                        COALESCE(h.fecha_devuelto, 'Sin fecha') AS f_salida
-                    FROM historial_movimientos h
-                    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
-                    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
-                    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
-                    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                    WHERE h.id_expediente = ${id}
-                    ORDER BY h.id_movimiento DESC
-                `;
-                
-                const resHist = db.exec(query);
-                const historial = dbToObjects(resHist);
-                const contenedor = document.getElementById(`hist-content-${id}`);
-
-                if(historial.length === 0) {
-                    contenedor.innerHTML = `<p class="text-gray-500 italic p-2">Este expediente se encuentra en su estado inicial. No tiene movimientos o cambios registrados en el historial todavía.</p>`;
-                } else {
-                    let tablaHist = `
-                        <table class="w-full text-left border-collapse text-[11px]">
-                            <thead>
-                                <tr class="text-gray-400 border-b border-gray-700/60 bg-gray-800/40 font-semibold">
-                                    <th class="p-2">Movimiento</th>
-                                    <th class="p-2">Gerencia Destino</th>
-                                    <th class="p-2">Emisor</th>
-                                    <th class="p-2">Receptor</th>
-                                    <th class="p-2">Estatus</th>
-                                    <th class="p-2 text-center">F. Recibido</th>
-                                    <th class="p-2 text-center">F. Devuelto</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-800">
-                    `;
-                    historial.forEach((h, index) => {
-                        tablaHist += `
-                            <tr class="hover:bg-gray-800/50">
-                                <td class="p-2 font-mono text-gray-500 font-bold">#${historial.length - index}</td>
-                                <td class="p-2 text-teal-300 font-medium">${h.ger}</td>
-                                <td class="p-2">${h.emisor}</td>
-                                <td class="p-2">${h.receptor}</td>
-                                <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>
-                                <td class="p-2 text-center font-mono text-gray-300">${h.f_entrada}</td>
-                                <td class="p-2 text-center font-mono text-gray-300">${h.f_salida}</td>
-                            </tr>
-                        `;
-                    });
-                    tablaHist += `</tbody></table>`;
-                    contenedor.innerHTML = tablaHist;
-                }
+                cargarSubGridHistorial(id);
             } else {
                 subfila.classList.add('hidden');
                 btn.innerText = '➕';
             }
+        }
+
+        function cargarSubGridHistorial(id) {
+            const cuerpo = document.getElementById(`subgrid-body-${id}`);
+            if (!db) return;
+            const query = `
+                SELECT h.id_movimiento,
+                    COALESCE(g.nombre, 'N/A') AS ger,
+                    COALESCE(em.nombre, 'N/A') AS emisor,
+                    COALESCE(rec.nombre, 'N/A') AS receptor,
+                    COALESCE(ed.nombre, 'N/A') AS estatus,
+                    COALESCE(h.fecha_recibido, '') AS f_entrada,
+                    COALESCE(h.fecha_devuelto, '') AS f_salida
+                FROM historial_movimientos h
+                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC
+            `;
+            const res = db.exec(query);
+            const historial = dbToObjects(res);
+            if (historial.length === 0) {
+                cuerpo.innerHTML = '<tr><td colspan="8" style="padding:1rem;text-align:center;color:#6B7280;font-size:0.75rem">Sin movimientos registrados.</td></tr>';
+                return;
+            }
+            let html = '';
+            historial.forEach((h, idx) => {
+                const mid = h.id_movimiento;
+                html += `<tr onclick="toggleSubDetalle(${mid}, event)" style="cursor:pointer">`;
+                html += `<td class="p-2 text-center"><span class="text-amber-400" id="sbtn-${mid}">➕</span></td>`;
+                html += `<td class="p-2 font-mono font-bold text-gray-500">#${historial.length - idx}</td>`;
+                html += `<td class="p-2 text-teal-300">${h.ger}</td>`;
+                html += `<td class="p-2">${h.emisor}</td>`;
+                html += `<td class="p-2">${h.receptor}</td>`;
+                html += `<td class="p-2"><span class="px-1.5 py-0.5 rounded text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></td>`;
+                html += `<td class="p-2 font-mono">${h.f_entrada}</td>`;
+                html += `<td class="p-2 font-mono">${h.f_salida}</td>`;
+                html += `</tr>`;
+                html += `<tr id="sdet-${mid}" class="hidden"><td colspan="8" class="sub-subgrid"><div class="sub-detail">`;
+                html += `<div><span>ID Movimiento</span><span>#${mid}</span></div>`;
+                html += `<div><span>Gerencia Destino</span><span>${h.ger}</span></div>`;
+                html += `<div><span>Emisor</span><span>${h.emisor}</span></div>`;
+                html += `<div><span>Receptor</span><span>${h.receptor}</span></div>`;
+                html += `<div><span>Estatus</span><span>${h.estatus}</span></div>`;
+                html += `<div><span>Fecha Recibido</span><span>${h.f_entrada}</span></div>`;
+                html += `<div><span>Fecha Devuelto</span><span>${h.f_salida}</span></div>`;
+                html += `</div></td></tr>`;
+            });
+            cuerpo.innerHTML = html;
+        }
+
+        function toggleSubDetalle(id, event) {
+            if (event) event.stopPropagation();
+            const sub = document.getElementById('sdet-' + id);
+            const btn = document.getElementById('sbtn-' + id);
+            if (!sub) return;
+            sub.classList.toggle('hidden');
+            btn.textContent = sub.classList.contains('hidden') ? '➕' : '➖';
         }
 
         // ================================================================
@@ -1532,6 +1826,43 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 
 ---
 
+## UI: Rediseño tipo LibreOffice Base (Plan)
+
+### Objetivo
+Reestructurar la interfaz para que tenga una navegación lateral (panel izquierdo) similar a LibreOffice Base, con vistas intercambiables.
+
+### Layout nuevo
+```
+┌──────────────────────────────────────────────────┐
+│  Header (input file, botones, búsqueda)           │
+├──────────┬───────────────────────────────────────┤
+│  NAV     │  VISTA PRINCIPAL (cambia según        │
+│  lateral │  selección del nav)                    │
+│          │                                        │
+│ 📋 Exp.  │  Home: selector de formularios        │
+│ ⏳ Hist. │  Expedientes: grid Excel              │
+│          │    └─ fila expandible → sub-grid      │
+│          │       historial                       │
+│          │         └─ fila expandible → detalle  │
+│          │            del movimiento             │
+└──────────┴───────────────────────────────────────┘
+```
+
+### Cambios en index.html
+- Layout `flex`: nav lateral (`<aside>`) + main content (`<section>`)
+- Nav con 2 entradas: "📋 Expedientes", "⏳ Historial"
+- Vista Home: tarjetas de formularios al cargar BD
+- Grid principal mejorado estilo Excel (alternar filas, mejor scroll)
+- Sub-grid de historial dentro de cada fila expandida, con filas expandibles
+
+### Lo que NO cambia
+- Esquema de colores oscuro (gray-900, teal-400)
+- Modal de formulario (nuevo/editar expediente)
+- Lógica CRUD (guardar, eliminar)
+- Dependencias vendor/
+
+---
+
 ## Cambios Realizados
 
 ### Migración a Web HTML/JS (Julio 2026)
@@ -1549,3 +1880,15 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 9 | `.gitignore` | **Creado**: node_modules/, dist/ | Prevenir commits de dependencias y builds |
 | 10 | `doc.md` | Agregada sección Contexto Termux + advertencia `file://` WASM | Documentar entorno de desarrollo y limitación conocida |
 | 11 | `Makefile` | Agregado target `serve` (python3 http.server) | Alternativa HTTP para evitar bloqueo WASM en file:// |
+
+### Rediseño LibreOffice Base (Julio 2026)
+
+| # | Archivo | Cambio | Razón |
+|---|---------|--------|-------|
+| 1 | `index.html` | Layout flex con nav lateral + main intercambiable | Navegación tipo LibreOffice Base |
+| 2 | `index.html` | Nueva vista inicio con tarjetas de formularios | Pantalla de selección al cargar BD |
+| 3 | `index.html` | Grid Excel con filas alternadas (even/odd) | Mejor legibilidad de datos |
+| 4 | `index.html` | Fila expandible con tabs: Movimientos (sub-grid) / Ficha (tarjetas) | Historial como grid expandible + ficha del expediente como vista alterna |
+| 5 | `index.html` | Sub-grid de historial con filas expandibles a detalle | Cada movimiento del historial expandible para ver información completa |
+| 6 | `index.html` | Nueva vista "Historial Global" en nav lateral | Traza completa de todos los movimientos |
+| 7 | `doc.md` | Documentado el plan de rediseño antes de implementar | Regla: doc.md primero |
