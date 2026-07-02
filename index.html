@@ -5,9 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Expedientes con Historial</title>
     <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drag-over {
+            outline: 3px dashed #2dd4bf;
+            outline-offset: -10px;
+            background-color: rgba(45, 212, 191, 0.05);
+        }
+    </style>
     <script src="vendor/sql-wasm.js"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans">
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
 
     <div class="max-w-[1600px] mx-auto" id="app">
 
@@ -297,8 +304,42 @@
             SQL = sqlLib;
         });
 
-        function abrirBaseDatos() {
-            document.getElementById('dbfile').click();
+        function _cargarBaseDatosComun(bytes, fileName, filePath) {
+            const signature = new TextDecoder().decode(bytes.slice(0, 16));
+            if (!signature.startsWith('SQLite format 3')) {
+                alert('El archivo no parece ser una base de datos SQLite válida.');
+                return false;
+            }
+            db = new SQL.Database(bytes);
+            dbFilePath = filePath || fileName;
+            if (electronAPI && filePath) electronAPI.setDbPath(filePath);
+            document.getElementById('search').disabled = false;
+            document.getElementById('btn-nuevo').disabled = false;
+            document.getElementById('btn-guardar').disabled = false;
+            document.getElementById('dbfile').value = '';
+            document.getElementById('body').classList.remove('drag-over');
+            actualizarEstadoBD(`✔ ${fileName}`);
+            cargarCatalogos();
+            cargarDatos();
+            iniciarAutoguardado();
+            return true;
+        }
+
+        async function abrirBaseDatos() {
+            if (electronAPI && electronAPI.openDbDialog) {
+                try {
+                    const result = await electronAPI.openDbDialog();
+                    if (!result) return;
+                    const bytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
+                    const fileName = result.path.split(/[\\/]/).pop();
+                    _cargarBaseDatosComun(bytes, fileName, result.path);
+                } catch (err) {
+                    console.error('IPC dialog error, fallback a file input:', err);
+                    document.getElementById('dbfile').click();
+                }
+            } else {
+                document.getElementById('dbfile').click();
+            }
         }
 
         document.getElementById('dbfile').addEventListener('change', function(e) {
@@ -307,17 +348,8 @@
             const r = new FileReader();
             r.onload = function() {
                 try {
-                    const Uints = new Uint8Array(r.result);
-                    db = new SQL.Database(Uints);
-                    dbFilePath = f.path || f.name;
-                    if (electronAPI && f.path) electronAPI.setDbPath(f.path);
-                    document.getElementById('search').disabled = false;
-                    document.getElementById('btn-nuevo').disabled = false;
-                    document.getElementById('btn-guardar').disabled = false;
-                    actualizarEstadoBD(`✔ ${f.name}`);
-                    cargarCatalogos();
-                    cargarDatos();
-                    iniciarAutoguardado();
+                    const bytes = new Uint8Array(r.result);
+                    _cargarBaseDatosComun(bytes, f.name, f.path || f.name);
                 } catch (err) {
                     alert('Error al abrir BD: ' + err);
                 }
@@ -376,12 +408,34 @@
             }
         });
 
-        // Drag & Drop
-        document.addEventListener('dragover', (e) => { e.preventDefault(); });
+        // Drag & Drop con feedback visual y validaciones
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            document.getElementById('body').classList.add('drag-over');
+        });
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        document.addEventListener('dragleave', (e) => {
+            if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
+                document.getElementById('body').classList.remove('drag-over');
+            }
+        });
         document.addEventListener('drop', async (e) => {
             e.preventDefault();
+            document.getElementById('body').classList.remove('drag-over');
             const file = e.dataTransfer?.files?.[0];
-            if (!file || (!file.name.endsWith('.db') && !file.name.endsWith('.sqlite'))) return;
+            if (!file) return;
+            if (!file.name.toLowerCase().match(/\.(db|sqlite)$/)) {
+                alert('Solo se aceptan archivos .db o .sqlite');
+                return;
+            }
+            const MAX_SIZE = 100 * 1024 * 1024;
+            if (file.size > MAX_SIZE) {
+                alert(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)} MB). Máximo: 100 MB`);
+                return;
+            }
             try {
                 const reader = new FileReader();
                 const buffer = await new Promise((resolve, reject) => {
@@ -390,19 +444,10 @@
                     reader.readAsArrayBuffer(file);
                 });
                 const bytes = new Uint8Array(buffer);
-                db = new SQL.Database(bytes);
-                dbFilePath = file.path || file.name;
-                if (electronAPI && file.path) electronAPI.setDbPath(file.path);
-                document.getElementById('search').disabled = false;
-                document.getElementById('btn-nuevo').disabled = false;
-                document.getElementById('btn-guardar').disabled = false;
-                actualizarEstadoBD(`✔ ${file.name}`);
-                cargarCatalogos();
-                cargarDatos();
-                iniciarAutoguardado();
-                document.getElementById('dbfile').value = '';
+                _cargarBaseDatosComun(bytes, file.name, file.path || file.name);
             } catch (err) {
-                alert('Error al abrir archivo: ' + err);
+                console.error('Error en drop:', err);
+                alert('Error al abrir archivo: ' + err.message);
             }
         });
 
