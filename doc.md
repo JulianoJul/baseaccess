@@ -14,7 +14,7 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 **Comandos clave para reconstruir el `.exe` (solo en Termux/Android):**
 ```bash
 npm install --save-dev --no-bin-links electron@latest electron-builder@latest
-node node_modules/electron-builder/cli.js --win portable --x64
+node node_modules/electron-builder/cli.js --win dir --x64
 ```
 El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
 
@@ -28,7 +28,7 @@ Al abrir `index.html` con doble click (`file://` protocol), los navegadores **bl
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
-**Usar siempre el modo Electron portable** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
+**Usar siempre Electron WinUnpacked** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
 
 ## Arquitectura
 
@@ -50,7 +50,7 @@ Dos modos de ejecución:
 │  │   └── JavaScript — lógica CRUD                │
 │  └── Archivo .db / .sqlite (cargado por usuario) │
 ├─────────────────────────────────────────────────┤
-│  Modo Electron (portable, sin instalación)        │
+│  Modo Electron (win-unpacked, sin instalación)    │
 │  ├── GestionExpedientes.exe (Chromium + app)     │
 │  └── resources/vendor/ (CSS, WASM, etc.)         │
 └─────────────────────────────────────────────────┘
@@ -147,12 +147,13 @@ npm install --save-dev --no-bin-links tailwindcss@3.4.19
 npx tailwindcss -i input.css -o vendor/tailwind.min.css --minify
 ```
 
-## Electron Portable
+## Electron WinUnpacked
 
-Para no depender de ningún navegador, se puede construir un `.exe` portable:
+Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido.
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
+- `preload.js` — contextBridge para IPC seguro
 - `package.json` — `electron` + `electron-builder` como devDeps
 
 ### Build (requiere Node.js + npm)
@@ -171,9 +172,9 @@ make electron-build-linux
 npm run build:linux
 ```
 
-El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). El AppImage en `dist/GestionExpedientes-*.AppImage`. Se ejecutan sin instalación, sin admin, sin depender del navegador del sistema.
+Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedientes.exe`. Sin instalación, sin admin.
 
-> **Nota (Termux/Android):** el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--win portable --x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
+> **Nota:** `--win portable` (single-file `.exe`) no se usa porque `win-unpacked` es más estable, permite reemplazar recursos sin re-empaquetar, y evita problemas con NSIS/7zip en Termux ARM64.
 
 ## Makefile
 

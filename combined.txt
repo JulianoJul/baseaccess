@@ -6,9 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Expedientes con Historial</title>
     <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <style>
+        .drag-over {
+            outline: 3px dashed #2dd4bf;
+            outline-offset: -10px;
+            background-color: rgba(45, 212, 191, 0.05);
+        }
+    </style>
     <script src="vendor/sql-wasm.js"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans">
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
 
     <div class="max-w-[1600px] mx-auto" id="app">
 
@@ -298,8 +305,42 @@
             SQL = sqlLib;
         });
 
-        function abrirBaseDatos() {
-            document.getElementById('dbfile').click();
+        function _cargarBaseDatosComun(bytes, fileName, filePath) {
+            const signature = new TextDecoder().decode(bytes.slice(0, 16));
+            if (!signature.startsWith('SQLite format 3')) {
+                alert('El archivo no parece ser una base de datos SQLite válida.');
+                return false;
+            }
+            db = new SQL.Database(bytes);
+            dbFilePath = filePath || fileName;
+            if (electronAPI && filePath) electronAPI.setDbPath(filePath);
+            document.getElementById('search').disabled = false;
+            document.getElementById('btn-nuevo').disabled = false;
+            document.getElementById('btn-guardar').disabled = false;
+            document.getElementById('dbfile').value = '';
+            document.getElementById('body').classList.remove('drag-over');
+            actualizarEstadoBD(`✔ ${fileName}`);
+            cargarCatalogos();
+            cargarDatos();
+            iniciarAutoguardado();
+            return true;
+        }
+
+        async function abrirBaseDatos() {
+            if (electronAPI && electronAPI.openDbDialog) {
+                try {
+                    const result = await electronAPI.openDbDialog();
+                    if (!result) return;
+                    const bytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
+                    const fileName = result.path.split(/[\\/]/).pop();
+                    _cargarBaseDatosComun(bytes, fileName, result.path);
+                } catch (err) {
+                    console.error('IPC dialog error, fallback a file input:', err);
+                    document.getElementById('dbfile').click();
+                }
+            } else {
+                document.getElementById('dbfile').click();
+            }
         }
 
         document.getElementById('dbfile').addEventListener('change', function(e) {
@@ -308,17 +349,8 @@
             const r = new FileReader();
             r.onload = function() {
                 try {
-                    const Uints = new Uint8Array(r.result);
-                    db = new SQL.Database(Uints);
-                    dbFilePath = f.path || f.name;
-                    if (electronAPI && f.path) electronAPI.setDbPath(f.path);
-                    document.getElementById('search').disabled = false;
-                    document.getElementById('btn-nuevo').disabled = false;
-                    document.getElementById('btn-guardar').disabled = false;
-                    actualizarEstadoBD(`✔ ${f.name}`);
-                    cargarCatalogos();
-                    cargarDatos();
-                    iniciarAutoguardado();
+                    const bytes = new Uint8Array(r.result);
+                    _cargarBaseDatosComun(bytes, f.name, f.path || f.name);
                 } catch (err) {
                     alert('Error al abrir BD: ' + err);
                 }
@@ -377,12 +409,34 @@
             }
         });
 
-        // Drag & Drop
-        document.addEventListener('dragover', (e) => { e.preventDefault(); });
+        // Drag & Drop con feedback visual y validaciones
+        document.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            document.getElementById('body').classList.add('drag-over');
+        });
+        document.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+        });
+        document.addEventListener('dragleave', (e) => {
+            if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
+                document.getElementById('body').classList.remove('drag-over');
+            }
+        });
         document.addEventListener('drop', async (e) => {
             e.preventDefault();
+            document.getElementById('body').classList.remove('drag-over');
             const file = e.dataTransfer?.files?.[0];
-            if (!file || (!file.name.endsWith('.db') && !file.name.endsWith('.sqlite'))) return;
+            if (!file) return;
+            if (!file.name.toLowerCase().match(/\.(db|sqlite)$/)) {
+                alert('Solo se aceptan archivos .db o .sqlite');
+                return;
+            }
+            const MAX_SIZE = 100 * 1024 * 1024;
+            if (file.size > MAX_SIZE) {
+                alert(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)} MB). Máximo: 100 MB`);
+                return;
+            }
             try {
                 const reader = new FileReader();
                 const buffer = await new Promise((resolve, reject) => {
@@ -391,19 +445,10 @@
                     reader.readAsArrayBuffer(file);
                 });
                 const bytes = new Uint8Array(buffer);
-                db = new SQL.Database(bytes);
-                dbFilePath = file.path || file.name;
-                if (electronAPI && file.path) electronAPI.setDbPath(file.path);
-                document.getElementById('search').disabled = false;
-                document.getElementById('btn-nuevo').disabled = false;
-                document.getElementById('btn-guardar').disabled = false;
-                actualizarEstadoBD(`✔ ${file.name}`);
-                cargarCatalogos();
-                cargarDatos();
-                iniciarAutoguardado();
-                document.getElementById('dbfile').value = '';
+                _cargarBaseDatosComun(bytes, file.name, file.path || file.name);
             } catch (err) {
-                alert('Error al abrir archivo: ' + err);
+                console.error('Error en drop:', err);
+                alert('Error al abrir archivo: ' + err.message);
             }
         });
 
@@ -1522,10 +1567,6 @@ const fs = require('fs')
 
 let currentDbPath = null
 
-function getWindow() {
-  return BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0]
-}
-
 function createWindow() {
   const win = new BrowserWindow({
     width: 1400,
@@ -1542,7 +1583,7 @@ function createWindow() {
   win.setMenuBarVisibility(false)
 }
 
-// IPC handlers (solo para guardar)
+// IPC handlers
 ipcMain.handle('save-db', async (_event, dataBase64) => {
   if (!currentDbPath) throw new Error('No hay archivo abierto')
   const data = Buffer.from(dataBase64, 'base64')
@@ -1550,8 +1591,8 @@ ipcMain.handle('save-db', async (_event, dataBase64) => {
   return true
 })
 
-ipcMain.handle('save-db-as', async (_event, dataBase64) => {
-  const win = getWindow()
+ipcMain.handle('save-db-as', async (event, dataBase64) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
   if (!win) return null
   const result = await dialog.showSaveDialog(win, {
     filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
@@ -1574,11 +1615,24 @@ ipcMain.handle('get-db-path', async () => {
   return currentDbPath
 })
 
-// Sincronizar currentDbPath desde el frontend cuando abre un archivo
 ipcMain.handle('open-db-file', async (_event, filePath) => {
   currentDbPath = filePath
   const data = fs.readFileSync(filePath)
   return data.toString('base64')
+})
+
+ipcMain.handle('open-db-dialog', async (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  if (!win) return null
+  const result = await dialog.showOpenDialog(win, {
+    filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
+    properties: ['openFile'],
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+  const filePath = result.filePaths[0]
+  currentDbPath = filePath
+  const data = fs.readFileSync(filePath)
+  return { path: filePath, data: data.toString('base64') }
 })
 
 app.whenReady().then(createWindow)
@@ -1592,6 +1646,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveDbAs: (dataBase64) => ipcRenderer.invoke('save-db-as', dataBase64),
   setDbPath: (filePath) => ipcRenderer.invoke('set-db-path', filePath),
   getDbPath: () => ipcRenderer.invoke('get-db-path'),
+  openDbDialog: () => ipcRenderer.invoke('open-db-dialog'),
+  openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
 });
 
 === package.json ===
@@ -1606,7 +1662,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "electron-builder build --win portable",
+    "build": "electron-builder build --win dir --x64",
     "build:linux": "electron-builder build --linux"
   },
   "devDependencies": {
@@ -1627,12 +1683,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ],
     "win": {
       "target": [
-        "portable"
+        "dir"
       ],
       "icon": null
-    },
-    "portable": {
-      "artifactName": "GestionExpedientes-${version}-portable.exe"
     },
     "linux": {
       "target": [
@@ -1662,7 +1715,7 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 **Comandos clave para reconstruir el `.exe` (solo en Termux/Android):**
 ```bash
 npm install --save-dev --no-bin-links electron@latest electron-builder@latest
-node node_modules/electron-builder/cli.js --win portable --x64
+node node_modules/electron-builder/cli.js --win dir --x64
 ```
 El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
 
@@ -1676,7 +1729,7 @@ Al abrir `index.html` con doble click (`file://` protocol), los navegadores **bl
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
-**Usar siempre el modo Electron portable** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
+**Usar siempre Electron WinUnpacked** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
 
 ## Arquitectura
 
@@ -1698,7 +1751,7 @@ Dos modos de ejecución:
 │  │   └── JavaScript — lógica CRUD                │
 │  └── Archivo .db / .sqlite (cargado por usuario) │
 ├─────────────────────────────────────────────────┤
-│  Modo Electron (portable, sin instalación)        │
+│  Modo Electron (win-unpacked, sin instalación)    │
 │  ├── GestionExpedientes.exe (Chromium + app)     │
 │  └── resources/vendor/ (CSS, WASM, etc.)         │
 └─────────────────────────────────────────────────┘
@@ -1795,12 +1848,13 @@ npm install --save-dev --no-bin-links tailwindcss@3.4.19
 npx tailwindcss -i input.css -o vendor/tailwind.min.css --minify
 ```
 
-## Electron Portable
+## Electron WinUnpacked
 
-Para no depender de ningún navegador, se puede construir un `.exe` portable:
+Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido.
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
+- `preload.js` — contextBridge para IPC seguro
 - `package.json` — `electron` + `electron-builder` como devDeps
 
 ### Build (requiere Node.js + npm)
@@ -1819,9 +1873,9 @@ make electron-build-linux
 npm run build:linux
 ```
 
-El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). El AppImage en `dist/GestionExpedientes-*.AppImage`. Se ejecutan sin instalación, sin admin, sin depender del navegador del sistema.
+Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedientes.exe`. Sin instalación, sin admin.
 
-> **Nota (Termux/Android):** el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--win portable --x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
+> **Nota:** `--win portable` (single-file `.exe`) no se usa porque `win-unpacked` es más estable, permite reemplazar recursos sin re-empaquetar, y evita problemas con NSIS/7zip en Termux ARM64.
 
 ## Makefile
 

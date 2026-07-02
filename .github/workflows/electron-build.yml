@@ -1,4 +1,4 @@
-name: Build Electron Portable
+name: Build Electron WinUnpacked
 on:
   push:
     branches:
@@ -17,16 +17,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build portable .exe
-        run: npx electron-builder build --win portable --x64
+      - name: Build win-unpacked
+        run: npx electron-builder build --win dir --x64
 
-      - name: Upload portable .exe
-        uses: actions/upload-artifact@v4
-        with:
-          name: GestionExpedientes-Electron-Portable
-          path: dist/GestionExpedientes-*.exe
-
-      - name: Upload unpacked folder (portable sin instalación)
+      - name: Upload win-unpacked
         uses: actions/upload-artifact@v4
         with:
           name: GestionExpedientes-Electron-WinUnpacked
