@@ -74,6 +74,7 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Si un p
 - Filas desplegables con detalle completo del expediente (3 tarjetas + historial)
 - Modal de formulario para crear/editar expedientes con 6 secciones
 - Historial de movimientos cargado bajo demanda al expandir fila
+- Modal de historial completo con snapshot de todas las columnas (abrirHistorialCompleto)
 - Conversión automática USD→Bs en presupuesto base
 - Filtro instantáneo por texto (SOLPED, Proceso, Gerencia, Contrato, Empresa)
 - Botón "Eliminar" en modo edición
@@ -93,7 +94,8 @@ Identifica estas secciones dentro de `combined.txt` por su contenido:
 | `index.html` (JS - Estado global) | `let db`, `expedientesCache`, `catalogosCache` |
 | `index.html` (JS - Catálogos) | `cargarCatalogos()`, `poblarSelectores()`, `cargarSuperintendencias()` |
 | `index.html` (JS - CRUD) | `cargarDatos()`, `renderizarTabla()`, `mostrarFormulario()`, `cargarExpediente()`, `guardarExpediente()`, `eliminarExpediente()` |
-| `index.html` (JS - Historial) | `toggleDesplegable()`, `cargarHistorialFormulario()` |
+| `index.html` (JS - Historial) | `toggleDesplegable()`, `cargarHistorialFormulario()`, `abrirHistorialCompleto()`, `cargarHistorialCompleto()`, `campoHistorial()`, `toggleDetalleCompleto()` |
+| `index.html` (Modal Historial) | Modal con historial completo expandible por movimiento, 16 campos del snapshot + observaciones |
 | `Tablas8.sql` | Schema completo con catálogos, expedientes, historial, triggers, vistas, inserts |
 
 ---
