@@ -257,6 +257,24 @@
         </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- MODAL DEL HISTORIAL COMPLETO                                 -->
+    <!-- ============================================================ -->
+    <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-5xl my-8">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 id="historial-titulo" class="text-lg font-bold text-teal-400">⏳ Historial Completo</h2>
+                <button onclick="cerrarHistorialCompleto()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <div id="historial-cuerpo" class="p-4 overflow-x-auto max-h-[75vh] overflow-y-auto">
+                <p class="text-gray-500 text-center py-8">Cargando...</p>
+            </div>
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
+                <button onclick="cerrarHistorialCompleto()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-lg transition-colors">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ================================================================
         // ESTADO GLOBAL
@@ -472,7 +490,10 @@
                             <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-gray-400 font-bold">📝 Observaciones</span>
-                                    <span class="text-[10px] text-gray-500">${exp.fecha_creacion} · ${exp.fecha_actualizacion}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[10px] text-gray-500">${exp.fecha_creacion} · ${exp.fecha_actualizacion}</span>
+                                        <button onclick="event.stopPropagation(); abrirHistorialCompleto(${exp.id_expediente})" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold" title="Ver historial completo de cambios">📋 Historial</button>
+                                    </div>
                                 </div>
                                 <div class="cursor-pointer select-none" onclick="cargarHistorialUnificado(${exp.id_expediente})">
                                     <p class="text-gray-300 italic whitespace-pre-wrap">${exp.observaciones_generales || 'Sin observaciones registradas.'}</p>
@@ -902,6 +923,122 @@
         // ================================================================
         // UTILIDADES
         // ================================================================
+        // ================================================================
+        // HISTORIAL COMPLETO MODAL
+        // ================================================================
+        function abrirHistorialCompleto(id) {
+            const modal = document.getElementById('historial-modal');
+            document.getElementById('historial-titulo').textContent = `⏳ Historial Completo - Expediente #${id}`;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            cargarHistorialCompleto(id);
+        }
+
+        function cerrarHistorialCompleto() {
+            document.getElementById('historial-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function cargarHistorialCompleto(id) {
+            const cuerpo = document.getElementById('historial-cuerpo');
+            cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando...</p>';
+
+            const r = db.exec(`
+                SELECT
+                    h.id_movimiento,
+                    COALESCE(tc.nombre, '-')           AS tipo_contrato,
+                    COALESCE(g.nombre, '-')             AS gerencia,
+                    COALESCE(s.nombre, '-')             AS superintendencia,
+                    COALESCE(d.nombre, '-')             AS documento,
+                    COALESCE(em.nombre, '-')            AS emisor,
+                    COALESCE(rec.nombre, '-')           AS receptor,
+                    COALESCE(ed.nombre, '-')            AS estatus,
+                    COALESCE(h.fecha_recibido, '-')     AS fecha_recibido,
+                    COALESCE(h.fecha_devuelto, '-')     AS fecha_devuelto,
+                    COALESCE(h.nro_proceso, '-')        AS nro_proceso,
+                    h.presupuesto_base_usd,
+                    h.tipo_cambio,
+                    h.monto_adjudicado_usd,
+                    COALESCE(rp.nombre, '-')            AS resultado,
+                    COALESCE(emp.nombre, '-')           AS empresa,
+                    COALESCE(h.tiempo_ejecucion, '-')   AS tiempo_ejecucion,
+                    COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
+                    COALESCE(h.observaciones_generales, '') AS observaciones
+                FROM historial_movimientos h
+                LEFT JOIN cat_tipo_contrato tc   ON h.id_tipo_contrato    = tc.id
+                LEFT JOIN cat_gerencia g         ON h.id_gerencia         = g.id
+                LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
+                LEFT JOIN cat_documento d        ON h.id_documento        = d.id
+                LEFT JOIN cat_responsables em    ON h.id_emisor           = em.id
+                LEFT JOIN cat_responsables rec   ON h.id_receptor         = rec.id
+                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus          = ed.id
+                LEFT JOIN cat_resultado_proceso rp ON h.id_resultado      = rp.id
+                LEFT JOIN cat_empresas emp       ON h.id_empresa          = emp.id
+                WHERE h.id_expediente = ${id}
+                ORDER BY h.id_movimiento DESC
+            `);
+            const data = dbToObjects(r);
+
+            if (!data.length) {
+                cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin movimientos registrados en el historial.</p>';
+                return;
+            }
+
+            let html = `<div class="text-xs text-teal-400 font-semibold mb-3">${data.length} movimiento(s)</div>`;
+            data.forEach((h, i) => {
+                const mid = h.id_movimiento;
+                const obs = h.observaciones || 'Sin observaciones.';
+                html += `<div class="bg-gray-900/60 rounded-lg border border-gray-700/60 mb-3 overflow-hidden">`;
+                html += `<div class="flex items-center justify-between px-3 py-2 bg-gray-800/60 cursor-pointer hover:bg-gray-700/40" onclick="toggleDetalleCompleto(${mid})">`;
+                html += `<div class="flex items-center gap-3 text-xs">`;
+                html += `<span class="text-gray-500 font-mono font-bold">#${data.length - i}</span>`;
+                html += `<span class="text-teal-300 font-medium">${h.estatus}</span>`;
+                html += `<span class="text-gray-400">${h.fecha_recibido} → ${h.fecha_devuelto}</span>`;
+                html += `</div>`;
+                html += `<span class="text-amber-400 text-[11px] font-semibold" id="hcbtn-${mid}">🔍 Detalle</span>`;
+                html += `</div>`;
+                html += `<div id="hcdet-${mid}" class="hidden p-4 text-[11px]">`;
+                html += `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">`;
+                html += campoHistorial('Tipo Contrato', h.tipo_contrato, 'text-teal-300');
+                html += campoHistorial('Gerencia', h.gerencia, 'text-teal-300');
+                html += campoHistorial('Superintendencia', h.superintendencia, 'text-gray-200');
+                html += campoHistorial('Documento', h.documento, 'text-gray-200');
+                html += campoHistorial('Emisor', h.emisor, 'text-gray-200');
+                html += campoHistorial('Receptor', h.receptor, 'text-gray-200');
+                html += campoHistorial('Estatus', h.estatus, 'text-teal-300');
+                html += campoHistorial('F. Recibido', h.fecha_recibido, 'text-gray-300');
+                html += campoHistorial('F. Devuelto', h.fecha_devuelto, 'text-gray-300');
+                html += campoHistorial('Nro Proceso', h.nro_proceso, 'text-gray-200');
+                html += campoHistorial('Presup. Base USD', h.presupuesto_base_usd != null ? '$' + Number(h.presupuesto_base_usd).toLocaleString('es-ES', {minimumFractionDigits: 2}) : '-', 'text-amber-400');
+                html += campoHistorial('Tipo Cambio', h.tipo_cambio != null ? Number(h.tipo_cambio).toLocaleString('es-ES', {minimumFractionDigits: 2}) : '-', 'text-amber-400');
+                html += campoHistorial('Monto Adjud. USD', h.monto_adjudicado_usd != null ? '$' + Number(h.monto_adjudicado_usd).toLocaleString('es-ES', {minimumFractionDigits: 2}) : '-', 'text-emerald-400');
+                html += campoHistorial('Resultado', h.resultado, 'text-gray-200');
+                html += campoHistorial('Empresa', h.empresa, 'text-gray-200');
+                html += campoHistorial('Tiempo Ejec.', h.tiempo_ejecucion, 'text-gray-300');
+                html += campoHistorial('F. Firma Contrato', h.fecha_firma_contrato, 'text-gray-300');
+                html += `</div>`;
+                html += `<div class="mt-3 pt-3 border-t border-gray-700/50">`;
+                html += `<span class="text-gray-500 text-[10px] block mb-1">📝 Observaciones</span>`;
+                html += `<p class="text-gray-300 italic whitespace-pre-wrap text-[11px]">${obs}</p>`;
+                html += `</div>`;
+                html += `</div>`;
+                html += `</div>`;
+            });
+            cuerpo.innerHTML = html;
+        }
+
+        function campoHistorial(label, valor, color) {
+            return `<div><span class="text-gray-500 block text-[10px]">${label}</span><span class="${color}">${valor}</span></div>`;
+        }
+
+        function toggleDetalleCompleto(id) {
+            const sub = document.getElementById('hcdet-' + id);
+            const btn = document.getElementById('hcbtn-' + id);
+            if (!sub) return;
+            sub.classList.toggle('hidden');
+            btn.textContent = sub.classList.contains('hidden') ? '🔍 Detalle' : '✖ Cerrar';
+        }
+
         function getEstatusClass(estatus) {
             if(!estatus) return 'bg-yellow-500/20 text-yellow-400';
             switch(estatus.toUpperCase()) {
