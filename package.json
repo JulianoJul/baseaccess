@@ -9,6 +9,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dev": "electron .",
     "build": "electron-builder build --win dir --x64",
     "build:linux": "electron-builder build --linux"
   },

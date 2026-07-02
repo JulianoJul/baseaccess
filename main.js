@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
+console.log('[MAIN] Iniciando proceso principal...')
+
 let currentDbPath = null
 
 function createWindow() {
@@ -59,14 +61,22 @@ ipcMain.handle('open-db-file', async (_event, filePath) => {
 })
 
 ipcMain.handle('open-db-dialog', async (event) => {
+  console.log('[MAIN] Recibida solicitud open-db-dialog')
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (!win) return null
+  if (!win) {
+    console.error('[MAIN] No se pudo obtener BrowserWindow desde el sender')
+    return null
+  }
+  console.log('[MAIN] Ventana encontrada, abriendo diálogo...')
   const result = await dialog.showOpenDialog(win, {
     filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
     properties: ['openFile'],
+    title: 'Seleccionar Base de Datos',
   })
+  console.log('[MAIN] Resultado del diálogo:', result)
   if (result.canceled || result.filePaths.length === 0) return null
   const filePath = result.filePaths[0]
+  console.log('[MAIN] Archivo seleccionado:', filePath)
   currentDbPath = filePath
   const data = fs.readFileSync(filePath)
   return { path: filePath, data: data.toString('base64') }

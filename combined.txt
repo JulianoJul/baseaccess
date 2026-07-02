@@ -327,18 +327,25 @@
         }
 
         async function abrirBaseDatos() {
+            console.log('[RENDERER] Función abrirBaseDatos llamada');
             if (electronAPI && electronAPI.openDbDialog) {
+                console.log('[RENDERER] electronAPI disponible, intentando abrir diálogo...');
                 try {
                     const result = await electronAPI.openDbDialog();
-                    if (!result) return;
+                    console.log('[RENDERER] Resultado del diálogo:', result);
+                    if (!result) {
+                        console.log('[RENDERER] Diálogo cancelado o sin resultado');
+                        return;
+                    }
                     const bytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
                     const fileName = result.path.split(/[\\/]/).pop();
                     _cargarBaseDatosComun(bytes, fileName, result.path);
                 } catch (err) {
-                    console.error('IPC dialog error, fallback a file input:', err);
+                    console.error('[RENDERER] IPC dialog error, fallback a file input:', err);
                     document.getElementById('dbfile').click();
                 }
             } else {
+                console.log('[RENDERER] electronAPI no disponible, usando file input nativo');
                 document.getElementById('dbfile').click();
             }
         }
@@ -1565,6 +1572,8 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
+console.log('[MAIN] Iniciando proceso principal...')
+
 let currentDbPath = null
 
 function createWindow() {
@@ -1622,14 +1631,22 @@ ipcMain.handle('open-db-file', async (_event, filePath) => {
 })
 
 ipcMain.handle('open-db-dialog', async (event) => {
+  console.log('[MAIN] Recibida solicitud open-db-dialog')
   const win = BrowserWindow.fromWebContents(event.sender)
-  if (!win) return null
+  if (!win) {
+    console.error('[MAIN] No se pudo obtener BrowserWindow desde el sender')
+    return null
+  }
+  console.log('[MAIN] Ventana encontrada, abriendo diálogo...')
   const result = await dialog.showOpenDialog(win, {
     filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
     properties: ['openFile'],
+    title: 'Seleccionar Base de Datos',
   })
+  console.log('[MAIN] Resultado del diálogo:', result)
   if (result.canceled || result.filePaths.length === 0) return null
   const filePath = result.filePaths[0]
+  console.log('[MAIN] Archivo seleccionado:', filePath)
   currentDbPath = filePath
   const data = fs.readFileSync(filePath)
   return { path: filePath, data: data.toString('base64') }
@@ -1641,14 +1658,28 @@ app.on('window-all-closed', () => app.quit())
 === preload.js ===
 const { contextBridge, ipcRenderer } = require('electron');
 
+console.log('[PRELOAD] Iniciando preload script...');
+
 contextBridge.exposeInMainWorld('electronAPI', {
   saveDb: (dataBase64) => ipcRenderer.invoke('save-db', dataBase64),
   saveDbAs: (dataBase64) => ipcRenderer.invoke('save-db-as', dataBase64),
   setDbPath: (filePath) => ipcRenderer.invoke('set-db-path', filePath),
   getDbPath: () => ipcRenderer.invoke('get-db-path'),
-  openDbDialog: () => ipcRenderer.invoke('open-db-dialog'),
+  openDbDialog: async () => {
+    console.log('[PRELOAD] Llamando a ipcRenderer.invoke para open-db-dialog');
+    try {
+      const result = await ipcRenderer.invoke('open-db-dialog');
+      console.log('[PRELOAD] Resultado recibido:', result);
+      return result;
+    } catch (err) {
+      console.error('[PRELOAD] Error en openDbDialog:', err);
+      throw err;
+    }
+  },
   openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
 });
+
+console.log('[PRELOAD] contextBridge configurado correctamente');
 
 === package.json ===
 {
@@ -1662,6 +1693,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dev": "electron .",
     "build": "electron-builder build --win dir --x64",
     "build:linux": "electron-builder build --linux"
   },
