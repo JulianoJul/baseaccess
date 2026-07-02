@@ -158,10 +158,6 @@
                             <select id="f-id_receptor" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Estado Acción</label>
-                            <select id="f-id_estado_accion" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
-                        </div>
-                        <div>
                             <label class="block text-xs text-gray-400 mb-1">Estatus Detalle</label>
                             <select id="f-id_estatus" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
                         </div>
@@ -305,6 +301,27 @@
         // ================================================================
         // UTILIDADES BD
         // ================================================================
+        function execSafe(sql, params) {
+            if (!db) { alert('Primero carga un archivo .db'); return null; }
+            try {
+                if (params && params.length) {
+                    const escaped = sql.replace(/\?/g, () => {
+                        const v = params.shift();
+                        if (v === null || v === undefined) return 'NULL';
+                        if (typeof v === 'number') return String(v);
+                        return "'" + String(v).replace(/'/g, "''") + "'";
+                    });
+                    return db.exec(escaped);
+                }
+                return db.exec(sql);
+            } catch (err) {
+                alert('Error en consulta: ' + err.message);
+                return null;
+            }
+        }
+
+        function toInt(v) { const n = parseInt(v, 10); return isNaN(n) ? null : n; }
+
         function dbToObjects(res) {
             if (!res || res.length === 0) return [];
             const columns = res[0].columns;
@@ -315,7 +332,7 @@
             });
         }
 
-        function escapeSql(val) {
+        function sanitizeNull(val) {
             if (val === null || val === undefined || val === '') return null;
             return val;
         }
@@ -335,8 +352,7 @@
                 { id: 'estatus_detalle',    tabla: 'cat_estatus_detalle', cols: 'id, nombre' },
                 { id: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
                 { id: 'empresas',           tabla: 'cat_empresas', cols: 'id, nombre' },
-                { id: 'responsables',       tabla: 'cat_responsables', cols: 'id, nombre' },
-                { id: 'estado_accion',      tabla: 'cat_estado_accion', cols: 'id, nombre' }
+                { id: 'responsables',       tabla: 'cat_responsables', cols: 'id, nombre' }
             ];
             tablas.forEach(t => {
                 const res = db.exec(`SELECT ${t.cols} FROM ${t.tabla} ORDER BY nombre`);
@@ -358,8 +374,7 @@
                 'f-id_resultado':        'resultado_proceso',
                 'f-id_empresa':          'empresas',
                 'f-id_emisor':           'responsables',
-                'f-id_receptor':         'responsables',
-                'f-id_estado_accion':    'estado_accion'
+                'f-id_receptor':         'responsables'
             };
             Object.entries(mapeo).forEach(([selectId, catKey]) => {
                 const sel = document.getElementById(selectId);
@@ -481,7 +496,7 @@
                                     <div><span class="text-gray-400 block">Tiempo Ejecución:</span> <span class="text-gray-200">${exp.tiempo_ejecucion || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Fecha Firma Contrato:</span> <span class="text-emerald-400 font-mono font-medium">${exp.fecha_firma_contrato || 'N/A'}</span></div>
                                 </div>
-                                <div class="pt-1"><span class="text-gray-400">Estado Acción / Detalle:</span> <span class="text-teal-300 block">${exp.estado_accion || 'N/A'}</span></div>
+                                <div class="pt-1"><span class="text-gray-400">Estatus Detalle:</span> <span class="text-teal-300 block">${exp.estatus_detalle || 'N/A'}</span></div>
                             </div>
 
                         </div>
@@ -535,7 +550,9 @@
         }
 
         function cargarHistorialUnificado(id) {
-            const contenedor = document.getElementById(`unified-hist-${id}`);
+            const safeId = toInt(id);
+            if (!safeId) return;
+            const contenedor = document.getElementById(`unified-hist-${safeId}`);
             if (!contenedor) return;
             const wasHidden = contenedor.classList.contains('hidden');
             contenedor.classList.toggle('hidden');
@@ -551,7 +568,7 @@
                 LEFT JOIN cat_responsables em ON h.id_emisor = em.id
                 LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
                 LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                WHERE h.id_expediente = ${id}
+                WHERE h.id_expediente = ${safeId}
                 ORDER BY h.id_movimiento DESC
             `);
             const data = dbToObjects(r);
@@ -564,7 +581,7 @@
                 const mid = h.id_movimiento;
                 const obs = h.observaciones_generales || '';
                 html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
-                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalleUnificado(${mid})">`;
+                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('udet-', ${mid})">`;
                 html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
                 html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
                 html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
@@ -582,9 +599,9 @@
             contenedor.innerHTML = html;
         }
 
-        function toggleDetalleUnificado(id) {
-            const sub = document.getElementById('udet-' + id);
-            const btn = document.getElementById('ubtn-' + id);
+        function toggleDetalle(prefix, id) {
+            const sub = document.getElementById(prefix + id);
+            const btn = document.getElementById(prefix + 'btn-' + id);
             if (!sub) return;
             sub.classList.toggle('hidden');
             btn.textContent = sub.classList.contains('hidden') ? '🔍 Detalle' : '✖ Cerrar';
@@ -630,7 +647,9 @@
         }
 
         function cargarExpediente(id) {
-            const res = db.exec(`SELECT * FROM expedientes WHERE id_expediente = ${id}`);
+            const safeId = toInt(id);
+            if (!safeId) { alert('ID de expediente inválido'); cancelarFormulario(); return; }
+            const res = db.exec(`SELECT * FROM expedientes WHERE id_expediente = ${safeId}`);
             if (!res || res.length === 0) {
                 alert('No se encontró el expediente.');
                 cancelarFormulario();
@@ -659,7 +678,6 @@
             document.getElementById('f-presupuesto_base_bs').value = formatNum(data.presupuesto_base_bs);
             document.getElementById('f-id_emisor').value = data.id_emisor || '';
             document.getElementById('f-id_receptor').value = data.id_receptor || '';
-            document.getElementById('f-id_estado_accion').value = data.id_estado_accion || '';
             document.getElementById('f-id_estatus').value = data.id_estatus || '1';
             document.getElementById('f-fecha_recibido').value = data.fecha_recibido || '';
             document.getElementById('f-fecha_devuelto').value = data.fecha_devuelto || '';
@@ -681,6 +699,8 @@
         }
 
         function cargarHistorialFormulario(id) {
+            const safeId = toInt(id);
+            if (!safeId) { document.getElementById('form-historial').innerHTML = '<p class="text-gray-500 italic p-2">ID inválido.</p>'; return; }
             const contenedor = document.getElementById('form-historial');
             const r = db.exec(`
                 SELECT h.id_movimiento, COALESCE(g.nombre,'N/A') AS ger,
@@ -692,7 +712,7 @@
                 LEFT JOIN cat_responsables em ON h.id_emisor = em.id
                 LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
                 LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                WHERE h.id_expediente = ${id}
+                WHERE h.id_expediente = ${safeId}
                 ORDER BY h.id_movimiento DESC
             `);
             const data = dbToObjects(r);
@@ -705,7 +725,7 @@
                 const mid = h.id_movimiento;
                 const obs = h.observaciones_generales || '';
                 html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
-                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalleForm(${mid})">`;
+                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('fdet-', ${mid})">`;
                 html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
                 html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
                 html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
@@ -723,13 +743,7 @@
             contenedor.innerHTML = html;
         }
 
-        function toggleDetalleForm(id) {
-            const sub = document.getElementById('fdet-' + id);
-            const btn = document.getElementById('fbtn-' + id);
-            if (!sub) return;
-            sub.classList.toggle('hidden');
-            btn.textContent = sub.classList.contains('hidden') ? '🔍 Detalle' : '✖ Cerrar';
-        }
+        // (unified toggleDetalle used instead)
 
         function calcularBs() {
             const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
@@ -743,38 +757,37 @@
             if (!db) return;
 
             const data = {
-                solped:                  escapeSql(document.getElementById('f-solped').value),
-                id_gerencia:             escapeSql(document.getElementById('f-id_gerencia').value),
-                id_superintendencia:     escapeSql(document.getElementById('f-id_superintendencia').value),
-                id_emisor:               escapeSql(document.getElementById('f-id_emisor').value),
-                id_documento:            escapeSql(document.getElementById('f-id_documento').value),
-                fecha_presupuesto_base:  escapeSql(document.getElementById('f-fecha_presupuesto_base').value),
-                presupuesto_base_usd:    escapeSql(parseNum(document.getElementById('f-presupuesto_base_usd').value)),
-                tipo_cambio:             escapeSql(parseNum(document.getElementById('f-tipo_cambio').value)),
-                presupuesto_base_bs:     escapeSql(parseNum(document.getElementById('f-presupuesto_base_bs').value)),
-                id_plan:                 escapeSql(document.getElementById('f-id_plan').value),
-                descripcion_proceso:     escapeSql(document.getElementById('f-descripcion_proceso').value),
-                id_modalidad:            escapeSql(document.getElementById('f-id_modalidad').value),
-                id_art:                  escapeSql(document.getElementById('f-id_art').value),
-                id_tipo_contrato:        escapeSql(document.getElementById('f-id_tipo_contrato').value),
-                nro_acta_apertura:       escapeSql(document.getElementById('f-nro_acta_apertura').value),
-                cantidad_frentes:        escapeSql(document.getElementById('f-cantidad_frentes').value),
-                nro_resolucion_jd:       escapeSql(document.getElementById('f-nro_resolucion_jd').value),
-                id_estatus:              escapeSql(document.getElementById('f-id_estatus').value) || 1,
-                id_estado_accion:        escapeSql(document.getElementById('f-id_estado_accion').value),
-                fecha_recibido:          escapeSql(document.getElementById('f-fecha_recibido').value),
-                fecha_devuelto:          escapeSql(document.getElementById('f-fecha_devuelto').value),
-                id_receptor:             escapeSql(document.getElementById('f-id_receptor').value),
-                nro_proceso:             escapeSql(document.getElementById('f-nro_proceso').value),
-                id_resultado:            escapeSql(document.getElementById('f-id_resultado').value),
-                nro_contrato_sicac:      escapeSql(document.getElementById('f-nro_contrato_sicac').value),
-                nro_contrato_sap:        escapeSql(document.getElementById('f-nro_contrato_sap').value),
-                id_empresa:              escapeSql(document.getElementById('f-id_empresa').value),
-                tiempo_ejecucion:        escapeSql(document.getElementById('f-tiempo_ejecucion').value),
-                monto_adjudicado_bs:     escapeSql(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
-                monto_adjudicado_usd:    escapeSql(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
-                fecha_firma_contrato:    escapeSql(document.getElementById('f-fecha_firma_contrato').value),
-                observaciones_generales: escapeSql(document.getElementById('f-observaciones_generales').value)
+                solped:                  sanitizeNull(document.getElementById('f-solped').value),
+                id_gerencia:             sanitizeNull(document.getElementById('f-id_gerencia').value),
+                id_superintendencia:     sanitizeNull(document.getElementById('f-id_superintendencia').value),
+                id_emisor:               sanitizeNull(document.getElementById('f-id_emisor').value),
+                id_documento:            sanitizeNull(document.getElementById('f-id_documento').value),
+                fecha_presupuesto_base:  sanitizeNull(document.getElementById('f-fecha_presupuesto_base').value),
+                presupuesto_base_usd:    sanitizeNull(parseNum(document.getElementById('f-presupuesto_base_usd').value)),
+                tipo_cambio:             sanitizeNull(parseNum(document.getElementById('f-tipo_cambio').value)),
+                presupuesto_base_bs:     sanitizeNull(parseNum(document.getElementById('f-presupuesto_base_bs').value)),
+                id_plan:                 sanitizeNull(document.getElementById('f-id_plan').value),
+                descripcion_proceso:     sanitizeNull(document.getElementById('f-descripcion_proceso').value),
+                id_modalidad:            sanitizeNull(document.getElementById('f-id_modalidad').value),
+                id_art:                  sanitizeNull(document.getElementById('f-id_art').value),
+                id_tipo_contrato:        sanitizeNull(document.getElementById('f-id_tipo_contrato').value),
+                nro_acta_apertura:       sanitizeNull(document.getElementById('f-nro_acta_apertura').value),
+                cantidad_frentes:        sanitizeNull(document.getElementById('f-cantidad_frentes').value),
+                nro_resolucion_jd:       sanitizeNull(document.getElementById('f-nro_resolucion_jd').value),
+                id_estatus:              sanitizeNull(document.getElementById('f-id_estatus').value) || 1,
+                fecha_recibido:          sanitizeNull(document.getElementById('f-fecha_recibido').value),
+                fecha_devuelto:          sanitizeNull(document.getElementById('f-fecha_devuelto').value),
+                id_receptor:             sanitizeNull(document.getElementById('f-id_receptor').value),
+                nro_proceso:             sanitizeNull(document.getElementById('f-nro_proceso').value),
+                id_resultado:            sanitizeNull(document.getElementById('f-id_resultado').value),
+                nro_contrato_sicac:      sanitizeNull(document.getElementById('f-nro_contrato_sicac').value),
+                nro_contrato_sap:        sanitizeNull(document.getElementById('f-nro_contrato_sap').value),
+                id_empresa:              sanitizeNull(document.getElementById('f-id_empresa').value),
+                tiempo_ejecucion:        sanitizeNull(document.getElementById('f-tiempo_ejecucion').value),
+                monto_adjudicado_bs:     sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
+                monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
+                fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
+                observaciones_generales: sanitizeNull(document.getElementById('f-observaciones_generales').value)
             };
 
             // Validar campos obligatorios
@@ -807,7 +820,6 @@
                             cantidad_frentes = ?,
                             nro_resolucion_jd = ?,
                             id_estatus = ?,
-                            id_estado_accion = ?,
                             fecha_recibido = ?,
                             fecha_devuelto = ?,
                             id_receptor = ?,
@@ -832,7 +844,7 @@
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
                         data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
-                        data.id_estado_accion, data.fecha_recibido, data.fecha_devuelto,
+                        data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
                         data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
@@ -850,13 +862,13 @@
                             id_documento, fecha_presupuesto_base, presupuesto_base_usd,
                             tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso,
                             id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura,
-                            cantidad_frentes, nro_resolucion_jd, id_estatus, id_estado_accion,
+                            cantidad_frentes, nro_resolucion_jd, id_estatus,
                             fecha_recibido, fecha_devuelto, id_receptor, nro_proceso,
                             id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa,
                             tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd,
                             fecha_firma_contrato, observaciones_generales
                         ) VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                         )
                     `;
 
@@ -867,7 +879,7 @@
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
                         data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
-                        data.id_estado_accion, data.fecha_recibido, data.fecha_devuelto,
+                        data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
                         data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
@@ -883,7 +895,6 @@
 
             } catch (err) {
                 alert('Error al guardar: ' + err.message);
-                console.error(err);
             }
         }
 
@@ -900,7 +911,6 @@
                 cargarDatos();
             } catch (err) {
                 alert('Error al eliminar: ' + err.message);
-                console.error(err);
             }
         }
 
@@ -940,6 +950,8 @@
         }
 
         function cargarHistorialCompleto(id) {
+            const safeId = toInt(id);
+            if (!safeId) { document.getElementById('historial-cuerpo').innerHTML = '<p class="text-gray-500 text-center py-8">ID inválido.</p>'; return; }
             const cuerpo = document.getElementById('historial-cuerpo');
             cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando...</p>';
 
@@ -974,7 +986,7 @@
                 LEFT JOIN cat_estatus_detalle ed ON h.id_estatus          = ed.id
                 LEFT JOIN cat_resultado_proceso rp ON h.id_resultado      = rp.id
                 LEFT JOIN cat_empresas emp       ON h.id_empresa          = emp.id
-                WHERE h.id_expediente = ${id}
+                WHERE h.id_expediente = ${safeId}
                 ORDER BY h.id_movimiento DESC
             `);
             const data = dbToObjects(r);
@@ -989,7 +1001,7 @@
                 const mid = h.id_movimiento;
                 const obs = h.observaciones || 'Sin observaciones.';
                 html += `<div class="bg-gray-900/60 rounded-lg border border-gray-700/60 mb-3 overflow-hidden">`;
-                html += `<div class="flex items-center justify-between px-3 py-2 bg-gray-800/60 cursor-pointer hover:bg-gray-700/40" onclick="toggleDetalleCompleto(${mid})">`;
+                html += `<div class="flex items-center justify-between px-3 py-2 bg-gray-800/60 cursor-pointer hover:bg-gray-700/40" onclick="toggleDetalle('hcdet-', ${mid})">`;
                 html += `<div class="flex items-center gap-3 text-xs">`;
                 html += `<span class="text-gray-500 font-mono font-bold">#${data.length - i}</span>`;
                 html += `<span class="text-teal-300 font-medium">${h.estatus}</span>`;
@@ -1031,13 +1043,7 @@
             return `<div><span class="text-gray-500 block text-[10px]">${label}</span><span class="${color}">${valor}</span></div>`;
         }
 
-        function toggleDetalleCompleto(id) {
-            const sub = document.getElementById('hcdet-' + id);
-            const btn = document.getElementById('hcbtn-' + id);
-            if (!sub) return;
-            sub.classList.toggle('hidden');
-            btn.textContent = sub.classList.contains('hidden') ? '🔍 Detalle' : '✖ Cerrar';
-        }
+        // (unified toggleDetalle used instead)
 
         function getEstatusClass(estatus) {
             if(!estatus) return 'bg-yellow-500/20 text-yellow-400';
