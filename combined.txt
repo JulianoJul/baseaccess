@@ -917,14 +917,14 @@
 </body>
 </html>
 
-=== Tablas7.sql ===
+=== Tablas8.sql ===
 PRAGMA foreign_keys = ON;
 
 -- ==========================================
 -- 🔹 1. CATÁLOGOS MAESTROS (Independientes)
 -- ==========================================
 CREATE TABLE cat_gerencia (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE, nro_ejemplares INTEGER DEFAULT 1);
 CREATE TABLE cat_plan_contratacion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_modalidad (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_art (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
@@ -933,7 +933,6 @@ CREATE TABLE cat_estatus_detalle (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_resultado_proceso (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_empresas (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_responsables (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_estado_accion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 
 -- ==========================================
 -- 🔹 2. CATÁLOGOS CON RELACIONES
@@ -950,7 +949,7 @@ CREATE TABLE cat_superintendencia (
 -- ==========================================
 CREATE TABLE expedientes (
     id_expediente           INTEGER PRIMARY KEY AUTOINCREMENT,
-    solped                  TEXT UNIQUE,
+    solped                  TEXT,
     id_gerencia             INTEGER,
     id_superintendencia     INTEGER,
     id_emisor               INTEGER,
@@ -968,14 +967,13 @@ CREATE TABLE expedientes (
     cantidad_frentes        INTEGER,
     nro_resolucion_jd       TEXT,
     id_estatus              INTEGER DEFAULT 1,
-    id_estado_accion        INTEGER,
     fecha_recibido          DATE,
     fecha_devuelto          DATE,
     id_receptor             INTEGER,
     nro_proceso             TEXT,
     id_resultado            INTEGER,
     nro_contrato_sicac      TEXT,
-    nro_contrato_sap        INTEGER,
+    nro_contrato_sap        TEXT,
     id_empresa              INTEGER,
     tiempo_ejecucion        TEXT,
     monto_adjudicado_bs     REAL,
@@ -995,12 +993,11 @@ CREATE TABLE expedientes (
     CONSTRAINT fk_exp_tc       FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
     CONSTRAINT fk_exp_est      FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
     CONSTRAINT fk_exp_res      FOREIGN KEY (id_resultado)        REFERENCES cat_resultado_proceso(id),
-    CONSTRAINT fk_exp_emp      FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id),
-    CONSTRAINT fk_exp_accion   FOREIGN KEY (id_estado_accion)    REFERENCES cat_estado_accion(id)
+    CONSTRAINT fk_exp_emp      FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id)
 );
 
 -- ==========================================
--- 🔹 4. HISTORIAL DE MOVIMIENTOS (Normalizado)
+-- 🔹 4. HISTORIAL DE MOVIMIENTOS (Snapshot Normalizado)
 -- ==========================================
 CREATE TABLE historial_movimientos (
     id_movimiento       INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1012,9 +1009,16 @@ CREATE TABLE historial_movimientos (
     id_emisor           INTEGER,
     id_receptor         INTEGER,
     id_estatus          INTEGER,
-    id_estado_accion    INTEGER,
     fecha_recibido      DATE,
     fecha_devuelto      DATE,
+    nro_proceso         TEXT,
+    presupuesto_base_usd REAL,
+    tipo_cambio         REAL,
+    monto_adjudicado_usd REAL,
+    id_resultado        INTEGER,
+    id_empresa          INTEGER,
+    tiempo_ejecucion    TEXT,
+    fecha_firma_contrato DATE,
     observaciones_generales TEXT,
     FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
     FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
@@ -1024,7 +1028,8 @@ CREATE TABLE historial_movimientos (
     FOREIGN KEY (id_emisor)           REFERENCES cat_responsables(id),
     FOREIGN KEY (id_receptor)         REFERENCES cat_responsables(id),
     FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
-    FOREIGN KEY (id_estado_accion)    REFERENCES cat_estado_accion(id)
+    FOREIGN KEY (id_resultado)        REFERENCES cat_resultado_proceso(id),
+    FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id)
 );
 
 -- ==========================================
@@ -1044,7 +1049,7 @@ CREATE INDEX idx_hist_mov_emisor         ON historial_movimientos(id_emisor);
 CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 
 -- ==========================================
--- 🔹 6. TRIGGER DE AUDITORÍA Y LÓGICA DE FIRMA
+-- 🔹 6. TRIGGER DE AUDITORÍA
 -- ==========================================
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
@@ -1056,20 +1061,33 @@ WHEN (
     OLD.id_superintendencia IS NOT NEW.id_superintendencia OR
     OLD.id_documento IS NOT NEW.id_documento OR
     OLD.id_estatus IS NOT NEW.id_estatus OR
-    OLD.id_estado_accion IS NOT NEW.id_estado_accion OR
     OLD.fecha_recibido IS NOT NEW.fecha_recibido OR
     OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR
+    OLD.nro_proceso IS NOT NEW.nro_proceso OR
+    OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR
+    OLD.tipo_cambio IS NOT NEW.tipo_cambio OR
+    OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR
+    OLD.id_resultado IS NOT NEW.id_resultado OR
+    OLD.id_empresa IS NOT NEW.id_empresa OR
+    OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR
+    OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR
     OLD.observaciones_generales IS NOT NEW.observaciones_generales
 )
 BEGIN
     INSERT INTO historial_movimientos (
-        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia, 
-        id_documento, id_emisor, id_receptor, id_estatus, id_estado_accion,
-        fecha_recibido, fecha_devuelto, observaciones_generales
+        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
+        id_documento, id_emisor, id_receptor, id_estatus,
+        fecha_recibido, fecha_devuelto, nro_proceso,
+        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
+        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        observaciones_generales
     ) VALUES (
-        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia, 
-        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus, NEW.id_estado_accion,
-        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.observaciones_generales
+        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
+        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
+        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.observaciones_generales
     );
 
     UPDATE expedientes
@@ -1094,6 +1112,7 @@ SELECT
     s.nombre                                     AS superintendencia,
     emisor.nombre                                AS emisor,
     d.nombre                                     AS documento,
+    d.nro_ejemplares                             AS nro_ejemplares,
     e.fecha_presupuesto_base,
     e.presupuesto_base_usd,
     e.tipo_cambio,
@@ -1107,7 +1126,6 @@ SELECT
     e.cantidad_frentes,
     COALESCE(e.nro_resolucion_jd, 'NO APLICA')   AS nro_resolucion_jd,
     COALESCE(ed.nombre, 'NO APLICA')             AS estatus_detalle,
-    ea.nombre                                    AS estado_accion,
     e.fecha_recibido,
     e.fecha_devuelto,
     COALESCE(receptor.nombre, 'NO APLICA')       AS receptor,
@@ -1132,52 +1150,13 @@ LEFT JOIN cat_modalidad m         ON e.id_modalidad        = m.id
 LEFT JOIN cat_art a               ON e.id_art              = a.id
 LEFT JOIN cat_tipo_contrato tc    ON e.id_tipo_contrato    = tc.id
 LEFT JOIN cat_estatus_detalle ed  ON e.id_estatus          = ed.id
-LEFT JOIN cat_estado_accion ea    ON e.id_estado_accion    = ea.id
 LEFT JOIN cat_resultado_proceso rp ON e.id_resultado       = rp.id
 LEFT JOIN cat_empresas emp        ON e.id_empresa          = emp.id
 LEFT JOIN cat_responsables emisor ON e.id_emisor           = emisor.id
 LEFT JOIN cat_responsables receptor ON e.id_receptor       = receptor.id;
 
 -- ==========================================
--- 🔹 8. VISTA PARA LIBREOFFICE BASE (Multilínea / Separador Visual)
--- ==========================================
-CREATE VIEW vw_historial_celdas_multilinea AS
-SELECT 
-    id_expediente,
-    GROUP_CONCAT(nro_cambio || ': ' || gerencia || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_gerencia,
-    GROUP_CONCAT(nro_cambio || ': ' || superintendencia || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_superintendencia,
-    GROUP_CONCAT(nro_cambio || ': ' || emisor || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_emisor,
-    GROUP_CONCAT(nro_cambio || ': ' || receptor || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_receptor,
-    GROUP_CONCAT(nro_cambio || ': ' || estatus || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_estatus,
-    GROUP_CONCAT(nro_cambio || ': ' || fecha_entrada || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_fechas_entrada,
-    GROUP_CONCAT(nro_cambio || ': ' || fecha_salida || '   ', CAST(x'0A' AS TEXT) || '  |  ') AS hist_fechas_salida
-FROM (
-    SELECT 
-        h.id_expediente,
-        'Cambio ' || (
-            SELECT COUNT(*) 
-            FROM historial_movimientos h2 
-            WHERE h2.id_expediente = h.id_expediente AND h2.id_movimiento <= h.id_movimiento
-        ) AS nro_cambio,
-        COALESCE(g.nombre, 'N/A') AS gerencia,
-        COALESCE(s.nombre, 'N/A') AS superintendencia,
-        COALESCE(em.nombre, 'N/A') AS emisor,
-        COALESCE(rec.nombre, 'N/A') AS receptor,
-        COALESCE(ed.nombre, 'N/A') AS estatus,
-        COALESCE(h.fecha_recibido, 'Sin fecha') AS fecha_entrada,
-        COALESCE(h.fecha_devuelto, 'Sin fecha') AS fecha_salida
-    FROM historial_movimientos h
-    LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
-    LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
-    LEFT JOIN cat_responsables em ON h.id_emisor = em.id
-    LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
-    LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-    ORDER BY h.id_expediente, h.id_movimiento DESC
-)
-GROUP BY id_expediente;
-
--- ==========================================
--- 🔹 9. INSERCIÓN DE DATOS INICIALES (CATÁLOGOS)
+-- 🔹 8. DATOS INICIALES (CATÁLOGOS)
 -- ==========================================
 
 -- 1. GERENCIAS
@@ -1194,38 +1173,36 @@ INSERT INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
 (11, 'CONTRATACIÓN', 7), (12, 'RRHH', 8),
 (13, 'ASUNTOS GUBERNAMENTALES', 9), (14, 'COMISIÓN', 10);
 
--- ==========================================
--- 3. DOCUMENTOS (Ordenados alfabéticamente)
--- ==========================================
-INSERT INTO cat_documento (id, nombre) VALUES
-(1,  'ACTA DE INICIO SOLICITUD (A)'),
-(2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)'),
-(3,  'ACTA DE OTRAS CONSIDERACIONES (A)'),
-(4,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
-(5,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTO MOTIVADO / ACTA DE OTORGAMIENTO / NOTIFICACIÓN'),
-(6,  'ACTA DE OTRAS CONSIDERACIONES / ANÁLISIS ECONÓMICO'),
-(7,  'ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
-(8,  'ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
-(9,  'ACTO MOTIVADO'),
-(10, 'ACTO MOTIVADO Y ACTA DE OTRAS CONSIDERACIONES (A)'),
-(11, 'ACTUALIZACIÓN DE PRESUPUESTO BASE'),
-(12, 'ADDENDUM / DECISIÓN DE GERENCIA APROBACIÓN DE LA MODIFICACIÓN'),
-(13, 'ANÁLISIS ECONÓMICO / ACTA DE OTORGAMIENTO / CONTRATO'),
-(14, 'ANÁLISIS ECONÓMICO / ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
-(15, 'ANÁLISIS ECONÓMICO / CONTRATO'),
-(16, 'ANÁLISIS ECONÓMICO REV.1'),
-(17, 'CONTRATO'),
-(18, 'CONTRATO DE SERVICIOS'),
-(19, 'DECISIÓN DE GERENCIA'),
-(20, 'DECISIÓN DE GERENCIA INICIO'),
-(21, 'DECISIÓN DE GERENCIA MODIFICACIÓN / ADDENDUM'),
-(22, 'DESCRIPCIÓN DE PROCESO Y ESPECIFICACIONES TÉCNICAS'),
-(23, 'DESCRIPCIÓN DE PROCESO, ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN'),
-(24, 'ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
-(25, 'JUSTIFICACIÓN, MODIFICACIÓN Y ACTA DE OTRAS CONSIDERACIONES (A)'),
-(26, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS / ACTUALIZACIÓN DE PRESUPUESTO BASE'),
-(27, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
-(28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS');
+-- 3. DOCUMENTOS
+INSERT INTO cat_documento (id, nombre, nro_ejemplares) VALUES
+(1,  'ACTA DE INICIO SOLICITUD (A)', 1),
+(2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)', 1),
+(3,  'ACTA DE OTRAS CONSIDERACIONES (A)', 1),
+(4,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN', 2),
+(5,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTO MOTIVADO / ACTA DE OTORGAMIENTO / NOTIFICACIÓN', 3),
+(6,  'ACTA DE OTRAS CONSIDERACIONES / ANÁLISIS ECONÓMICO', 2),
+(7,  'ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN', 1),
+(8,  'ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)', 1),
+(9,  'ACTO MOTIVADO', 1),
+(10, 'ACTO MOTIVADO Y ACTA DE OTRAS CONSIDERACIONES (A)', 2),
+(11, 'ACTUALIZACIÓN DE PRESUPUESTO BASE', 1),
+(12, 'ADDENDUM / DECISIÓN DE GERENCIA APROBACIÓN DE LA MODIFICACIÓN', 2),
+(13, 'ANÁLISIS ECONÓMICO / ACTA DE OTORGAMIENTO / CONTRATO', 3),
+(14, 'ANÁLISIS ECONÓMICO / ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)', 2),
+(15, 'ANÁLISIS ECONÓMICO / CONTRATO', 2),
+(16, 'ANÁLISIS ECONÓMICO REV.1', 1),
+(17, 'CONTRATO', 1),
+(18, 'CONTRATO DE SERVICIOS', 1),
+(19, 'DECISIÓN DE GERENCIA', 1),
+(20, 'DECISIÓN DE GERENCIA INICIO', 1),
+(21, 'DECISIÓN DE GERENCIA MODIFICACIÓN / ADDENDUM', 1),
+(22, 'DESCRIPCIÓN DE PROCESO Y ESPECIFICACIONES TÉCNICAS', 1),
+(23, 'DESCRIPCIÓN DE PROCESO, ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN', 2),
+(24, 'ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO', 1),
+(25, 'JUSTIFICACIÓN, MODIFICACIÓN Y ACTA DE OTRAS CONSIDERACIONES (A)', 2),
+(26, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS / ACTUALIZACIÓN DE PRESUPUESTO BASE', 3),
+(27, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO', 2),
+(28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS', 4);
 
 -- 4. PLANES DE CONTRATACIÓN
 INSERT INTO cat_plan_contratacion (id, nombre) VALUES
@@ -1244,9 +1221,18 @@ INSERT INTO cat_art (id, nombre) VALUES
 INSERT INTO cat_tipo_contrato (id, nombre) VALUES
 (1, 'PU'), (2, 'SG'), (3, 'MIXTO');
 
--- 8. ESTATUS DETALLE
+-- 8. ESTATUS DETALLE (fusionado con antiguo cat_estado_accion)
 INSERT INTO cat_estatus_detalle (id, nombre) VALUES
-(1, 'PENDIENTE'), (2, 'FIRMADO'), (3, 'DEVUELTO PARA CORRECCIÓN'), (4, 'DEVUELTO SIN FIRMA');
+(1, 'PENDIENTE'),
+(2, 'FIRMADO'),
+(3, 'DEVUELTO PARA CORRECCIÓN'),
+(4, 'DEVUELTO SIN FIRMA'),
+(5, 'SE ENTREGA CON LA FIRMA'),
+(6, 'SE ENTREGA CON LA MODIFICACIÓN'),
+(7, 'SE RECIBE PARA LA FIRMA'),
+(8, 'SE DEVUELVE CON LA FIRMA'),
+(9, 'SE RECIBE CON LA FIRMA'),
+(10, 'SE ENTREGA PARA LA FIRMA');
 
 -- 9. RESULTADOS DEL PROCESO
 INSERT INTO cat_resultado_proceso (id, nombre) VALUES
@@ -1270,13 +1256,7 @@ INSERT INTO cat_empresas (id, nombre) VALUES
 (12, 'SERVICIOS Y TRANSPORTE LOS 2 HERMANOS, C.A'),
 (13, 'POWERLINE CONSTRUCCIONES, C.A');
 
--- 11. ESTADO ACCIÓN (Valores iniciales)
-INSERT INTO cat_estado_accion (id, nombre) VALUES
-(1, 'SE ENTREGA CON LA FIRMA'),
-(2, 'SE ENTREGA CON LA MODIFICACIÓN'),
-(3, 'SE RECIBE PARA LA FIRMA');
-
--- 12. RESPONSABLES (Placeholder temporal)
+-- 11. RESPONSABLES (Placeholder temporal)
 INSERT INTO cat_responsables (id, nombre) VALUES
 (1, 'EMISOR/RECEPTOR POR CONFIGURAR');
 
@@ -1369,12 +1349,14 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 | Node.js | `pkg install nodejs` (si no está) |
 | Descargas | `curl` viene preinstalado |
 
-**Comandos clave para reconstruir el `.exe`:**
+**Comandos clave para reconstruir el `.exe` (solo en Termux/Android):**
 ```bash
 npm install --save-dev --no-bin-links electron@latest electron-builder@latest
 node node_modules/electron-builder/cli.js --win portable --x64
 ```
 El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
+
+> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `make electron-build-linux` o `npm run build:linux` para generar el AppImage.
 
 **Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
 
@@ -1446,19 +1428,23 @@ Tailwind CSS (dark mode personalizado):
 ```
 baseaccess/
 ├── index.html           # App completa (HTML + CSS + JS)
+├── main.js              # Electron main process (ventana 1400x900)
+├── package.json         # Electron + electron-builder config
 ├── vendor/              # Dependencias locales (sin CDN)
 │   ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
 │   ├── sql-wasm.js      # sql.js loader
 │   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
-├── main.js              # Electron main process (ventana 1400x900)
-├── package.json         # Electron + electron-builder config
-├── Tablas7.sql           # Schema SQLite v7 (con observaciones_generales en historial)
-├── Tablas6.sql           # Schema SQLite v6 (legacy, sin modificar)
-├── doc.md                # Esta documentación
-├── prompt                # Prompt para auditorías (opencode/Qwen)
-├── Makefile              # combine / clean / commit / push / github
-├── .gitignore            # node_modules/, dist/
-└── intento               # (reservado)
+├── bdd/                 # Schemas y bases de datos
+│   ├── Tablas6.sql      # Schema SQLite v6 (legacy)
+│   ├── Tablas7.sql      # Schema SQLite v7
+│   ├── Tablas8.sql      # Schema SQLite v8 (actual)
+│   └── si.db            # Base de datos de prueba
+├── doc.md               # Esta documentación
+├── prompt               # Prompt para auditorías (opencode)
+├── combined.txt         # Consolidado para auditorías (make combine)
+├── Makefile             # combine / clean / commit / push / github / serve
+├── .gitignore           # node_modules/, dist/, *.db
+└── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
 ```
 
 ## Tablas del Schema (Tablas7.sql)
@@ -1508,25 +1494,39 @@ Para no depender de ningún navegador, se puede construir un `.exe` portable:
 - `package.json` — `electron` + `electron-builder` como devDeps
 
 ### Build (requiere Node.js + npm)
+
+**Windows (desde Termux/Android):**
 ```bash
-npm install --save-dev --no-bin-links electron@latest electron-builder@latest
-node node_modules/electron-builder/cli.js --win portable --x64
+make electron-build-win
+# o directamente:
+npm run build
 ```
 
-El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecuta sin instalación, sin admin, sin depender del navegador del sistema.
+**Linux (AppImage):**
+```bash
+make electron-build-linux
+# o directamente:
+npm run build:linux
+```
 
-> **Nota:** En Android/Termux el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
+El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). El AppImage en `dist/GestionExpedientes-*.AppImage`. Se ejecutan sin instalación, sin admin, sin depender del navegador del sistema.
+
+> **Nota (Termux/Android):** el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--win portable --x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
 
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + Tablas7.sql + main.js + package.json + doc.md → combined.txt
+make combine          # Concatena index.html + Tablas8.sql + main.js + package.json + doc.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
 make serve            # python3 -m http.server 8000 (sirve index.html por HTTP para evitar file://)
+make electron-build-win    # Build .exe portable para Windows
+make electron-build-linux  # Build AppImage para Linux
 ```
+
+El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make combine` (por defecto usa `bdd/Tablas8.sql`).
 
 ## Reglas del Proceso
 
@@ -1565,10 +1565,27 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 19 | `doc.md` | Documentación actualizada: Tablas6.sql→Tablas7.sql | Sincronizar documentación con schema v7 |
 | 20 | `index.html` | Eliminada columna "Monto Adjudicado" de la tabla principal + colspan 8→7 | Simplificar vista principal, monto visible solo en detalle expandible |
 | 21 | `package.json` | Agregado script `build:linux`, sección `linux` con targets AppImage/deb, campo `author` | Build para Linux (AppImage generado) |
+| 22 | `bdd/Tablas7.sql`, `index.html` | Eliminada UNIQUE constraint de `solped`, ahora permite texto libre (múltiples SOLPED) | Los expedientes pueden tener uno o varios números SOLPED |
+| 23 | `.gitignore`, `Makefile`, `prompt`, `doc.md`, `bdd/Tablas8.sql` | Reorganización del proyecto: SQL movidos a `bdd/`, Makefile con `SCHEMA` variable y targets win/linux, prompt actualizado a Tablas8.sql, gitignore mejorado | Reflejar estructura actual y dar soporte multiplataforma |
 
 ---
 
 ## Pendientes / Por Hacer
+
+### Estado de la BDD (schema v8 actual)
+
+El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + historial con snapshot completo. Cambios respecto a v7:
+
+| Tabla | Cambio respecto a v7 |
+|-------|---------------------|
+| ~~`cat_estado_accion`~~ | **Eliminada** — sus valores se fusionaron en `cat_estatus_detalle` |
+| `cat_estatus_detalle` | Agregados valores: "SE ENTREGA CON LA FIRMA", "SE ENTREGA CON LA MODIFICACIÓN", "SE RECIBE PARA LA FIRMA", "SE DEVUELVE CON LA FIRMA", "SE RECIBE CON LA FIRMA", "SE ENTREGA PARA LA FIRMA" |
+| `cat_documento` | Agregada columna `nro_ejemplares INTEGER DEFAULT 1` |
+| `expedientes.solped` | Eliminada UNIQUE constraint → `TEXT` libre |
+| `expedientes.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
+| `expedientes.nro_contrato_sap` | Cambiado de `INTEGER` a `TEXT` |
+| `historial_movimientos` | Agregadas columnas: `nro_proceso`, `presupuesto_base_usd`, `tipo_cambio`, `monto_adjudicado_usd`, `id_resultado`, `id_empresa`, `tiempo_ejecucion`, `fecha_firma_contrato` |
+| `historial_movimientos.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
 
 ### 🔴 Prioridad Alta
 
@@ -1576,7 +1593,7 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 |---|-------------|----------|---------|
 | 1 | **Eliminar `cat_estado_accion` y fusionar con `cat_estatus_detalle`** | `Tablas7.sql`, `index.html` | Unificar ambos catálogos. Los valores actuales de estado_accion pasan a estatus_detalle con nombres como "Se entrega para la firma", "Se devuelve con la firma", "Se recibe para la firma", etc. Ajustar trigger y vistas. |
 | 2 | **Historial normalizado que guarde todo** | `Tablas7.sql`, `index.html` | Modificar `historial_movimientos` para que almacene snapshot completo de cada cambio (todas las columnas relevantes del expediente) de forma normalizada. La UI debe seguir mostrando los mismos campos. |
-| 3 | **Bug: agregar expediente no guarda** | `index.html` | SOLPED tiene UNIQUE constraint en el schema. Si se intenta guardar con SOLPED vacío o duplicado, falla. Evaluar si se permite SOLPED repetido o se cambia la constraint. |
+| 3 | **Bug: agregar expediente no guarda** | `bdd/Tablas7.sql`, `index.html` | **RESUELTO:** SOLPED tenía UNIQUE constraint. Se elimina la constraint UNIQUE, el campo pasa a texto libre (uno o varios SOLPED separados por " / "). También se actualiza la validación en JS. |
 
 ### 🟡 Prioridad Media
 

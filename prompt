@@ -9,15 +9,15 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 **No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + Tablas6.sql + doc.md)
-- ❌ **NO LEAS:** Archivos individuales (index.html, Tablas6.sql por separado)
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + Tablas8.sql + doc.md)
+- ❌ **NO LEAS:** Archivos individuales (index.html, Tablas8.sql por separado)
 - Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
 
 ---
 
 ## Rol
 
-Auditor de código estático. Buscas violaciones a las reglas del proyecto en el código HTML/JS contenido en `combined.txt`, usando `Tablas6.sql` como referencia estructural de la BD.
+Auditor de código estático. Buscas violaciones a las reglas del proyecto en el código HTML/JS contenido en `combined.txt`, usando `Tablas8.sql` como referencia estructural de la BD.
 
 ---
 
@@ -54,13 +54,13 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Si un p
 
 ---
 
-## SCHEMA (Tablas6.sql — leer este archivo para la estructura exacta)
+## SCHEMA (Tablas8.sql — leer este archivo para la estructura exacta)
 
-- **12 catálogos:** `cat_gerencia`, `cat_documento`, `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle`, `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_estado_accion`, `cat_superintendencia` (con FK a gerencia)
-- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, ~30 cols con fechas, montos, FK a catálogos, `fecha_creacion`/`fecha_actualizacion` DEFAULT)
-- **Historial:** `historial_movimientos` (PK `id_movimiento AUTOINCREMENT`, FK a expedientes + 8 catálogos, `fecha_recibido`, `fecha_devuelto`)
+- **11 catálogos:** `cat_gerencia`, `cat_documento` (+nro_ejemplares), `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle` (fusionado con estado_accion), `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_superintendencia` (con FK a gerencia)
+- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, ~30 cols con fechas, montos, FK a catálogos, `fecha_creacion`/`fecha_actualizacion` DEFAULT, solped TEXT sin UNIQUE)
+- **Historial:** `historial_movimientos` (PK `id_movimiento AUTOINCREMENT`, FK a expedientes + snapshot completo de columnas clave)
 - **Triggers:** `trg_exp_auditoria` AFTER UPDATE — inserta en historial cuando cambian campos clave, actualiza `fecha_actualizacion`
-- **Vistas:** `vw_reporte_excel_contrataciones` (JOIN completo expedientes + catálogos), `vw_historial_celdas_multilinea` (GROUP_CONCAT para LibreOffice)
+- **Vistas:** `vw_reporte_excel_contrataciones` (JOIN completo expedientes + catálogos)
 
 **NOTA:** El código SQL en JS debe ser consistente con este schema. Usar `SELECT *` cuando sea práctico, nombres de columna explícitos en JOINs.
 
@@ -87,14 +87,14 @@ Identifica estas secciones dentro de `combined.txt` por su contenido:
 
 | Sección | Contenido clave |
 |---------|-----------------|
-| `index.html` (HEAD) | CDN Tailwind, sql.js, sql-wasm.js. Configuración inicial de `initSqlJs`, listener de `dbfile` change |
-| `index.html` (Tabla) | HTML de la tabla principal con 8 columnas, `toggleDesplegable`, botón editar |
+| `index.html` (HEAD) | Tailwind CSS, sql.js, sql-wasm.js. Configuración inicial de `initSqlJs`, listener de `dbfile` change |
+| `index.html` (Tabla) | HTML de la tabla principal con 7 columnas, `toggleDesplegable`, botón editar |
 | `index.html` (Modal) | Formulario completo con 6 fieldset: Info Proceso, Presupuesto, Gestión, Adjudicación, Observaciones, Historial |
 | `index.html` (JS - Estado global) | `let db`, `expedientesCache`, `catalogosCache` |
 | `index.html` (JS - Catálogos) | `cargarCatalogos()`, `poblarSelectores()`, `cargarSuperintendencias()` |
 | `index.html` (JS - CRUD) | `cargarDatos()`, `renderizarTabla()`, `mostrarFormulario()`, `cargarExpediente()`, `guardarExpediente()`, `eliminarExpediente()` |
 | `index.html` (JS - Historial) | `toggleDesplegable()`, `cargarHistorialFormulario()` |
-| `Tablas6.sql` | Schema completo con catálogos, expedientes, historial, triggers, vistas, inserts |
+| `Tablas8.sql` | Schema completo con catálogos, expedientes, historial, triggers, vistas, inserts |
 
 ---
 
@@ -178,7 +178,7 @@ Este archivo servirá como guía para implementar los fixes uno por uno.
 
 ## FLUJO DE TRABAJO RECOMENDADO
 
-1. Lee `Tablas6.sql` para entender la estructura del schema
+1. Lee `Tablas8.sql` para entender la estructura del schema
 2. Lee `combined.txt` completo (usa búsqueda por nombres de sección para navegar)
 3. Identifica violaciones a las 4 reglas
 4. Genera el reporte con hallazgos priorizados

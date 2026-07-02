@@ -1,14 +1,16 @@
 .PHONY: clean commit push github combine serve electron-install electron-build
 
+SCHEMA ?= bdd/Tablas8.sql
+
 combine:
 	{ \
 	  echo "=== index.html ===" && cat index.html && \
-	  echo "" && echo "=== Tablas7.sql ===" && cat bdd/Tablas7.sql && \
+	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat doc.md; \
 	} > combined.txt
-	@echo "combined.txt generado"
+	@echo "combined.txt generado (schema: $(SCHEMA))"
 
 clean:
 	rm -f combined.txt
@@ -17,10 +19,15 @@ serve:
 	python3 -m http.server 8000
 
 electron-install:
-	npm install --save-dev --no-bin-links electron@latest electron-builder@latest
+	npm install --save-dev electron@latest electron-builder@latest
 
-electron-build:
-	node node_modules/electron-builder/cli.js --win portable --x64
+electron-build-win:
+	npm run build
+
+electron-build-linux:
+	npm run build:linux
+
+electron-build: electron-build-linux
 
 commit:
 	git add -A

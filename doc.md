@@ -11,12 +11,14 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 | Node.js | `pkg install nodejs` (si no está) |
 | Descargas | `curl` viene preinstalado |
 
-**Comandos clave para reconstruir el `.exe`:**
+**Comandos clave para reconstruir el `.exe` (solo en Termux/Android):**
 ```bash
 npm install --save-dev --no-bin-links electron@latest electron-builder@latest
 node node_modules/electron-builder/cli.js --win portable --x64
 ```
 El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
+
+> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `make electron-build-linux` o `npm run build:linux` para generar el AppImage.
 
 **Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
 
@@ -88,19 +90,23 @@ Tailwind CSS (dark mode personalizado):
 ```
 baseaccess/
 ├── index.html           # App completa (HTML + CSS + JS)
+├── main.js              # Electron main process (ventana 1400x900)
+├── package.json         # Electron + electron-builder config
 ├── vendor/              # Dependencias locales (sin CDN)
 │   ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
 │   ├── sql-wasm.js      # sql.js loader
 │   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
-├── main.js              # Electron main process (ventana 1400x900)
-├── package.json         # Electron + electron-builder config
-├── Tablas7.sql           # Schema SQLite v7 (con observaciones_generales en historial)
-├── Tablas6.sql           # Schema SQLite v6 (legacy, sin modificar)
-├── doc.md                # Esta documentación
-├── prompt                # Prompt para auditorías (opencode/Qwen)
-├── Makefile              # combine / clean / commit / push / github
-├── .gitignore            # node_modules/, dist/
-└── intento               # (reservado)
+├── bdd/                 # Schemas y bases de datos
+│   ├── Tablas6.sql      # Schema SQLite v6 (legacy)
+│   ├── Tablas7.sql      # Schema SQLite v7
+│   ├── Tablas8.sql      # Schema SQLite v8 (actual)
+│   └── si.db            # Base de datos de prueba
+├── doc.md               # Esta documentación
+├── prompt               # Prompt para auditorías (opencode)
+├── combined.txt         # Consolidado para auditorías (make combine)
+├── Makefile             # combine / clean / commit / push / github / serve
+├── .gitignore           # node_modules/, dist/, *.db
+└── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
 ```
 
 ## Tablas del Schema (Tablas7.sql)
@@ -150,25 +156,39 @@ Para no depender de ningún navegador, se puede construir un `.exe` portable:
 - `package.json` — `electron` + `electron-builder` como devDeps
 
 ### Build (requiere Node.js + npm)
+
+**Windows (desde Termux/Android):**
 ```bash
-npm install --save-dev --no-bin-links electron@latest electron-builder@latest
-node node_modules/electron-builder/cli.js --win portable --x64
+make electron-build-win
+# o directamente:
+npm run build
 ```
 
-El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). Se ejecuta sin instalación, sin admin, sin depender del navegador del sistema.
+**Linux (AppImage):**
+```bash
+make electron-build-linux
+# o directamente:
+npm run build:linux
+```
 
-> **Nota:** En Android/Termux el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
+El `.exe` portable se genera en `dist/` (~80MB con Chromium embebido). El AppImage en `dist/GestionExpedientes-*.AppImage`. Se ejecutan sin instalación, sin admin, sin depender del navegador del sistema.
+
+> **Nota (Termux/Android):** el paso de empaquetado NSIS falla por falta de 7zip para ARM. Usar `--win portable --x64` para que el build se despliegue en `dist/win-unpacked/` — esa carpeta (~360MB) es funcional: copiar a USB, ejecutar `GestionExpedientes.exe` directo.
 
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + Tablas7.sql + main.js + package.json + doc.md → combined.txt
+make combine          # Concatena index.html + Tablas8.sql + main.js + package.json + doc.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
 make serve            # python3 -m http.server 8000 (sirve index.html por HTTP para evitar file://)
+make electron-build-win    # Build .exe portable para Windows
+make electron-build-linux  # Build AppImage para Linux
 ```
+
+El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make combine` (por defecto usa `bdd/Tablas8.sql`).
 
 ## Reglas del Proceso
 
@@ -207,10 +227,27 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 19 | `doc.md` | Documentación actualizada: Tablas6.sql→Tablas7.sql | Sincronizar documentación con schema v7 |
 | 20 | `index.html` | Eliminada columna "Monto Adjudicado" de la tabla principal + colspan 8→7 | Simplificar vista principal, monto visible solo en detalle expandible |
 | 21 | `package.json` | Agregado script `build:linux`, sección `linux` con targets AppImage/deb, campo `author` | Build para Linux (AppImage generado) |
+| 22 | `bdd/Tablas7.sql`, `index.html` | Eliminada UNIQUE constraint de `solped`, ahora permite texto libre (múltiples SOLPED) | Los expedientes pueden tener uno o varios números SOLPED |
+| 23 | `.gitignore`, `Makefile`, `prompt`, `doc.md`, `bdd/Tablas8.sql` | Reorganización del proyecto: SQL movidos a `bdd/`, Makefile con `SCHEMA` variable y targets win/linux, prompt actualizado a Tablas8.sql, gitignore mejorado | Reflejar estructura actual y dar soporte multiplataforma |
 
 ---
 
 ## Pendientes / Por Hacer
+
+### Estado de la BDD (schema v8 actual)
+
+El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + historial con snapshot completo. Cambios respecto a v7:
+
+| Tabla | Cambio respecto a v7 |
+|-------|---------------------|
+| ~~`cat_estado_accion`~~ | **Eliminada** — sus valores se fusionaron en `cat_estatus_detalle` |
+| `cat_estatus_detalle` | Agregados valores: "SE ENTREGA CON LA FIRMA", "SE ENTREGA CON LA MODIFICACIÓN", "SE RECIBE PARA LA FIRMA", "SE DEVUELVE CON LA FIRMA", "SE RECIBE CON LA FIRMA", "SE ENTREGA PARA LA FIRMA" |
+| `cat_documento` | Agregada columna `nro_ejemplares INTEGER DEFAULT 1` |
+| `expedientes.solped` | Eliminada UNIQUE constraint → `TEXT` libre |
+| `expedientes.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
+| `expedientes.nro_contrato_sap` | Cambiado de `INTEGER` a `TEXT` |
+| `historial_movimientos` | Agregadas columnas: `nro_proceso`, `presupuesto_base_usd`, `tipo_cambio`, `monto_adjudicado_usd`, `id_resultado`, `id_empresa`, `tiempo_ejecucion`, `fecha_firma_contrato` |
+| `historial_movimientos.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
 
 ### 🔴 Prioridad Alta
 
@@ -218,7 +255,7 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 |---|-------------|----------|---------|
 | 1 | **Eliminar `cat_estado_accion` y fusionar con `cat_estatus_detalle`** | `Tablas7.sql`, `index.html` | Unificar ambos catálogos. Los valores actuales de estado_accion pasan a estatus_detalle con nombres como "Se entrega para la firma", "Se devuelve con la firma", "Se recibe para la firma", etc. Ajustar trigger y vistas. |
 | 2 | **Historial normalizado que guarde todo** | `Tablas7.sql`, `index.html` | Modificar `historial_movimientos` para que almacene snapshot completo de cada cambio (todas las columnas relevantes del expediente) de forma normalizada. La UI debe seguir mostrando los mismos campos. |
-| 3 | **Bug: agregar expediente no guarda** | `index.html` | SOLPED tiene UNIQUE constraint en el schema. Si se intenta guardar con SOLPED vacío o duplicado, falla. Evaluar si se permite SOLPED repetido o se cambia la constraint. |
+| 3 | **Bug: agregar expediente no guarda** | `bdd/Tablas7.sql`, `index.html` | **RESUELTO:** SOLPED tenía UNIQUE constraint. Se elimina la constraint UNIQUE, el campo pasa a texto libre (uno o varios SOLPED separados por " / "). También se actualiza la validación en JS. |
 
 ### 🟡 Prioridad Media
 
