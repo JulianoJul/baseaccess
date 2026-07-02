@@ -19,6 +19,7 @@
                 <p class="text-xs text-gray-400">Carga tu base de datos SQLite para trabajar de forma 100% local.</p>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
+                <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
                 <button id="btn-abrir" onclick="abrirBaseDatos()"
                     class="bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
                     📂 Abrir Base de Datos
@@ -297,30 +298,36 @@
             SQL = sqlLib;
         });
 
-        async function abrirBaseDatos() {
-            if (!electronAPI) { alert('Esta función solo está disponible en la app de escritorio.'); return; }
-            try {
-                const result = await electronAPI.pickDbFile();
-                if (!result) return;
-                dbFilePath = result.path;
-                const binary = atob(result.data_base64);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                db = new SQL.Database(bytes);
-                document.getElementById('search').disabled = false;
-                document.getElementById('btn-nuevo').disabled = false;
-                document.getElementById('btn-guardar').disabled = false;
-                actualizarEstadoBD(`✔ ${result.path.split('/').pop() || result.path.split('\\').pop()}`);
-                cargarCatalogos();
-                cargarDatos();
-                iniciarAutoguardado();
-            } catch (err) {
-                alert('Error al abrir BD: ' + err);
-            }
+        function abrirBaseDatos() {
+            document.getElementById('dbfile').click();
         }
 
+        document.getElementById('dbfile').addEventListener('change', function(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const r = new FileReader();
+            r.onload = function() {
+                try {
+                    const Uints = new Uint8Array(r.result);
+                    db = new SQL.Database(Uints);
+                    dbFilePath = f.path || f.name;
+                    if (electronAPI && f.path) electronAPI.setDbPath(f.path);
+                    document.getElementById('search').disabled = false;
+                    document.getElementById('btn-nuevo').disabled = false;
+                    document.getElementById('btn-guardar').disabled = false;
+                    actualizarEstadoBD(`✔ ${f.name}`);
+                    cargarCatalogos();
+                    cargarDatos();
+                    iniciarAutoguardado();
+                } catch (err) {
+                    alert('Error al abrir BD: ' + err);
+                }
+            };
+            r.readAsArrayBuffer(f);
+        });
+
         async function guardarBD() {
-            if (!db || !dbFilePath || !electronAPI) return;
+            if (!db) return;
             try {
                 const data = db.export();
                 let binary = '';
@@ -329,7 +336,9 @@
                     binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
                 }
                 const data_base64 = btoa(binary);
-                await electronAPI.saveDb(data_base64);
+                if (electronAPI && dbFilePath) {
+                    await electronAPI.saveDb(data_base64);
+                }
                 dbModificado = false;
                 actualizarEstadoBD('✔ Guardado');
             } catch (err) {
@@ -384,6 +393,7 @@
                 const bytes = new Uint8Array(buffer);
                 db = new SQL.Database(bytes);
                 dbFilePath = file.path || file.name;
+                if (electronAPI && file.path) electronAPI.setDbPath(file.path);
                 document.getElementById('search').disabled = false;
                 document.getElementById('btn-nuevo').disabled = false;
                 document.getElementById('btn-guardar').disabled = false;
@@ -391,6 +401,7 @@
                 cargarCatalogos();
                 cargarDatos();
                 iniciarAutoguardado();
+                document.getElementById('dbfile').value = '';
             } catch (err) {
                 alert('Error al abrir archivo: ' + err);
             }
@@ -1527,31 +1538,11 @@ function createWindow() {
     }
   })
 
-  // Drag & Drop desde el sistema operativo
-  win.webContents.on('will-navigate', (e, url) => { e.preventDefault() })
-
   win.loadFile('index.html')
   win.setMenuBarVisibility(false)
 }
 
-// IPC handlers
-ipcMain.handle('pick-db-file', async () => {
-  const win = getWindow()
-  if (!win) return null
-  const result = await dialog.showOpenDialog(win, {
-    filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
-    properties: ['openFile']
-  })
-  if (result.canceled || result.filePaths.length === 0) {
-    return null
-  }
-  const filePath = result.filePaths[0]
-  const data = fs.readFileSync(filePath)
-  const dataBase64 = data.toString('base64')
-  currentDbPath = filePath
-  return { path: filePath, data_base64: dataBase64 }
-})
-
+// IPC handlers (solo para guardar)
 ipcMain.handle('save-db', async (_event, dataBase64) => {
   if (!currentDbPath) throw new Error('No hay archivo abierto')
   const data = Buffer.from(dataBase64, 'base64')
@@ -1574,8 +1565,20 @@ ipcMain.handle('save-db-as', async (_event, dataBase64) => {
   return result.filePath
 })
 
+ipcMain.handle('set-db-path', async (_event, filePath) => {
+  currentDbPath = filePath
+  return true
+})
+
 ipcMain.handle('get-db-path', async () => {
   return currentDbPath
+})
+
+// Sincronizar currentDbPath desde el frontend cuando abre un archivo
+ipcMain.handle('open-db-file', async (_event, filePath) => {
+  currentDbPath = filePath
+  const data = fs.readFileSync(filePath)
+  return data.toString('base64')
 })
 
 app.whenReady().then(createWindow)
@@ -1585,9 +1588,9 @@ app.on('window-all-closed', () => app.quit())
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
-  pickDbFile: () => ipcRenderer.invoke('pick-db-file'),
   saveDb: (dataBase64) => ipcRenderer.invoke('save-db', dataBase64),
   saveDbAs: (dataBase64) => ipcRenderer.invoke('save-db-as', dataBase64),
+  setDbPath: (filePath) => ipcRenderer.invoke('set-db-path', filePath),
   getDbPath: () => ipcRenderer.invoke('get-db-path'),
 });
 
@@ -1937,6 +1940,17 @@ El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + histori
 
 Antes: sql.js modificaba la BD en RAM, nunca escribía al disco.
 Ahora: se agregó `preload.js` + IPC handlers en `main.js` para leer/escribir archivos `.db`. Después de cada `guardarExpediente()` y `eliminarExpediente()`, se exporta el buffer de sql.js (`db.export()`) y se escribe al archivo `.db` vía `electronAPI.saveDb()`. Además hay autoguardado cada 30s, al cerrar la ventana, y atajo Ctrl+S.
+
+### Apertura de Base de Datos (Electron)
+
+El flujo de apertura usa **`<input type="file">` nativo del navegador** (no IPC), por confiabilidad:
+1. El botón "Abrir Base de Datos" dispara un `<input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">`.
+2. El `change` event lee el archivo con `FileReader` → `Uint8Array` → `new SQL.Database(bytes)`.
+3. La ruta del archivo se obtiene de `f.path` (propiedad nativa de Electron/Chromium para drag & drop y file input).
+4. Se sincroniza con el backend vía `electronAPI.setDbPath(f.path)` para que `saveDb()` sepa dónde escribir.
+5. Drag & drop: mismo flujo via `FileReader` + `file.path`.
+
+**Por qué no IPC para abrir:** El `<input type="file">` es un estándar web que funciona siempre, sin depender de preload/contextBridge. En la primera versión se intentó con IPC (`pickDbFile` → `dialog.showOpenDialog`) pero fallaba en ciertos entornos (Windows sin focus, problemas con `getWindow()`).
 
 ### Rama `tauri-migration`
 

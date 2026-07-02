@@ -293,6 +293,17 @@ El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + histori
 Antes: sql.js modificaba la BD en RAM, nunca escribía al disco.
 Ahora: se agregó `preload.js` + IPC handlers en `main.js` para leer/escribir archivos `.db`. Después de cada `guardarExpediente()` y `eliminarExpediente()`, se exporta el buffer de sql.js (`db.export()`) y se escribe al archivo `.db` vía `electronAPI.saveDb()`. Además hay autoguardado cada 30s, al cerrar la ventana, y atajo Ctrl+S.
 
+### Apertura de Base de Datos (Electron)
+
+El flujo de apertura usa **`<input type="file">` nativo del navegador** (no IPC), por confiabilidad:
+1. El botón "Abrir Base de Datos" dispara un `<input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">`.
+2. El `change` event lee el archivo con `FileReader` → `Uint8Array` → `new SQL.Database(bytes)`.
+3. La ruta del archivo se obtiene de `f.path` (propiedad nativa de Electron/Chromium para drag & drop y file input).
+4. Se sincroniza con el backend vía `electronAPI.setDbPath(f.path)` para que `saveDb()` sepa dónde escribir.
+5. Drag & drop: mismo flujo via `FileReader` + `file.path`.
+
+**Por qué no IPC para abrir:** El `<input type="file">` es un estándar web que funciona siempre, sin depender de preload/contextBridge. En la primera versión se intentó con IPC (`pickDbFile` → `dialog.showOpenDialog`) pero fallaba en ciertos entornos (Windows sin focus, problemas con `getWindow()`).
+
 ### Rama `tauri-migration`
 
 Existe la rama `tauri-migration` que reemplaza Electron por Tauri v2 (Rust). `master` queda intacto con Electron. Ver esa rama para los detalles de la migración.

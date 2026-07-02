@@ -1,0 +1,33 @@
+name: Build Electron Portable
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build portable .exe
+        run: npx electron-builder build --win portable --x64
+
+      - name: Upload portable .exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestionExpedientes-Electron-Portable
+          path: dist/GestionExpedientes-*.exe
+
+      - name: Upload unpacked folder (portable sin instalación)
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestionExpedientes-Electron-WinUnpacked
+          path: dist/win-unpacked/

@@ -20,31 +20,11 @@ function createWindow() {
     }
   })
 
-  // Drag & Drop desde el sistema operativo
-  win.webContents.on('will-navigate', (e, url) => { e.preventDefault() })
-
   win.loadFile('index.html')
   win.setMenuBarVisibility(false)
 }
 
-// IPC handlers
-ipcMain.handle('pick-db-file', async () => {
-  const win = getWindow()
-  if (!win) return null
-  const result = await dialog.showOpenDialog(win, {
-    filters: [{ name: 'SQLite DB', extensions: ['db', 'sqlite'] }],
-    properties: ['openFile']
-  })
-  if (result.canceled || result.filePaths.length === 0) {
-    return null
-  }
-  const filePath = result.filePaths[0]
-  const data = fs.readFileSync(filePath)
-  const dataBase64 = data.toString('base64')
-  currentDbPath = filePath
-  return { path: filePath, data_base64: dataBase64 }
-})
-
+// IPC handlers (solo para guardar)
 ipcMain.handle('save-db', async (_event, dataBase64) => {
   if (!currentDbPath) throw new Error('No hay archivo abierto')
   const data = Buffer.from(dataBase64, 'base64')
@@ -67,8 +47,20 @@ ipcMain.handle('save-db-as', async (_event, dataBase64) => {
   return result.filePath
 })
 
+ipcMain.handle('set-db-path', async (_event, filePath) => {
+  currentDbPath = filePath
+  return true
+})
+
 ipcMain.handle('get-db-path', async () => {
   return currentDbPath
+})
+
+// Sincronizar currentDbPath desde el frontend cuando abre un archivo
+ipcMain.handle('open-db-file', async (_event, filePath) => {
+  currentDbPath = filePath
+  const data = fs.readFileSync(filePath)
+  return data.toString('base64')
 })
 
 app.whenReady().then(createWindow)
