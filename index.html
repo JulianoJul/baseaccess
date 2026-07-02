@@ -297,7 +297,7 @@
         let dbModificado = false;
         let autosaveTimer = null;
 
-        const electronAPI = window.electronAPI;
+        var electronAPI = window.electronAPI;
         const config = { locateFile: filename => `vendor/${filename}` };
 
         initSqlJs(config).then(sqlLib => {

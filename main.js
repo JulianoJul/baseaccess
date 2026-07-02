@@ -20,6 +20,12 @@ function createWindow() {
 
   win.loadFile('index.html')
   win.setMenuBarVisibility(false)
+
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.key === 'F12') {
+      win.webContents.toggleDevTools()
+    }
+  })
 }
 
 // IPC handlers

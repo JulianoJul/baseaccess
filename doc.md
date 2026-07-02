@@ -233,6 +233,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 24 | `index.html` | Agregado botón "📋 Historial" en detalle de expediente + modal con historial completo (todas las columnas del snapshot) | Acceder al historial completo sin perder el foco en observaciones |
 | 25 | `index.html`, `prompt`, `doc.md` | Fix HIGH: eliminadas refs a `cat_estado_accion` y `id_estado_accion`, unificados toggles a `toggleDetalle(prefix, id)`, sanitizados IDs SQL con `toInt()`, renombrado `escapeSql`→`sanitizeNull`, eliminado `console.error` | Auditoría de código: cerrar hallazgos prioritarios |
 | 26 | `index.html` | Agregada función `execSafe()` con manejo de errores y `toInt()` para validación de IDs | Prevención de SQL injection y errores silenciosos |
+| 27 | `index.html`, `main.js` | Fix: `const electronAPI` → `var electronAPI` para evitar error de redeclaración en Electron + F12 abre DevTools | Debugging en producción |
 
 ---
 
