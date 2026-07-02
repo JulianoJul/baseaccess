@@ -7,6 +7,7 @@ combine:
 	  echo "=== index.html ===" && cat index.html && \
 	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
+	  echo "" && echo "=== preload.js ===" && cat preload.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat doc.md; \
 	} > combined.txt

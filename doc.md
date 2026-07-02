@@ -259,27 +259,44 @@ El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + histori
 | 1 | **Eliminar `cat_estado_accion` y fusionar con `cat_estatus_detalle`** | `Tablas7.sql`, `index.html` | Unificar ambos catálogos. Los valores actuales de estado_accion pasan a estatus_detalle con nombres como "Se entrega para la firma", "Se devuelve con la firma", "Se recibe para la firma", etc. Ajustar trigger y vistas. |
 | 2 | **Historial normalizado que guarde todo** | `Tablas7.sql`, `index.html` | Modificar `historial_movimientos` para que almacene snapshot completo de cada cambio (todas las columnas relevantes del expediente) de forma normalizada. La UI debe seguir mostrando los mismos campos. |
 | 3 | **Bug: agregar expediente no guarda** | `bdd/Tablas7.sql`, `index.html` | **RESUELTO:** SOLPED tenía UNIQUE constraint. Se elimina la constraint UNIQUE, el campo pasa a texto libre (uno o varios SOLPED separados por " / "). También se actualiza la validación en JS. |
+| 4 | **Botón "Guardar BD" manual + indicador de cambios** | `index.html`, `main.js`, `preload.js` | **RESUELTO:** Se agregó botón "💾 Guardar BD" en la interfaz, atajo Ctrl+S, autoguardado cada 30s + al cerrar ventana + después de cada CRUD. Se creó `preload.js` con IPC handlers para leer/escribir archivos `.db` de forma segura. |
 
 ### 🟡 Prioridad Media
 
 | # | Descripción | Archivos | Detalle |
 |---|-------------|----------|---------|
-| 4 | **Autogenerar observación** | `index.html` | Al guardar un movimiento, generar texto automático: "Recibido: [fecha] / Devuelto: [fecha] — [estado_accion] — [documento]". Permitir texto extra adicional. |
-| 5 | **Validación: fecha recibido ≤ fecha devuelto** | `index.html` | No permitir guardar si `fecha_recibido > fecha_devuelto`. Validar en frontend antes de enviar. |
-| 6 | **Validación: solo 2 decimales** | `index.html` | Restringir input a máximo 2 decimales en campos numéricos (presupuesto, montos, tipo de cambio). `oninput` o `step="0.01"`. |
-| 7 | **Bug: tipo de cambio no muestra decimales** | `index.html` | `formatNum()` muestra 2 decimales siempre, pero si el usuario escribe "1,5" debería mostrarse como "1,50". Verificar que `calcularBs()` y el formato funcionen correctamente con decimales. |
-| 8 | **Botón "+" en observaciones** | `index.html` | Agregar botón para añadir múltiples entradas de observaciones (no solo un textarea). |
-| 9 | **Tiempo ejecución con "DÍAS" automático** | `index.html` | El campo `tiempo_ejecucion` debe autocompletar o forzar el formato en días (ej: "30 DÍAS"). |
-| 10 | **"Se han detectado cambios, ¿guardar?"** | `index.html` | Detectar cambios no guardados al cerrar modal o cambiar de expediente, preguntar si desea guardar. |
-| 11 | **Número de ejemplares en DOCUMENTO** | `Tablas7.sql`, `index.html` | Agregar campo `nro_ejemplares` o similar en `cat_documento` o en el formulario al seleccionar un documento. |
+| 5 | **Autogenerar observación** | `index.html` | Al guardar un movimiento, generar texto automático: "Recibido: [fecha] / Devuelto: [fecha] — [estado_accion] — [documento]". Permitir texto extra adicional. |
+| 6 | **Validación: fecha recibido ≤ fecha devuelto** | `index.html` | No permitir guardar si `fecha_recibido > fecha_devuelto`. Validar en frontend antes de enviar. |
+| 7 | **Validación: solo 2 decimales** | `index.html` | Restringir input a máximo 2 decimales en campos numéricos (presupuesto, montos, tipo de cambio). `oninput` o `step="0.01"`. |
+| 8 | **Bug: tipo de cambio no muestra decimales** | `index.html` | `formatNum()` muestra 2 decimales siempre, pero si el usuario escribe "1,5" debería mostrarse como "1,50". Verificar que `calcularBs()` y el formato funcionen correctamente con decimales. |
+| 9 | **Botón "+" en observaciones** | `index.html` | Agregar botón para añadir múltiples entradas de observaciones (no solo un textarea). |
+| 10 | **Tiempo ejecución con "DÍAS" automático** | `index.html` | El campo `tiempo_ejecucion` debe autocompletar o forzar el formato en días (ej: "30 DÍAS"). |
+| 11 | **"Se han detectado cambios, ¿guardar?"** | `index.html` | Detectar cambios no guardados al cerrar modal o cambiar de expediente, preguntar si desea guardar. |
+
+### 🟡 Prioridad Media (continuación)
+
+| # | Descripción | Archivos | Detalle |
+|---|-------------|----------|---------|
+| 12 | **Número de ejemplares en DOCUMENTO** | `Tablas7.sql`, `index.html` | Agregar campo `nro_ejemplares` o similar en `cat_documento` o en el formulario al seleccionar un documento. |
 
 ### 🟢 Prioridad Baja
 
 | # | Descripción | Archivos | Detalle |
 |---|-------------|----------|---------|
-| 12 | **Archivo de config específico para BDD** | Nuevo archivo | Crear archivo de configuración (ej: `bdd_config.json`) con ajustes propios de la base de datos (mappings, reglas de validación, columnas sensibles) que se cargue dinámicamente. |
-| 13 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
-| 14 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
+| 13 | **Archivo de config específico para BDD** | Nuevo archivo | Crear archivo de configuración (ej: `bdd_config.json`) con ajustes propios de la base de datos (mappings, reglas de validación, columnas sensibles) que se cargue dinámicamente. |
+| 14 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
+| 15 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
+
+---
+### Bug de persistencia resuelto (Electron)
+
+Antes: sql.js modificaba la BD en RAM, nunca escribía al disco.
+Ahora: se agregó `preload.js` + IPC handlers en `main.js` para leer/escribir archivos `.db`. Después de cada `guardarExpediente()` y `eliminarExpediente()`, se exporta el buffer de sql.js (`db.export()`) y se escribe al archivo `.db` vía `electronAPI.saveDb()`. Además hay autoguardado cada 30s, al cerrar la ventana, y atajo Ctrl+S.
+
+### Rama `tauri-migration`
+
+Existe la rama `tauri-migration` que reemplaza Electron por Tauri v2 (Rust). `master` queda intacto con Electron. Ver esa rama para los detalles de la migración.
+
 
 ### Análisis: Bug "Agregué un expediente y no se guardó"
 
