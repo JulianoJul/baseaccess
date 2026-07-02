@@ -207,3 +207,49 @@ make serve            # python3 -m http.server 8000 (sirve index.html por HTTP p
 | 19 | `doc.md` | Documentación actualizada: Tablas6.sql→Tablas7.sql | Sincronizar documentación con schema v7 |
 | 20 | `index.html` | Eliminada columna "Monto Adjudicado" de la tabla principal + colspan 8→7 | Simplificar vista principal, monto visible solo en detalle expandible |
 | 21 | `package.json` | Agregado script `build:linux`, sección `linux` con targets AppImage/deb, campo `author` | Build para Linux (AppImage generado) |
+
+---
+
+## Pendientes / Por Hacer
+
+### 🔴 Prioridad Alta
+
+| # | Descripción | Archivos | Detalle |
+|---|-------------|----------|---------|
+| 1 | **Eliminar `cat_estado_accion` y fusionar con `cat_estatus_detalle`** | `Tablas7.sql`, `index.html` | Unificar ambos catálogos. Los valores actuales de estado_accion pasan a estatus_detalle con nombres como "Se entrega para la firma", "Se devuelve con la firma", "Se recibe para la firma", etc. Ajustar trigger y vistas. |
+| 2 | **Historial normalizado que guarde todo** | `Tablas7.sql`, `index.html` | Modificar `historial_movimientos` para que almacene snapshot completo de cada cambio (todas las columnas relevantes del expediente) de forma normalizada. La UI debe seguir mostrando los mismos campos. |
+| 3 | **Bug: agregar expediente no guarda** | `index.html` | SOLPED tiene UNIQUE constraint en el schema. Si se intenta guardar con SOLPED vacío o duplicado, falla. Evaluar si se permite SOLPED repetido o se cambia la constraint. |
+
+### 🟡 Prioridad Media
+
+| # | Descripción | Archivos | Detalle |
+|---|-------------|----------|---------|
+| 4 | **Autogenerar observación** | `index.html` | Al guardar un movimiento, generar texto automático: "Recibido: [fecha] / Devuelto: [fecha] — [estado_accion] — [documento]". Permitir texto extra adicional. |
+| 5 | **Validación: fecha recibido ≤ fecha devuelto** | `index.html` | No permitir guardar si `fecha_recibido > fecha_devuelto`. Validar en frontend antes de enviar. |
+| 6 | **Validación: solo 2 decimales** | `index.html` | Restringir input a máximo 2 decimales en campos numéricos (presupuesto, montos, tipo de cambio). `oninput` o `step="0.01"`. |
+| 7 | **Bug: tipo de cambio no muestra decimales** | `index.html` | `formatNum()` muestra 2 decimales siempre, pero si el usuario escribe "1,5" debería mostrarse como "1,50". Verificar que `calcularBs()` y el formato funcionen correctamente con decimales. |
+| 8 | **Botón "+" en observaciones** | `index.html` | Agregar botón para añadir múltiples entradas de observaciones (no solo un textarea). |
+| 9 | **Tiempo ejecución con "DÍAS" automático** | `index.html` | El campo `tiempo_ejecucion` debe autocompletar o forzar el formato en días (ej: "30 DÍAS"). |
+| 10 | **"Se han detectado cambios, ¿guardar?"** | `index.html` | Detectar cambios no guardados al cerrar modal o cambiar de expediente, preguntar si desea guardar. |
+| 11 | **Número de ejemplares en DOCUMENTO** | `Tablas7.sql`, `index.html` | Agregar campo `nro_ejemplares` o similar en `cat_documento` o en el formulario al seleccionar un documento. |
+
+### 🟢 Prioridad Baja
+
+| # | Descripción | Archivos | Detalle |
+|---|-------------|----------|---------|
+| 12 | **Archivo de config específico para BDD** | Nuevo archivo | Crear archivo de configuración (ej: `bdd_config.json`) con ajustes propios de la base de datos (mappings, reglas de validación, columnas sensibles) que se cargue dinámicamente. |
+| 13 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
+| 14 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
+
+### Análisis: Bug "Agregué un expediente y no se guardó"
+
+Tras revisar el código de `guardarExpediente()` y el schema:
+
+| Aspecto | Estado |
+|---------|--------|
+| **Cantidad columnas vs params** | ✅ Correcto (32 columnas, 32 placeholders, 32 params) |
+| **Validación SOLPED vacío** | ✅ Alerta y detiene el guardado |
+| **SOLPED UNIQUE** | ❌ El schema tiene `solped TEXT UNIQUE`. Si se intenta insertar un SOLPED ya existente, SQLite lanza `UNIQUE constraint failed`. El error se captura en el `catch` y se muestra en alert. |
+| **`escapeSql` nullifica vacíos** | ✅ Correcto, SQLite acepta NULL en columnas sin NOT NULL |
+| **Trigger `trg_exp_auditoria`** | ✅ Solo se ejecuta en UPDATE, no afecta INSERT |
+| **Posible causa** | **SOLPED duplicado** es la causa más probable. También verificar que la BDD cargada no tenga `PRAGMA foreign_keys = ON` conflictivo con FKs sin valores. |

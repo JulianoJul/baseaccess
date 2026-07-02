@@ -3,7 +3,7 @@
 combine:
 	{ \
 	  echo "=== index.html ===" && cat index.html && \
-	  echo "" && echo "=== Tablas7.sql ===" && cat Tablas7.sql && \
+	  echo "" && echo "=== Tablas7.sql ===" && cat bdd/Tablas7.sql && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat doc.md; \
