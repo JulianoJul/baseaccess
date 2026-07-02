@@ -367,6 +367,34 @@
             }
         });
 
+        // Drag & Drop
+        document.addEventListener('dragover', (e) => { e.preventDefault(); });
+        document.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            const file = e.dataTransfer?.files?.[0];
+            if (!file || (!file.name.endsWith('.db') && !file.name.endsWith('.sqlite'))) return;
+            try {
+                const reader = new FileReader();
+                const buffer = await new Promise((resolve, reject) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+                const bytes = new Uint8Array(buffer);
+                db = new SQL.Database(bytes);
+                dbFilePath = file.path || file.name;
+                document.getElementById('search').disabled = false;
+                document.getElementById('btn-nuevo').disabled = false;
+                document.getElementById('btn-guardar').disabled = false;
+                actualizarEstadoBD(`✔ ${file.name}`);
+                cargarCatalogos();
+                cargarDatos();
+                iniciarAutoguardado();
+            } catch (err) {
+                alert('Error al abrir archivo: ' + err);
+            }
+        });
+
         // ================================================================
         // UTILIDADES BD
         // ================================================================

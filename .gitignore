@@ -4,3 +4,5 @@ dist/
 bdd/si.db
 bdd/*.db
 bdd/*.sqlite
+src-tauri/target/
+src-tauri/
