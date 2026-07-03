@@ -259,6 +259,10 @@
                     <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
                     <div class="mt-3">
                         <textarea id="f-observaciones_generales" rows="3" class="input"></textarea>
+                        <div id="obs-previas-wrapper" class="mt-1 hidden">
+                            <button type="button" onclick="toggleObsPrevias()" class="text-[10px] text-gray-500 hover:text-teal-400"><i class="fas fa-eye mr-1"></i>Ver observaciones anteriores</button>
+                            <pre id="obs-previas-contenido" class="hidden mt-1 p-2 text-xs text-gray-300 bg-gray-900/60 rounded whitespace-pre-wrap italic max-h-32 overflow-y-auto"></pre>
+                        </div>
                     </div>
                 </fieldset>
 
@@ -321,6 +325,8 @@
             'id_superintendencia', 'id_documento', 'id_estatus',
             'fecha_recibido', 'fecha_devuelto', 'observaciones_generales'
         ];
+        let snapshotEdicion = null;
+        let observacionesPreviasCache = '';
 
         function marcarCamposEdicionFrecuente() {
             CAMPOS_EDICION_FRECUENTE.forEach(campo => {
@@ -335,6 +341,59 @@
                     }
                 }
             });
+        }
+
+        function obtenerTextoSelect(id) {
+            const el = document.getElementById(id);
+            if (!el || !el.options) return '';
+            return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        }
+
+        function toggleObsPrevias() {
+            const wrapper = document.getElementById('obs-previas-wrapper');
+            const contenido = document.getElementById('obs-previas-contenido');
+            if (!wrapper || !contenido) return;
+            const btn = wrapper.querySelector('button');
+            if (contenido.classList.contains('hidden')) {
+                contenido.classList.remove('hidden');
+                if (btn) btn.innerHTML = '<i class="fas fa-eye-slash mr-1"></i>Ocultar observaciones anteriores';
+            } else {
+                contenido.classList.add('hidden');
+                if (btn) btn.innerHTML = '<i class="fas fa-eye mr-1"></i>Ver observaciones anteriores';
+            }
+        }
+
+        function generarObservacionAutomatica(textoLibre) {
+            const ahora = new Date().toLocaleDateString('es-VE', { year: 'numeric', month: '2-digit', day: '2-digit' });
+            if (!snapshotEdicion) {
+                const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
+                const doc = obtenerTextoSelect('f-id_documento') || '';
+                const recibido = document.getElementById('f-fecha_recibido')?.value || '';
+                const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
+                let msg = `[${ahora}] Expediente creado — Estatus: ${estatus}`;
+                if (doc) msg += ` — Documento: ${doc}`;
+                if (recibido) msg += ` — F. Recibido: ${recibido}`;
+                if (devuelto) msg += ` — F. Devuelto: ${devuelto}`;
+                if (textoLibre) msg += ` — ${textoLibre}`;
+                return msg;
+            }
+            const cambios = [];
+            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
+                if (campo === 'observaciones_generales') return;
+                const el = document.getElementById(`f-${campo}`);
+                if (!el) return;
+                const valorActual = el.value || '';
+                const valorAnterior = (snapshotEdicion[campo] || '');
+                if (String(valorActual) !== String(valorAnterior)) {
+                    const textoActual = (el.tagName === 'SELECT') ? (el.options[el.selectedIndex]?.text || valorActual) : valorActual;
+                    const textoAnterior = snapshotEdicion[`_txt_${campo}`] || valorAnterior;
+                    cambios.push(`${campo.replace(/_/g,' ')}: ${textoAnterior || '(vacio)'} → ${textoActual || '(vacio)'}`);
+                }
+            });
+            if (cambios.length === 0 && !textoLibre) return null;
+            let msg = `[${ahora}] ${cambios.join(' | ')}`;
+            if (textoLibre) msg += ` — ${textoLibre}`;
+            return msg;
         }
 
         var electronAPI = window.electronAPI;
@@ -863,12 +922,17 @@
                 // MODO EDICIÓN
                 titulo.textContent = `Editar Expediente #${id}`;
                 btnEliminar.classList.remove('hidden');
+                snapshotEdicion = null;
+                observacionesPreviasCache = '';
                 cargarExpediente(id);
             } else {
                 // MODO NUEVO
                 titulo.textContent = 'Nuevo Expediente';
                 btnEliminar.classList.add('hidden');
                 document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
+                snapshotEdicion = null;
+                observacionesPreviasCache = '';
+                document.getElementById('obs-previas-wrapper')?.classList.add('hidden');
             }
 
             modal.classList.remove('hidden');
@@ -928,7 +992,32 @@
             document.getElementById('f-monto_adjudicado_usd').value = formatNum(data.monto_adjudicado_usd);
             document.getElementById('f-monto_adjudicado_bs').value = formatNum(data.monto_adjudicado_bs);
             document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
-            document.getElementById('f-observaciones_generales').value = data.observaciones_generales || '';
+
+            // Guardar snapshot de campos de edición frecuente para detectar cambios al guardar
+            observacionesPreviasCache = data.observaciones_generales || '';
+            snapshotEdicion = {};
+            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
+                const el = document.getElementById(`f-${campo}`);
+                if (el) {
+                    snapshotEdicion[campo] = el.value || '';
+                    if (el.tagName === 'SELECT') {
+                        snapshotEdicion[`_txt_${campo}`] = el.options[el.selectedIndex]?.text || '';
+                    }
+                }
+            });
+            // No precargar el textarea para evitar editar el historial acumulado por error
+            document.getElementById('f-observaciones_generales').value = '';
+            // Mostrar bloque colapsable de observaciones anteriores si existen
+            const previasWrapper = document.getElementById('obs-previas-wrapper');
+            const previasContenido = document.getElementById('obs-previas-contenido');
+            if (previasWrapper && previasContenido) {
+                if (observacionesPreviasCache) {
+                    previasContenido.textContent = observacionesPreviasCache;
+                    previasWrapper.classList.remove('hidden');
+                } else {
+                    previasWrapper.classList.add('hidden');
+                }
+            }
 
             // Cargar historial en el subformulario
             cargarHistorialFormulario(id);
@@ -1023,7 +1112,17 @@
                 monto_adjudicado_bs:     sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
-                observaciones_generales: sanitizeNull(document.getElementById('f-observaciones_generales').value)
+                observaciones_generales: (() => {
+                    const textoLibre = document.getElementById('f-observaciones_generales').value || '';
+                    const lineaAuto = generarObservacionAutomatica(textoLibre);
+                    if (!editandoId) {
+                        return sanitizeNull(lineaAuto || textoLibre || null);
+                    }
+                    if (!lineaAuto) {
+                        return sanitizeNull(observacionesPreviasCache || textoLibre || null);
+                    }
+                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + lineaAuto);
+                })()
             };
 
             // Validar campos obligatorios
