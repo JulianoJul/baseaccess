@@ -391,11 +391,12 @@
             const linea = generarObservacionAutomatica();
             if (!linea) return;
             const actual = textarea.value.trim();
-            if (!actual || actual === linea) {
+            if (!actual || actual === linea || actual === _ultimaLineaAuto) {
                 textarea.value = linea;
-            } else if (!actual.includes(linea)) {
+            } else {
                 textarea.value = actual + '\n' + linea;
             }
+            _ultimaLineaAuto = linea;
         }
 
         function aplicarTriggerFirma() {
@@ -1174,6 +1175,7 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
+            _ultimaLineaAuto = '';
 
             if (id) {
                 // MODO EDICIÓN
@@ -1269,6 +1271,7 @@
         }
 
         let _calculando = false;
+        let _ultimaLineaAuto = '';
         function calcularBs(origen) {
             if (_calculando) return;
             _calculando = true;
@@ -2107,8 +2110,7 @@ console.log('[PRELOAD] contextBridge configurado correctamente');
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        "AppImage"
       ],
       "icon": null,
       "category": "Office"
