@@ -389,9 +389,11 @@
             const textarea = document.getElementById('f-observaciones_generales');
             const linea = generarObservacionAutomatica();
             if (!linea) return;
-            const actual = textarea.value.trim();
-            if (!actual || actual === linea || actual === _ultimaLineaAuto) {
+            const actual = textarea.value;
+            if (!actual || actual.trim() === linea || actual.trim() === _ultimaLineaAuto) {
                 textarea.value = linea;
+            } else if (_ultimaLineaAuto && actual.startsWith(_ultimaLineaAuto)) {
+                textarea.value = linea + actual.slice(_ultimaLineaAuto.length);
             } else {
                 textarea.value = actual + '\n' + linea;
             }
