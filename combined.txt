@@ -387,9 +387,14 @@
 
         function actualizarObservacion() {
             if (!editandoId) return;
+            const textarea = document.getElementById('f-observaciones_generales');
             const linea = generarObservacionAutomatica();
-            if (linea) {
-                document.getElementById('f-observaciones_generales').value = linea;
+            if (!linea) return;
+            const actual = textarea.value.trim();
+            if (!actual || actual === linea) {
+                textarea.value = linea;
+            } else if (!actual.includes(linea)) {
+                textarea.value = actual + '\n' + linea;
             }
         }
 
@@ -1335,11 +1340,11 @@
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones_generales: (() => {
-                    const linea = generarObservacionAutomatica();
+                    const textoActual = document.getElementById('f-observaciones_generales').value.trim();
                     if (!editandoId) {
-                        return sanitizeNull(linea || null);
+                        return sanitizeNull(textoActual || null);
                     }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
+                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + textoActual);
                 })()
             };
 
@@ -2361,6 +2366,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
 | 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
 | 37 | `index.html` | Fix: `calcularBs()` ahora calcula monto_adjudicado en ambos sentidos (USD→BS y BS→USD) cuando cambia tipo de cambio, independientemente del orden en que se llenen los campos | Bidireccionalidad completa en cálculo automático de montos |
+| 38 | `index.html` | Fix: texto libre en observaciones ahora se guarda correctamente (save lee el textarea en lugar de solo generar línea automática). `actualizarObservacion()` append en vez de reemplazar para no perder escritura del usuario | El texto libre del usuario se perdía al guardar |
 | 37 | `index.html` | Unificación DRY: `CATALOGO_POR_SELECT` como fuente única de verdad para catálogos. Expandido con campo `cols`. `cargarCatalogos()` y `poblarSelectores()` ahora iteran sobre `CATALOGO_POR_SELECT` eliminando los mapeos paralelos duplicados | Eliminar duplicación de 3 estructuras de datos que mapeaban select→catálogo (regla DRY del doc.md) |
 | 38 | `index.html` | Fix: `captureAndRestoreFormState()` para preservar valores de selects al repoblar catálogos | Evitar que campos del formulario se vacíen al añadir nuevos registros a catálogos |
 | 39 | `index.html` | Fix: Eliminado `e.stopPropagation()` del botón '+' de catálogo | El botón '+' no despliega menú al tocar el ícono exacto |

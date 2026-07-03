@@ -386,9 +386,14 @@
 
         function actualizarObservacion() {
             if (!editandoId) return;
+            const textarea = document.getElementById('f-observaciones_generales');
             const linea = generarObservacionAutomatica();
-            if (linea) {
-                document.getElementById('f-observaciones_generales').value = linea;
+            if (!linea) return;
+            const actual = textarea.value.trim();
+            if (!actual || actual === linea) {
+                textarea.value = linea;
+            } else if (!actual.includes(linea)) {
+                textarea.value = actual + '\n' + linea;
             }
         }
 
@@ -1334,11 +1339,11 @@
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones_generales: (() => {
-                    const linea = generarObservacionAutomatica();
+                    const textoActual = document.getElementById('f-observaciones_generales').value.trim();
                     if (!editandoId) {
-                        return sanitizeNull(linea || null);
+                        return sanitizeNull(textoActual || null);
                     }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
+                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + textoActual);
                 })()
             };
 
