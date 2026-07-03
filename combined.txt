@@ -124,8 +124,7 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input" onchange="actualizarNroEjemplares()"></select>
-                            <span id="f-nro_ejemplares-display" class="text-[10px] text-gray-500 ml-1"></span>
+                            <select id="f-id_documento" class="input"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -212,6 +211,10 @@
                         <div>
                             <label class="label">Cant. Frentes</label>
                             <input type="number" step="1" min="0" id="f-cantidad_frentes" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Nro. Ejemplares</label>
+                            <input type="number" step="1" min="1" id="f-nro_ejemplares" class="input">
                         </div>
                         <div>
                             <label class="label">Nro. Resolución JD</label>
@@ -433,7 +436,7 @@
         const CATALOGO_POR_SELECT = {
             'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia' },
             'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
-            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento', extra: { col: 'nro_ejemplares', label: 'Nro. Ejemplares', def: '1' } },
+            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento' },
             'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion' },
             'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad' },
             'f-id_art':              { key: 'art',                tabla: 'cat_art' },
@@ -548,7 +551,6 @@
                 const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
                 if (nuevoItem && document.getElementById(selectId)) {
                     document.getElementById(selectId).value = nuevoItem.id;
-                    if (selectId === 'f-id_documento') actualizarNroEjemplares();
                 }
                 cerrarAgregarCatalogo();
             } catch (err) {
@@ -568,20 +570,6 @@
             if (!v) return '';
             const m = String(v).match(/^(\d+) DÍAS$/);
             return m ? m[1] : v;
-        }
-
-        function actualizarNroEjemplares() {
-            const sel = document.getElementById('f-id_documento');
-            const display = document.getElementById('f-nro_ejemplares-display');
-            if (!sel || !display) return;
-            const id = sel.value;
-            if (!id) { display.textContent = ''; return; }
-            const item = (catalogosCache.documento || []).find(d => String(d.id) === String(id));
-            if (item && item.nro_ejemplares) {
-                display.textContent = `(${item.nro_ejemplares} ejemplares)`;
-            } else {
-                display.textContent = '';
-            }
         }
 
         var electronAPI = window.electronAPI;
@@ -863,7 +851,7 @@
             const tablas = [
                 { id: 'gerencia',           tabla: 'cat_gerencia', cols: 'id, nombre' },
                 { id: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia' },
-                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre, nro_ejemplares' },
+                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre' },
                 { id: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
                 { id: 'modalidad',          tabla: 'cat_modalidad', cols: 'id, nombre' },
                 { id: 'art',                tabla: 'cat_art', cols: 'id, nombre' },
@@ -986,6 +974,7 @@
                                     <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
+                                    <div><span class="text-gray-400 block">Nro. Ejemplares:</span> <span class="text-gray-200 font-medium">${exp.nro_ejemplares || 1}</span></div>
                                 </div>
                             </div>
 
@@ -1176,7 +1165,6 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
-            document.getElementById('f-nro_ejemplares-display').textContent = '';
             formHistorial.innerHTML = '<p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>';
 
             if (id) {
@@ -1226,7 +1214,7 @@
             document.getElementById('f-solped').value = data.solped || '';
             document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
             document.getElementById('f-id_documento').value = data.id_documento || '';
-            actualizarNroEjemplares();
+            document.getElementById('f-nro_ejemplares').value = data.nro_ejemplares || '';
             document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
             document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
             cargarSuperintendencias();
@@ -1361,6 +1349,7 @@
                 id_tipo_contrato:        sanitizeNull(document.getElementById('f-id_tipo_contrato').value),
                 nro_acta_apertura:       sanitizeNull(document.getElementById('f-nro_acta_apertura').value),
                 cantidad_frentes:        sanitizeNull(document.getElementById('f-cantidad_frentes').value),
+                nro_ejemplares:          sanitizeNull(document.getElementById('f-nro_ejemplares').value),
                 nro_resolucion_jd:       sanitizeNull(document.getElementById('f-nro_resolucion_jd').value),
                 id_estatus:              sanitizeNull(document.getElementById('f-id_estatus').value) || 1,
                 fecha_recibido:          sanitizeNull(document.getElementById('f-fecha_recibido').value),
@@ -1422,6 +1411,7 @@
                             id_tipo_contrato = ?,
                             nro_acta_apertura = ?,
                             cantidad_frentes = ?,
+                            nro_ejemplares = ?,
                             nro_resolucion_jd = ?,
                             id_estatus = ?,
                             fecha_recibido = ?,
@@ -1447,7 +1437,7 @@
                         data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
                         data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
@@ -1466,13 +1456,13 @@
                             id_documento, fecha_presupuesto_base, presupuesto_base_usd,
                             tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso,
                             id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura,
-                            cantidad_frentes, nro_resolucion_jd, id_estatus,
+                            cantidad_frentes, nro_ejemplares, nro_resolucion_jd, id_estatus,
                             fecha_recibido, fecha_devuelto, id_receptor, nro_proceso,
                             id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa,
                             tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd,
                             fecha_firma_contrato, observaciones_generales
                         ) VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                         )
                     `;
 
@@ -1482,7 +1472,7 @@
                         data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
                         data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
@@ -1674,7 +1664,7 @@ PRAGMA foreign_keys = ON;
 -- 🔹 1. CATÁLOGOS MAESTROS (Independientes)
 -- ==========================================
 CREATE TABLE cat_gerencia (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE, nro_ejemplares INTEGER DEFAULT 1);
+CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_plan_contratacion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_modalidad (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 CREATE TABLE cat_art (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
@@ -1715,6 +1705,7 @@ CREATE TABLE expedientes (
     id_tipo_contrato        INTEGER,
     nro_acta_apertura       TEXT,
     cantidad_frentes        INTEGER,
+    nro_ejemplares          INTEGER DEFAULT 1,
     nro_resolucion_jd       TEXT,
     id_estatus              INTEGER DEFAULT 1,
     fecha_recibido          DATE,
@@ -1862,7 +1853,7 @@ SELECT
     s.nombre                                     AS superintendencia,
     emisor.nombre                                AS emisor,
     d.nombre                                     AS documento,
-    d.nro_ejemplares                             AS nro_ejemplares,
+    e.nro_ejemplares                             AS nro_ejemplares,
     e.fecha_presupuesto_base,
     e.presupuesto_base_usd,
     e.tipo_cambio,
@@ -1924,35 +1915,35 @@ INSERT INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
 (13, 'ASUNTOS GUBERNAMENTALES', 9), (14, 'COMISIÓN', 10);
 
 -- 3. DOCUMENTOS
-INSERT INTO cat_documento (id, nombre, nro_ejemplares) VALUES
-(1,  'ACTA DE INICIO SOLICITUD (A)', 1),
-(2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)', 1),
-(3,  'ACTA DE OTRAS CONSIDERACIONES (A)', 1),
-(4,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN', 2),
-(5,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTO MOTIVADO / ACTA DE OTORGAMIENTO / NOTIFICACIÓN', 3),
-(6,  'ACTA DE OTRAS CONSIDERACIONES / ANÁLISIS ECONÓMICO', 2),
-(7,  'ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN', 1),
-(8,  'ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)', 1),
-(9,  'ACTO MOTIVADO', 1),
-(10, 'ACTO MOTIVADO Y ACTA DE OTRAS CONSIDERACIONES (A)', 2),
-(11, 'ACTUALIZACIÓN DE PRESUPUESTO BASE', 1),
-(12, 'ADDENDUM / DECISIÓN DE GERENCIA APROBACIÓN DE LA MODIFICACIÓN', 2),
-(13, 'ANÁLISIS ECONÓMICO / ACTA DE OTORGAMIENTO / CONTRATO', 3),
-(14, 'ANÁLISIS ECONÓMICO / ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)', 2),
-(15, 'ANÁLISIS ECONÓMICO / CONTRATO', 2),
-(16, 'ANÁLISIS ECONÓMICO REV.1', 1),
-(17, 'CONTRATO', 1),
-(18, 'CONTRATO DE SERVICIOS', 1),
-(19, 'DECISIÓN DE GERENCIA', 1),
-(20, 'DECISIÓN DE GERENCIA INICIO', 1),
-(21, 'DECISIÓN DE GERENCIA MODIFICACIÓN / ADDENDUM', 1),
-(22, 'DESCRIPCIÓN DE PROCESO Y ESPECIFICACIONES TÉCNICAS', 1),
-(23, 'DESCRIPCIÓN DE PROCESO, ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN', 2),
-(24, 'ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO', 1),
-(25, 'JUSTIFICACIÓN, MODIFICACIÓN Y ACTA DE OTRAS CONSIDERACIONES (A)', 2),
-(26, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS / ACTUALIZACIÓN DE PRESUPUESTO BASE', 3),
-(27, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO', 2),
-(28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS', 4);
+INSERT INTO cat_documento (id, nombre) VALUES
+(1,  'ACTA DE INICIO SOLICITUD (A)'),
+(2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)'),
+(3,  'ACTA DE OTRAS CONSIDERACIONES (A)'),
+(4,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
+(5,  'ACTA DE OTRAS CONSIDERACIONES (A) / ACTO MOTIVADO / ACTA DE OTORGAMIENTO / NOTIFICACIÓN'),
+(6,  'ACTA DE OTRAS CONSIDERACIONES / ANÁLISIS ECONÓMICO'),
+(7,  'ACTA DE OTORGAMIENTO / NOTIFICACIÓN DE ADJUDICACIÓN'),
+(8,  'ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
+(9,  'ACTO MOTIVADO'),
+(10, 'ACTO MOTIVADO Y ACTA DE OTRAS CONSIDERACIONES (A)'),
+(11, 'ACTUALIZACIÓN DE PRESUPUESTO BASE'),
+(12, 'ADDENDUM / DECISIÓN DE GERENCIA APROBACIÓN DE LA MODIFICACIÓN'),
+(13, 'ANÁLISIS ECONÓMICO / ACTA DE OTORGAMIENTO / CONTRATO'),
+(14, 'ANÁLISIS ECONÓMICO / ACTA DE RESULTADOS DE CALIFICACIÓN Y EVALUACIÓN (A)'),
+(15, 'ANÁLISIS ECONÓMICO / CONTRATO'),
+(16, 'ANÁLISIS ECONÓMICO REV.1'),
+(17, 'CONTRATO'),
+(18, 'CONTRATO DE SERVICIOS'),
+(19, 'DECISIÓN DE GERENCIA'),
+(20, 'DECISIÓN DE GERENCIA INICIO'),
+(21, 'DECISIÓN DE GERENCIA MODIFICACIÓN / ADDENDUM'),
+(22, 'DESCRIPCIÓN DE PROCESO Y ESPECIFICACIONES TÉCNICAS'),
+(23, 'DESCRIPCIÓN DE PROCESO, ESPECIFICACIONES TÉCNICAS Y JUSTIFICACIÓN'),
+(24, 'ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
+(25, 'JUSTIFICACIÓN, MODIFICACIÓN Y ACTA DE OTRAS CONSIDERACIONES (A)'),
+(26, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS / ACTUALIZACIÓN DE PRESUPUESTO BASE'),
+(27, 'PRESUPUESTO BASE / ESPECIFICACIONES TÉCNICAS Y DESCRIPCIÓN DEL PROCESO'),
+(28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS');
 
 -- 4. PLANES DE CONTRATACIÓN
 INSERT INTO cat_plan_contratacion (id, nombre) VALUES
@@ -2310,7 +2301,7 @@ baseaccess/
 | `cat_empresas` | Empresas adjudicadas |
 | `cat_responsables` | Emisores/Receptores |
 | `cat_estado_accion` | Estado acción (Firma, Modificación, Recibo) |
-| `expedientes` | **Tabla principal**: ~30 columnas con fechas, montos, FK |
+| `expedientes` | **Tabla principal**: ~31 columnas con fechas, montos, FK, nro_ejemplares |
 | `historial_movimientos` | Traza de cambios: INSERT automático vía trigger |
 | `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
 | `vw_historial_celdas_multilinea` | Vista con GROUP_CONCAT para LibreOffice |
@@ -2427,6 +2418,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 33 | `index.html` | P5: FormatTiempoEjecucion — sufijo "DÍAS" automático al perder el foco si el valor es numérico | Consistencia en campo Tiempo Ejecución |
 | 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
+| 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
 
 ---
 
@@ -2439,10 +2431,7 @@ El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + histori
 | # | Prioridad | Descripción | Archivos | Estado |
 |---|-----------|-------------|----------|--------|
 | 4 | 🟡 Media | Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`) | `db-settings.js` o schema | pendiente — requiere decisión A vs B |
-| 7 | 🟢 Baja | Botón "Bases de Datos Recientes" | `index.html` | **LISTO** — implementado con localStorage + Electron `openDbFilePath` |
 | — | 🟢 Baja | Archivo de config específico para BDD (`bdd_config.json`) | Nuevo archivo | pendiente |
-| 14 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
-| 15 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
 
 ---
 ### Bug de persistencia resuelto (Electron)

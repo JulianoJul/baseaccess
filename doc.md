@@ -125,7 +125,7 @@ baseaccess/
 | `cat_empresas` | Empresas adjudicadas |
 | `cat_responsables` | Emisores/Receptores |
 | `cat_estado_accion` | Estado acción (Firma, Modificación, Recibo) |
-| `expedientes` | **Tabla principal**: ~30 columnas con fechas, montos, FK |
+| `expedientes` | **Tabla principal**: ~31 columnas con fechas, montos, FK, nro_ejemplares |
 | `historial_movimientos` | Traza de cambios: INSERT automático vía trigger |
 | `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
 | `vw_historial_celdas_multilinea` | Vista con GROUP_CONCAT para LibreOffice |
@@ -242,6 +242,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 33 | `index.html` | P5: FormatTiempoEjecucion — sufijo "DÍAS" automático al perder el foco si el valor es numérico | Consistencia en campo Tiempo Ejecución |
 | 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
+| 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
 
 ---
 
@@ -254,10 +255,7 @@ El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + histori
 | # | Prioridad | Descripción | Archivos | Estado |
 |---|-----------|-------------|----------|--------|
 | 4 | 🟡 Media | Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`) | `db-settings.js` o schema | pendiente — requiere decisión A vs B |
-| 7 | 🟢 Baja | Botón "Bases de Datos Recientes" | `index.html` | **LISTO** — implementado con localStorage + Electron `openDbFilePath` |
 | — | 🟢 Baja | Archivo de config específico para BDD (`bdd_config.json`) | Nuevo archivo | pendiente |
-| 14 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
-| 15 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
 
 ---
 ### Bug de persistencia resuelto (Electron)

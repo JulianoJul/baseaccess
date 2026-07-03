@@ -123,8 +123,7 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input" onchange="actualizarNroEjemplares()"></select>
-                            <span id="f-nro_ejemplares-display" class="text-[10px] text-gray-500 ml-1"></span>
+                            <select id="f-id_documento" class="input"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -211,6 +210,10 @@
                         <div>
                             <label class="label">Cant. Frentes</label>
                             <input type="number" step="1" min="0" id="f-cantidad_frentes" class="input">
+                        </div>
+                        <div>
+                            <label class="label">Nro. Ejemplares</label>
+                            <input type="number" step="1" min="1" id="f-nro_ejemplares" class="input">
                         </div>
                         <div>
                             <label class="label">Nro. Resolución JD</label>
@@ -432,7 +435,7 @@
         const CATALOGO_POR_SELECT = {
             'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia' },
             'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
-            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento', extra: { col: 'nro_ejemplares', label: 'Nro. Ejemplares', def: '1' } },
+            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento' },
             'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion' },
             'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad' },
             'f-id_art':              { key: 'art',                tabla: 'cat_art' },
@@ -547,7 +550,6 @@
                 const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
                 if (nuevoItem && document.getElementById(selectId)) {
                     document.getElementById(selectId).value = nuevoItem.id;
-                    if (selectId === 'f-id_documento') actualizarNroEjemplares();
                 }
                 cerrarAgregarCatalogo();
             } catch (err) {
@@ -567,20 +569,6 @@
             if (!v) return '';
             const m = String(v).match(/^(\d+) DÍAS$/);
             return m ? m[1] : v;
-        }
-
-        function actualizarNroEjemplares() {
-            const sel = document.getElementById('f-id_documento');
-            const display = document.getElementById('f-nro_ejemplares-display');
-            if (!sel || !display) return;
-            const id = sel.value;
-            if (!id) { display.textContent = ''; return; }
-            const item = (catalogosCache.documento || []).find(d => String(d.id) === String(id));
-            if (item && item.nro_ejemplares) {
-                display.textContent = `(${item.nro_ejemplares} ejemplares)`;
-            } else {
-                display.textContent = '';
-            }
         }
 
         var electronAPI = window.electronAPI;
@@ -862,7 +850,7 @@
             const tablas = [
                 { id: 'gerencia',           tabla: 'cat_gerencia', cols: 'id, nombre' },
                 { id: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia' },
-                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre, nro_ejemplares' },
+                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre' },
                 { id: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
                 { id: 'modalidad',          tabla: 'cat_modalidad', cols: 'id, nombre' },
                 { id: 'art',                tabla: 'cat_art', cols: 'id, nombre' },
@@ -985,6 +973,7 @@
                                     <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
+                                    <div><span class="text-gray-400 block">Nro. Ejemplares:</span> <span class="text-gray-200 font-medium">${exp.nro_ejemplares || 1}</span></div>
                                 </div>
                             </div>
 
@@ -1175,7 +1164,6 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
-            document.getElementById('f-nro_ejemplares-display').textContent = '';
             formHistorial.innerHTML = '<p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>';
 
             if (id) {
@@ -1225,7 +1213,7 @@
             document.getElementById('f-solped').value = data.solped || '';
             document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
             document.getElementById('f-id_documento').value = data.id_documento || '';
-            actualizarNroEjemplares();
+            document.getElementById('f-nro_ejemplares').value = data.nro_ejemplares || '';
             document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
             document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
             cargarSuperintendencias();
@@ -1360,6 +1348,7 @@
                 id_tipo_contrato:        sanitizeNull(document.getElementById('f-id_tipo_contrato').value),
                 nro_acta_apertura:       sanitizeNull(document.getElementById('f-nro_acta_apertura').value),
                 cantidad_frentes:        sanitizeNull(document.getElementById('f-cantidad_frentes').value),
+                nro_ejemplares:          sanitizeNull(document.getElementById('f-nro_ejemplares').value),
                 nro_resolucion_jd:       sanitizeNull(document.getElementById('f-nro_resolucion_jd').value),
                 id_estatus:              sanitizeNull(document.getElementById('f-id_estatus').value) || 1,
                 fecha_recibido:          sanitizeNull(document.getElementById('f-fecha_recibido').value),
@@ -1421,6 +1410,7 @@
                             id_tipo_contrato = ?,
                             nro_acta_apertura = ?,
                             cantidad_frentes = ?,
+                            nro_ejemplares = ?,
                             nro_resolucion_jd = ?,
                             id_estatus = ?,
                             fecha_recibido = ?,
@@ -1446,7 +1436,7 @@
                         data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
                         data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
@@ -1465,13 +1455,13 @@
                             id_documento, fecha_presupuesto_base, presupuesto_base_usd,
                             tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso,
                             id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura,
-                            cantidad_frentes, nro_resolucion_jd, id_estatus,
+                            cantidad_frentes, nro_ejemplares, nro_resolucion_jd, id_estatus,
                             fecha_recibido, fecha_devuelto, id_receptor, nro_proceso,
                             id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa,
                             tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd,
                             fecha_firma_contrato, observaciones_generales
                         ) VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
                         )
                     `;
 
@@ -1481,7 +1471,7 @@
                         data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
                         data.id_plan, data.descripcion_proceso, data.id_modalidad,
                         data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_resolucion_jd, data.id_estatus,
+                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
                         data.fecha_recibido, data.fecha_devuelto,
                         data.id_receptor, data.nro_proceso, data.id_resultado,
                         data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
