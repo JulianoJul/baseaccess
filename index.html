@@ -305,6 +305,22 @@
         </div>
     </div>
 
+    <!-- Modal de Validaciones -->
+    <div id="modal-validaciones" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-lg my-8">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-check-circle mr-1"></i> Validaciones</h2>
+                <button onclick="cerrarEditorValidacion()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <div class="p-4">
+                <p class="text-sm text-gray-300">Próximamente: reglas de validación para <strong data-campo-id=""></strong></p>
+            </div>
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
+                <button onclick="cerrarEditorValidacion()" class="btn btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ================================================================
         // ESTADO GLOBAL
@@ -393,6 +409,42 @@
             let msg = `[${ahora}] ${cambios.join(' | ')}`;
             if (textoLibre) msg += ` — ${textoLibre}`;
             return msg;
+        }
+
+        let validacionesCampoCache = {};
+
+        function inicializarBotonesValidacion() {
+            const form = document.getElementById('form-modal');
+            if (!form) return;
+            form.querySelectorAll('[id^="f-"]').forEach(el => {
+                if (el.type === 'hidden') return;
+                if (el.id === 'f-id_expediente') return;
+                const label = el.closest('div')?.querySelector('.label');
+                if (!label || label.querySelector('.btn-validacion')) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'btn-validacion text-[10px] text-gray-500 hover:text-teal-400 ml-1';
+                btn.title = 'Agregar validación';
+                btn.innerHTML = '<i class="fas fa-plus"></i>';
+                btn.onclick = (e) => { e.stopPropagation(); abrirEditorValidacion(el.id); };
+                label.appendChild(btn);
+                if (!validacionesCampoCache[el.id]) validacionesCampoCache[el.id] = [];
+            });
+        }
+
+        function abrirEditorValidacion(idCampo) {
+            const modal = document.getElementById('modal-validaciones');
+            if (!modal) return;
+            modal.querySelector('[data-campo-id]').textContent = idCampo.replace('f-', '');
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function cerrarEditorValidacion() {
+            const modal = document.getElementById('modal-validaciones');
+            if (!modal) return;
+            modal.classList.add('hidden');
+            document.body.style.overflow = '';
         }
 
         var electronAPI = window.electronAPI;
@@ -937,6 +989,7 @@
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             marcarCamposEdicionFrecuente();
+            inicializarBotonesValidacion();
         }
 
         function cancelarFormulario() {
