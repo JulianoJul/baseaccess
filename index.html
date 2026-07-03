@@ -177,11 +177,11 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Fecha Recibido</label>
-                            <input type="date" id="f-fecha_recibido" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="date" id="f-fecha_recibido" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onchange="validarFechas()">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Fecha Devuelto</label>
-                            <input type="date" id="f-fecha_devuelto" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <input type="date" id="f-fecha_devuelto" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onchange="validarFechas()">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Nro. Acta Apertura</label>
@@ -716,6 +716,24 @@
             return s;
         }
 
+        function validarFechas() {
+            const recibido = document.getElementById('f-fecha_recibido').value;
+            const devuelto = document.getElementById('f-fecha_devuelto').value;
+            const errEl = document.getElementById('f-error-fechas');
+            if (recibido && devuelto && devuelto < recibido) {
+                if (!errEl) {
+                    const div = document.createElement('div');
+                    div.id = 'f-error-fechas';
+                    div.className = 'text-red-400 text-xs mt-1';
+                    div.textContent = '⚠ Fecha Devuelto no puede ser anterior a Fecha Recibido';
+                    document.getElementById('f-fecha_devuelto').parentNode.appendChild(div);
+                }
+                return false;
+            }
+            if (errEl) errEl.remove();
+            return true;
+        }
+
         // ================================================================
         // DESPLEGABLE DE HISTORIAL
         // ================================================================
@@ -971,6 +989,12 @@
             if (!data.solped) {
                 alert('El campo SOLPED es obligatorio.');
                 document.getElementById('f-solped').focus();
+                return;
+            }
+
+            if (!validarFechas()) {
+                alert('Fecha Devuelto no puede ser anterior a Fecha Recibido.');
+                document.getElementById('f-fecha_devuelto').focus();
                 return;
             }
 
