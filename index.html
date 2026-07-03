@@ -433,18 +433,18 @@
         }
 
         const CATALOGO_POR_SELECT = {
-            'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia' },
-            'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
-            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento' },
-            'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion' },
-            'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad' },
-            'f-id_art':              { key: 'art',                tabla: 'cat_art' },
-            'f-id_tipo_contrato':    { key: 'tipo_contrato',      tabla: 'cat_tipo_contrato' },
-            'f-id_estatus':          { key: 'estatus_detalle',    tabla: 'cat_estatus_detalle' },
-            'f-id_resultado':        { key: 'resultado_proceso',  tabla: 'cat_resultado_proceso' },
-            'f-id_empresa':          { key: 'empresas',           tabla: 'cat_empresas' },
-            'f-id_emisor':           { key: 'responsables',       tabla: 'cat_responsables' },
-            'f-id_receptor':         { key: 'responsables',       tabla: 'cat_responsables' }
+            'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia',         cols: 'id, nombre' },
+            'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
+            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento',        cols: 'id, nombre' },
+            'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
+            'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad',        cols: 'id, nombre' },
+            'f-id_art':              { key: 'art',                tabla: 'cat_art',              cols: 'id, nombre' },
+            'f-id_tipo_contrato':    { key: 'tipo_contrato',      tabla: 'cat_tipo_contrato',    cols: 'id, nombre' },
+            'f-id_estatus':          { key: 'estatus_detalle',    tabla: 'cat_estatus_detalle',  cols: 'id, nombre' },
+            'f-id_resultado':        { key: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
+            'f-id_empresa':          { key: 'empresas',           tabla: 'cat_empresas',         cols: 'id, nombre' },
+            'f-id_emisor':           { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' },
+            'f-id_receptor':         { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' }
         };
 
         function inicializarBotonesCatalogo() {
@@ -847,53 +847,28 @@
         // CATÁLOGOS
         // ================================================================
         function cargarCatalogos() {
-            const tablas = [
-                { id: 'gerencia',           tabla: 'cat_gerencia', cols: 'id, nombre' },
-                { id: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia' },
-                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre' },
-                { id: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
-                { id: 'modalidad',          tabla: 'cat_modalidad', cols: 'id, nombre' },
-                { id: 'art',                tabla: 'cat_art', cols: 'id, nombre' },
-                { id: 'tipo_contrato',      tabla: 'cat_tipo_contrato', cols: 'id, nombre' },
-                { id: 'estatus_detalle',    tabla: 'cat_estatus_detalle', cols: 'id, nombre' },
-                { id: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
-                { id: 'empresas',           tabla: 'cat_empresas', cols: 'id, nombre' },
-                { id: 'responsables',       tabla: 'cat_responsables', cols: 'id, nombre' }
-            ];
-            tablas.forEach(t => {
-                const res = db.exec(`SELECT ${t.cols} FROM ${t.tabla} ORDER BY nombre`);
-                catalogosCache[t.id] = dbToObjects(res);
+            const vistos = new Set();
+            Object.values(CATALOGO_POR_SELECT).forEach(info => {
+                if (vistos.has(info.key)) return;
+                vistos.add(info.key);
+                const res = db.exec(`SELECT ${info.cols} FROM ${info.tabla} ORDER BY nombre`);
+                catalogosCache[info.key] = dbToObjects(res);
             });
             poblarSelectores();
         }
 
         function poblarSelectores() {
-            const mapeo = {
-                'f-id_gerencia':         'gerencia',
-                'f-id_superintendencia': 'superintendencia',
-                'f-id_documento':        'documento',
-                'f-id_plan':             'plan_contratacion',
-                'f-id_modalidad':        'modalidad',
-                'f-id_art':              'art',
-                'f-id_tipo_contrato':    'tipo_contrato',
-                'f-id_estatus':          'estatus_detalle',
-                'f-id_resultado':        'resultado_proceso',
-                'f-id_empresa':          'empresas',
-                'f-id_emisor':           'responsables',
-                'f-id_receptor':         'responsables'
-            };
-            Object.entries(mapeo).forEach(([selectId, catKey]) => {
+            Object.entries(CATALOGO_POR_SELECT).forEach(([selectId, info]) => {
                 const sel = document.getElementById(selectId);
                 if (!sel) return;
                 sel.innerHTML = '<option value="">-- Seleccionar --</option>';
-                catalogosCache[catKey].forEach(item => {
+                (catalogosCache[info.key] || []).forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.id;
                     opt.textContent = item.nombre;
                     sel.appendChild(opt);
                 });
             });
-            // Cargar superintendencias según gerencia inicial
             cargarSuperintendencias();
         }
 
@@ -1091,15 +1066,35 @@
             btn.innerHTML = subfila.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
         }
 
-        function cargarHistorialUnificado(id) {
-            const safeId = toInt(id);
-            if (!safeId) return;
-            const contenedor = document.getElementById(`unified-hist-${safeId}`);
-            if (!contenedor) return;
-            const wasHidden = contenedor.classList.contains('hidden');
-            contenedor.classList.toggle('hidden');
-            if (!wasHidden || contenedor.dataset.loaded) return;
-            contenedor.dataset.loaded = '1';
+        function _renderHistorialItems(contenedor, data, prefix) {
+            if (!data.length) {
+                contenedor.innerHTML = '<p class="text-gray-500 italic text-center py-2">Sin movimientos registrados.</p>';
+                return;
+            }
+            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
+            data.forEach((h, i) => {
+                const mid = h.id_movimiento;
+                const obs = h.observaciones_generales || '';
+                html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
+                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('${prefix}-', ${mid})">`;
+                html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
+                html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
+                html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
+                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="${prefix}btn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
+                html += `</div>`;
+                html += `<div id="${prefix}det-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
+                html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
+                html += `<div><span class="text-gray-500 block text-[10px]">Emisor</span><span class="text-gray-200">${h.emisor}</span></div>`;
+                html += `<div><span class="text-gray-500 block text-[10px]">Receptor</span><span class="text-gray-200">${h.receptor}</span></div>`;
+                html += `<div><span class="text-gray-500 block text-[10px]">Estatus</span><span class="text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></div>`;
+                html += `<div><span class="text-gray-500 block text-[10px]">F. Recibido</span><span class="font-mono text-gray-300">${h.f_entrada}</span></div>`;
+                html += `<div><span class="text-gray-500 block text-[10px]">F. Devuelto</span><span class="font-mono text-gray-300">${h.f_salida}</span></div>`;
+                html += `</div></div>`;
+            });
+            contenedor.innerHTML = html;
+        }
+
+        function _queryHistorial(safeId) {
             const r = db.exec(`
                 SELECT h.id_movimiento, COALESCE(g.nombre,'N/A') AS ger,
                     COALESCE(em.nombre,'N/A') AS emisor, COALESCE(rec.nombre,'N/A') AS receptor,
@@ -1113,32 +1108,19 @@
                 WHERE h.id_expediente = ${safeId}
                 ORDER BY h.id_movimiento DESC
             `);
-            const data = dbToObjects(r);
-            if (!data.length) {
-                contenedor.innerHTML = '<p class="text-gray-500 italic text-center py-2">Sin movimientos registrados.</p>';
-                return;
-            }
-            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
-            data.forEach((h, i) => {
-                const mid = h.id_movimiento;
-                const obs = h.observaciones_generales || '';
-                html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
-                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('udet-', ${mid})">`;
-                html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
-                html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
-                html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
-                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="ubtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
-                html += `</div>`;
-                html += `<div id="udet-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Emisor</span><span class="text-gray-200">${h.emisor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Receptor</span><span class="text-gray-200">${h.receptor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Estatus</span><span class="text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Recibido</span><span class="font-mono text-gray-300">${h.f_entrada}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Devuelto</span><span class="font-mono text-gray-300">${h.f_salida}</span></div>`;
-                html += `</div></div>`;
-            });
-            contenedor.innerHTML = html;
+            return dbToObjects(r);
+        }
+
+        function cargarHistorialUnificado(id) {
+            const safeId = toInt(id);
+            if (!safeId) return;
+            const contenedor = document.getElementById(`unified-hist-${safeId}`);
+            if (!contenedor) return;
+            const wasHidden = contenedor.classList.contains('hidden');
+            contenedor.classList.toggle('hidden');
+            if (!wasHidden || contenedor.dataset.loaded) return;
+            contenedor.dataset.loaded = '1';
+            _renderHistorialItems(contenedor, _queryHistorial(safeId), 'udet');
         }
 
         function toggleDetalle(prefix, id) {
@@ -1276,46 +1258,7 @@
         function cargarHistorialFormulario(id) {
             const safeId = toInt(id);
             if (!safeId) { document.getElementById('form-historial').innerHTML = '<p class="text-gray-500 italic p-2">ID inválido.</p>'; return; }
-            const contenedor = document.getElementById('form-historial');
-            const r = db.exec(`
-                SELECT h.id_movimiento, COALESCE(g.nombre,'N/A') AS ger,
-                    COALESCE(em.nombre,'N/A') AS emisor, COALESCE(rec.nombre,'N/A') AS receptor,
-                    COALESCE(ed.nombre,'N/A') AS estatus, COALESCE(h.fecha_recibido,'') AS f_entrada,
-                    COALESCE(h.fecha_devuelto,'') AS f_salida, h.observaciones_generales
-                FROM historial_movimientos h
-                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
-                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
-                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
-                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                WHERE h.id_expediente = ${safeId}
-                ORDER BY h.id_movimiento DESC
-            `);
-            const data = dbToObjects(r);
-            if (!data.length) {
-                contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Sin movimientos registrados.</p>';
-                return;
-            }
-            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
-            data.forEach((h, i) => {
-                const mid = h.id_movimiento;
-                const obs = h.observaciones_generales || '';
-                html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
-                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('fdet-', ${mid})">`;
-                html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
-                html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
-                html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
-                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="fbtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
-                html += `</div>`;
-                html += `<div id="fdet-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Emisor</span><span class="text-gray-200">${h.emisor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Receptor</span><span class="text-gray-200">${h.receptor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Estatus</span><span class="text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Recibido</span><span class="font-mono text-gray-300">${h.f_entrada}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Devuelto</span><span class="font-mono text-gray-300">${h.f_salida}</span></div>`;
-                html += `</div></div>`;
-            });
-            contenedor.innerHTML = html;
+            _renderHistorialItems(document.getElementById('form-historial'), _queryHistorial(safeId), 'fdet');
         }
 
         // (unified toggleDetalle used instead)
@@ -1389,97 +1332,27 @@
                 return;
             }
 
+            const COLS = [
+                'solped', 'id_gerencia', 'id_superintendencia', 'id_emisor',
+                'id_documento', 'fecha_presupuesto_base', 'presupuesto_base_usd',
+                'tipo_cambio', 'presupuesto_base_bs', 'id_plan', 'descripcion_proceso',
+                'id_modalidad', 'id_art', 'id_tipo_contrato', 'nro_acta_apertura',
+                'cantidad_frentes', 'nro_ejemplares', 'nro_resolucion_jd', 'id_estatus',
+                'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
+                'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
+                'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
+                'fecha_firma_contrato', 'observaciones_generales'
+            ];
+
             try {
+                const valores = COLS.map(c => data[c]);
                 if (editandoId) {
-                    // UPDATE
-                    const sql = `
-                        UPDATE expedientes SET
-                            solped = ?,
-                            id_gerencia = ?,
-                            id_superintendencia = ?,
-                            id_emisor = ?,
-                            id_documento = ?,
-                            fecha_presupuesto_base = ?,
-                            presupuesto_base_usd = ?,
-                            tipo_cambio = ?,
-                            presupuesto_base_bs = ?,
-                            id_plan = ?,
-                            descripcion_proceso = ?,
-                            id_modalidad = ?,
-                            id_art = ?,
-                            id_tipo_contrato = ?,
-                            nro_acta_apertura = ?,
-                            cantidad_frentes = ?,
-                            nro_ejemplares = ?,
-                            nro_resolucion_jd = ?,
-                            id_estatus = ?,
-                            fecha_recibido = ?,
-                            fecha_devuelto = ?,
-                            id_receptor = ?,
-                            nro_proceso = ?,
-                            id_resultado = ?,
-                            nro_contrato_sicac = ?,
-                            nro_contrato_sap = ?,
-                            id_empresa = ?,
-                            tiempo_ejecucion = ?,
-                            monto_adjudicado_bs = ?,
-                            monto_adjudicado_usd = ?,
-                            fecha_firma_contrato = ?,
-                            observaciones_generales = ?,
-                            fecha_actualizacion = CURRENT_DATE
-                        WHERE id_expediente = ?
-                    `;
-
-                    const params = [
-                        data.solped, data.id_gerencia, data.id_superintendencia,
-                        data.id_emisor, data.id_documento, data.fecha_presupuesto_base,
-                        data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
-                        data.id_plan, data.descripcion_proceso, data.id_modalidad,
-                        data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
-                        data.fecha_recibido, data.fecha_devuelto,
-                        data.id_receptor, data.nro_proceso, data.id_resultado,
-                        data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
-                        data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
-                        data.fecha_firma_contrato, data.observaciones_generales,
-                        editandoId
-                    ];
-
-                    db.run(sql, params);
+                    const sql = `UPDATE expedientes SET ${COLS.map(c => c + ' = ?').join(', ')}, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`;
+                    db.run(sql, [...valores, editandoId]);
                     alert('Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.');
                 } else {
-                    // INSERT
-                    const sql = `
-                        INSERT INTO expedientes (
-                            solped, id_gerencia, id_superintendencia, id_emisor,
-                            id_documento, fecha_presupuesto_base, presupuesto_base_usd,
-                            tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso,
-                            id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura,
-                            cantidad_frentes, nro_ejemplares, nro_resolucion_jd, id_estatus,
-                            fecha_recibido, fecha_devuelto, id_receptor, nro_proceso,
-                            id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa,
-                            tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd,
-                            fecha_firma_contrato, observaciones_generales
-                        ) VALUES (
-                            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-                        )
-                    `;
-
-                    const params = [
-                        data.solped, data.id_gerencia, data.id_superintendencia,
-                        data.id_emisor, data.id_documento, data.fecha_presupuesto_base,
-                        data.presupuesto_base_usd, data.tipo_cambio, data.presupuesto_base_bs,
-                        data.id_plan, data.descripcion_proceso, data.id_modalidad,
-                        data.id_art, data.id_tipo_contrato, data.nro_acta_apertura,
-                        data.cantidad_frentes, data.nro_ejemplares, data.nro_resolucion_jd, data.id_estatus,
-                        data.fecha_recibido, data.fecha_devuelto,
-                        data.id_receptor, data.nro_proceso, data.id_resultado,
-                        data.nro_contrato_sicac, data.nro_contrato_sap, data.id_empresa,
-                        data.tiempo_ejecucion, data.monto_adjudicado_bs, data.monto_adjudicado_usd,
-                        data.fecha_firma_contrato, data.observaciones_generales
-                    ];
-
-                    db.run(sql, params);
+                    const sql = `INSERT INTO expedientes (${COLS.join(', ')}) VALUES (${COLS.map(() => '?').join(', ')})`;
+                    db.run(sql, valores);
                     alert('Expediente creado correctamente.');
                 }
 

@@ -243,6 +243,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
 | 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
+| 37 | `index.html` | Unificación DRY: `CATALOGO_POR_SELECT` como fuente única de verdad para catálogos. Expandido con campo `cols`. `cargarCatalogos()` y `poblarSelectores()` ahora iteran sobre `CATALOGO_POR_SELECT` eliminando los mapeos paralelos duplicados | Eliminar duplicación de 3 estructuras de datos que mapeaban select→catálogo (regla DRY del doc.md) |
 
 ---
 
