@@ -123,7 +123,7 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input"></select>
+                            <select id="f-id_documento" class="input" onchange="actualizarObservacion()"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -174,7 +174,7 @@
                         </div>
                         <div>
                             <label class="label">Presupuesto Base (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="input" oninput="this.value=limitDecimals(this.value);calcularBs('bs_presup')" onblur="this.value=formatNum(this.value)">
                         </div>
                     </div>
                 </fieldset>
@@ -193,15 +193,15 @@
                         </div>
                         <div>
                             <label class="label">Estatus Detalle</label>
-                            <select id="f-id_estatus" class="input"></select>
+                            <select id="f-id_estatus" class="input" onchange="actualizarObservacion()"></select>
                         </div>
                         <div>
                             <label class="label">Fecha Recibido</label>
-                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Fecha Devuelto</label>
-                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Nro. Acta Apertura</label>
@@ -252,7 +252,7 @@
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="input" oninput="this.value=limitDecimals(this.value);calcularBs('bs_adj')" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="label">Fecha Firma Contrato</label>
@@ -382,6 +382,14 @@
             if (recibido) partes.push(`*Fecha recibido* ${recibido}`);
             if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
             return partes.join(' - ');
+        }
+
+        function actualizarObservacion() {
+            if (!editandoId) return;
+            const linea = generarObservacionAutomatica();
+            if (linea) {
+                document.getElementById('f-observaciones_generales').value = linea;
+            }
         }
 
         const CATALOGO_POR_SELECT = {
@@ -947,7 +955,7 @@
                         <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="btn-icon text-link" id="btn-${exp.id_expediente}"><i class="fas fa-plus pointer-events-none"></i></button>
                     </td>
                     <td class="p-3 text-center">
-                        <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit"></i></button>
+                        <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit pointer-events-none"></i></button>
                     </td>
                     <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
                     <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
@@ -1239,16 +1247,31 @@
             document.getElementById('f-observaciones_generales').value = '';
         }
 
-        function calcularBs() {
-            const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
+        let _calculando = false;
+        function calcularBs(origen) {
+            if (_calculando) return;
+            _calculando = true;
             const tc = parseFloat(parseNum(document.getElementById('f-tipo_cambio').value)) || 0;
-            if (usd && tc) {
-                document.getElementById('f-presupuesto_base_bs').value = formatNum(usd * tc);
+            if (origen !== 'bs_presup') {
+                const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
+                if (usd && tc) {
+                    document.getElementById('f-presupuesto_base_bs').value = formatNum(usd * tc);
+                }
             }
-            const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
-            if (adjUsd && tc) {
-                document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+            if (tc) {
+                if (origen === 'bs_adj') {
+                    const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
+                    if (adjBs) {
+                        document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
+                    }
+                } else {
+                    const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+                    if (adjUsd) {
+                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                    }
+                }
             }
+            _calculando = false;
         }
 
         function guardarExpediente() {
