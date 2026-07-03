@@ -13,6 +13,20 @@
             outline-offset: -10px;
             background-color: rgba(45, 212, 191, 0.05);
         }
+        .campo-frecuente .label::after {
+            content: '';
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background: #f59e0b;
+            border-radius: 50%;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+        .campo-frecuente .label {
+            border-left: 2px solid #f59e0b;
+            padding-left: 6px;
+        }
     </style>
     <script src="vendor/sql-wasm.js"></script>
 </head>
@@ -298,6 +312,29 @@
         let dbFilePath = null;
         let dbModificado = false;
         let autosaveTimer = null;
+        // Campos identificados como "de edición constante" (histórico de Tablas7).
+        // No se derivan del trigger de Tablas8 porque ese trigger amplió el snapshot
+        // por completitud, no porque esos campos se editen con más frecuencia.
+        const CAMPOS_EDICION_FRECUENTE = [
+            'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
+            'id_superintendencia', 'id_documento', 'id_estatus',
+            'fecha_recibido', 'fecha_devuelto', 'observaciones_generales'
+        ];
+
+        function marcarCamposEdicionFrecuente() {
+            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
+                const el = document.getElementById(`f-${campo}`);
+                if (!el) return;
+                const contenedor = el.closest('div');
+                if (contenedor && !contenedor.classList.contains('campo-frecuente')) {
+                    contenedor.classList.add('campo-frecuente');
+                    const label = contenedor.querySelector('.label');
+                    if (label) {
+                        label.title = 'Este campo cambia con frecuencia en el flujo del expediente';
+                    }
+                }
+            });
+        }
 
         var electronAPI = window.electronAPI;
         const config = { locateFile: filename => `vendor/${filename}` };
@@ -835,6 +872,7 @@
 
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            marcarCamposEdicionFrecuente();
         }
 
         function cancelarFormulario() {
