@@ -130,8 +130,29 @@ CREATE INDEX idx_hist_mov_emisor         ON historial_movimientos(id_emisor);
 CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 
 -- ==========================================
--- 🔹 6. TRIGGER DE AUDITORÍA
+-- 🔹 6. TRIGGERS DE AUDITORÍA
 -- ==========================================
+
+-- Snapshot inicial al crear expediente
+CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
+FOR EACH ROW
+BEGIN
+    INSERT INTO historial_movimientos (
+        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
+        id_documento, id_emisor, id_receptor, id_estatus,
+        fecha_recibido, fecha_devuelto, nro_proceso,
+        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
+        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        observaciones_generales
+    ) VALUES (
+        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
+        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
+        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.observaciones_generales
+    );
+END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
 WHEN (

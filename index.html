@@ -248,7 +248,7 @@
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (Bs)</label>
@@ -266,18 +266,6 @@
                     <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
                     <div class="mt-3">
                         <textarea id="f-observaciones_generales" rows="3" class="input"></textarea>
-                        <div id="obs-previas-wrapper" class="mt-1 hidden">
-                            <button type="button" onclick="toggleObsPrevias()" class="text-[10px] text-gray-500 hover:text-teal-400"><i class="fas fa-eye mr-1"></i>Ver observaciones anteriores</button>
-                            <pre id="obs-previas-contenido" class="hidden mt-1 p-2 text-xs text-gray-300 bg-gray-900/60 rounded whitespace-pre-wrap italic max-h-32 overflow-y-auto"></pre>
-                        </div>
-                    </div>
-                </fieldset>
-
-                <!-- SECCIÓN 6: SUBFORMULARIO DE HISTORIAL -->
-                <fieldset class="card card-amber">
-                    <legend class="legend legend-amber"><i class="fas fa-hourglass-half mr-1"></i> Subformulario: Historial de Movimientos</legend>
-                    <div id="form-historial" class="mt-3 text-xs text-gray-400 overflow-x-auto">
-                        <p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>
                     </div>
                 </fieldset>
 
@@ -385,51 +373,15 @@
             return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
         }
 
-        function toggleObsPrevias() {
-            const wrapper = document.getElementById('obs-previas-wrapper');
-            const contenido = document.getElementById('obs-previas-contenido');
-            if (!wrapper || !contenido) return;
-            const btn = wrapper.querySelector('button');
-            if (contenido.classList.contains('hidden')) {
-                contenido.classList.remove('hidden');
-                if (btn) btn.innerHTML = '<i class="fas fa-eye-slash mr-1"></i>Ocultar observaciones anteriores';
-            } else {
-                contenido.classList.add('hidden');
-                if (btn) btn.innerHTML = '<i class="fas fa-eye mr-1"></i>Ver observaciones anteriores';
-            }
-        }
-
-        function generarObservacionAutomatica(textoLibre) {
-            const ahora = new Date().toLocaleDateString('es-VE', { year: 'numeric', month: '2-digit', day: '2-digit' });
-            if (!snapshotEdicion) {
-                const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
-                const doc = obtenerTextoSelect('f-id_documento') || '';
-                const recibido = document.getElementById('f-fecha_recibido')?.value || '';
-                const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
-                let msg = `[${ahora}] Expediente creado — Estatus: ${estatus}`;
-                if (doc) msg += ` — Documento: ${doc}`;
-                if (recibido) msg += ` — F. Recibido: ${recibido}`;
-                if (devuelto) msg += ` — F. Devuelto: ${devuelto}`;
-                if (textoLibre) msg += ` — ${textoLibre}`;
-                return msg;
-            }
-            const cambios = [];
-            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
-                if (campo === 'observaciones_generales') return;
-                const el = document.getElementById(`f-${campo}`);
-                if (!el) return;
-                const valorActual = el.value || '';
-                const valorAnterior = (snapshotEdicion[campo] || '');
-                if (String(valorActual) !== String(valorAnterior)) {
-                    const textoActual = (el.tagName === 'SELECT') ? (el.options[el.selectedIndex]?.text || valorActual) : valorActual;
-                    const textoAnterior = snapshotEdicion[`_txt_${campo}`] || valorAnterior;
-                    cambios.push(`${campo.replace(/_/g,' ')}: ${textoAnterior || '(vacio)'} → ${textoActual || '(vacio)'}`);
-                }
-            });
-            if (cambios.length === 0 && !textoLibre) return null;
-            let msg = `[${ahora}] ${cambios.join(' | ')}`;
-            if (textoLibre) msg += ` — ${textoLibre}`;
-            return msg;
+        function generarObservacionAutomatica() {
+            const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
+            const doc = obtenerTextoSelect('f-id_documento') || 'N/A';
+            const recibido = document.getElementById('f-fecha_recibido')?.value || '';
+            const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
+            const partes = [estatus, doc];
+            if (recibido) partes.push(`*Fecha recibido* ${recibido}`);
+            if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
+            return partes.join(' - ');
         }
 
         const CATALOGO_POR_SELECT = {
@@ -460,7 +412,7 @@
                 btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1';
                 btn.title = 'Agregar nuevo registro al catálogo';
                 btn.innerHTML = '<i class="fas fa-plus"></i>';
-                btn.onclick = (e) => { e.stopPropagation(); abrirAgregarCatalogo(el.id); };
+                btn.onclick = (e) => { abrirAgregarCatalogo(el.id); };
                 label.appendChild(btn);
             });
         }
@@ -509,6 +461,34 @@
             document.body.style.overflow = '';
         }
 
+        // Función para capturar el estado actual del formulario de edición, ejecutar un callback, y restaurar el estado
+        function captureAndRestoreFormState(callback) {
+            const form = document.getElementById('form-modal');
+            if (!form) {
+                callback();
+                return;
+            }
+
+            const currentValues = {};
+            // Capturar valores de todos los selectores afectados
+            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
+                const sel = form.querySelector(`#${selectId}`);
+                if (sel) {
+                    currentValues[selectId] = sel.value;
+                }
+            });
+
+            callback(); // Ejecutar la función que repobla los selectores
+
+            // Restaurar los valores capturados
+            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
+                const sel = form.querySelector(`#${selectId}`);
+                if (sel && currentValues[selectId] !== undefined) {
+                    sel.value = currentValues[selectId];
+                }
+            });
+        }
+
         function guardarNuevoCatalogo() {
             const selectId = document.getElementById('ac-select-id').value;
             const catKey = document.getElementById('ac-catalog-key').value;
@@ -545,7 +525,7 @@
                 if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
                 const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
                 catalogosCache[catKey] = dbToObjects(res);
-                poblarSelectores();
+                captureAndRestoreFormState(poblarSelectores);
                 // Seleccionar el nuevo registro buscándolo por nombre
                 const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
                 if (nuevoItem && document.getElementById(selectId)) {
@@ -854,7 +834,7 @@
                 const res = db.exec(`SELECT ${info.cols} FROM ${info.tabla} ORDER BY nombre`);
                 catalogosCache[info.key] = dbToObjects(res);
             });
-            poblarSelectores();
+            captureAndRestoreFormState(poblarSelectores);
         }
 
         function poblarSelectores() {
@@ -988,14 +968,25 @@
                                 <div class="flex items-center justify-between mb-2">
                                     <span class="text-gray-400 font-bold"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
                                     <div class="flex items-center gap-2">
-                                        <span class="text-[10px] text-gray-500">${exp.fecha_creacion} · ${exp.fecha_actualizacion}</span>
-                                        <button onclick="event.stopPropagation(); abrirHistorialCompleto(${exp.id_expediente})" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold" title="Ver historial completo de cambios"><i class="fas fa-clipboard-list mr-1"></i> Historial</button>
+                                        <button onclick="event.stopPropagation(); abrirHistorialCompleto(${exp.id_expediente})" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold" title="Ver historial completo"><i class="fas fa-clipboard-list mr-1"></i> Ver historial completo</button>
                                     </div>
                                 </div>
-                                <div class="cursor-pointer select-none" onclick="cargarHistorialUnificado(${exp.id_expediente})">
-                                    <p class="text-gray-300 italic whitespace-pre-wrap">${exp.observaciones_generales || 'Sin observaciones registradas.'}</p>
-                                </div>
-                                <div id="unified-hist-${exp.id_expediente}" class="mt-3 space-y-2 hidden"></div>
+                                ${(() => {
+                                    const lineas = (exp.observaciones_generales || '').split('\n').filter(l => l.trim());
+                                    if (lineas.length === 0) return '<p class="text-gray-500 italic">Sin observaciones registradas.</p>';
+                                    const masNueva = lineas[lineas.length - 1];
+                                    const anteriores = lineas.slice(0, -1);
+                                    let html = `<div class="text-gray-300 italic whitespace-pre-wrap">${masNueva}</div>`;
+                                    if (anteriores.length > 0) {
+                                        html += `<div id="obs-older-${exp.id_expediente}" class="hidden mt-2 space-y-1 border-t border-gray-700/40 pt-2">`;
+                                        anteriores.reverse().forEach(l => {
+                                            html += `<div class="text-gray-400 text-[11px] italic whitespace-pre-wrap">${l}</div>`;
+                                        });
+                                        html += `</div>`;
+                                        html += `<button onclick="event.stopPropagation(); document.getElementById('obs-older-${exp.id_expediente}').classList.toggle('hidden'); this.querySelector('span').textContent = document.getElementById('obs-older-${exp.id_expediente}').classList.contains('hidden') ? 'Ver observaciones anteriores (${anteriores.length})' : 'Ocultar anteriores'" class="mt-2 text-[10px] text-gray-500 hover:text-teal-400"><span>Ver observaciones anteriores (${anteriores.length})</span></button>`;
+                                    }
+                                    return html;
+                                })()}
                             </div>
                         </div>
                     </td>
@@ -1066,63 +1057,6 @@
             btn.innerHTML = subfila.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
         }
 
-        function _renderHistorialItems(contenedor, data, prefix) {
-            if (!data.length) {
-                contenedor.innerHTML = '<p class="text-gray-500 italic text-center py-2">Sin movimientos registrados.</p>';
-                return;
-            }
-            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
-            data.forEach((h, i) => {
-                const mid = h.id_movimiento;
-                const obs = h.observaciones_generales || '';
-                html += `<div class="bg-gray-900/60 rounded border border-gray-700/60 overflow-hidden">`;
-                html += `<div class="flex items-start justify-between px-3 py-2 cursor-pointer hover:bg-gray-800/50" onclick="toggleDetalle('${prefix}-', ${mid})">`;
-                html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
-                html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
-                html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
-                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="${prefix}btn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
-                html += `</div>`;
-                html += `<div id="${prefix}det-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Emisor</span><span class="text-gray-200">${h.emisor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Receptor</span><span class="text-gray-200">${h.receptor}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">Estatus</span><span class="text-[10px] font-medium ${getEstatusClass(h.estatus)}">${h.estatus}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Recibido</span><span class="font-mono text-gray-300">${h.f_entrada}</span></div>`;
-                html += `<div><span class="text-gray-500 block text-[10px]">F. Devuelto</span><span class="font-mono text-gray-300">${h.f_salida}</span></div>`;
-                html += `</div></div>`;
-            });
-            contenedor.innerHTML = html;
-        }
-
-        function _queryHistorial(safeId) {
-            const r = db.exec(`
-                SELECT h.id_movimiento, COALESCE(g.nombre,'N/A') AS ger,
-                    COALESCE(em.nombre,'N/A') AS emisor, COALESCE(rec.nombre,'N/A') AS receptor,
-                    COALESCE(ed.nombre,'N/A') AS estatus, COALESCE(h.fecha_recibido,'') AS f_entrada,
-                    COALESCE(h.fecha_devuelto,'') AS f_salida, h.observaciones_generales
-                FROM historial_movimientos h
-                LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
-                LEFT JOIN cat_responsables em ON h.id_emisor = em.id
-                LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
-                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
-                WHERE h.id_expediente = ${safeId}
-                ORDER BY h.id_movimiento DESC
-            `);
-            return dbToObjects(r);
-        }
-
-        function cargarHistorialUnificado(id) {
-            const safeId = toInt(id);
-            if (!safeId) return;
-            const contenedor = document.getElementById(`unified-hist-${safeId}`);
-            if (!contenedor) return;
-            const wasHidden = contenedor.classList.contains('hidden');
-            contenedor.classList.toggle('hidden');
-            if (!wasHidden || contenedor.dataset.loaded) return;
-            contenedor.dataset.loaded = '1';
-            _renderHistorialItems(contenedor, _queryHistorial(safeId), 'udet');
-        }
-
         function toggleDetalle(prefix, id) {
             const sub = document.getElementById(prefix + id);
             const btn = document.getElementById(prefix + 'btn-' + id);
@@ -1141,12 +1075,10 @@
             const modal = document.getElementById('form-modal');
             const titulo = document.getElementById('form-titulo');
             const btnEliminar = document.getElementById('btn-eliminar');
-            const formHistorial = document.getElementById('form-historial');
 
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
-            formHistorial.innerHTML = '<p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>';
 
             if (id) {
                 // MODO EDICIÓN
@@ -1162,7 +1094,6 @@
                 document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
                 snapshotEdicion = null;
                 observacionesPreviasCache = '';
-                document.getElementById('obs-previas-wrapper')?.classList.add('hidden');
             }
 
             modal.classList.remove('hidden');
@@ -1239,35 +1170,17 @@
             });
             // No precargar el textarea para evitar editar el historial acumulado por error
             document.getElementById('f-observaciones_generales').value = '';
-            // Mostrar bloque colapsable de observaciones anteriores si existen
-            const previasWrapper = document.getElementById('obs-previas-wrapper');
-            const previasContenido = document.getElementById('obs-previas-contenido');
-            if (previasWrapper && previasContenido) {
-                if (observacionesPreviasCache) {
-                    previasContenido.textContent = observacionesPreviasCache;
-                    previasWrapper.classList.remove('hidden');
-                } else {
-                    previasWrapper.classList.add('hidden');
-                }
-            }
-
-            // Cargar historial en el subformulario
-            cargarHistorialFormulario(id);
         }
-
-        function cargarHistorialFormulario(id) {
-            const safeId = toInt(id);
-            if (!safeId) { document.getElementById('form-historial').innerHTML = '<p class="text-gray-500 italic p-2">ID inválido.</p>'; return; }
-            _renderHistorialItems(document.getElementById('form-historial'), _queryHistorial(safeId), 'fdet');
-        }
-
-        // (unified toggleDetalle used instead)
 
         function calcularBs() {
             const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
             const tc = parseFloat(parseNum(document.getElementById('f-tipo_cambio').value)) || 0;
             if (usd && tc) {
                 document.getElementById('f-presupuesto_base_bs').value = formatNum(usd * tc);
+            }
+            const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+            if (adjUsd && tc) {
+                document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
             }
         }
 
@@ -1307,15 +1220,11 @@
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones_generales: (() => {
-                    const textoLibre = document.getElementById('f-observaciones_generales').value || '';
-                    const lineaAuto = generarObservacionAutomatica(textoLibre);
+                    const linea = generarObservacionAutomatica();
                     if (!editandoId) {
-                        return sanitizeNull(lineaAuto || textoLibre || null);
+                        return sanitizeNull(linea || null);
                     }
-                    if (!lineaAuto) {
-                        return sanitizeNull(observacionesPreviasCache || textoLibre || null);
-                    }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + lineaAuto);
+                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
                 })()
             };
 
@@ -1512,8 +1421,6 @@
         function campoHistorial(label, valor, color) {
             return `<div><span class="text-gray-500 block text-[10px]">${label}</span><span class="${color}">${valor}</span></div>`;
         }
-
-        // (unified toggleDetalle used instead)
 
         function getEstatusClass(estatus) {
             if(!estatus) return 'bg-yellow-500/20 text-yellow-400';
