@@ -146,15 +146,15 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Tipo de Cambio</label>
-                            <input type="text" inputmode="decimal" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                     </div>
                 </fieldset>
@@ -224,11 +224,11 @@
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">Fecha Firma Contrato</label>
@@ -700,6 +700,20 @@
         function parseNum(v) {
             if (v === '' || v === null || v === undefined) return '';
             return String(v).replace(/\./g, '').replace(',', '.');
+        }
+
+        function limitDecimals(v) {
+            let s = String(v).split(',');
+            if (s.length > 2) {
+                s = s[0] + ',' + s.slice(1).join('');
+            } else {
+                s = v;
+            }
+            let parts = String(s).split(',');
+            if (parts.length === 2 && parts[1].length > 2) {
+                return parts[0] + ',' + parts[1].slice(0, 2);
+            }
+            return s;
         }
 
         // ================================================================
