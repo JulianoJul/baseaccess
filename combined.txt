@@ -410,10 +410,14 @@
                 if (!label || label.querySelector('.btn-catalogo')) return;
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1';
+                btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1 inline-flex items-center justify-center';
                 btn.title = 'Agregar nuevo registro al catálogo';
-                btn.innerHTML = '<i class="fas fa-plus"></i>';
-                btn.onclick = (e) => { abrirAgregarCatalogo(el.id); };
+                btn.innerHTML = '<i class="fas fa-plus pointer-events-none"></i>';
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    abrirAgregarCatalogo(el.id);
+                };
                 label.appendChild(btn);
             });
         }
@@ -471,23 +475,30 @@
             }
 
             const currentValues = {};
-            // Capturar valores de todos los selectores afectados
-            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
-                const sel = form.querySelector(`#${selectId}`);
-                if (sel) {
-                    currentValues[selectId] = sel.value;
+            // Capturar TODOS los selects, inputs y textareas del formulario
+            form.querySelectorAll('[id^="f-"]').forEach(el => {
+                if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    currentValues[el.id] = {
+                        value: el.value,
+                        type: el.tagName
+                    };
                 }
             });
 
-            callback(); // Ejecutar la función que repobla los selectores
+            callback();
 
-            // Restaurar los valores capturados
-            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
-                const sel = form.querySelector(`#${selectId}`);
-                if (sel && currentValues[selectId] !== undefined) {
-                    sel.value = currentValues[selectId];
-                }
-            });
+            // Restaurar después de un pequeño delay para asegurar DOM actualizado
+            setTimeout(() => {
+                Object.keys(currentValues).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && currentValues[id]) {
+                        el.value = currentValues[id].value;
+                        if (el.tagName === 'SELECT') {
+                            el.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+            }, 50);
         }
 
         function guardarNuevoCatalogo() {
@@ -521,16 +532,28 @@
                 const sql = `INSERT INTO ${tabla} (${cols}) VALUES (${values})`;
                 db.exec(sql);
                 dbModificado = true;
-                // Recargar el catálogo y repoblar
+                // Recargar SOLO el catálogo afectado
                 const catalogInfo = { id: catKey, tabla, cols: 'id, nombre' };
                 if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
                 const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
                 catalogosCache[catKey] = dbToObjects(res);
-                captureAndRestoreFormState(poblarSelectores);
-                // Seleccionar el nuevo registro buscándolo por nombre
-                const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
-                if (nuevoItem && document.getElementById(selectId)) {
-                    document.getElementById(selectId).value = nuevoItem.id;
+                // Actualizar SOLO el select afectado, no todos
+                const selector = document.getElementById(selectId);
+                if (selector) {
+                    const valorAnterior = selector.value;
+                    selector.innerHTML = '<option value="">-- Seleccione --</option>';
+                    (catalogosCache[catKey] || []).forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.nombre;
+                        selector.appendChild(opt);
+                    });
+                    selector.value = valorAnterior;
+                    // Si hay un nuevo item con ese nombre, seleccionarlo
+                    const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
+                    if (nuevoItem) {
+                        selector.value = nuevoItem.id;
+                    }
                 }
                 cerrarAgregarCatalogo();
             } catch (err) {
@@ -582,6 +605,13 @@
             document.getElementById('dbfile').value = '';
             document.getElementById('body').classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
+            // Contraer botón "Abrir BD" a solo ícono
+            const btnAbrir = document.getElementById('btn-abrir');
+            if (btnAbrir) {
+                btnAbrir.innerHTML = '<i class="fas fa-folder-open"></i>';
+                btnAbrir.title = 'Base de datos: ' + fileName;
+                btnAbrir.classList.add('px-3');
+            }
             cargarCatalogos();
             cargarDatos();
             iniciarAutoguardado();
@@ -608,6 +638,21 @@
             recientes = recientes.filter(r => r.path !== path);
             localStorage.setItem('recientes', JSON.stringify(recientes));
             mostrarMenuRecientes();
+        }
+        function eliminarRecienteIndex(index) {
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            if (index >= 0 && index < recientes.length) {
+                recientes.splice(index, 1);
+            }
+            localStorage.setItem('recientes', JSON.stringify(recientes));
+            mostrarMenuRecientes();
+        }
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function abrirBaseDatosReciente(path) {
@@ -640,17 +685,26 @@
                 menu.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">Sin recientes</div>';
             } else {
                 menu.innerHTML = recientes.map((r, i) => `
-                    <div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}" onclick="abrirBaseDatosReciente('${r.path.replace(/'/g, "\\'")}')">
+                    <div class="reciente-item flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}"
+                         data-path="${encodeURIComponent(r.path)}">
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm text-gray-200 truncate">${r.nombre}</div>
-                            <div class="text-[10px] text-gray-500 truncate">${r.path || ''}</div>
+                            <div class="text-sm text-gray-200 truncate">${escapeHtml(r.nombre)}</div>
+                            <div class="text-[10px] text-gray-500 truncate">${escapeHtml(r.path || '')}</div>
                         </div>
-                        <button onclick="event.stopPropagation(); eliminarReciente('${r.path.replace(/'/g, "\\'")}')" class="text-[10px] text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                        <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-[10px] text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
                     </div>
                 `).join('');
             }
             menu.classList.remove('hidden');
         }
+
+        document.getElementById('menu-recientes')?.addEventListener('click', (e) => {
+            const item = e.target.closest('.reciente-item');
+            if (item) {
+                const path = decodeURIComponent(item.dataset.path);
+                abrirBaseDatosReciente(path);
+            }
+        });
 
         async function abrirBaseDatos() {
             console.log('[RENDERER] Función abrirBaseDatos llamada');
@@ -1521,33 +1575,50 @@ CREATE TABLE expedientes (
 -- 🔹 4. HISTORIAL DE MOVIMIENTOS (Snapshot Normalizado)
 -- ==========================================
 CREATE TABLE historial_movimientos (
-    id_movimiento       INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_expediente       INTEGER NOT NULL,
-    id_tipo_contrato    INTEGER,
-    id_gerencia         INTEGER,
-    id_superintendencia INTEGER,
-    id_documento        INTEGER,
-    id_emisor           INTEGER,
-    id_receptor         INTEGER,
-    id_estatus          INTEGER,
-    fecha_recibido      DATE,
-    fecha_devuelto      DATE,
-    nro_proceso         TEXT,
-    presupuesto_base_usd REAL,
-    tipo_cambio         REAL,
-    monto_adjudicado_usd REAL,
-    id_resultado        INTEGER,
-    id_empresa          INTEGER,
-    tiempo_ejecucion    TEXT,
-    fecha_firma_contrato DATE,
+    id_movimiento           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_expediente           INTEGER NOT NULL,
+    solped                  TEXT,
+    id_gerencia             INTEGER,
+    id_superintendencia     INTEGER,
+    id_emisor               INTEGER,
+    id_receptor             INTEGER,
+    id_documento            INTEGER,
+    id_plan                 INTEGER,
+    id_modalidad            INTEGER,
+    id_art                  INTEGER,
+    id_tipo_contrato        INTEGER,
+    id_estatus              INTEGER,
+    id_resultado            INTEGER,
+    id_empresa              INTEGER,
+    fecha_recibido          DATE,
+    fecha_devuelto          DATE,
+    fecha_presupuesto_base  DATE,
+    fecha_firma_contrato    DATE,
+    nro_proceso             TEXT,
+    nro_acta_apertura       TEXT,
+    nro_resolucion_jd       TEXT,
+    nro_contrato_sicac      TEXT,
+    nro_contrato_sap        TEXT,
+    descripcion_proceso     TEXT,
+    presupuesto_base_usd    REAL,
+    presupuesto_base_bs     REAL,
+    tipo_cambio             REAL,
+    monto_adjudicado_usd    REAL,
+    monto_adjudicado_bs     REAL,
+    tiempo_ejecucion        TEXT,
+    cantidad_frentes        INTEGER,
+    nro_ejemplares          INTEGER,
     observaciones_generales TEXT,
     FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
-    FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
     FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
     FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
-    FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
     FOREIGN KEY (id_emisor)           REFERENCES cat_responsables(id),
     FOREIGN KEY (id_receptor)         REFERENCES cat_responsables(id),
+    FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
+    FOREIGN KEY (id_plan)             REFERENCES cat_plan_contratacion(id),
+    FOREIGN KEY (id_modalidad)        REFERENCES cat_modalidad(id),
+    FOREIGN KEY (id_art)              REFERENCES cat_art(id),
+    FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
     FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
     FOREIGN KEY (id_resultado)        REFERENCES cat_resultado_proceso(id),
     FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id)
@@ -1578,57 +1649,65 @@ CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
 BEGIN
     INSERT INTO historial_movimientos (
-        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
-        id_documento, id_emisor, id_receptor, id_estatus,
-        fecha_recibido, fecha_devuelto, nro_proceso,
-        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
-        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        id_expediente, solped, id_gerencia, id_superintendencia,
+        id_emisor, id_receptor, id_documento, id_plan,
+        id_modalidad, id_art, id_tipo_contrato, id_estatus,
+        id_resultado, id_empresa,
+        fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
+        fecha_firma_contrato,
+        nro_proceso, nro_acta_apertura, nro_resolucion_jd,
+        nro_contrato_sicac, nro_contrato_sap,
+        descripcion_proceso,
+        presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
+        monto_adjudicado_usd, monto_adjudicado_bs,
+        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
         observaciones_generales
     ) VALUES (
-        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
-        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
-        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
-        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
-        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
+        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+        NEW.id_resultado, NEW.id_empresa,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
+        NEW.fecha_firma_contrato,
+        NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
+        NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
+        NEW.descripcion_proceso,
+        NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
+        NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
         NEW.observaciones_generales
     );
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
-WHEN (
-    OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR
-    OLD.id_emisor IS NOT NEW.id_emisor OR
-    OLD.id_receptor IS NOT NEW.id_receptor OR
-    OLD.id_gerencia IS NOT NEW.id_gerencia OR
-    OLD.id_superintendencia IS NOT NEW.id_superintendencia OR
-    OLD.id_documento IS NOT NEW.id_documento OR
-    OLD.id_estatus IS NOT NEW.id_estatus OR
-    OLD.fecha_recibido IS NOT NEW.fecha_recibido OR
-    OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR
-    OLD.nro_proceso IS NOT NEW.nro_proceso OR
-    OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR
-    OLD.tipo_cambio IS NOT NEW.tipo_cambio OR
-    OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR
-    OLD.id_resultado IS NOT NEW.id_resultado OR
-    OLD.id_empresa IS NOT NEW.id_empresa OR
-    OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR
-    OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR
-    OLD.observaciones_generales IS NOT NEW.observaciones_generales
-)
 BEGIN
     INSERT INTO historial_movimientos (
-        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
-        id_documento, id_emisor, id_receptor, id_estatus,
-        fecha_recibido, fecha_devuelto, nro_proceso,
-        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
-        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        id_expediente, solped, id_gerencia, id_superintendencia,
+        id_emisor, id_receptor, id_documento, id_plan,
+        id_modalidad, id_art, id_tipo_contrato, id_estatus,
+        id_resultado, id_empresa,
+        fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
+        fecha_firma_contrato,
+        nro_proceso, nro_acta_apertura, nro_resolucion_jd,
+        nro_contrato_sicac, nro_contrato_sap,
+        descripcion_proceso,
+        presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
+        monto_adjudicado_usd, monto_adjudicado_bs,
+        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
         observaciones_generales
     ) VALUES (
-        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
-        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
-        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
-        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
-        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
+        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+        NEW.id_resultado, NEW.id_empresa,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
+        NEW.fecha_firma_contrato,
+        NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
+        NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
+        NEW.descripcion_proceso,
+        NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
+        NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
         NEW.observaciones_generales
     );
 
@@ -2225,6 +2304,11 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 39 | `index.html` | Fix: Eliminado `e.stopPropagation()` del botón '+' de catálogo | El botón '+' no despliega menú al tocar el ícono exacto |
 | 40 | `index.html` | Feature: tipo_cambio aplica automáticamente a monto_adjudicado_bs | Calcular monto adjudicado en BS al cambiar monto USD o tipo de cambio |
 | 41 | `index.html`, `bdd/Tablas8.sql` | Historial overhaul: subformulario eliminado en edición, trigger INSERT para snapshot inicial, observaciones con formato sin prefijos (solo valores), ficha muestra solo observación más nueva con expand, "ver historial completo" como tabla de snapshots | Reemplazar modelo de diferencias por snapshot completo desde creación |
+| 42 | `index.html` | Bug ENOENT: `mostrarMenuRecientes()` usa data-attributes con `encodeURIComponent` + listener delegativo en lugar de inline onclick. Agregadas `escapeHtml()` y `eliminarRecienteIndex()` | Caracteres especiales en rutas de BD recientes causaban error al abrir |
+| 43 | `index.html` | Botón "+" de catálogos: `pointer-events-none` en `<i>` + `preventDefault`/`stopPropagation` en onclick | Click en ícono no propagaba al botón |
+| 44 | `index.html` | `captureAndRestoreFormState()` captura TODOS los elementos del formulario (inputs, textareas, selects) con restauración asíncrona + `guardarNuevoCatalogo()` repuebla solo el select afectado | Campos se vaciaban al añadir nuevo registro a catálogo |
+| 45 | `bdd/Tablas8.sql` | `historial_movimientos` ampliado a 34 columnas con snapshot completo. `trg_exp_auditoria` sin WHEN condicional (registra en todo UPDATE). Triggers incluyen solped, plan, modalidad, art, presupuesto_bs, monto_bs, descripción, nro_ejemplares, etc. | Snapshot incompleto no capturaba todos los campos del expediente |
+| 46 | `index.html` | Botón "Abrir BD" se contrae a solo ícono al cargar base de datos | Liberar espacio horizontal cuando ya hay BD abierta |
 
 ---
 

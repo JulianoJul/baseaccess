@@ -409,10 +409,14 @@
                 if (!label || label.querySelector('.btn-catalogo')) return;
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1';
+                btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1 inline-flex items-center justify-center';
                 btn.title = 'Agregar nuevo registro al catálogo';
-                btn.innerHTML = '<i class="fas fa-plus"></i>';
-                btn.onclick = (e) => { abrirAgregarCatalogo(el.id); };
+                btn.innerHTML = '<i class="fas fa-plus pointer-events-none"></i>';
+                btn.onclick = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    abrirAgregarCatalogo(el.id);
+                };
                 label.appendChild(btn);
             });
         }
@@ -470,23 +474,30 @@
             }
 
             const currentValues = {};
-            // Capturar valores de todos los selectores afectados
-            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
-                const sel = form.querySelector(`#${selectId}`);
-                if (sel) {
-                    currentValues[selectId] = sel.value;
+            // Capturar TODOS los selects, inputs y textareas del formulario
+            form.querySelectorAll('[id^="f-"]').forEach(el => {
+                if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+                    currentValues[el.id] = {
+                        value: el.value,
+                        type: el.tagName
+                    };
                 }
             });
 
-            callback(); // Ejecutar la función que repobla los selectores
+            callback();
 
-            // Restaurar los valores capturados
-            Object.keys(CATALOGO_POR_SELECT).forEach(selectId => {
-                const sel = form.querySelector(`#${selectId}`);
-                if (sel && currentValues[selectId] !== undefined) {
-                    sel.value = currentValues[selectId];
-                }
-            });
+            // Restaurar después de un pequeño delay para asegurar DOM actualizado
+            setTimeout(() => {
+                Object.keys(currentValues).forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && currentValues[id]) {
+                        el.value = currentValues[id].value;
+                        if (el.tagName === 'SELECT') {
+                            el.dispatchEvent(new Event('change'));
+                        }
+                    }
+                });
+            }, 50);
         }
 
         function guardarNuevoCatalogo() {
@@ -520,16 +531,28 @@
                 const sql = `INSERT INTO ${tabla} (${cols}) VALUES (${values})`;
                 db.exec(sql);
                 dbModificado = true;
-                // Recargar el catálogo y repoblar
+                // Recargar SOLO el catálogo afectado
                 const catalogInfo = { id: catKey, tabla, cols: 'id, nombre' };
                 if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
                 const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
                 catalogosCache[catKey] = dbToObjects(res);
-                captureAndRestoreFormState(poblarSelectores);
-                // Seleccionar el nuevo registro buscándolo por nombre
-                const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
-                if (nuevoItem && document.getElementById(selectId)) {
-                    document.getElementById(selectId).value = nuevoItem.id;
+                // Actualizar SOLO el select afectado, no todos
+                const selector = document.getElementById(selectId);
+                if (selector) {
+                    const valorAnterior = selector.value;
+                    selector.innerHTML = '<option value="">-- Seleccione --</option>';
+                    (catalogosCache[catKey] || []).forEach(item => {
+                        const opt = document.createElement('option');
+                        opt.value = item.id;
+                        opt.textContent = item.nombre;
+                        selector.appendChild(opt);
+                    });
+                    selector.value = valorAnterior;
+                    // Si hay un nuevo item con ese nombre, seleccionarlo
+                    const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
+                    if (nuevoItem) {
+                        selector.value = nuevoItem.id;
+                    }
                 }
                 cerrarAgregarCatalogo();
             } catch (err) {
@@ -581,6 +604,13 @@
             document.getElementById('dbfile').value = '';
             document.getElementById('body').classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
+            // Contraer botón "Abrir BD" a solo ícono
+            const btnAbrir = document.getElementById('btn-abrir');
+            if (btnAbrir) {
+                btnAbrir.innerHTML = '<i class="fas fa-folder-open"></i>';
+                btnAbrir.title = 'Base de datos: ' + fileName;
+                btnAbrir.classList.add('px-3');
+            }
             cargarCatalogos();
             cargarDatos();
             iniciarAutoguardado();
@@ -607,6 +637,21 @@
             recientes = recientes.filter(r => r.path !== path);
             localStorage.setItem('recientes', JSON.stringify(recientes));
             mostrarMenuRecientes();
+        }
+        function eliminarRecienteIndex(index) {
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            if (index >= 0 && index < recientes.length) {
+                recientes.splice(index, 1);
+            }
+            localStorage.setItem('recientes', JSON.stringify(recientes));
+            mostrarMenuRecientes();
+        }
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function abrirBaseDatosReciente(path) {
@@ -639,17 +684,26 @@
                 menu.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">Sin recientes</div>';
             } else {
                 menu.innerHTML = recientes.map((r, i) => `
-                    <div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}" onclick="abrirBaseDatosReciente('${r.path.replace(/'/g, "\\'")}')">
+                    <div class="reciente-item flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}"
+                         data-path="${encodeURIComponent(r.path)}">
                         <div class="flex-1 min-w-0">
-                            <div class="text-sm text-gray-200 truncate">${r.nombre}</div>
-                            <div class="text-[10px] text-gray-500 truncate">${r.path || ''}</div>
+                            <div class="text-sm text-gray-200 truncate">${escapeHtml(r.nombre)}</div>
+                            <div class="text-[10px] text-gray-500 truncate">${escapeHtml(r.path || '')}</div>
                         </div>
-                        <button onclick="event.stopPropagation(); eliminarReciente('${r.path.replace(/'/g, "\\'")}')" class="text-[10px] text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                        <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-[10px] text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
                     </div>
                 `).join('');
             }
             menu.classList.remove('hidden');
         }
+
+        document.getElementById('menu-recientes')?.addEventListener('click', (e) => {
+            const item = e.target.closest('.reciente-item');
+            if (item) {
+                const path = decodeURIComponent(item.dataset.path);
+                abrirBaseDatosReciente(path);
+            }
+        });
 
         async function abrirBaseDatos() {
             console.log('[RENDERER] Función abrirBaseDatos llamada');

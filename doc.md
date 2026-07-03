@@ -248,6 +248,11 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 39 | `index.html` | Fix: Eliminado `e.stopPropagation()` del botón '+' de catálogo | El botón '+' no despliega menú al tocar el ícono exacto |
 | 40 | `index.html` | Feature: tipo_cambio aplica automáticamente a monto_adjudicado_bs | Calcular monto adjudicado en BS al cambiar monto USD o tipo de cambio |
 | 41 | `index.html`, `bdd/Tablas8.sql` | Historial overhaul: subformulario eliminado en edición, trigger INSERT para snapshot inicial, observaciones con formato sin prefijos (solo valores), ficha muestra solo observación más nueva con expand, "ver historial completo" como tabla de snapshots | Reemplazar modelo de diferencias por snapshot completo desde creación |
+| 42 | `index.html` | Bug ENOENT: `mostrarMenuRecientes()` usa data-attributes con `encodeURIComponent` + listener delegativo en lugar de inline onclick. Agregadas `escapeHtml()` y `eliminarRecienteIndex()` | Caracteres especiales en rutas de BD recientes causaban error al abrir |
+| 43 | `index.html` | Botón "+" de catálogos: `pointer-events-none` en `<i>` + `preventDefault`/`stopPropagation` en onclick | Click en ícono no propagaba al botón |
+| 44 | `index.html` | `captureAndRestoreFormState()` captura TODOS los elementos del formulario (inputs, textareas, selects) con restauración asíncrona + `guardarNuevoCatalogo()` repuebla solo el select afectado | Campos se vaciaban al añadir nuevo registro a catálogo |
+| 45 | `bdd/Tablas8.sql` | `historial_movimientos` ampliado a 34 columnas con snapshot completo. `trg_exp_auditoria` sin WHEN condicional (registra en todo UPDATE). Triggers incluyen solped, plan, modalidad, art, presupuesto_bs, monto_bs, descripción, nro_ejemplares, etc. | Snapshot incompleto no capturaba todos los campos del expediente |
+| 46 | `index.html` | Botón "Abrir BD" se contrae a solo ícono al cargar base de datos | Liberar espacio horizontal cuando ya hay BD abierta |
 
 ---
 

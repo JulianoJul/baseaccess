@@ -81,33 +81,50 @@ CREATE TABLE expedientes (
 -- 🔹 4. HISTORIAL DE MOVIMIENTOS (Snapshot Normalizado)
 -- ==========================================
 CREATE TABLE historial_movimientos (
-    id_movimiento       INTEGER PRIMARY KEY AUTOINCREMENT,
-    id_expediente       INTEGER NOT NULL,
-    id_tipo_contrato    INTEGER,
-    id_gerencia         INTEGER,
-    id_superintendencia INTEGER,
-    id_documento        INTEGER,
-    id_emisor           INTEGER,
-    id_receptor         INTEGER,
-    id_estatus          INTEGER,
-    fecha_recibido      DATE,
-    fecha_devuelto      DATE,
-    nro_proceso         TEXT,
-    presupuesto_base_usd REAL,
-    tipo_cambio         REAL,
-    monto_adjudicado_usd REAL,
-    id_resultado        INTEGER,
-    id_empresa          INTEGER,
-    tiempo_ejecucion    TEXT,
-    fecha_firma_contrato DATE,
+    id_movimiento           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_expediente           INTEGER NOT NULL,
+    solped                  TEXT,
+    id_gerencia             INTEGER,
+    id_superintendencia     INTEGER,
+    id_emisor               INTEGER,
+    id_receptor             INTEGER,
+    id_documento            INTEGER,
+    id_plan                 INTEGER,
+    id_modalidad            INTEGER,
+    id_art                  INTEGER,
+    id_tipo_contrato        INTEGER,
+    id_estatus              INTEGER,
+    id_resultado            INTEGER,
+    id_empresa              INTEGER,
+    fecha_recibido          DATE,
+    fecha_devuelto          DATE,
+    fecha_presupuesto_base  DATE,
+    fecha_firma_contrato    DATE,
+    nro_proceso             TEXT,
+    nro_acta_apertura       TEXT,
+    nro_resolucion_jd       TEXT,
+    nro_contrato_sicac      TEXT,
+    nro_contrato_sap        TEXT,
+    descripcion_proceso     TEXT,
+    presupuesto_base_usd    REAL,
+    presupuesto_base_bs     REAL,
+    tipo_cambio             REAL,
+    monto_adjudicado_usd    REAL,
+    monto_adjudicado_bs     REAL,
+    tiempo_ejecucion        TEXT,
+    cantidad_frentes        INTEGER,
+    nro_ejemplares          INTEGER,
     observaciones_generales TEXT,
     FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
-    FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
     FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
     FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
-    FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
     FOREIGN KEY (id_emisor)           REFERENCES cat_responsables(id),
     FOREIGN KEY (id_receptor)         REFERENCES cat_responsables(id),
+    FOREIGN KEY (id_documento)        REFERENCES cat_documento(id),
+    FOREIGN KEY (id_plan)             REFERENCES cat_plan_contratacion(id),
+    FOREIGN KEY (id_modalidad)        REFERENCES cat_modalidad(id),
+    FOREIGN KEY (id_art)              REFERENCES cat_art(id),
+    FOREIGN KEY (id_tipo_contrato)    REFERENCES cat_tipo_contrato(id),
     FOREIGN KEY (id_estatus)          REFERENCES cat_estatus_detalle(id),
     FOREIGN KEY (id_resultado)        REFERENCES cat_resultado_proceso(id),
     FOREIGN KEY (id_empresa)          REFERENCES cat_empresas(id)
@@ -138,57 +155,65 @@ CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
 BEGIN
     INSERT INTO historial_movimientos (
-        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
-        id_documento, id_emisor, id_receptor, id_estatus,
-        fecha_recibido, fecha_devuelto, nro_proceso,
-        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
-        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        id_expediente, solped, id_gerencia, id_superintendencia,
+        id_emisor, id_receptor, id_documento, id_plan,
+        id_modalidad, id_art, id_tipo_contrato, id_estatus,
+        id_resultado, id_empresa,
+        fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
+        fecha_firma_contrato,
+        nro_proceso, nro_acta_apertura, nro_resolucion_jd,
+        nro_contrato_sicac, nro_contrato_sap,
+        descripcion_proceso,
+        presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
+        monto_adjudicado_usd, monto_adjudicado_bs,
+        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
         observaciones_generales
     ) VALUES (
-        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
-        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
-        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
-        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
-        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
+        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+        NEW.id_resultado, NEW.id_empresa,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
+        NEW.fecha_firma_contrato,
+        NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
+        NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
+        NEW.descripcion_proceso,
+        NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
+        NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
         NEW.observaciones_generales
     );
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
-WHEN (
-    OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR
-    OLD.id_emisor IS NOT NEW.id_emisor OR
-    OLD.id_receptor IS NOT NEW.id_receptor OR
-    OLD.id_gerencia IS NOT NEW.id_gerencia OR
-    OLD.id_superintendencia IS NOT NEW.id_superintendencia OR
-    OLD.id_documento IS NOT NEW.id_documento OR
-    OLD.id_estatus IS NOT NEW.id_estatus OR
-    OLD.fecha_recibido IS NOT NEW.fecha_recibido OR
-    OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR
-    OLD.nro_proceso IS NOT NEW.nro_proceso OR
-    OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR
-    OLD.tipo_cambio IS NOT NEW.tipo_cambio OR
-    OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR
-    OLD.id_resultado IS NOT NEW.id_resultado OR
-    OLD.id_empresa IS NOT NEW.id_empresa OR
-    OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR
-    OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR
-    OLD.observaciones_generales IS NOT NEW.observaciones_generales
-)
 BEGIN
     INSERT INTO historial_movimientos (
-        id_expediente, id_tipo_contrato, id_gerencia, id_superintendencia,
-        id_documento, id_emisor, id_receptor, id_estatus,
-        fecha_recibido, fecha_devuelto, nro_proceso,
-        presupuesto_base_usd, tipo_cambio, monto_adjudicado_usd,
-        id_resultado, id_empresa, tiempo_ejecucion, fecha_firma_contrato,
+        id_expediente, solped, id_gerencia, id_superintendencia,
+        id_emisor, id_receptor, id_documento, id_plan,
+        id_modalidad, id_art, id_tipo_contrato, id_estatus,
+        id_resultado, id_empresa,
+        fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
+        fecha_firma_contrato,
+        nro_proceso, nro_acta_apertura, nro_resolucion_jd,
+        nro_contrato_sicac, nro_contrato_sap,
+        descripcion_proceso,
+        presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
+        monto_adjudicado_usd, monto_adjudicado_bs,
+        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
         observaciones_generales
     ) VALUES (
-        NEW.id_expediente, NEW.id_tipo_contrato, NEW.id_gerencia, NEW.id_superintendencia,
-        NEW.id_documento, NEW.id_emisor, NEW.id_receptor, NEW.id_estatus,
-        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.nro_proceso,
-        NEW.presupuesto_base_usd, NEW.tipo_cambio, NEW.monto_adjudicado_usd,
-        NEW.id_resultado, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.fecha_firma_contrato,
+        NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
+        NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
+        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+        NEW.id_resultado, NEW.id_empresa,
+        NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
+        NEW.fecha_firma_contrato,
+        NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
+        NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
+        NEW.descripcion_proceso,
+        NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
+        NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
         NEW.observaciones_generales
     );
 
