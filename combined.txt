@@ -2110,7 +2110,7 @@ console.log('[PRELOAD] contextBridge configurado correctamente');
     },
     "linux": {
       "target": [
-        "AppImage"
+        "dir"
       ],
       "icon": null,
       "category": "Office"

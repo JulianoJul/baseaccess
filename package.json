@@ -37,7 +37,7 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "dir"
       ],
       "icon": null,
       "category": "Office"
