@@ -973,7 +973,7 @@
                 filaPrincipal.className = "hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700";
                 filaPrincipal.innerHTML = `
                     <td class="p-3 text-center">
-                        <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="btn-icon text-link" id="btn-${exp.id_expediente}"><i class="fas fa-plus pointer-events-none"></i></button>
+                        <button class="btn-icon text-link" id="btn-${exp.id_expediente}"><i class="fas fa-plus pointer-events-none"></i></button>
                     </td>
                     <td class="p-3 text-center">
                         <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit pointer-events-none"></i></button>
@@ -989,9 +989,7 @@
                     <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
                 `;
                 
-                filaPrincipal.addEventListener('click', (e) => {
-                    if(e.target.tagName !== 'BUTTON') toggleDesplegable(exp.id_expediente, e);
-                });
+                filaPrincipal.addEventListener('click', () => toggleDesplegable(exp.id_expediente));
 
                 const filaDesplegable = document.createElement('tr');
                 filaDesplegable.id = `subfila-${exp.id_expediente}`;
