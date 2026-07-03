@@ -256,7 +256,7 @@
                         </div>
                         <div>
                             <label class="label">Fecha Firma Contrato</label>
-                            <input type="date" id="f-fecha_firma_contrato" class="input">
+                            <input type="date" id="f-fecha_firma_contrato" class="input" onchange="aplicarTriggerFirma()">
                         </div>
                     </div>
                 </fieldset>
@@ -390,6 +390,22 @@
             if (linea) {
                 document.getElementById('f-observaciones_generales').value = linea;
             }
+        }
+
+        function aplicarTriggerFirma() {
+            const firma = document.getElementById('f-fecha_firma_contrato')?.value;
+            const sel = document.getElementById('f-id_estatus');
+            if (!sel) return;
+            if (firma) {
+                Array.from(sel.options).forEach(opt => {
+                    if (opt.text.toUpperCase() === 'FIRMADO') sel.value = opt.value;
+                });
+            } else {
+                Array.from(sel.options).forEach(opt => {
+                    if (opt.text.toUpperCase() === 'PENDIENTE') sel.value = opt.value;
+                });
+            }
+            actualizarObservacion();
         }
 
         const CATALOGO_POR_SELECT = {
