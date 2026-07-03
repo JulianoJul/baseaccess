@@ -310,20 +310,33 @@
         </div>
     </div>
 
-    <!-- Modal de Validaciones -->
-    <div id="modal-validaciones" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-lg my-8">
+    <!-- Modal de Agregar a Catálogo -->
+    <div id="modal-agregar-catalogo" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
-                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-check-circle mr-1"></i> Validaciones</h2>
-                <button onclick="cerrarEditorValidacion()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-plus-circle mr-1"></i> Agregar a catálogo</h2>
+                <button onclick="cerrarAgregarCatalogo()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
             <div class="p-4">
-                <p class="text-sm text-gray-300">Próximamente: reglas de validación para <strong data-campo-id=""></strong></p>
+                <p class="text-sm text-gray-400 mb-3">Nuevo registro para: <strong id="ac-campo-label" class="text-gray-200"></strong></p>
+                <input type="hidden" id="ac-select-id">
+                <input type="hidden" id="ac-catalog-key">
+                <input type="hidden" id="ac-tabla">
+                <div class="mb-3">
+                    <label class="label">Nombre</label>
+                    <input type="text" id="ac-nombre" class="input" placeholder="Ingrese el nombre">
+                </div>
+                <div id="ac-extra-fields" class="mb-3 hidden">
+                    <label class="label" id="ac-extra-label"></label>
+                    <input type="text" id="ac-extra-val" class="input">
+                </div>
             </div>
-            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
-                <button onclick="cerrarEditorValidacion()" class="btn btn-secondary">Cerrar</button>
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end gap-3">
+                <button onclick="cerrarAgregarCatalogo()" class="btn btn-secondary">Cancelar</button>
+                <button onclick="guardarNuevoCatalogo()" class="btn btn-primary"><i class="fas fa-save mr-1"></i> Guardar</button>
             </div>
         </div>
+    </div>
     </div>
 
     <script>
@@ -416,40 +429,130 @@
             return msg;
         }
 
-        let validacionesCampoCache = {};
+        const CATALOGO_POR_SELECT = {
+            'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia' },
+            'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
+            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento', extra: { col: 'nro_ejemplares', label: 'Nro. Ejemplares', def: '1' } },
+            'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion' },
+            'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad' },
+            'f-id_art':              { key: 'art',                tabla: 'cat_art' },
+            'f-id_tipo_contrato':    { key: 'tipo_contrato',      tabla: 'cat_tipo_contrato' },
+            'f-id_estatus':          { key: 'estatus_detalle',    tabla: 'cat_estatus_detalle' },
+            'f-id_resultado':        { key: 'resultado_proceso',  tabla: 'cat_resultado_proceso' },
+            'f-id_empresa':          { key: 'empresas',           tabla: 'cat_empresas' },
+            'f-id_emisor':           { key: 'responsables',       tabla: 'cat_responsables' },
+            'f-id_receptor':         { key: 'responsables',       tabla: 'cat_responsables' }
+        };
 
-        function inicializarBotonesValidacion() {
+        function inicializarBotonesCatalogo() {
             const form = document.getElementById('form-modal');
             if (!form) return;
             form.querySelectorAll('[id^="f-"]').forEach(el => {
-                if (el.type === 'hidden') return;
-                if (el.id === 'f-id_expediente') return;
+                if (el.tagName !== 'SELECT') return;
+                if (!CATALOGO_POR_SELECT[el.id]) return;
                 const label = el.closest('div')?.querySelector('.label');
-                if (!label || label.querySelector('.btn-validacion')) return;
+                if (!label || label.querySelector('.btn-catalogo')) return;
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'btn-validacion text-[10px] text-gray-500 hover:text-teal-400 ml-1';
-                btn.title = 'Agregar validación';
+                btn.className = 'btn-catalogo text-[10px] text-gray-500 hover:text-teal-400 ml-1';
+                btn.title = 'Agregar nuevo registro al catálogo';
                 btn.innerHTML = '<i class="fas fa-plus"></i>';
-                btn.onclick = (e) => { e.stopPropagation(); abrirEditorValidacion(el.id); };
+                btn.onclick = (e) => { e.stopPropagation(); abrirAgregarCatalogo(el.id); };
                 label.appendChild(btn);
-                if (!validacionesCampoCache[el.id]) validacionesCampoCache[el.id] = [];
             });
         }
 
-        function abrirEditorValidacion(idCampo) {
-            const modal = document.getElementById('modal-validaciones');
+        function abrirAgregarCatalogo(selectId) {
+            const info = CATALOGO_POR_SELECT[selectId];
+            if (!info) return;
+            const modal = document.getElementById('modal-agregar-catalogo');
             if (!modal) return;
-            modal.querySelector('[data-campo-id]').textContent = idCampo.replace('f-', '');
+            document.getElementById('ac-select-id').value = selectId;
+            document.getElementById('ac-catalog-key').value = info.key;
+            document.getElementById('ac-tabla').value = info.tabla;
+            document.getElementById('ac-nombre').value = '';
+            const labelCampo = selectId.replace('f-id_', '').replace('f-', '').replace(/_/g, ' ');
+            document.getElementById('ac-campo-label').textContent = labelCampo.charAt(0).toUpperCase() + labelCampo.slice(1);
+
+            const extraDiv = document.getElementById('ac-extra-fields');
+            const extraLabel = document.getElementById('ac-extra-label');
+            const extraVal = document.getElementById('ac-extra-val');
+            if (info.extra) {
+                extraDiv.classList.remove('hidden');
+                extraLabel.textContent = info.extra.label;
+                if (info.extra.selectId) {
+                    const sel = document.getElementById(info.extra.selectId);
+                    extraVal.value = sel ? sel.value : (info.extra.def || '');
+                    extraVal.readOnly = true;
+                    extraVal.className = 'input bg-gray-700 text-gray-400';
+                } else {
+                    extraVal.value = info.extra.def || '';
+                    extraVal.readOnly = false;
+                    extraVal.className = 'input';
+                }
+            } else {
+                extraDiv.classList.add('hidden');
+            }
+
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
+            setTimeout(() => document.getElementById('ac-nombre').focus(), 100);
         }
 
-        function cerrarEditorValidacion() {
-            const modal = document.getElementById('modal-validaciones');
+        function cerrarAgregarCatalogo() {
+            const modal = document.getElementById('modal-agregar-catalogo');
             if (!modal) return;
             modal.classList.add('hidden');
             document.body.style.overflow = '';
+        }
+
+        function guardarNuevoCatalogo() {
+            const selectId = document.getElementById('ac-select-id').value;
+            const catKey = document.getElementById('ac-catalog-key').value;
+            const tabla = document.getElementById('ac-tabla').value;
+            const nombre = document.getElementById('ac-nombre').value.trim();
+            if (!nombre) { alert('El nombre es obligatorio.'); document.getElementById('ac-nombre').focus(); return; }
+
+            const info = CATALOGO_POR_SELECT[selectId];
+            let cols = 'nombre';
+            let values = "'" + nombre.replace(/'/g, "''") + "'";
+            let placeholders = ['nombre'];
+
+            if (info && info.extra) {
+                let extraVal;
+                if (info.extra.selectId) {
+                    const sel = document.getElementById(info.extra.selectId);
+                    extraVal = sel ? sel.value : null;
+                } else {
+                    extraVal = document.getElementById('ac-extra-val').value.trim() || info.extra.def || null;
+                }
+                if (extraVal) {
+                    cols += ', ' + info.extra.col;
+                    values += ', ' + extraVal;
+                    placeholders.push(info.extra.col);
+                }
+            }
+
+            try {
+                const sql = `INSERT INTO ${tabla} (${cols}) VALUES (${values})`;
+                db.exec(sql);
+                dbModificado = true;
+                // Recargar el catálogo y repoblar
+                const catalogInfo = { id: catKey, tabla, cols: 'id, nombre' };
+                if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
+                const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
+                catalogosCache[catKey] = dbToObjects(res);
+                poblarSelectores();
+                // Seleccionar el nuevo registro buscándolo por nombre
+                const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
+                if (nuevoItem && document.getElementById(selectId)) {
+                    document.getElementById(selectId).value = nuevoItem.id;
+                    if (selectId === 'f-id_documento') actualizarNroEjemplares();
+                }
+                cerrarAgregarCatalogo();
+            } catch (err) {
+                alert('Error al guardar: ' + err.message);
+            }
         }
 
         function formatTiempoEjecucion(v) {
@@ -1095,7 +1198,7 @@
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             marcarCamposEdicionFrecuente();
-            inicializarBotonesValidacion();
+            inicializarBotonesCatalogo();
         }
 
         function cancelarFormulario() {
