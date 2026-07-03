@@ -248,7 +248,7 @@
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs('usd_adj')" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (Bs)</label>
@@ -1275,14 +1275,22 @@
                 }
             }
             if (tc) {
+                const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+                const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
                 if (origen === 'bs_adj') {
-                    const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
                     if (adjBs) {
                         document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
                     }
-                } else {
-                    const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+                } else if (origen === 'usd_adj') {
                     if (adjUsd) {
+                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                    }
+                } else {
+                    if (adjUsd && !adjBs) {
+                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                    } else if (adjBs && !adjUsd) {
+                        document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
+                    } else if (adjUsd && adjBs) {
                         document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
                     }
                 }

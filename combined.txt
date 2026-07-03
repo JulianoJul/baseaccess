@@ -249,7 +249,7 @@
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs('usd_adj')" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (Bs)</label>
@@ -1276,14 +1276,22 @@
                 }
             }
             if (tc) {
+                const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+                const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
                 if (origen === 'bs_adj') {
-                    const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
                     if (adjBs) {
                         document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
                     }
-                } else {
-                    const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
+                } else if (origen === 'usd_adj') {
                     if (adjUsd) {
+                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                    }
+                } else {
+                    if (adjUsd && !adjBs) {
+                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                    } else if (adjBs && !adjUsd) {
+                        document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
+                    } else if (adjUsd && adjBs) {
                         document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
                     }
                 }
@@ -2352,6 +2360,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
 | 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
+| 37 | `index.html` | Fix: `calcularBs()` ahora calcula monto_adjudicado en ambos sentidos (USD→BS y BS→USD) cuando cambia tipo de cambio, independientemente del orden en que se llenen los campos | Bidireccionalidad completa en cálculo automático de montos |
 | 37 | `index.html` | Unificación DRY: `CATALOGO_POR_SELECT` como fuente única de verdad para catálogos. Expandido con campo `cols`. `cargarCatalogos()` y `poblarSelectores()` ahora iteran sobre `CATALOGO_POR_SELECT` eliminando los mapeos paralelos duplicados | Eliminar duplicación de 3 estructuras de datos que mapeaban select→catálogo (regla DRY del doc.md) |
 | 38 | `index.html` | Fix: `captureAndRestoreFormState()` para preservar valores de selects al repoblar catálogos | Evitar que campos del formulario se vacíen al añadir nuevos registros a catálogos |
 | 39 | `index.html` | Fix: Eliminado `e.stopPropagation()` del botón '+' de catálogo | El botón '+' no despliega menú al tocar el ícono exacto |
