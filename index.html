@@ -689,6 +689,9 @@
         // ================================================================
         function formatNum(v) {
             if (v === '' || v === null || v === undefined) return '';
+            if (typeof v === 'number') {
+                return v.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
             let s = String(v).replace(/\./g, '').replace(',', '.');
             let n = parseFloat(s);
             if (isNaN(n)) return String(v);
@@ -909,7 +912,7 @@
             const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
             const tc = parseFloat(parseNum(document.getElementById('f-tipo_cambio').value)) || 0;
             if (usd && tc) {
-                document.getElementById('f-presupuesto_base_bs').value = formatNum((usd * tc).toFixed(2));
+                document.getElementById('f-presupuesto_base_bs').value = formatNum(usd * tc);
             }
         }
 
