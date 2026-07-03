@@ -236,6 +236,12 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 27 | `index.html`, `main.js` | Fix: `const electronAPI` → `var electronAPI` para evitar error de redeclaración en Electron + F12 abre DevTools | Debugging en producción |
 | 28 | `index.html` | Fix: `formatNum()` detecta `typeof v === 'number'` y va directo a `toLocaleString`; `calcularBs()` pasa número sin `.toFixed(2)` | Bug de tipo de cambio: 32,5 USD × 123 = 3.997,50 (antes 39.975,00) |
 | 29 | `vendor/styles.css`, `vendor/fontawesome.min.css`, `vendor/webfonts/`, `index.html` | Modularización del diseño: CSS extraído a `vendor/styles.css` con variables y clases reutilizables (.btn, .input, .card, .label, .legend, etc.); Font Awesome Free reemplaza todos los emojis por iconos vectoriales; fuentes incluidas en vendor/ para portabilidad | Diseño mantenible y portable sin emojis |
+| 30 | `index.html` | P1: Resaltar campos de edición frecuente (Tablas7) con punto ámbar + `CAMPOS_EDICION_FRECUENTE` constante | Indicador visual en 10 campos de cambio frecuente |
+| 31 | `index.html` | P2: Observaciones automáticas append-only con snapshot de edición, bloque colapsable de observaciones anteriores | No se pierde el historial al editar |
+| 32 | `index.html` | P3: Botones "+" por campo para editor de validaciones (scaffold) + modal genérico | Preparación para reglas de validación |
+| 33 | `index.html` | P5: FormatTiempoEjecucion — sufijo "DÍAS" automático al perder el foco si el valor es numérico | Consistencia en campo Tiempo Ejecución |
+| 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
+| 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
 
 ---
 
@@ -243,51 +249,13 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 
 ### Estado de la BDD (schema v8 actual)
 
-El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + historial con snapshot completo. Cambios respecto a v7:
+El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + historial con snapshot completo. Todos los puntos del plan de funcionalidades han sido implementados excepto los siguientes:
 
-| Tabla | Cambio respecto a v7 |
-|-------|---------------------|
-| ~~`cat_estado_accion`~~ | **Eliminada** — sus valores se fusionaron en `cat_estatus_detalle` |
-| `cat_estatus_detalle` | Agregados valores: "SE ENTREGA CON LA FIRMA", "SE ENTREGA CON LA MODIFICACIÓN", "SE RECIBE PARA LA FIRMA", "SE DEVUELVE CON LA FIRMA", "SE RECIBE CON LA FIRMA", "SE ENTREGA PARA LA FIRMA" |
-| `cat_documento` | Agregada columna `nro_ejemplares INTEGER DEFAULT 1` |
-| `expedientes.solped` | Eliminada UNIQUE constraint → `TEXT` libre |
-| `expedientes.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
-| `expedientes.nro_contrato_sap` | Cambiado de `INTEGER` a `TEXT` |
-| `historial_movimientos` | Agregadas columnas: `nro_proceso`, `presupuesto_base_usd`, `tipo_cambio`, `monto_adjudicado_usd`, `id_resultado`, `id_empresa`, `tiempo_ejecucion`, `fecha_firma_contrato` |
-| `historial_movimientos.id_estado_accion` | Eliminada (fusionado con `id_estatus`) |
-
-### 🔴 Prioridad Alta
-
-| # | Descripción | Archivos | Detalle |
-|---|-------------|----------|---------|
-| 1 | **Eliminar `cat_estado_accion` y fusionar con `cat_estatus_detalle`** | `Tablas7.sql`, `index.html` | Unificar ambos catálogos. Los valores actuales de estado_accion pasan a estatus_detalle con nombres como "Se entrega para la firma", "Se devuelve con la firma", "Se recibe para la firma", etc. Ajustar trigger y vistas. |
-| 2 | **Historial normalizado que guarde todo** | `Tablas7.sql`, `index.html` | Modificar `historial_movimientos` para que almacene snapshot completo de cada cambio (todas las columnas relevantes del expediente) de forma normalizada. La UI debe seguir mostrando los mismos campos. |
-| 3 | **Bug: agregar expediente no guarda** | `bdd/Tablas7.sql`, `index.html` | **RESUELTO:** SOLPED tenía UNIQUE constraint. Se elimina la constraint UNIQUE, el campo pasa a texto libre (uno o varios SOLPED separados por " / "). También se actualiza la validación en JS. |
-| 4 | **Botón "Guardar BD" manual + indicador de cambios** | `index.html`, `main.js`, `preload.js` | **RESUELTO:** Se agregó botón "💾 Guardar BD" en la interfaz, atajo Ctrl+S, autoguardado cada 30s + al cerrar ventana + después de cada CRUD. Se creó `preload.js` con IPC handlers para leer/escribir archivos `.db` de forma segura. |
-
-### 🟡 Prioridad Media
-
-| # | Descripción | Archivos | Detalle |
-|---|-------------|----------|---------|
-| 5 | **Autogenerar observación** | `index.html` | Al guardar un movimiento, generar texto automático: "Recibido: [fecha] / Devuelto: [fecha] — [estado_accion] — [documento]". Permitir texto extra adicional. |
-| 6 | **Validación: fecha recibido ≤ fecha devuelto** | `index.html` | No permitir guardar si `fecha_recibido > fecha_devuelto`. Validar en frontend antes de enviar. |
-| 7 | **Validación: solo 2 decimales** | `index.html` | Restringir input a máximo 2 decimales en campos numéricos (presupuesto, montos, tipo de cambio). `oninput` o `step="0.01"`. |
-| 8 | **Bug: tipo de cambio no muestra decimales** | `index.html` | `formatNum()` muestra 2 decimales siempre, pero si el usuario escribe "1,5" debería mostrarse como "1,50". Verificar que `calcularBs()` y el formato funcionen correctamente con decimales. |
-| 9 | **Botón "+" en observaciones** | `index.html` | Agregar botón para añadir múltiples entradas de observaciones (no solo un textarea). |
-| 10 | **Tiempo ejecución con "DÍAS" automático** | `index.html` | El campo `tiempo_ejecucion` debe autocompletar o forzar el formato en días (ej: "30 DÍAS"). |
-| 11 | **"Se han detectado cambios, ¿guardar?"** | `index.html` | Detectar cambios no guardados al cerrar modal o cambiar de expediente, preguntar si desea guardar. |
-
-### 🟡 Prioridad Media (continuación)
-
-| # | Descripción | Archivos | Detalle |
-|---|-------------|----------|---------|
-| 12 | **Número de ejemplares en DOCUMENTO** | `Tablas7.sql`, `index.html` | Agregar campo `nro_ejemplares` o similar en `cat_documento` o en el formulario al seleccionar un documento. |
-
-### 🟢 Prioridad Baja
-
-| # | Descripción | Archivos | Detalle |
-|---|-------------|----------|---------|
-| 13 | **Archivo de config específico para BDD** | Nuevo archivo | Crear archivo de configuración (ej: `bdd_config.json`) con ajustes propios de la base de datos (mappings, reglas de validación, columnas sensibles) que se cargue dinámicamente. |
+| # | Prioridad | Descripción | Archivos | Estado |
+|---|-----------|-------------|----------|--------|
+| 4 | 🟡 Media | Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`) | `db-settings.js` o schema | pendiente — requiere decisión A vs B |
+| 7 | 🟢 Baja | Botón "Bases de Datos Recientes" | `index.html` | **LISTO** — implementado con localStorage + Electron `openDbFilePath` |
+| — | 🟢 Baja | Archivo de config específico para BDD (`bdd_config.json`) | Nuevo archivo | pendiente |
 | 14 | **Botón "más" en cada campo para validaciones** | `index.html` | Agregar botón "+" junto a cada campo del formulario para añadir validaciones personalizadas desde la UI. Posteriormente un menú para editarlas. |
 | 15 | **Marcar celdas que suelen cambiar** | `index.html` | Resaltar visualmente las columnas que se registran en historial (id_tipo_contrato, id_emisor, id_receptor, id_gerencia, id_superintendencia, id_documento, id_estatus, id_estado_accion, fecha_recibido, fecha_devuelto, observaciones_generales) sin modificar la tabla historial. |
 

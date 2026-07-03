@@ -54,6 +54,10 @@
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
+                <div class="relative">
+                    <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
+                    <div id="menu-recientes" class="hidden absolute right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[280px] max-w-sm"></div>
+                </div>
                 <span id="estado-bd" class="text-xs text-gray-500 italic"></span>
             </div>
         </header>
@@ -119,7 +123,8 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input"></select>
+                            <select id="f-id_documento" class="input" onchange="actualizarNroEjemplares()"></select>
+                            <span id="f-nro_ejemplares-display" class="text-[10px] text-gray-500 ml-1"></span>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -236,7 +241,7 @@
                         </div>
                         <div>
                             <label class="label">Tiempo Ejecución</label>
-                            <input type="text" id="f-tiempo_ejecucion" placeholder="ej: 6 meses" class="input">
+                            <input type="text" id="f-tiempo_ejecucion" placeholder="ej: 120" class="input" onblur="this.value=formatTiempoEjecucion(this.value)">
                         </div>
                         <div>
                             <label class="label">Monto Adjudicado (USD)</label>
@@ -447,11 +452,47 @@
             document.body.style.overflow = '';
         }
 
+        function formatTiempoEjecucion(v) {
+            if (!v) return v;
+            const s = String(v).trim();
+            if (/^\d+$/.test(s)) return s + ' DÍAS';
+            if (/^\d+ DÍAS$/.test(s)) return s;
+            return s;
+        }
+
+        function parseTiempoEjecucionParaEdicion(v) {
+            if (!v) return '';
+            const m = String(v).match(/^(\d+) DÍAS$/);
+            return m ? m[1] : v;
+        }
+
+        function actualizarNroEjemplares() {
+            const sel = document.getElementById('f-id_documento');
+            const display = document.getElementById('f-nro_ejemplares-display');
+            if (!sel || !display) return;
+            const id = sel.value;
+            if (!id) { display.textContent = ''; return; }
+            const item = (catalogosCache.documento || []).find(d => String(d.id) === String(id));
+            if (item && item.nro_ejemplares) {
+                display.textContent = `(${item.nro_ejemplares} ejemplares)`;
+            } else {
+                display.textContent = '';
+            }
+        }
+
         var electronAPI = window.electronAPI;
         const config = { locateFile: filename => `vendor/${filename}` };
 
         initSqlJs(config).then(sqlLib => {
             SQL = sqlLib;
+        });
+
+        document.addEventListener('click', (e) => {
+            const menu = document.getElementById('menu-recientes');
+            const btn = menu?.previousElementSibling;
+            if (menu && !menu.classList.contains('hidden') && btn !== e.target && !menu.contains(e.target)) {
+                menu.classList.add('hidden');
+            }
         });
 
         function _cargarBaseDatosComun(bytes, fileName, filePath) {
@@ -472,7 +513,71 @@
             cargarCatalogos();
             cargarDatos();
             iniciarAutoguardado();
+            registrarReciente(fileName, filePath);
             return true;
+        }
+
+        function registrarReciente(nombre, path) {
+            if (!nombre) return;
+            let recientes = [];
+            try {
+                recientes = JSON.parse(localStorage.getItem('recientes') || '[]');
+            } catch(e) { recientes = []; }
+            const idx = recientes.findIndex(r => r.path === path);
+            if (idx !== -1) recientes.splice(idx, 1);
+            recientes.unshift({ nombre, path, timestamp: Date.now() });
+            if (recientes.length > 8) recientes = recientes.slice(0, 8);
+            localStorage.setItem('recientes', JSON.stringify(recientes));
+        }
+
+        function eliminarReciente(path) {
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            recientes = recientes.filter(r => r.path !== path);
+            localStorage.setItem('recientes', JSON.stringify(recientes));
+            mostrarMenuRecientes();
+        }
+
+        function abrirBaseDatosReciente(path) {
+            if (!path) return;
+            if (electronAPI && electronAPI.openDbFilePath) {
+                electronAPI.openDbFilePath(path).then(dataBase64 => {
+                    if (!dataBase64) return;
+                    const bytes = Uint8Array.from(atob(dataBase64), c => c.charCodeAt(0));
+                    const name = path.split(/[\\/]/).pop();
+                    _cargarBaseDatosComun(bytes, name, path);
+                }).catch(err => {
+                    alert('No se pudo abrir la base de datos: ' + err.message);
+                    eliminarReciente(path);
+                });
+            } else {
+                const input = document.getElementById('dbfile');
+                if (input) input.click();
+            }
+            document.getElementById('menu-recientes')?.classList.add('hidden');
+        }
+
+        function mostrarMenuRecientes() {
+            const menu = document.getElementById('menu-recientes');
+            if (!menu) return;
+            const abierto = !menu.classList.contains('hidden');
+            if (abierto) { menu.classList.add('hidden'); return; }
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            if (recientes.length === 0) {
+                menu.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">Sin recientes</div>';
+            } else {
+                menu.innerHTML = recientes.map((r, i) => `
+                    <div class="flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}" onclick="abrirBaseDatosReciente('${r.path.replace(/'/g, "\\'")}')">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-sm text-gray-200 truncate">${r.nombre}</div>
+                            <div class="text-[10px] text-gray-500 truncate">${r.path || ''}</div>
+                        </div>
+                        <button onclick="event.stopPropagation(); eliminarReciente('${r.path.replace(/'/g, "\\'")}')" class="text-[10px] text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                    </div>
+                `).join('');
+            }
+            menu.classList.remove('hidden');
         }
 
         async function abrirBaseDatos() {
@@ -654,7 +759,7 @@
             const tablas = [
                 { id: 'gerencia',           tabla: 'cat_gerencia', cols: 'id, nombre' },
                 { id: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia' },
-                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre' },
+                { id: 'documento',          tabla: 'cat_documento', cols: 'id, nombre, nro_ejemplares' },
                 { id: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
                 { id: 'modalidad',          tabla: 'cat_modalidad', cols: 'id, nombre' },
                 { id: 'art',                tabla: 'cat_art', cols: 'id, nombre' },
@@ -746,7 +851,7 @@
                     </td>
                     <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
                     <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
-                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}${exp.nro_ejemplares ? ' ('+exp.nro_ejemplares+' ejemplares)' : ''}">${exp.documento || 'N/A'}${exp.nro_ejemplares ? ` <span class="text-[10px] text-gray-500">(${exp.nro_ejemplares})</span>` : ''}</td>
                     <td class="p-3">
                         <span class="px-2 py-0.5 rounded-full text-[11px] font-medium ${getEstatusClass(exp.estatus_detalle)}">
                             ${exp.estatus_detalle || 'PENDIENTE'}
@@ -967,6 +1072,7 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
+            document.getElementById('f-nro_ejemplares-display').textContent = '';
             formHistorial.innerHTML = '<p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>';
 
             if (id) {
@@ -1016,6 +1122,7 @@
             document.getElementById('f-solped').value = data.solped || '';
             document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
             document.getElementById('f-id_documento').value = data.id_documento || '';
+            actualizarNroEjemplares();
             document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
             document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
             cargarSuperintendencias();
@@ -1040,7 +1147,7 @@
             document.getElementById('f-id_empresa').value = data.id_empresa || '';
             document.getElementById('f-nro_contrato_sicac').value = data.nro_contrato_sicac || '';
             document.getElementById('f-nro_contrato_sap').value = data.nro_contrato_sap || '';
-            document.getElementById('f-tiempo_ejecucion').value = data.tiempo_ejecucion || '';
+            document.getElementById('f-tiempo_ejecucion').value = parseTiempoEjecucionParaEdicion(data.tiempo_ejecucion);
             document.getElementById('f-monto_adjudicado_usd').value = formatNum(data.monto_adjudicado_usd);
             document.getElementById('f-monto_adjudicado_bs').value = formatNum(data.monto_adjudicado_bs);
             document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
