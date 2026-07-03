@@ -38,7 +38,7 @@ Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
 Dos modos de ejecución:
 
 1. **Navegador** — abrir `index.html` directo (dependencias locales en `vendor/`)
-2. **Electron portable** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
+2. **Electron WinUnpacked** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -185,7 +185,7 @@ make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
 make serve            # python3 -m http.server 8000 (sirve index.html por HTTP para evitar file://)
-make electron-build-win    # Build .exe portable para Windows
+make electron-build-win    # Build win-unpacked para Windows
 make electron-build-linux  # Build AppImage para Linux
 ```
 
