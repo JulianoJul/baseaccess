@@ -1265,6 +1265,7 @@
             });
             // No precargar el textarea para evitar editar el historial acumulado por error
             document.getElementById('f-observaciones_generales').value = '';
+            actualizarObservacion();
         }
 
         let _calculando = false;
@@ -1339,10 +1340,11 @@
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones_generales: (() => {
                     const textoActual = document.getElementById('f-observaciones_generales').value.trim();
+                    const linea = textoActual || generarObservacionAutomatica();
                     if (!editandoId) {
-                        return sanitizeNull(textoActual || null);
+                        return sanitizeNull(linea || null);
                     }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + textoActual);
+                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
                 })()
             };
 
