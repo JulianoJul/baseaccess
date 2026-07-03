@@ -6,6 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Expedientes con Historial</title>
     <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome.min.css" rel="stylesheet">
+    <link href="vendor/styles.css" rel="stylesheet">
     <style>
         .drag-over {
             outline: 3px dashed #2dd4bf;
@@ -22,22 +24,22 @@
         <!-- Encabezado -->
         <header class="mb-6 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-teal-400 flex items-center gap-2">📂 Gestión de Expedientes con Historial</h1>
+                <h1 class="text-2xl font-bold text-teal-400 flex items-center gap-2"><i class="fas fa-folder-open mr-1"></i> Gesti&oacute;n de Expedientes con Historial</h1>
                 <p class="text-xs text-gray-400">Carga tu base de datos SQLite para trabajar de forma 100% local.</p>
             </div>
             <div class="flex items-center gap-3 flex-wrap">
                 <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
                 <button id="btn-abrir" onclick="abrirBaseDatos()"
-                    class="bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
-                    📂 Abrir Base de Datos
+                    class="btn btn-primary">
+                    <i class="fas fa-folder-open mr-1"></i> Abrir Base de Datos
                 </button>
                 <button id="btn-nuevo" onclick="mostrarFormulario(null)" disabled
-                    class="bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
+                    class="btn btn-primary">
                     + Nuevo Expediente
                 </button>
                 <button id="btn-guardar" onclick="guardarBD()" disabled
-                    class="bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 disabled:text-gray-500 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap">
-                    💾 Guardar BD
+                    class="btn btn-primary">
+                    <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
                 <span id="estado-bd" class="text-xs text-gray-500 italic"></span>
             </div>
@@ -45,7 +47,7 @@
 
         <!-- Buscador -->
         <div class="mb-4">
-            <input type="text" id="search" placeholder="🔍 Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2.5 text-sm text-gray-200 focus:outline-none focus:border-teal-500" disabled>
+            <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" disabled>
         </div>
 
         <!-- Tabla Principal -->
@@ -91,164 +93,164 @@
             <div class="p-4 space-y-6 overflow-y-auto max-h-[75vh]">
 
                 <!-- SECCIÓN 1: INFORMACIÓN DEL PROCESO -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
-                    <legend class="text-sm font-bold text-teal-400 uppercase tracking-wider px-2">📋 Información del Proceso</legend>
+                <fieldset class="card">
+                    <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</legend>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">SOLPED</label>
-                            <input type="text" id="f-solped" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">SOLPED</label>
+                            <input type="text" id="f-solped" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Nro. Proceso</label>
-                            <input type="text" id="f-nro_proceso" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Nro. Proceso</label>
+                            <input type="text" id="f-nro_proceso" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Documento</label>
-                            <select id="f-id_documento" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Documento</label>
+                            <select id="f-id_documento" class="input"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
-                            <label class="block text-xs text-gray-400 mb-1">Descripción del Proceso</label>
-                            <textarea id="f-descripcion_proceso" rows="2" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></textarea>
+                            <label class="label">Descripción del Proceso</label>
+                            <textarea id="f-descripcion_proceso" rows="2" class="input"></textarea>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Gerencia</label>
-                            <select id="f-id_gerencia" onchange="cargarSuperintendencias()" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Gerencia</label>
+                            <select id="f-id_gerencia" onchange="cargarSuperintendencias()" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Superintendencia</label>
-                            <select id="f-id_superintendencia" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Superintendencia</label>
+                            <select id="f-id_superintendencia" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Plan Contratación</label>
-                            <select id="f-id_plan" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Plan Contratación</label>
+                            <select id="f-id_plan" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Modalidad</label>
-                            <select id="f-id_modalidad" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Modalidad</label>
+                            <select id="f-id_modalidad" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Art. Normativa</label>
-                            <select id="f-id_art" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Art. Normativa</label>
+                            <select id="f-id_art" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Tipo Contrato</label>
-                            <select id="f-id_tipo_contrato" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Tipo Contrato</label>
+                            <select id="f-id_tipo_contrato" class="input"></select>
                         </div>
                     </div>
                 </fieldset>
 
                 <!-- SECCIÓN 2: PRESUPUESTO -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
-                    <legend class="text-sm font-bold text-amber-400 uppercase tracking-wider px-2">💰 Presupuesto</legend>
+                <fieldset class="card">
+                    <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Fecha Presupuesto Base</label>
-                            <input type="date" id="f-fecha_presupuesto_base" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Fecha Presupuesto Base</label>
+                            <input type="date" id="f-fecha_presupuesto_base" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-presupuesto_base_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <label class="label">Presupuesto Base (USD)</label>
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_usd" class="input" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Tipo de Cambio</label>
-                            <input type="text" inputmode="decimal" id="f-tipo_cambio" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
+                            <label class="label">Tipo de Cambio</label>
+                            <input type="text" inputmode="decimal" id="f-tipo_cambio" class="input" oninput="this.value=limitDecimals(this.value);calcularBs()" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Presupuesto Base (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <label class="label">Presupuesto Base (Bs)</label>
+                            <input type="text" inputmode="decimal" id="f-presupuesto_base_bs" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                     </div>
                 </fieldset>
 
                 <!-- SECCIÓN 3: GESTIÓN Y FIRMAS -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
-                    <legend class="text-sm font-bold text-blue-400 uppercase tracking-wider px-2">📑 Gestión y Firmas</legend>
+                <fieldset class="card">
+                    <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Gestión y Firmas</legend>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Emisor / Remitente</label>
-                            <select id="f-id_emisor" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Emisor / Remitente</label>
+                            <select id="f-id_emisor" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Receptor</label>
-                            <select id="f-id_receptor" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Receptor</label>
+                            <select id="f-id_receptor" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Estatus Detalle</label>
-                            <select id="f-id_estatus" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Estatus Detalle</label>
+                            <select id="f-id_estatus" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Fecha Recibido</label>
-                            <input type="date" id="f-fecha_recibido" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onchange="validarFechas()">
+                            <label class="label">Fecha Recibido</label>
+                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas()" onblur="validarFechas()">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Fecha Devuelto</label>
-                            <input type="date" id="f-fecha_devuelto" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" onchange="validarFechas()">
+                            <label class="label">Fecha Devuelto</label>
+                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas()" onblur="validarFechas()">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Nro. Acta Apertura</label>
-                            <input type="text" id="f-nro_acta_apertura" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Nro. Acta Apertura</label>
+                            <input type="text" id="f-nro_acta_apertura" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Cant. Frentes</label>
-                            <input type="number" step="1" min="0" id="f-cantidad_frentes" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Cant. Frentes</label>
+                            <input type="number" step="1" min="0" id="f-cantidad_frentes" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Nro. Resolución JD</label>
-                            <input type="text" id="f-nro_resolucion_jd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Nro. Resolución JD</label>
+                            <input type="text" id="f-nro_resolucion_jd" class="input">
                         </div>
                     </div>
                 </fieldset>
 
                 <!-- SECCIÓN 4: ADJUDICACIÓN -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
-                    <legend class="text-sm font-bold text-emerald-400 uppercase tracking-wider px-2">🏢 Adjudicación</legend>
+                <fieldset class="card">
+                    <legend class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</legend>
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Resultado Proceso</label>
-                            <select id="f-id_resultado" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Resultado Proceso</label>
+                            <select id="f-id_resultado" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Empresa Adjudicada</label>
-                            <select id="f-id_empresa" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></select>
+                            <label class="label">Empresa Adjudicada</label>
+                            <select id="f-id_empresa" class="input"></select>
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Nro. Contrato SICAC</label>
-                            <input type="text" id="f-nro_contrato_sicac" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Nro. Contrato SICAC</label>
+                            <input type="text" id="f-nro_contrato_sicac" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Nro. Contrato SAP</label>
-                            <input type="text" id="f-nro_contrato_sap" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Nro. Contrato SAP</label>
+                            <input type="text" id="f-nro_contrato_sap" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Tiempo Ejecución</label>
-                            <input type="text" id="f-tiempo_ejecucion" placeholder="ej: 6 meses" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Tiempo Ejecución</label>
+                            <input type="text" id="f-tiempo_ejecucion" placeholder="ej: 6 meses" class="input">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (USD)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <label class="label">Monto Adjudicado (USD)</label>
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Monto Adjudicado (Bs)</label>
-                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
+                            <label class="label">Monto Adjudicado (Bs)</label>
+                            <input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" class="input" oninput="this.value=limitDecimals(this.value)" onblur="this.value=formatNum(this.value)">
                         </div>
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Fecha Firma Contrato</label>
-                            <input type="date" id="f-fecha_firma_contrato" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500">
+                            <label class="label">Fecha Firma Contrato</label>
+                            <input type="date" id="f-fecha_firma_contrato" class="input">
                         </div>
                     </div>
                 </fieldset>
 
                 <!-- SECCIÓN 5: OBSERVACIONES -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-gray-700/60">
-                    <legend class="text-sm font-bold text-purple-400 uppercase tracking-wider px-2">📝 Observaciones</legend>
+                <fieldset class="card">
+                    <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
                     <div class="mt-3">
-                        <textarea id="f-observaciones_generales" rows="3" class="w-full bg-gray-800 border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none focus:border-teal-500"></textarea>
+                        <textarea id="f-observaciones_generales" rows="3" class="input"></textarea>
                     </div>
                 </fieldset>
 
                 <!-- SECCIÓN 6: SUBFORMULARIO DE HISTORIAL -->
-                <fieldset class="bg-gray-900/40 p-4 rounded-lg border border-amber-700/60">
-                    <legend class="text-sm font-bold text-amber-400 uppercase tracking-wider px-2">⏳ Subformulario: Historial de Movimientos</legend>
+                <fieldset class="card card-amber">
+                    <legend class="legend legend-amber"><i class="fas fa-hourglass-half mr-1"></i> Subformulario: Historial de Movimientos</legend>
                     <div id="form-historial" class="mt-3 text-xs text-gray-400 overflow-x-auto">
                         <p class="text-gray-500 italic">Se cargará automáticamente al guardar el expediente.</p>
                     </div>
@@ -261,9 +263,9 @@
 
             <!-- Footer del modal: Botones de acción -->
             <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
-                <button onclick="cancelarFormulario()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-lg transition-colors">Cancelar</button>
-                <button id="btn-eliminar" onclick="eliminarExpediente()" class="hidden px-4 py-2 bg-red-700 hover:bg-red-600 text-white text-sm rounded-lg transition-colors">Eliminar</button>
-                <button onclick="guardarExpediente()" class="px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold rounded-lg transition-colors">Guardar</button>
+                <button onclick="cancelarFormulario()" class="btn btn-secondary">Cancelar</button>
+                <button id="btn-eliminar" onclick="eliminarExpediente()" class="btn btn-danger hidden">Eliminar</button>
+                <button onclick="guardarExpediente()" class="btn btn-primary btn-lg">Guardar</button>
             </div>
         </div>
     </div>
@@ -274,14 +276,14 @@
     <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
-                <h2 id="historial-titulo" class="text-lg font-bold text-teal-400">⏳ Historial Completo</h2>
+                <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
                 <button onclick="cerrarHistorialCompleto()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
             <div id="historial-cuerpo" class="p-4 overflow-x-auto max-h-[75vh] overflow-y-auto">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
             <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
-                <button onclick="cerrarHistorialCompleto()" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-gray-200 text-sm rounded-lg transition-colors">Cerrar</button>
+                <button onclick="cerrarHistorialCompleto()" class="btn btn-secondary">Cerrar</button>
             </div>
         </div>
     </div>
@@ -319,7 +321,7 @@
             document.getElementById('btn-guardar').disabled = false;
             document.getElementById('dbfile').value = '';
             document.getElementById('body').classList.remove('drag-over');
-            actualizarEstadoBD(`✔ ${fileName}`);
+            actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             cargarCatalogos();
             cargarDatos();
             iniciarAutoguardado();
@@ -379,7 +381,7 @@
                     await electronAPI.saveDb(data_base64);
                 }
                 dbModificado = false;
-                actualizarEstadoBD('✔ Guardado');
+                actualizarEstadoBD('<i class="fas fa-check"></i> Guardado');
             } catch (err) {
                 console.error('Error al guardar BD:', err);
             }
@@ -387,7 +389,7 @@
 
         function marcarModificado() {
             dbModificado = true;
-            actualizarEstadoBD('✎ Sin guardar');
+            actualizarEstadoBD('<i class="fas fa-pen"></i> Sin guardar');
         }
 
         function iniciarAutoguardado() {
@@ -399,7 +401,7 @@
 
         function actualizarEstadoBD(msg) {
             const el = document.getElementById('estado-bd');
-            if (el) el.textContent = msg || '';
+            if (el) el.innerHTML = msg || '';
         }
 
         window.addEventListener('beforeunload', async (e) => {
@@ -590,10 +592,10 @@
                 filaPrincipal.className = "hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700";
                 filaPrincipal.innerHTML = `
                     <td class="p-3 text-center">
-                        <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="text-teal-400 font-bold hover:text-teal-300 text-base focus:outline-none" id="btn-${exp.id_expediente}">➕</button>
+                        <button onclick="toggleDesplegable(${exp.id_expediente}, event)" class="btn-icon text-link" id="btn-${exp.id_expediente}"><i class="fas fa-plus"></i></button>
                     </td>
                     <td class="p-3 text-center">
-                        <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="text-blue-400 hover:text-blue-300 text-sm focus:outline-none" title="Editar expediente">✏️</button>
+                        <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit"></i></button>
                     </td>
                     <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
                     <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
@@ -619,7 +621,7 @@
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                             
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">📋 Información del Proceso</h4>
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</h4>
                                 <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">${exp.descripcion_proceso || 'Sin descripción.'}</span></p>
                                 <div class="grid grid-cols-2 gap-2 text-xs pt-2">
                                     <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">${exp.superintendencia || 'N/A'}</span></div>
@@ -632,7 +634,7 @@
                             </div>
 
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">💰 Valores y Trazabilidad</h4>
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-coins mr-1"></i> Valores y Trazabilidad</h4>
                                 <div class="grid grid-cols-2 gap-x-4 gap-y-2">
                                     <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">${exp.presupuesto_base_usd ? '$' + exp.presupuesto_base_usd.toLocaleString() : 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Presupuesto Base (Bs):</span> <span class="text-amber-500 block font-mono">${exp.presupuesto_base_bs ? 'Bs ' + exp.presupuesto_base_bs.toLocaleString() : 'N/A'}</span></div>
@@ -647,7 +649,7 @@
                             </div>
 
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1">🏢 Adjudicación y Legal</h4>
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-building mr-1"></i> Adjudicación y Legal</h4>
                                 <p><span class="text-gray-400">Empresa Adjudicada:</span> <span class="text-gray-200 block font-medium truncate">${exp.empresa_adjudicada || 'N/A'}</span></p>
                                 <div class="grid grid-cols-2 gap-2 pt-1">
                                     <div><span class="text-gray-400 block">Nro Acta Apertura:</span> <span class="text-gray-200 font-mono">${exp.nro_acta_apertura || 'N/A'}</span></div>
@@ -665,10 +667,10 @@
                         <div class="mt-4 border-t border-gray-700/50 pt-4">
                             <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
                                 <div class="flex items-center justify-between mb-2">
-                                    <span class="text-gray-400 font-bold">📝 Observaciones</span>
+                                    <span class="text-gray-400 font-bold"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
                                     <div class="flex items-center gap-2">
                                         <span class="text-[10px] text-gray-500">${exp.fecha_creacion} · ${exp.fecha_actualizacion}</span>
-                                        <button onclick="event.stopPropagation(); abrirHistorialCompleto(${exp.id_expediente})" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold" title="Ver historial completo de cambios">📋 Historial</button>
+                                        <button onclick="event.stopPropagation(); abrirHistorialCompleto(${exp.id_expediente})" class="text-[10px] text-teal-400 hover:text-teal-300 font-semibold" title="Ver historial completo de cambios"><i class="fas fa-clipboard-list mr-1"></i> Historial</button>
                                     </div>
                                 </div>
                                 <div class="cursor-pointer select-none" onclick="cargarHistorialUnificado(${exp.id_expediente})">
@@ -726,7 +728,7 @@
                     const div = document.createElement('div');
                     div.id = 'f-error-fechas';
                     div.className = 'text-red-400 text-xs mt-1';
-                    div.textContent = '⚠ Fecha Devuelto no puede ser anterior a Fecha Recibido';
+                    div.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-1"></i> Fecha Devuelto no puede ser anterior a Fecha Recibido';
                     document.getElementById('f-fecha_devuelto').parentNode.appendChild(div);
                 }
                 return false;
@@ -742,7 +744,7 @@
             const subfila = document.getElementById(`subfila-${id}`);
             const btn = document.getElementById(`btn-${id}`);
             subfila.classList.toggle('hidden');
-            btn.innerText = subfila.classList.contains('hidden') ? '➕' : '➖';
+            btn.innerHTML = subfila.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
         }
 
         function cargarHistorialUnificado(id) {
@@ -772,7 +774,7 @@
                 contenedor.innerHTML = '<p class="text-gray-500 italic text-center py-2">Sin movimientos registrados.</p>';
                 return;
             }
-            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2">⏳ Historial (${data.length})</div>`;
+            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
             data.forEach((h, i) => {
                 const mid = h.id_movimiento;
                 const obs = h.observaciones_generales || '';
@@ -781,7 +783,7 @@
                 html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
                 html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
                 html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
-                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="ubtn-${mid}">🔍 Detalle</span>`;
+                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="ubtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
                 html += `</div>`;
                 html += `<div id="udet-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
                 html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
@@ -800,7 +802,7 @@
             const btn = document.getElementById(prefix + 'btn-' + id);
             if (!sub) return;
             sub.classList.toggle('hidden');
-            btn.textContent = sub.classList.contains('hidden') ? '🔍 Detalle' : '✖ Cerrar';
+            btn.innerHTML = sub.classList.contains('hidden') ? '<i class="fas fa-search mr-1"></i>Detalle' : '<i class="fas fa-times mr-1"></i>Cerrar';
         }
 
         // ================================================================
@@ -916,7 +918,7 @@
                 contenedor.innerHTML = '<p class="text-gray-500 italic p-2">Sin movimientos registrados.</p>';
                 return;
             }
-            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2">⏳ Historial (${data.length})</div>`;
+            let html = `<div class="text-[10px] text-teal-400 font-semibold mb-2"><i class="fas fa-hourglass-half mr-1"></i> Historial (${data.length})</div>`;
             data.forEach((h, i) => {
                 const mid = h.id_movimiento;
                 const obs = h.observaciones_generales || '';
@@ -925,7 +927,7 @@
                 html += `<div class="flex-1 min-w-0"><span class="text-gray-500 font-mono font-bold text-[10px]">#${data.length - i}</span>`;
                 html += `<span class="text-gray-400 ml-2 text-[10px]">${h.f_entrada} → ${h.f_salida || 'actual'}</span>`;
                 html += `<p class="text-gray-300 italic text-[11px] mt-0.5">${obs || 'Sin observaciones.'}</p></div>`;
-                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="fbtn-${mid}">🔍 Detalle</span>`;
+                html += `<span class="text-amber-400 text-[11px] ml-2 shrink-0 font-semibold" id="fbtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
                 html += `</div>`;
                 html += `<div id="fdet-${mid}" class="hidden bg-gray-950/60 border-t border-gray-700/60 p-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-[11px]">`;
                 html += `<div><span class="text-gray-500 block text-[10px]">Gerencia</span><span class="text-teal-300">${h.ger}</span></div>`;
@@ -1144,7 +1146,7 @@
         // ================================================================
         function abrirHistorialCompleto(id) {
             const modal = document.getElementById('historial-modal');
-            document.getElementById('historial-titulo').textContent = `⏳ Historial Completo - Expediente #${id}`;
+            document.getElementById('historial-titulo').innerHTML = `<i class="fas fa-hourglass-half mr-1"></i> Historial Completo - Expediente #${id}`;
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             cargarHistorialCompleto(id);
@@ -1213,7 +1215,7 @@
                 html += `<span class="text-teal-300 font-medium">${h.estatus}</span>`;
                 html += `<span class="text-gray-400">${h.fecha_recibido} → ${h.fecha_devuelto}</span>`;
                 html += `</div>`;
-                html += `<span class="text-amber-400 text-[11px] font-semibold" id="hcbtn-${mid}">🔍 Detalle</span>`;
+                html += `<span class="text-amber-400 text-[11px] font-semibold" id="hcbtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
                 html += `</div>`;
                 html += `<div id="hcdet-${mid}" class="hidden p-4 text-[11px]">`;
                 html += `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">`;
@@ -1236,7 +1238,7 @@
                 html += campoHistorial('F. Firma Contrato', h.fecha_firma_contrato, 'text-gray-300');
                 html += `</div>`;
                 html += `<div class="mt-3 pt-3 border-t border-gray-700/50">`;
-                html += `<span class="text-gray-500 text-[10px] block mb-1">📝 Observaciones</span>`;
+                html += `<span class="text-gray-500 text-[10px] block mb-1"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>`;
                 html += `<p class="text-gray-300 italic whitespace-pre-wrap text-[11px]">${obs}</p>`;
                 html += `</div>`;
                 html += `</div>`;
@@ -1774,6 +1776,9 @@ console.log('[PRELOAD] contextBridge configurado correctamente');
       "icon": null,
       "category": "Office"
     }
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.0"
   }
 }
 
@@ -2015,6 +2020,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 26 | `index.html` | Agregada función `execSafe()` con manejo de errores y `toInt()` para validación de IDs | Prevención de SQL injection y errores silenciosos |
 | 27 | `index.html`, `main.js` | Fix: `const electronAPI` → `var electronAPI` para evitar error de redeclaración en Electron + F12 abre DevTools | Debugging en producción |
 | 28 | `index.html` | Fix: `formatNum()` detecta `typeof v === 'number'` y va directo a `toLocaleString`; `calcularBs()` pasa número sin `.toFixed(2)` | Bug de tipo de cambio: 32,5 USD × 123 = 3.997,50 (antes 39.975,00) |
+| 29 | `vendor/styles.css`, `vendor/fontawesome.min.css`, `vendor/webfonts/`, `index.html` | Modularización del diseño: CSS extraído a `vendor/styles.css` con variables y clases reutilizables (.btn, .input, .card, .label, .legend, etc.); Font Awesome Free reemplaza todos los emojis por iconos vectoriales; fuentes incluidas en vendor/ para portabilidad | Diseño mantenible y portable sin emojis |
 
 ---
 

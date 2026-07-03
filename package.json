@@ -43,5 +43,8 @@
       "icon": null,
       "category": "Office"
     }
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.0"
   }
 }

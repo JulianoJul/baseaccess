@@ -235,6 +235,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 26 | `index.html` | Agregada función `execSafe()` con manejo de errores y `toInt()` para validación de IDs | Prevención de SQL injection y errores silenciosos |
 | 27 | `index.html`, `main.js` | Fix: `const electronAPI` → `var electronAPI` para evitar error de redeclaración en Electron + F12 abre DevTools | Debugging en producción |
 | 28 | `index.html` | Fix: `formatNum()` detecta `typeof v === 'number'` y va directo a `toLocaleString`; `calcularBs()` pasa número sin `.toFixed(2)` | Bug de tipo de cambio: 32,5 USD × 123 = 3.997,50 (antes 39.975,00) |
+| 29 | `vendor/styles.css`, `vendor/fontawesome.min.css`, `vendor/webfonts/`, `index.html` | Modularización del diseño: CSS extraído a `vendor/styles.css` con variables y clases reutilizables (.btn, .input, .card, .label, .legend, etc.); Font Awesome Free reemplaza todos los emojis por iconos vectoriales; fuentes incluidas en vendor/ para portabilidad | Diseño mantenible y portable sin emojis |
 
 ---
 
