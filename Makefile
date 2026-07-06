@@ -5,6 +5,7 @@ SCHEMA ?= bdd/Tablas8.sql
 combine:
 	{ \
 	  echo "=== index.html ===" && cat index.html && \
+	  echo "" && echo "=== schema-config.js ===" && cat schema-config.js && \
 	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
 	  echo "" && echo "=== preload.js ===" && cat preload.js && \

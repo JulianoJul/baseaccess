@@ -56,6 +56,7 @@
     </div>
 
     <script src="vendor/sql-wasm.js"></script>
+    <script src="schema-config.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
 
@@ -388,16 +389,10 @@
         // Campos identificados como "de edición constante" (histórico de Tablas7).
         // No se derivan del trigger de Tablas8 porque ese trigger amplió el snapshot
         // por completitud, no porque esos campos se editen con más frecuencia.
-        const CAMPOS_EDICION_FRECUENTE = [
-            'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
-            'id_superintendencia', 'id_documento', 'id_estatus',
-            'fecha_recibido', 'fecha_devuelto', 'observaciones'
-        ];
         let snapshotEdicion = null;
-
-
+        let _obsPrevia = '';
         function marcarCamposEdicionFrecuente() {
-            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
+            SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
                 const el = document.getElementById(`f-${campo}`);
                 if (!el) return;
                 const contenedor = el.closest('div');
@@ -411,45 +406,16 @@
             });
         }
 
-        function obtenerTextoSelect(id) {
-            const el = document.getElementById(id);
-            if (!el || !el.options) return '';
-            return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
-        }
-
-        let _obsPrevia = '';
         function generarObservacionAutomatica() {
-            const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
-            const doc = obtenerTextoSelect('f-id_documento') || 'N/A';
-            const recibido = document.getElementById('f-fecha_recibido')?.value || '';
-            const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
-            const partes = [estatus, doc];
-            if (recibido) partes.push(`*Fecha recibido* ${recibido}`);
-            if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
-            return partes.join(' - ');
-        }
-        function extractFreeText(currentValue, autoLine) {
-            if (!currentValue) return '';
-            let remaining = currentValue;
-            const autoParts = autoLine.split(' - ');
-            for (const part of autoParts) {
-                const idx = remaining.indexOf(part);
-                if (idx !== -1) {
-                    remaining = remaining.slice(0, idx) + remaining.slice(idx + part.length);
-                }
-            }
-            remaining = remaining.replace(/\*Fecha (recibido|devuelto)\*(\s+\d{4}-\d{2}-\d{2})?/g, '');
-            remaining = remaining.replace(/ - /g, ' ').replace(/\s+/g, ' ').trim();
-            remaining = remaining.replace(/^-+/, '').replace(/-+$/, '').trim();
-            return remaining;
+            return SCHEMA_CONFIG.generarObservacion();
         }
         function previewObservacion() {
             const ta = document.getElementById('f-observaciones');
             if (!ta || !editandoId) return;
             const currentValue = ta.value;
-            const autoLine = generarObservacionAutomatica();
+            const autoLine = SCHEMA_CONFIG.generarObservacion();
             if (!autoLine) return;
-            const freeText = extractFreeText(currentValue, autoLine);
+            const freeText = SCHEMA_CONFIG.extraerTextoLibre(currentValue, autoLine);
             if (freeText) {
                 ta.value = autoLine + ' - ' + freeText;
             } else {
@@ -472,27 +438,12 @@
             }
         }
 
-        const CATALOGO_POR_SELECT = {
-            'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia',         cols: 'id, nombre' },
-            'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
-            'f-id_documento':        { key: 'documento',          tabla: 'cat_documento',        cols: 'id, nombre' },
-            'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
-            'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad',        cols: 'id, nombre' },
-            'f-id_art':              { key: 'art',                tabla: 'cat_art',              cols: 'id, nombre' },
-            'f-id_tipo_contrato':    { key: 'tipo_contrato',      tabla: 'cat_tipo_contrato',    cols: 'id, nombre' },
-            'f-id_estatus':          { key: 'estatus_detalle',    tabla: 'cat_estatus_detalle',  cols: 'id, nombre' },
-            'f-id_resultado':        { key: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
-            'f-id_empresa':          { key: 'empresas',           tabla: 'cat_empresas',         cols: 'id, nombre' },
-            'f-id_emisor':           { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' },
-            'f-id_receptor':         { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' }
-        };
-
         function inicializarBotonesCatalogo() {
             const form = document.getElementById('form-modal');
             if (!form) return;
             form.querySelectorAll('[id^="f-"]').forEach(el => {
                 if (el.tagName !== 'SELECT') return;
-                if (!CATALOGO_POR_SELECT[el.id]) return;
+                if (!SCHEMA_CONFIG.catalogoPorSelect[el.id]) return;
                 const label = el.closest('div')?.querySelector('.label');
                 if (!label || label.querySelector('.btn-catalogo')) return;
                 const btn = document.createElement('button');
@@ -510,7 +461,7 @@
         }
 
         function abrirAgregarCatalogo(selectId) {
-            const info = CATALOGO_POR_SELECT[selectId];
+            const info = SCHEMA_CONFIG.catalogoPorSelect[selectId];
             if (!info) return;
             const modal = document.getElementById('modal-agregar-catalogo');
             if (!modal) return;
@@ -595,7 +546,7 @@
             const nombre = document.getElementById('ac-nombre').value.trim();
             if (!nombre) { alert('El nombre es obligatorio.'); document.getElementById('ac-nombre').focus(); return; }
 
-            const info = CATALOGO_POR_SELECT[selectId];
+            const info = SCHEMA_CONFIG.catalogoPorSelect[selectId];
             let cols = 'nombre';
             let values = "'" + nombre.replace(/'/g, "''") + "'";
             let placeholders = ['nombre'];
@@ -973,7 +924,7 @@
         // ================================================================
         function cargarCatalogos() {
             const vistos = new Set();
-            Object.values(CATALOGO_POR_SELECT).forEach(info => {
+            Object.values(SCHEMA_CONFIG.catalogoPorSelect).forEach(info => {
                 if (vistos.has(info.key)) return;
                 vistos.add(info.key);
                 const res = db.exec(`SELECT ${info.cols} FROM ${info.tabla} ORDER BY nombre`);
@@ -983,7 +934,7 @@
         }
 
         function poblarSelectores() {
-            Object.entries(CATALOGO_POR_SELECT).forEach(([selectId, info]) => {
+            Object.entries(SCHEMA_CONFIG.catalogoPorSelect).forEach(([selectId, info]) => {
                 const sel = document.getElementById(selectId);
                 if (!sel) return;
                 sel.innerHTML = '<option value=""></option>';
@@ -1017,7 +968,7 @@
         function cargarDatos() {
             if (!db) return;
             const orden = document.getElementById('sort-order')?.value || 'id_expediente DESC';
-            const res = db.exec(`SELECT * FROM vw_reporte_excel_contrataciones ORDER BY ${orden}`);
+            const res = db.exec(`SELECT * FROM ${SCHEMA_CONFIG.viewName} ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
         }
@@ -1053,7 +1004,7 @@
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
                     <td class="p-3">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${getEstatusClass(exp.estatus_detalle)}">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SCHEMA_CONFIG.estatusClass(exp.estatus_detalle)}">
                             ${exp.estatus_detalle || 'PENDIENTE'}
                         </span>
                     </td>
@@ -1329,7 +1280,7 @@
 
             // Guardar snapshot de campos de edición frecuente para detectar cambios al guardar
             snapshotEdicion = {};
-            CAMPOS_EDICION_FRECUENTE.forEach(campo => {
+            SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
                 const el = document.getElementById(`f-${campo}`);
                 if (el) {
                     snapshotEdicion[campo] = el.value || '';
@@ -1416,7 +1367,7 @@
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones: (() => {
                     const textoActual = document.getElementById('f-observaciones').value.trim();
-                    return sanitizeNull(textoActual || generarObservacionAutomatica() || null);
+                    return sanitizeNull(textoActual || SCHEMA_CONFIG.generarObservacion() || null);
                 })(),
                 notas: sanitizeNull(document.getElementById('f-notas').value.trim())
             };
@@ -1428,17 +1379,7 @@
                 return;
             }
 
-            const COLS = [
-                'solped', 'id_gerencia', 'id_superintendencia', 'id_emisor',
-                'id_documento', 'fecha_presupuesto_base', 'presupuesto_base_usd',
-                'tipo_cambio', 'presupuesto_base_bs', 'id_plan', 'descripcion_proceso',
-                'id_modalidad', 'id_art', 'id_tipo_contrato', 'nro_acta_apertura',
-                'cantidad_frentes', 'nro_resolucion_jd', 'id_estatus',
-                'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
-                'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
-                'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
-                'fecha_firma_contrato', 'observaciones', 'notas'
-            ];
+            const COLS = SCHEMA_CONFIG.columnas;
 
             try {
                 const valores = COLS.map(c => data[c]);
@@ -1617,14 +1558,7 @@
         }
 
         function getEstatusClass(estatus) {
-            if(!estatus) return 'bg-yellow-500/20 text-yellow-400';
-            switch(estatus.toUpperCase()) {
-                case 'FIRMADO': return 'bg-emerald-500/20 text-emerald-400';
-                case 'PENDIENTE': return 'bg-yellow-500/20 text-yellow-400';
-                case 'DEVUELTO PARA CORRECCIÓN': return 'bg-orange-500/20 text-orange-400';
-                case 'DEVUELTO SIN FIRMA': return 'bg-red-500/20 text-red-400';
-                default: return 'bg-gray-500/20 text-gray-400';
-            }
+            return SCHEMA_CONFIG.estatusClass(estatus);
         }
 
         // ================================================================
@@ -1636,7 +1570,7 @@
             const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
                 e.emisor, e.receptor, e.documento, e.estatus_detalle,
                 e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
-                FROM vw_reporte_excel_contrataciones e
+                FROM ${SCHEMA_CONFIG.viewName} e
                 ORDER BY e.estatus_detalle, e.id_expediente DESC`);
             const data = dbToObjects(r);
             const cont = document.getElementById('ruta-contenido');
@@ -1686,7 +1620,7 @@
             const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
                 e.emisor, e.receptor, e.documento, e.estatus_detalle,
                 e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
-                FROM vw_reporte_excel_contrataciones e
+                FROM ${SCHEMA_CONFIG.viewName} e
                 WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
                 ORDER BY e.estatus_detalle, e.id_expediente DESC`);
             const data = dbToObjects(r);
@@ -1723,6 +1657,107 @@
     </script>
 </body>
 </html>
+
+=== schema-config.js ===
+// ================================================================
+// schema-config.js — Configuración específica del schema
+// ================================================================
+// Centraliza todo lo que depende del schema actual (Tablas8.sql):
+// catálogos, columnas, formato de observaciones, colores de estatus.
+// ================================================================
+
+const SCHEMA_CONFIG = {
+
+    // Vista principal usada como fuente de datos de la tabla
+    viewName: 'vw_reporte_excel_contrataciones',
+
+    // Columnas de la tabla expedientes (orden = orden en INSERT/UPDATE)
+    columnas: [
+        'solped', 'id_gerencia', 'id_superintendencia', 'id_emisor',
+        'id_documento', 'fecha_presupuesto_base', 'presupuesto_base_usd',
+        'tipo_cambio', 'presupuesto_base_bs', 'id_plan', 'descripcion_proceso',
+        'id_modalidad', 'id_art', 'id_tipo_contrato', 'nro_acta_apertura',
+        'cantidad_frentes', 'nro_resolucion_jd', 'id_estatus',
+        'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
+        'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
+        'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
+        'fecha_firma_contrato', 'observaciones', 'notas'
+    ],
+
+    // Campos que se editan con frecuencia (reciben indicador visual)
+    camposEdicionFrecuente: [
+        'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
+        'id_superintendencia', 'id_documento', 'id_estatus',
+        'fecha_recibido', 'fecha_devuelto', 'observaciones'
+    ],
+
+    // Mapeo de select → catálogo en BD
+    catalogoPorSelect: {
+        'f-id_gerencia':         { key: 'gerencia',           tabla: 'cat_gerencia',         cols: 'id, nombre' },
+        'f-id_superintendencia': { key: 'superintendencia',   tabla: 'cat_superintendencia', cols: 'id, nombre, id_gerencia', extra: { col: 'id_gerencia', label: 'ID Gerencia', selectId: 'f-id_gerencia' } },
+        'f-id_documento':        { key: 'documento',          tabla: 'cat_documento',        cols: 'id, nombre' },
+        'f-id_plan':             { key: 'plan_contratacion',  tabla: 'cat_plan_contratacion', cols: 'id, nombre' },
+        'f-id_modalidad':        { key: 'modalidad',          tabla: 'cat_modalidad',        cols: 'id, nombre' },
+        'f-id_art':              { key: 'art',                tabla: 'cat_art',              cols: 'id, nombre' },
+        'f-id_tipo_contrato':    { key: 'tipo_contrato',      tabla: 'cat_tipo_contrato',    cols: 'id, nombre' },
+        'f-id_estatus':          { key: 'estatus_detalle',    tabla: 'cat_estatus_detalle',  cols: 'id, nombre' },
+        'f-id_resultado':        { key: 'resultado_proceso',  tabla: 'cat_resultado_proceso', cols: 'id, nombre' },
+        'f-id_empresa':          { key: 'empresas',           tabla: 'cat_empresas',         cols: 'id, nombre' },
+        'f-id_emisor':           { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' },
+        'f-id_receptor':         { key: 'responsables',       tabla: 'cat_responsables',     cols: 'id, nombre' }
+    },
+
+    // Genera la línea de observación auto-generada (estatus - documento - fechas)
+    generarObservacion: function() {
+        const obtenerTexto = function(id) {
+            const el = document.getElementById(id);
+            if (!el || !el.options) return '';
+            return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+        };
+        const estatus = obtenerTexto('f-id_estatus') || 'PENDIENTE';
+        const doc = obtenerTexto('f-id_documento') || 'N/A';
+        const recibido = document.getElementById('f-fecha_recibido')?.value || '';
+        const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
+        const partes = [estatus, doc];
+        if (recibido) partes.push('*Fecha recibido* ' + recibido);
+        if (devuelto) partes.push('*Fecha devuelto* ' + devuelto);
+        return partes.join(' - ');
+    },
+
+    // Extrae texto libre del usuario restando las partes auto-generadas
+    extraerTextoLibre: function(currentValue, autoLine) {
+        if (!currentValue) return '';
+        let remaining = currentValue;
+        const autoParts = autoLine.split(' - ');
+        for (const part of autoParts) {
+            const idx = remaining.indexOf(part);
+            if (idx !== -1) {
+                remaining = remaining.slice(0, idx) + remaining.slice(idx + part.length);
+            }
+        }
+        remaining = remaining.replace(/\*Fecha (recibido|devuelto)\*(\s+\d{4}-\d{2}-\d{2})?/g, '');
+        remaining = remaining.replace(/ - /g, ' ').replace(/\s+/g, ' ').trim();
+        remaining = remaining.replace(/^-+/, '').replace(/-+$/, '').trim();
+        return remaining;
+    },
+
+    // Retorna clases Tailwind según el estatus del expediente
+    estatusClass: function(estatus) {
+        if (!estatus) return 'bg-yellow-500/20 text-yellow-400';
+        switch (estatus.toUpperCase()) {
+            case 'FIRMADO': return 'bg-emerald-500/20 text-emerald-400';
+            case 'PENDIENTE': return 'bg-yellow-500/20 text-yellow-400';
+            case 'DEVUELTO PARA CORRECCIÓN': return 'bg-orange-500/20 text-orange-400';
+            case 'DEVUELTO SIN FIRMA': return 'bg-red-500/20 text-red-400';
+            default: return 'bg-gray-500/20 text-gray-400';
+        }
+    },
+
+    // Determina si un estatus se considera "FIRMADO"
+    esEstatusFirmado: function(estatus) {
+        return estatus && estatus.toUpperCase() === 'FIRMADO';
+    }
+};
 
 === Tablas8.sql ===
 PRAGMA foreign_keys = ON;
@@ -2384,6 +2419,7 @@ Tailwind CSS (dark mode personalizado):
 ```
 baseaccess/
 ├── index.html           # App completa (HTML + CSS + JS)
+├── schema-config.js     # Configuración específica del schema (catálogos, columnas, formato observaciones, estatus)
 ├── main.js              # Electron main process (ventana 1400x900)
 ├── package.json         # Electron + electron-builder config
 ├── vendor/              # Dependencias locales (sin CDN)
@@ -2472,7 +2508,7 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + Tablas8.sql + main.js + package.json + doc.md → combined.txt
+make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + package.json + doc.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
@@ -2482,7 +2518,7 @@ make electron-build-win    # Build win-unpacked para Windows
 make electron-build-linux  # Build AppImage para Linux
 ```
 
-El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make combine` (por defecto usa `bdd/Tablas8.sql`).
+El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make combine` (por defecto usa `bdd/Tablas8.sql`). También concatena `schema-config.js`.
 
 ## Reglas del Proceso
 
@@ -2553,6 +2589,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 49 | `index.html` | `observaciones`: reemplazo de una sola línea (sin acumulación). Nueva `extractFreeText()` que resta partes auto-generadas del textarea para preservar solo el texto libre del usuario. `previewObservacion()` y `guardarExpediente()` ya no concatenan con `_obsPrevia`. | Evitar acumulación de líneas; texto libre se mantiene al regenerar la parte auto-generada |
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
 | 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
+| 52 | `schema-config.js`, `index.html` | Creado `schema-config.js` con toda la configuración específica del schema (catálogos, columnas, formato de observaciones, colores de estatus). `index.html` refactorizado para usar `SCHEMA_CONFIG` en lugar de constantes/funciones hardcodeadas. | DRY + modularización; eliminar hardcodeo del schema en index.html (pendiente #1) |
 
 ---
 
@@ -2562,7 +2599,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 |---|-----------|-------------|----------|--------|
 | — | 🟡 Media | ~~Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`)~~ Reemplazado por `schema-config.js` | `schema-config.js` | **reemplazado** |
 | — | 🟢 Baja | ~~Archivo de config específico para BDD (`bdd_config.json`)~~ Reemplazado por `schema-config.js` | — | **reemplazado** |
-| 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | pendiente |
+| 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | **completado** |
 | 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
 | 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
 | 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
