@@ -6,5 +6,7 @@ bdd/*.sqlite
 src-tauri/target/
 src-tauri/
 bdd/datos_excel.sql
+__pycache__/
+*.pyc
 *.xlsx
 *.xls
