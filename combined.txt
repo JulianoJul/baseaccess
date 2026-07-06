@@ -2742,7 +2742,39 @@ Los valores literales sin nombre (hardcodeados) se llaman "mágicos" porque su s
 | `if (edad > 18)` | `if (edad > EDAD_MINIMA_VOTAR)` |
 | `toast("Guardado exitoso")` | `toast(MSG_GUARDADO_EXITOSO)` |
 
-**Regla:** En el proyecto, cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe estar definido como constante en un objeto `CONFIG` o al inicio del script. --
+**Regla:** En el proyecto, cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe estar definido como constante en un objeto `CONFIG` o al inicio del script.
+
+### 8. YAGNI — You Aren't Gonna Need It
+
+No programar funcionalidades hasta que sean estrictamente necesarias. Las IA tienden a agregar "por si acaso" (filtros avanzados, exportaciones múltiples, ordenamientos extra). Eso es código que se puede romper sin valor agregado.
+
+**Ejemplo:** Si se pide un botón "Abrir BD", no programar también sistema de recientes, drag & drop con validación y selector de último archivo. Eso se agrega cuando se pide explícitamente.
+
+**Regla:** Resolver única y exclusivamente lo solicitado en el prompt actual. No asumir necesidades futuras.
+
+### 9. SoC — Separation of Concerns
+
+Separar estrictamente la lógica de acceso a datos (SQL/SQLite) de la lógica de renderizado (DOM/HTML). Ninguna función de UI debe construir queries SQL directamente.
+
+**Ejemplo en el proyecto:**
+- `dbToObjects()` aísla la ejecución SQL → datos planos.
+- `renderizarTabla()` solo recibe datos y pinta filas.
+- Las funciones que construyen INSERT/UPDATE están separadas de las que manipulan el DOM del modal.
+
+**Regla:** Una función que maneja eventos del DOM no debe tener strings SQL en su cuerpo.
+
+### 10. Principio de Menor Sorpresa (Least Astonishment)
+
+Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre. `obtenerExpediente()` solo obtiene y devuelve; no debe limpiar formularios ni modificar variables globales.
+
+**Regla:** Cohesión alta: el nombre de la función debe describir exactamente lo que hace, sin efectos secundarios ocultos.
+
+### 11. Cohesión Alta, Acoplamiento Bajo (High Cohesion, Low Coupling)
+
+- **Alta cohesión:** Lo que está dentro de una función coopera para el mismo fin.
+- **Bajo acoplamiento:** Si cambia la BD, el módulo que dibuja tablas no debe romperse.
+
+**Regla:** La interfaz gráfica no debe importar ni conocer la estructura interna de las tablas SQL (eso está en `schema-config.js`).
 
 ---
 
@@ -2809,6 +2841,7 @@ Los valores literales sin nombre (hardcodeados) se llaman "mágicos" porque su s
 | 53 | `index.html`, `schema-config.js` | Sidebar de documentos frecuentes colapsable + búsqueda sticky (#9). Toggle de orden de campos en edición (secciones / orden Excel) (#2) con `ordenExcel` en `schema-config.js`. | Pendientes #2 y #9 |
 | 54 | `decisiones.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `decisiones.md` con 14 ADR entries. `prompt` actualizado con ADR y normas de código limpio. `doc.md` referencias a `decisiones.md`. `Makefile` combine incluye `decisiones.md`. | Bitácora de decisiones técnicas para trazabilidad de arquitectura |
 | 55 | `doc.md`, `prompt` | Agregados principios SPOT, KISS y anti-magic-numbers en `doc.md` (sección Normas de Desarrollo) y `prompt` (NORMAS DE CÓDIGO LIMPIO) | Formalizar principios de diseño que aplican al proyecto offline-first |
+| 56 | `doc.md`, `prompt` | Agregados principios YAGNI, SoC, Least Astonishment, High Cohesion/Low Coupling en `doc.md` y `prompt` | Completar catálogo de principios de ingeniería de software para guiar a las IA |
 
 ---
 

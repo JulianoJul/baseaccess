@@ -90,7 +90,19 @@ Para decisiones ya registradas, solo añadir nuevas entradas al final. No modifi
 ### E. Sin Números/Textos Mágicos
 > Cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe ser una constante con nombre (`CONFIG.MAX_FILE_SIZE_BYTES`, `MSG_ERROR_GUARDADO`, etc.).
 
-### F. Makefile Único
+### F. YAGNI — You Aren't Gonna Need It
+> Resolver única y exclusivamente lo solicitado en el prompt actual. No agregar funcionalidades "por si acaso" (filtros avanzados, exportaciones múltiples, ordenamientos extra que no se pidieron).
+
+### G. SoC — Separation of Concerns
+> Separar estrictamente la lógica de acceso a datos (SQL/SQLite) de la lógica de renderizado (DOM/HTML). Ninguna función de UI debe contener strings SQL. `dbToObjects()` aísla la ejecución SQL; `renderizarTabla()` solo recibe datos y pinta filas.
+
+### H. Principio de Menor Sorpresa (Least Astonishment)
+> Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre. `obtenerExpediente()` solo obtiene y devuelve; no debe limpiar formularios ni modificar variables globales. Sin efectos secundarios ocultos.
+
+### I. Cohesión Alta, Acoplamiento Bajo (High Cohesion, Low Coupling)
+> Lo que está dentro de una función coopera para el mismo fin (cohesión alta). Si cambia la BD, el módulo que dibuja tablas no debe romperse (bajo acoplamiento). La UI no conoce la estructura interna de las tablas; eso está en `schema-config.js`.
+
+### J. Makefile Único
 > El Makefile es la única fuente de verdad para automatización local. Cualquier comando nuevo de build/preprocesado/limpieza debe registrarse como target en el Makefile, no darse como comando suelto.
 
 ---
