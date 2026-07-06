@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
+  setBackupCopies: (n) => ipcRenderer.invoke('set-backup-copies', n),
+  getBackupCopies: () => ipcRenderer.invoke('get-backup-copies'),
 });
 
 DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctamente');

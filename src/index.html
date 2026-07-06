@@ -452,6 +452,16 @@
             $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
         };
 
+        // Smoke test: verificar que todos los SELECTORS existen en el DOM
+        (function testSelectors() {
+            const missing = Object.entries(SELECTORS)
+                .filter(([, id]) => id && !$(id))
+                .map(([key, id]) => `${key} ('${id}')`);
+            if (missing.length) {
+                console.error('[SMOKE] SELECTORS faltantes:', missing.join(', '));
+            }
+        })();
+
         function marcarCamposEdicionFrecuente() {
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
                 const el = $(`f-${campo}`);
@@ -704,10 +714,16 @@
                 return false;
             }
             if (file.size > CONFIG.MAX_FILE_SIZE_BYTES) {
-                alert(MSG.ERROR_TAMANO(file.size / 1024 / 1024));
+                alert(MSG.ERROR_TAMANO(file.size / CONFIG.BYTES_PER_MB));
                 return false;
             }
             return true;
+        }
+
+        function obtenerMaxBackups() {
+            const val = localStorage.getItem(STORAGE_KEYS.BACKUP_MAX_COPIES);
+            const n = parseInt(val, 10);
+            return (n > 0 && n <= 20) ? n : BACKUP.MAX_COPIES;
         }
 
         function _cargarBaseDatosComun(bytes, fileName, filePath) {
@@ -718,6 +734,11 @@
             }
             db = new SQL.Database(bytes);
             // Validar versión del schema via PRAGMA user_version
+            if (typeof SCHEMA_CONFIG.VERSION !== 'number') {
+                alert('Error interno: SCHEMA_CONFIG.VERSION debe ser un número');
+                db = null;
+                return false;
+            }
             const versionRes = db.exec("PRAGMA user_version");
             const version = versionRes[0]?.values[0]?.[0] || 0;
             if (version !== SCHEMA_CONFIG.VERSION) {
@@ -736,6 +757,10 @@
             $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
+            // Sincronizar configuración de backups con Electron
+            if (electronAPI && electronAPI.setBackupCopies) {
+                electronAPI.setBackupCopies(obtenerMaxBackups());
+            }
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             // Contraer botón "Abrir BD" a solo ícono
             const btnAbrir = $('btn-abrir');
@@ -904,9 +929,10 @@
 
         function iniciarAutoguardado() {
             if (autosaveTimer) clearInterval(autosaveTimer);
+            if (!CONFIG.AUTOSAVE_ENABLED) return;
             autosaveTimer = setInterval(() => {
                 if (dbModificado) guardarBD();
-            }, 30000);
+            }, CONFIG.AUTOSAVE_INTERVAL_MS);
         }
 
         function actualizarEstadoBD(msg) {
@@ -950,22 +976,34 @@
             a.click();
             URL.revokeObjectURL(url);
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+            alert(MSG_EXTRA.BD_DESCARGADA);
         }
 
         async function optimizarBD() {
             if (!db) return;
-            const antes = (db.export().length / (1024 * 1024)).toFixed(2);
-            DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
-            db.run('VACUUM;');
-            const despues = (db.export().length / (1024 * 1024)).toFixed(2);
-            DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+            try {
+                const antes = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
+                DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
+                db.run('VACUUM;');
+                const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
+                DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+            } catch (err) {
+                DEBUG.error('Error en VACUUM:', err);
+                alert(MSG_EXTRA.VACUUM_ERROR(err));
+            }
         }
 
         function updateUIOnError() {
-            // Deshabilitar botones de modificación en estado de error
             ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
+            const estado = $(SELECTORS.ESTADO_BD);
+            if (estado && !estado.querySelector('.error-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'error-badge ml-2 text-red-400 font-semibold text-xs';
+                badge.textContent = '⛔ Modo solo-lectura (error crítico)';
+                estado.appendChild(badge);
+            }
         }
 
         // Drag & Drop con feedback visual y validaciones
@@ -1021,6 +1059,10 @@
                 return db.exec(sql);
             } catch (err) {
                 alert(MSG.ERROR_CONSULTA(err));
+                if (DEBUG.isEnabled) {
+                    window.__sqlErrors = window.__sqlErrors || [];
+                    window.__sqlErrors.push({ sql, params: arguments[1], err: err.message, ts: Date.now() });
+                }
                 return null;
             }
         }
@@ -1106,7 +1148,7 @@
         function cargarDatos() {
             if (!db) return;
             const orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
-            const res = db.exec(`SELECT * FROM ${SCHEMA_CONFIG.viewName} ORDER BY ${orden}`);
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientesSelect + ` ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
         }
@@ -1143,9 +1185,7 @@
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
                     <td class="p-3">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SCHEMA_CONFIG.estatusClass(exp.estatus_detalle)}">
-                            ${exp.estatus_detalle || 'PENDIENTE'}
-                        </span>
+                        ${renderBadgeEstatus(exp.estatus_detalle)}
                     </td>
                     <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
                 `;
@@ -1696,6 +1736,11 @@
             return `<div><span class="text-gray-500 block text-xs">${label}</span><span class="${color}">${valor}</span></div>`;
         }
 
+        function renderBadgeEstatus(estatus) {
+            const cls = SCHEMA_CONFIG.estatusClass(estatus);
+            return `<span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${estatus || 'PENDIENTE'}</span>`;
+        }
+
         function getEstatusClass(estatus) {
             return SCHEMA_CONFIG.estatusClass(estatus);
         }
@@ -1825,13 +1870,12 @@
                     <th class="p-2">Nro Proceso</th>
                 </tr></thead><tbody>`;
             data.forEach(p => {
-                const cls = getEstatusClass(p.estatus_detalle);
                 html += `<tr class="border-b border-gray-700/40 hover:bg-gray-700/20">
                     <td class="p-2 font-semibold text-gray-200">${p.solped || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.documento || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.emisor || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.receptor || 'N/A'}</td>
-                    <td class="p-2"><span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${p.estatus_detalle || 'N/A'}</span></td>
+                    <td class="p-2">${renderBadgeEstatus(p.estatus_detalle)}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_recibido || 'N/A'}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_devuelto || 'N/A'}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.nro_proceso || 'N/A'}</td>

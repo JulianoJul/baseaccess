@@ -453,6 +453,16 @@
             $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
         };
 
+        // Smoke test: verificar que todos los SELECTORS existen en el DOM
+        (function testSelectors() {
+            const missing = Object.entries(SELECTORS)
+                .filter(([, id]) => id && !$(id))
+                .map(([key, id]) => `${key} ('${id}')`);
+            if (missing.length) {
+                console.error('[SMOKE] SELECTORS faltantes:', missing.join(', '));
+            }
+        })();
+
         function marcarCamposEdicionFrecuente() {
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
                 const el = $(`f-${campo}`);
@@ -705,10 +715,16 @@
                 return false;
             }
             if (file.size > CONFIG.MAX_FILE_SIZE_BYTES) {
-                alert(MSG.ERROR_TAMANO(file.size / 1024 / 1024));
+                alert(MSG.ERROR_TAMANO(file.size / CONFIG.BYTES_PER_MB));
                 return false;
             }
             return true;
+        }
+
+        function obtenerMaxBackups() {
+            const val = localStorage.getItem(STORAGE_KEYS.BACKUP_MAX_COPIES);
+            const n = parseInt(val, 10);
+            return (n > 0 && n <= 20) ? n : BACKUP.MAX_COPIES;
         }
 
         function _cargarBaseDatosComun(bytes, fileName, filePath) {
@@ -719,6 +735,11 @@
             }
             db = new SQL.Database(bytes);
             // Validar versión del schema via PRAGMA user_version
+            if (typeof SCHEMA_CONFIG.VERSION !== 'number') {
+                alert('Error interno: SCHEMA_CONFIG.VERSION debe ser un número');
+                db = null;
+                return false;
+            }
             const versionRes = db.exec("PRAGMA user_version");
             const version = versionRes[0]?.values[0]?.[0] || 0;
             if (version !== SCHEMA_CONFIG.VERSION) {
@@ -737,6 +758,10 @@
             $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
+            // Sincronizar configuración de backups con Electron
+            if (electronAPI && electronAPI.setBackupCopies) {
+                electronAPI.setBackupCopies(obtenerMaxBackups());
+            }
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             // Contraer botón "Abrir BD" a solo ícono
             const btnAbrir = $('btn-abrir');
@@ -905,9 +930,10 @@
 
         function iniciarAutoguardado() {
             if (autosaveTimer) clearInterval(autosaveTimer);
+            if (!CONFIG.AUTOSAVE_ENABLED) return;
             autosaveTimer = setInterval(() => {
                 if (dbModificado) guardarBD();
-            }, 30000);
+            }, CONFIG.AUTOSAVE_INTERVAL_MS);
         }
 
         function actualizarEstadoBD(msg) {
@@ -951,22 +977,34 @@
             a.click();
             URL.revokeObjectURL(url);
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+            alert(MSG_EXTRA.BD_DESCARGADA);
         }
 
         async function optimizarBD() {
             if (!db) return;
-            const antes = (db.export().length / (1024 * 1024)).toFixed(2);
-            DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
-            db.run('VACUUM;');
-            const despues = (db.export().length / (1024 * 1024)).toFixed(2);
-            DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+            try {
+                const antes = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
+                DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
+                db.run('VACUUM;');
+                const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
+                DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+            } catch (err) {
+                DEBUG.error('Error en VACUUM:', err);
+                alert(MSG_EXTRA.VACUUM_ERROR(err));
+            }
         }
 
         function updateUIOnError() {
-            // Deshabilitar botones de modificación en estado de error
             ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
+            const estado = $(SELECTORS.ESTADO_BD);
+            if (estado && !estado.querySelector('.error-badge')) {
+                const badge = document.createElement('span');
+                badge.className = 'error-badge ml-2 text-red-400 font-semibold text-xs';
+                badge.textContent = '⛔ Modo solo-lectura (error crítico)';
+                estado.appendChild(badge);
+            }
         }
 
         // Drag & Drop con feedback visual y validaciones
@@ -1022,6 +1060,10 @@
                 return db.exec(sql);
             } catch (err) {
                 alert(MSG.ERROR_CONSULTA(err));
+                if (DEBUG.isEnabled) {
+                    window.__sqlErrors = window.__sqlErrors || [];
+                    window.__sqlErrors.push({ sql, params: arguments[1], err: err.message, ts: Date.now() });
+                }
                 return null;
             }
         }
@@ -1107,7 +1149,7 @@
         function cargarDatos() {
             if (!db) return;
             const orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
-            const res = db.exec(`SELECT * FROM ${SCHEMA_CONFIG.viewName} ORDER BY ${orden}`);
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientesSelect + ` ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
         }
@@ -1144,9 +1186,7 @@
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
                     <td class="p-3">
-                        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${SCHEMA_CONFIG.estatusClass(exp.estatus_detalle)}">
-                            ${exp.estatus_detalle || 'PENDIENTE'}
-                        </span>
+                        ${renderBadgeEstatus(exp.estatus_detalle)}
                     </td>
                     <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
                 `;
@@ -1697,6 +1737,11 @@
             return `<div><span class="text-gray-500 block text-xs">${label}</span><span class="${color}">${valor}</span></div>`;
         }
 
+        function renderBadgeEstatus(estatus) {
+            const cls = SCHEMA_CONFIG.estatusClass(estatus);
+            return `<span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${estatus || 'PENDIENTE'}</span>`;
+        }
+
         function getEstatusClass(estatus) {
             return SCHEMA_CONFIG.estatusClass(estatus);
         }
@@ -1826,13 +1871,12 @@
                     <th class="p-2">Nro Proceso</th>
                 </tr></thead><tbody>`;
             data.forEach(p => {
-                const cls = getEstatusClass(p.estatus_detalle);
                 html += `<tr class="border-b border-gray-700/40 hover:bg-gray-700/20">
                     <td class="p-2 font-semibold text-gray-200">${p.solped || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.documento || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.emisor || 'N/A'}</td>
                     <td class="p-2 text-gray-300">${p.receptor || 'N/A'}</td>
-                    <td class="p-2"><span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${p.estatus_detalle || 'N/A'}</span></td>
+                    <td class="p-2">${renderBadgeEstatus(p.estatus_detalle)}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_recibido || 'N/A'}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_devuelto || 'N/A'}</td>
                     <td class="p-2 text-gray-400 font-mono text-xs">${p.nro_proceso || 'N/A'}</td>
@@ -1900,7 +1944,9 @@
 const CONFIG = {
     MAX_FILE_SIZE_BYTES: 100 * 1024 * 1024,
     MAX_FILE_SIZE_MB: 100,
+    BYTES_PER_MB: 1048576,
     AUTOSAVE_INTERVAL_MS: 30000,
+    AUTOSAVE_ENABLED: true,
 };
 
 const DEBUG = {
@@ -1936,6 +1982,7 @@ const STORAGE_KEYS = {
     FRECUENTES: 'sidebarFrecuentes',
     RECIENTES: 'recientes',
     SIDEBAR_VISIBLE: 'sidebarVisible',
+    BACKUP_MAX_COPIES: 'BACKUP_MAX_COPIES',
 };
 
 const SELECTORS = {
@@ -1969,6 +2016,7 @@ const SELECTORS = {
     MODAL_ERROR: 'modal-error-critico',
     ERROR_CONTENIDO: 'error-critico-contenido',
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
+    ESTADO_BD: 'estado-bd',
 };
 
 const MSG_EXTRA = {
@@ -2102,6 +2150,8 @@ const SCHEMA_CONFIG = {
             FROM vw_reporte_excel_contrataciones e
             WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
             ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+        expedientesSelect: `SELECT * FROM vw_reporte_excel_contrataciones`,
+        expedientePorId: `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`,
     }
 };
 
@@ -2513,17 +2563,19 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
-const MAX_BACKUPS = 5
+let backupMaxCopies = 5
+
+function setBackupMaxCopies(n) {
+  if (n > 0 && n <= 20) backupMaxCopies = n
+}
 
 function crearBackupRotativo(filePath) {
   try {
     const dir = path.dirname(filePath)
     const base = path.basename(filePath)
-    // Eliminar el backup más antiguo si existe
-    const oldest = path.join(dir, base + '.bak.' + MAX_BACKUPS)
+    const oldest = path.join(dir, base + '.bak.' + backupMaxCopies)
     if (fs.existsSync(oldest)) fs.unlinkSync(oldest)
-    // Rotar: .bak.4 → .bak.5, .bak.3 → .bak.4, etc.
-    for (let i = MAX_BACKUPS - 1; i >= 1; i--) {
+    for (let i = backupMaxCopies - 1; i >= 1; i--) {
       const src = path.join(dir, base + '.bak.' + i)
       if (fs.existsSync(src)) {
         fs.renameSync(src, path.join(dir, base + '.bak.' + (i + 1)))
@@ -2591,6 +2643,15 @@ ipcMain.handle('get-db-path', async () => {
   return currentDbPath
 })
 
+ipcMain.handle('set-backup-copies', async (_event, n) => {
+  setBackupMaxCopies(n)
+  return true
+})
+
+ipcMain.handle('get-backup-copies', async () => {
+  return backupMaxCopies
+})
+
 ipcMain.handle('open-db-file', async (_event, filePath) => {
   currentDbPath = filePath
   const data = fs.readFileSync(filePath)
@@ -2645,6 +2706,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     }
   },
   openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
+  setBackupCopies: (n) => ipcRenderer.invoke('set-backup-copies', n),
+  getBackupCopies: () => ipcRenderer.invoke('get-backup-copies'),
 });
 
 DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctamente');
@@ -3369,6 +3432,20 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - Sin control — riesgo alto de errores silenciosos.
 - **Impacto:** `Tablas8.sql`: `PRAGMA user_version = 8` al final. `schema-config.js`: `VERSION: 8` en `SCHEMA_CONFIG`. `_cargarBaseDatosComun()` valida al cargar y muestra alerta si no coincide.
 
+---
+
+## DEC-019: Auditoría de Código Julio 2026 — Plan de Modificaciones Actualizado
+
+- **Origen:** `[Iniciativa de la IA]`
+- **Contexto y Causa:** Se realizó una auditoría completa del código consolidado en `combined.txt` (3640 líneas) para verificar el cumplimiento de las normas de código limpio y el estado de los pendientes documentados en `doc.md`. La auditoría confirmó que todos los pendientes históricos están completados y las violaciones críticas fueron resueltas en la iteración anterior (#59).
+- **Alternativas evaluadas:**
+  - No realizar auditoría — descartado: sin revisión periódica, el código tiende a degradarse con nuevas features.
+  - Auditoría automatizada con linter — descartado: el proyecto es 100% cliente-side sin build step, las reglas son específicas del proyecto (SPOT, SoC, anti-hardcodeo) que un linter genérico no detecta.
+- **Impacto:**
+  - `plan_modificaciones.md`: creado con 3 hallazgos de Media Prioridad, 4 de Baja Prioridad, y 5 propuestas de mejora.
+  - `decisiones.md`: este registro ADR para trazabilidad.
+  - Ningún cambio en código fuente (solo documentación).
+
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
@@ -3566,9 +3643,24 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `VERSION` | number | `8` — version del schema SQLite, validado contra `PRAGMA user_version` al cargar BD |
-| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel` |
+| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel`, `expedientesSelect`, `expedientePorId` |
 
 ---
+
+## UI Layer — Nuevas funciones
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `renderBadgeEstatus(estatus)` | `estatus`: string | Retorna HTML string de badge `<span>` con clase de color según estatus. SPOT único para badges |
+| `obtenerMaxBackups()` | — | Lee `localStorage[STORAGE_KEYS.BACKUP_MAX_COPIES]` con fallback a `BACKUP.MAX_COPIES`. Retorna número entre 1-20 |
+
+## Constantes Globales (schema-config.js) — Actualizado
+
+| Constante | Descripción |
+|-----------|-------------|
+| `CONFIG` | `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `BYTES_PER_MB`, `AUTOSAVE_INTERVAL_MS`, `AUTOSAVE_ENABLED` |
+| `STORAGE_KEYS` | `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES` |
+| `SELECTORS` | `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD` |
 
 ## Electron IPC (main.js)
 
@@ -3580,12 +3672,15 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `get-db-path` | — | Retorna la ruta actual de BD |
 | `open-db-file` | `filePath`: string | Lee archivo y retorna buffer como base64 |
 | `open-db-dialog` | — | Abre diálogo nativo para seleccionar archivo .db |
+| `set-backup-copies` | `n`: número | Configura cantidad de backups rotativos (1-20) |
+| `get-backup-copies` | — | Retorna la cantidad actual de backups configurada |
 
 ## Electron Interna (main.js)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta BACKUP.MAX_COPIES backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
+| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta `backupMaxCopies` backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
+| `setBackupMaxCopies(n)` | `n`: número | Actualiza el límite de backups (1-20), llamado vía IPC `set-backup-copies` |
 
 ## Electron Preload (preload.js)
 
@@ -3597,6 +3692,8 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `getDbPath` | `()` → `ipcRenderer.invoke('get-db-path')` | Obtiene ruta actual |
 | `openDbDialog` | `()` → `ipcRenderer.invoke('open-db-dialog')` | Abre selector de archivo nativo |
 | `openDbFilePath` | `(filePath)` → `ipcRenderer.invoke('open-db-file', ...)` | Lee archivo por ruta |
+| `setBackupCopies` | `(n)` → `ipcRenderer.invoke('set-backup-copies', n)` | Configura cantidad de backups |
+| `getBackupCopies` | `()` → `ipcRenderer.invoke('get-backup-copies')` | Obtiene cantidad de backups |
 
 === .clinerules ===
 # Opencode Skill: Arquitecto de Software Senior Offline-First

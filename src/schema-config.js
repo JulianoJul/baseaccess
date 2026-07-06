@@ -11,7 +11,9 @@
 const CONFIG = {
     MAX_FILE_SIZE_BYTES: 100 * 1024 * 1024,
     MAX_FILE_SIZE_MB: 100,
+    BYTES_PER_MB: 1048576,
     AUTOSAVE_INTERVAL_MS: 30000,
+    AUTOSAVE_ENABLED: true,
 };
 
 const DEBUG = {
@@ -47,6 +49,7 @@ const STORAGE_KEYS = {
     FRECUENTES: 'sidebarFrecuentes',
     RECIENTES: 'recientes',
     SIDEBAR_VISIBLE: 'sidebarVisible',
+    BACKUP_MAX_COPIES: 'BACKUP_MAX_COPIES',
 };
 
 const SELECTORS = {
@@ -80,6 +83,7 @@ const SELECTORS = {
     MODAL_ERROR: 'modal-error-critico',
     ERROR_CONTENIDO: 'error-critico-contenido',
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
+    ESTADO_BD: 'estado-bd',
 };
 
 const MSG_EXTRA = {
@@ -213,5 +217,7 @@ const SCHEMA_CONFIG = {
             FROM vw_reporte_excel_contrataciones e
             WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
             ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+        expedientesSelect: `SELECT * FROM vw_reporte_excel_contrataciones`,
+        expedientePorId: `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`,
     }
 };

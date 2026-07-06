@@ -157,9 +157,24 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | Campo | Tipo | Descripción |
 |-------|------|-------------|
 | `VERSION` | number | `8` — version del schema SQLite, validado contra `PRAGMA user_version` al cargar BD |
-| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel` |
+| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel`, `expedientesSelect`, `expedientePorId` |
 
 ---
+
+## UI Layer — Nuevas funciones
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `renderBadgeEstatus(estatus)` | `estatus`: string | Retorna HTML string de badge `<span>` con clase de color según estatus. SPOT único para badges |
+| `obtenerMaxBackups()` | — | Lee `localStorage[STORAGE_KEYS.BACKUP_MAX_COPIES]` con fallback a `BACKUP.MAX_COPIES`. Retorna número entre 1-20 |
+
+## Constantes Globales (schema-config.js) — Actualizado
+
+| Constante | Descripción |
+|-----------|-------------|
+| `CONFIG` | `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `BYTES_PER_MB`, `AUTOSAVE_INTERVAL_MS`, `AUTOSAVE_ENABLED` |
+| `STORAGE_KEYS` | `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES` |
+| `SELECTORS` | `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD` |
 
 ## Electron IPC (main.js)
 
@@ -171,12 +186,15 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `get-db-path` | — | Retorna la ruta actual de BD |
 | `open-db-file` | `filePath`: string | Lee archivo y retorna buffer como base64 |
 | `open-db-dialog` | — | Abre diálogo nativo para seleccionar archivo .db |
+| `set-backup-copies` | `n`: número | Configura cantidad de backups rotativos (1-20) |
+| `get-backup-copies` | — | Retorna la cantidad actual de backups configurada |
 
 ## Electron Interna (main.js)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta BACKUP.MAX_COPIES backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
+| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta `backupMaxCopies` backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
+| `setBackupMaxCopies(n)` | `n`: número | Actualiza el límite de backups (1-20), llamado vía IPC `set-backup-copies` |
 
 ## Electron Preload (preload.js)
 
@@ -188,3 +206,5 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `getDbPath` | `()` → `ipcRenderer.invoke('get-db-path')` | Obtiene ruta actual |
 | `openDbDialog` | `()` → `ipcRenderer.invoke('open-db-dialog')` | Abre selector de archivo nativo |
 | `openDbFilePath` | `(filePath)` → `ipcRenderer.invoke('open-db-file', ...)` | Lee archivo por ruta |
+| `setBackupCopies` | `(n)` → `ipcRenderer.invoke('set-backup-copies', n)` | Configura cantidad de backups |
+| `getBackupCopies` | `()` → `ipcRenderer.invoke('get-backup-copies')` | Obtiene cantidad de backups |

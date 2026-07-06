@@ -7,17 +7,19 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
-const MAX_BACKUPS = 5
+let backupMaxCopies = 5
+
+function setBackupMaxCopies(n) {
+  if (n > 0 && n <= 20) backupMaxCopies = n
+}
 
 function crearBackupRotativo(filePath) {
   try {
     const dir = path.dirname(filePath)
     const base = path.basename(filePath)
-    // Eliminar el backup más antiguo si existe
-    const oldest = path.join(dir, base + '.bak.' + MAX_BACKUPS)
+    const oldest = path.join(dir, base + '.bak.' + backupMaxCopies)
     if (fs.existsSync(oldest)) fs.unlinkSync(oldest)
-    // Rotar: .bak.4 → .bak.5, .bak.3 → .bak.4, etc.
-    for (let i = MAX_BACKUPS - 1; i >= 1; i--) {
+    for (let i = backupMaxCopies - 1; i >= 1; i--) {
       const src = path.join(dir, base + '.bak.' + i)
       if (fs.existsSync(src)) {
         fs.renameSync(src, path.join(dir, base + '.bak.' + (i + 1)))
@@ -83,6 +85,15 @@ ipcMain.handle('set-db-path', async (_event, filePath) => {
 
 ipcMain.handle('get-db-path', async () => {
   return currentDbPath
+})
+
+ipcMain.handle('set-backup-copies', async (_event, n) => {
+  setBackupMaxCopies(n)
+  return true
+})
+
+ipcMain.handle('get-backup-copies', async () => {
+  return backupMaxCopies
 })
 
 ipcMain.handle('open-db-file', async (_event, filePath) => {
