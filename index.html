@@ -123,7 +123,7 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input" onchange="actualizarObservacion()"></select>
+                            <select id="f-id_documento" class="input" onchange="previewObservacion()"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -193,15 +193,15 @@
                         </div>
                         <div>
                             <label class="label">Estatus Detalle</label>
-                            <select id="f-id_estatus" class="input" onchange="actualizarObservacion()"></select>
+                            <select id="f-id_estatus" class="input" onchange="previewObservacion()"></select>
                         </div>
                         <div>
                             <label class="label">Fecha Recibido</label>
-                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas();previewObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Fecha Devuelto</label>
-                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas();previewObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Nro. Acta Apertura</label>
@@ -350,7 +350,7 @@
             'fecha_recibido', 'fecha_devuelto', 'observaciones_generales'
         ];
         let snapshotEdicion = null;
-        let observacionesPreviasCache = '';
+
 
         function marcarCamposEdicionFrecuente() {
             CAMPOS_EDICION_FRECUENTE.forEach(campo => {
@@ -373,6 +373,7 @@
             return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
         }
 
+        let _obsPrevia = '';
         function generarObservacionAutomatica() {
             const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
             const doc = obtenerTextoSelect('f-id_documento') || 'N/A';
@@ -383,21 +384,11 @@
             if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
             return partes.join(' - ');
         }
-
-        function actualizarObservacion() {
-            if (!editandoId) return;
-            const textarea = document.getElementById('f-observaciones_generales');
+        function previewObservacion() {
+            const ta = document.getElementById('f-observaciones_generales');
+            if (!ta || !editandoId) return;
             const linea = generarObservacionAutomatica();
-            if (!linea) return;
-            const actual = textarea.value;
-            if (!actual || actual.trim() === linea || actual.trim() === _ultimaLineaAuto) {
-                textarea.value = linea;
-            } else if (_ultimaLineaAuto && actual.startsWith(_ultimaLineaAuto)) {
-                textarea.value = linea + actual.slice(_ultimaLineaAuto.length);
-            } else {
-                textarea.value = actual + '\n' + linea;
-            }
-            _ultimaLineaAuto = linea;
+            if (linea) ta.value = (_obsPrevia ? _obsPrevia + '\n' : '') + linea;
         }
 
         function aplicarTriggerFirma() {
@@ -413,7 +404,6 @@
                     if (opt.text.toUpperCase() === 'PENDIENTE') sel.value = opt.value;
                 });
             }
-            actualizarObservacion();
         }
 
         const CATALOGO_POR_SELECT = {
@@ -572,7 +562,7 @@
                 const selector = document.getElementById(selectId);
                 if (selector) {
                     const valorAnterior = selector.value;
-                    selector.innerHTML = '<option value="">-- Seleccione --</option>';
+                    selector.innerHTML = '<option value=""></option>';
                     (catalogosCache[catKey] || []).forEach(item => {
                         const opt = document.createElement('option');
                         opt.value = item.id;
@@ -927,7 +917,7 @@
             Object.entries(CATALOGO_POR_SELECT).forEach(([selectId, info]) => {
                 const sel = document.getElementById(selectId);
                 if (!sel) return;
-                sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+                sel.innerHTML = '<option value=""></option>';
                 (catalogosCache[info.key] || []).forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.id;
@@ -941,7 +931,7 @@
         function cargarSuperintendencias() {
             const gerenciaId = document.getElementById('f-id_gerencia').value;
             const sel = document.getElementById('f-id_superintendencia');
-            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            sel.innerHTML = '<option value=""></option>';
             catalogosCache['superintendencia']
                 .filter(item => !gerenciaId || item.id_gerencia === parseInt(gerenciaId))
                 .forEach(item => {
@@ -1176,14 +1166,12 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
-            _ultimaLineaAuto = '';
 
             if (id) {
                 // MODO EDICIÓN
                 titulo.textContent = `Editar Expediente #${id}`;
                 btnEliminar.classList.remove('hidden');
                 snapshotEdicion = null;
-                observacionesPreviasCache = '';
                 cargarExpediente(id);
             } else {
                 // MODO NUEVO
@@ -1191,7 +1179,6 @@
                 btnEliminar.classList.add('hidden');
                 document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
                 snapshotEdicion = null;
-                observacionesPreviasCache = '';
             }
 
             modal.classList.remove('hidden');
@@ -1204,6 +1191,7 @@
             document.getElementById('form-modal').classList.add('hidden');
             document.body.style.overflow = '';
             editandoId = null;
+            _obsPrevia = '';
         }
 
         function cargarExpediente(id) {
@@ -1255,7 +1243,6 @@
             document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
 
             // Guardar snapshot de campos de edición frecuente para detectar cambios al guardar
-            observacionesPreviasCache = data.observaciones_generales || '';
             snapshotEdicion = {};
             CAMPOS_EDICION_FRECUENTE.forEach(campo => {
                 const el = document.getElementById(`f-${campo}`);
@@ -1266,13 +1253,13 @@
                     }
                 }
             });
-            // No precargar el textarea para evitar editar el historial acumulado por error
+            // Cargar observación previa y mostrar preview
+            _obsPrevia = data.observaciones_generales || '';
             document.getElementById('f-observaciones_generales').value = '';
-            actualizarObservacion();
+            previewObservacion();
         }
 
         let _calculando = false;
-        let _ultimaLineaAuto = '';
         function calcularBs(origen) {
             if (_calculando) return;
             _calculando = true;
@@ -1345,10 +1332,8 @@
                 observaciones_generales: (() => {
                     const textoActual = document.getElementById('f-observaciones_generales').value.trim();
                     const linea = textoActual || generarObservacionAutomatica();
-                    if (!editandoId) {
-                        return sanitizeNull(linea || null);
-                    }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
+                    if (!editandoId) return sanitizeNull(linea || null);
+                    return sanitizeNull((_obsPrevia || '') + (_obsPrevia ? '\n' : '') + linea);
                 })()
             };
 

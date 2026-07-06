@@ -1,9 +1,10 @@
 node_modules/
 dist/
 *.tgz
-bdd/si.db
 bdd/*.db
 bdd/*.sqlite
 src-tauri/target/
 src-tauri/
 bdd/datos_excel.sql
+*.xlsx
+*.xls
