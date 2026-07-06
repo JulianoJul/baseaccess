@@ -5,6 +5,7 @@ import os
 DB = os.path.join(os.path.dirname(__file__), 'expedientes.db')
 SCHEMA = os.path.join(os.path.dirname(__file__), 'Tablas8.sql')
 DATA = os.path.join(os.path.dirname(__file__), 'datos_excel.sql')
+EXCEL = os.path.join(os.path.dirname(__file__), 'CONTROL DE DOCUMENTOS JUNIO 2026.xlsx')
 
 COLUMNS = [
     'solped', 'id_gerencia', 'id_superintendencia', 'id_emisor', 'id_documento',
@@ -15,8 +16,6 @@ COLUMNS = [
     'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa', 'tiempo_ejecucion',
     'monto_adjudicado_bs', 'monto_adjudicado_usd', 'fecha_firma_contrato', 'observaciones_generales'
 ]
-
-OBS_COL = COLUMNS.index('observaciones_generales')
 
 def parse_row_values(line):
     line = line.strip()
@@ -69,29 +68,6 @@ def parse_value(v):
     except ValueError:
         return v
 
-def generar_auto_linea(cur, vals):
-    id_estatus = vals[COLUMNS.index('id_estatus')]
-    id_documento = vals[COLUMNS.index('id_documento')]
-    fecha_recibido = vals[COLUMNS.index('fecha_recibido')]
-    fecha_devuelto = vals[COLUMNS.index('fecha_devuelto')]
-
-    estatus_nombre = cur.execute(
-        "SELECT nombre FROM cat_estatus_detalle WHERE id = ?", (id_estatus,)
-    ).fetchone()
-    estatus = estatus_nombre[0] if estatus_nombre else ''
-
-    doc_nombre = cur.execute(
-        "SELECT nombre FROM cat_documento WHERE id = ?", (id_documento,)
-    ).fetchone()
-    doc = doc_nombre[0] if doc_nombre else ''
-
-    partes = [estatus, doc]
-    if fecha_recibido:
-        partes.append(f'*Fecha recibido* {fecha_recibido}')
-    if fecha_devuelto:
-        partes.append(f'*Fecha devuelto* {fecha_devuelto}')
-    return ' - '.join(partes)
-
 def main():
     if os.path.exists(DB):
         os.remove(DB)
@@ -119,6 +95,17 @@ def main():
             row = [parse_value(v) for v in raw]
             all_rows.append(row)
 
+    # Leer observaciones del Excel (Col 20 = OBSERVACIONES HISTORIAL)
+    if os.path.exists(EXCEL):
+        import openpyxl
+        wb = openpyxl.load_workbook(EXCEL, data_only=True)
+        ws = wb.active
+        obs_col = COLUMNS.index('observaciones_generales')
+        for i, row in enumerate(all_rows):
+            excel_obs = ws.cell(i + 2, 20).value  # +2 porque fila 1 es header, 0-indexed
+            if excel_obs:
+                row[obs_col] = str(excel_obs)
+
     insert_cols = ', '.join(COLUMNS)
     placeholders = ', '.join(['?' for _ in COLUMNS])
     update_set = ', '.join([f"{c} = ?" for c in COLUMNS])
@@ -130,16 +117,10 @@ def main():
 
     for vals in all_rows:
         solped = vals[0]
-        auto_linea = generar_auto_linea(cur, vals)
 
         if solped and solped.strip():
             if solped in solped_to_id:
                 existing_id = solped_to_id[solped]
-                obs_actual = cur.execute(
-                    "SELECT observaciones_generales FROM expedientes WHERE id_expediente = ?",
-                    (existing_id,)
-                ).fetchone()[0]
-                vals[OBS_COL] = (obs_actual + '\n' + auto_linea) if obs_actual else auto_linea
                 vals.append(existing_id)
                 try:
                     cur.execute(f"UPDATE expedientes SET {update_set} WHERE id_expediente = ?", vals)
@@ -149,7 +130,6 @@ def main():
                     raise
                 update_count += 1
             else:
-                vals[OBS_COL] = auto_linea
                 try:
                     cur.execute(f"INSERT INTO expedientes ({insert_cols}) VALUES ({placeholders})", vals)
                 except Exception as e:
@@ -161,7 +141,6 @@ def main():
                 insert_count += 1
         else:
             if not seen_empty:
-                vals[OBS_COL] = auto_linea
                 try:
                     cur.execute(f"INSERT INTO expedientes ({insert_cols}) VALUES ({placeholders})", vals)
                 except Exception as e:
@@ -175,11 +154,6 @@ def main():
                 existing = cur.fetchone()
                 if existing:
                     existing_id = existing[0]
-                    obs_actual = cur.execute(
-                        "SELECT observaciones_generales FROM expedientes WHERE id_expediente = ?",
-                        (existing_id,)
-                    ).fetchone()[0]
-                    vals[OBS_COL] = (obs_actual + '\n' + auto_linea) if obs_actual else auto_linea
                     vals.append(existing_id)
                     try:
                         cur.execute(f"UPDATE expedientes SET {update_set} WHERE id_expediente = ?", vals)
