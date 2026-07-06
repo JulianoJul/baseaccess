@@ -415,9 +415,11 @@
         // por completitud, no porque esos campos se editen con más frecuencia.
         let snapshotEdicion = null;
         let _obsPrevia = '';
+        const $ = id => $(id);
+
         function marcarCamposEdicionFrecuente() {
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
-                const el = document.getElementById(`f-${campo}`);
+                const el = $(`f-${campo}`);
                 if (!el) return;
                 const contenedor = el.closest('div');
                 if (contenedor && !contenedor.classList.contains('campo-frecuente')) {
@@ -431,13 +433,23 @@
         }
 
         function generarObservacionAutomatica() {
-            return SCHEMA_CONFIG.generarObservacion();
+            const sel = id => {
+                const el = $(id);
+                if (!el || !el.options) return '';
+                return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
+            };
+            return SCHEMA_CONFIG.generarObservacion(
+                sel('f-id_estatus'),
+                sel('f-id_documento'),
+                $('f-fecha_recibido')?.value || '',
+                $('f-fecha_devuelto')?.value || ''
+            );
         }
         function previewObservacion() {
-            const ta = document.getElementById('f-observaciones');
+            const ta = $(SELECTORS.F_OBSERVACIONES);
             if (!ta || !editandoId) return;
             const currentValue = ta.value;
-            const autoLine = SCHEMA_CONFIG.generarObservacion();
+            const autoLine = generarObservacionAutomatica();
             if (!autoLine) return;
             const freeText = SCHEMA_CONFIG.extraerTextoLibre(currentValue, autoLine);
             if (freeText) {
@@ -448,8 +460,8 @@
         }
 
         function aplicarTriggerFirma() {
-            const firma = document.getElementById('f-fecha_firma_contrato')?.value;
-            const sel = document.getElementById('f-id_estatus');
+            const firma = $('f-fecha_firma_contrato')?.value;
+            const sel = $('f-id_estatus');
             if (!sel) return;
             if (firma) {
                 Array.from(sel.options).forEach(opt => {
@@ -463,7 +475,7 @@
         }
 
         function inicializarBotonesCatalogo() {
-            const form = document.getElementById('form-modal');
+            const form = $(SELECTORS.FORM_MODAL);
             if (!form) return;
             form.querySelectorAll('[id^="f-"]').forEach(el => {
                 if (el.tagName !== 'SELECT') return;
@@ -487,23 +499,23 @@
         function abrirAgregarCatalogo(selectId) {
             const info = SCHEMA_CONFIG.catalogoPorSelect[selectId];
             if (!info) return;
-            const modal = document.getElementById('modal-agregar-catalogo');
+            const modal = $('modal-agregar-catalogo');
             if (!modal) return;
-            document.getElementById('ac-select-id').value = selectId;
-            document.getElementById('ac-catalog-key').value = info.key;
-            document.getElementById('ac-tabla').value = info.tabla;
-            document.getElementById('ac-nombre').value = '';
+            $('ac-select-id').value = selectId;
+            $('ac-catalog-key').value = info.key;
+            $('ac-tabla').value = info.tabla;
+            $('ac-nombre').value = '';
             const labelCampo = selectId.replace('f-id_', '').replace('f-', '').replace(/_/g, ' ');
-            document.getElementById('ac-campo-label').textContent = labelCampo.charAt(0).toUpperCase() + labelCampo.slice(1);
+            $('ac-campo-label').textContent = labelCampo.charAt(0).toUpperCase() + labelCampo.slice(1);
 
-            const extraDiv = document.getElementById('ac-extra-fields');
-            const extraLabel = document.getElementById('ac-extra-label');
-            const extraVal = document.getElementById('ac-extra-val');
+            const extraDiv = $('ac-extra-fields');
+            const extraLabel = $('ac-extra-label');
+            const extraVal = $('ac-extra-val');
             if (info.extra) {
                 extraDiv.classList.remove('hidden');
                 extraLabel.textContent = info.extra.label;
                 if (info.extra.selectId) {
-                    const sel = document.getElementById(info.extra.selectId);
+                    const sel = $(info.extra.selectId);
                     extraVal.value = sel ? sel.value : (info.extra.def || '');
                     extraVal.readOnly = true;
                     extraVal.className = 'input bg-gray-700 text-gray-400';
@@ -518,26 +530,25 @@
 
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
-            setTimeout(() => document.getElementById('ac-nombre').focus(), 100);
+            setTimeout(() => $('ac-nombre').focus(), 100);
         }
 
         function cerrarAgregarCatalogo() {
-            const modal = document.getElementById('modal-agregar-catalogo');
+            const modal = $('modal-agregar-catalogo');
             if (!modal) return;
             modal.classList.add('hidden');
             document.body.style.overflow = '';
         }
 
         // Función para capturar el estado actual del formulario de edición, ejecutar un callback, y restaurar el estado
-        function captureAndRestoreFormState(callback) {
-            const form = document.getElementById('form-modal');
+        async function captureAndRestoreFormState(callback) {
+            const form = $(SELECTORS.FORM_MODAL);
             if (!form) {
-                callback();
+                await callback();
                 return;
             }
 
             const currentValues = {};
-            // Capturar TODOS los selects, inputs y textareas del formulario
             form.querySelectorAll('[id^="f-"]').forEach(el => {
                 if (el.tagName === 'SELECT' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
                     currentValues[el.id] = {
@@ -547,12 +558,12 @@
                 }
             });
 
-            callback();
+            await callback();
 
             // Restaurar después de un pequeño delay para asegurar DOM actualizado
             setTimeout(() => {
                 Object.keys(currentValues).forEach(id => {
-                    const el = document.getElementById(id);
+                    const el = $(id);
                     if (el && currentValues[id]) {
                         el.value = currentValues[id].value;
                         if (el.tagName === 'SELECT') {
@@ -564,11 +575,11 @@
         }
 
         function guardarNuevoCatalogo() {
-            const selectId = document.getElementById('ac-select-id').value;
-            const catKey = document.getElementById('ac-catalog-key').value;
-            const tabla = document.getElementById('ac-tabla').value;
-            const nombre = document.getElementById('ac-nombre').value.trim();
-            if (!nombre) { alert('El nombre es obligatorio.'); document.getElementById('ac-nombre').focus(); return; }
+            const selectId = $('ac-select-id').value;
+            const catKey = $('ac-catalog-key').value;
+            const tabla = $('ac-tabla').value;
+            const nombre = $('ac-nombre').value.trim();
+            if (!nombre) { alert(MSG.NOMBRE_OBLIGATORIO); $('ac-nombre').focus(); return; }
 
             const info = SCHEMA_CONFIG.catalogoPorSelect[selectId];
             let cols = 'nombre';
@@ -578,10 +589,10 @@
             if (info && info.extra) {
                 let extraVal;
                 if (info.extra.selectId) {
-                    const sel = document.getElementById(info.extra.selectId);
+                    const sel = $(info.extra.selectId);
                     extraVal = sel ? sel.value : null;
                 } else {
-                    extraVal = document.getElementById('ac-extra-val').value.trim() || info.extra.def || null;
+                    extraVal = $('ac-extra-val').value.trim() || info.extra.def || null;
                 }
                 if (extraVal) {
                     cols += ', ' + info.extra.col;
@@ -600,7 +611,7 @@
                 const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
                 catalogosCache[catKey] = dbToObjects(res);
                 // Actualizar SOLO el select afectado, no todos
-                const selector = document.getElementById(selectId);
+                const selector = $(selectId);
                 if (selector) {
                     const valorAnterior = selector.value;
                     selector.innerHTML = '<option value=""></option>';
@@ -619,7 +630,7 @@
                 }
                 cerrarAgregarCatalogo();
             } catch (err) {
-                alert('Error al guardar: ' + err.message);
+                alert(MSG.ERROR_GUARDAR(err));
             }
         }
 
@@ -645,33 +656,45 @@
         });
 
         document.addEventListener('click', (e) => {
-            const menu = document.getElementById('menu-recientes');
+            const menu = $('menu-recientes');
             const btn = menu?.previousElementSibling;
             if (menu && !menu.classList.contains('hidden') && btn !== e.target && !menu.contains(e.target)) {
                 menu.classList.add('hidden');
             }
         });
 
+        function validarArchivoBD(file) {
+            if (!file.name.toLowerCase().match(/\.(db|sqlite)$/)) {
+                alert(MSG.ERROR_TIPO_ARCHIVO);
+                return false;
+            }
+            if (file.size > CONFIG.MAX_FILE_SIZE_BYTES) {
+                alert(MSG.ERROR_TAMANO(file.size / 1024 / 1024));
+                return false;
+            }
+            return true;
+        }
+
         function _cargarBaseDatosComun(bytes, fileName, filePath) {
             const signature = new TextDecoder().decode(bytes.slice(0, 16));
             if (!signature.startsWith('SQLite format 3')) {
-                alert('El archivo no parece ser una base de datos SQLite válida.');
+                alert(MSG.ERROR_NO_BD_VALIDA);
                 return false;
             }
             db = new SQL.Database(bytes);
             dbFilePath = filePath || fileName;
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
-            document.getElementById('search').disabled = false;
-            document.getElementById('sort-order').disabled = false;
-            document.getElementById('btn-nuevo').disabled = false;
-            document.getElementById('btn-guardar').disabled = false;
-            document.getElementById('btn-ruta').disabled = false;
-            document.getElementById('btn-pendientes').disabled = false;
-            document.getElementById('dbfile').value = '';
-            document.getElementById('body').classList.remove('drag-over');
+            $(SELECTORS.SEARCH).disabled = false;
+            $(SELECTORS.SORT_ORDER).disabled = false;
+            $('btn-nuevo').disabled = false;
+            $('btn-guardar').disabled = false;
+            $('btn-ruta').disabled = false;
+            $('btn-pendientes').disabled = false;
+            $('dbfile').value = '';
+            $(SELECTORS.BODY).classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             // Contraer botón "Abrir BD" a solo ícono
-            const btnAbrir = document.getElementById('btn-abrir');
+            const btnAbrir = $('btn-abrir');
             if (btnAbrir) {
                 btnAbrir.innerHTML = '<i class="fas fa-folder-open"></i>';
                 btnAbrir.title = 'Base de datos: ' + fileName;
@@ -688,29 +711,29 @@
             if (!nombre) return;
             let recientes = [];
             try {
-                recientes = JSON.parse(localStorage.getItem('recientes') || '[]');
+                recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]');
             } catch(e) { recientes = []; }
             const idx = recientes.findIndex(r => r.path === path);
             if (idx !== -1) recientes.splice(idx, 1);
             recientes.unshift({ nombre, path, timestamp: Date.now() });
             if (recientes.length > 8) recientes = recientes.slice(0, 8);
-            localStorage.setItem('recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
         }
 
         function eliminarReciente(path) {
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             recientes = recientes.filter(r => r.path !== path);
-            localStorage.setItem('recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
             mostrarMenuRecientes();
         }
         function eliminarRecienteIndex(index) {
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (index >= 0 && index < recientes.length) {
                 recientes.splice(index, 1);
             }
-            localStorage.setItem('recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
             mostrarMenuRecientes();
         }
         function escapeHtml(text) {
@@ -729,23 +752,23 @@
                     const name = path.split(/[\\/]/).pop();
                     _cargarBaseDatosComun(bytes, name, path);
                 }).catch(err => {
-                    alert('No se pudo abrir la base de datos: ' + err.message);
+                    alert(MSG.ERROR_NO_REABRIR(err));
                     eliminarReciente(path);
                 });
             } else {
-                const input = document.getElementById('dbfile');
+                const input = $('dbfile');
                 if (input) input.click();
             }
-            document.getElementById('menu-recientes')?.classList.add('hidden');
+            $('menu-recientes')?.classList.add('hidden');
         }
 
         function mostrarMenuRecientes() {
-            const menu = document.getElementById('menu-recientes');
+            const menu = $('menu-recientes');
             if (!menu) return;
             const abierto = !menu.classList.contains('hidden');
             if (abierto) { menu.classList.add('hidden'); return; }
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (recientes.length === 0) {
                 menu.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">Sin recientes</div>';
             } else {
@@ -763,7 +786,7 @@
             menu.classList.remove('hidden');
         }
 
-        document.getElementById('menu-recientes')?.addEventListener('click', (e) => {
+        $('menu-recientes')?.addEventListener('click', (e) => {
             const item = e.target.closest('.reciente-item');
             if (item) {
                 const path = decodeURIComponent(item.dataset.path);
@@ -772,30 +795,30 @@
         });
 
         async function abrirBaseDatos() {
-            console.log('[RENDERER] Función abrirBaseDatos llamada');
+            DEBUG.log('[RENDERER] Función abrirBaseDatos llamada');
             if (electronAPI && electronAPI.openDbDialog) {
-                console.log('[RENDERER] electronAPI disponible, intentando abrir diálogo...');
+                DEBUG.log('[RENDERER] electronAPI disponible, intentando abrir diálogo...');
                 try {
                     const result = await electronAPI.openDbDialog();
-                    console.log('[RENDERER] Resultado del diálogo:', result);
+                    DEBUG.log('[RENDERER] Resultado del diálogo:', result);
                     if (!result) {
-                        console.log('[RENDERER] Diálogo cancelado o sin resultado');
+                        DEBUG.log('[RENDERER] Diálogo cancelado o sin resultado');
                         return;
                     }
                     const bytes = Uint8Array.from(atob(result.data), c => c.charCodeAt(0));
                     const fileName = result.path.split(/[\\/]/).pop();
                     _cargarBaseDatosComun(bytes, fileName, result.path);
                 } catch (err) {
-                    console.error('[RENDERER] IPC dialog error, fallback a file input:', err);
-                    document.getElementById('dbfile').click();
+                    DEBUG.error('[RENDERER] IPC dialog error, fallback a file input:', err);
+                    $('dbfile').click();
                 }
             } else {
-                console.log('[RENDERER] electronAPI no disponible, usando file input nativo');
-                document.getElementById('dbfile').click();
+                DEBUG.log('[RENDERER] electronAPI no disponible, usando file input nativo');
+                $('dbfile').click();
             }
         }
 
-        document.getElementById('dbfile').addEventListener('change', function(e) {
+        $('dbfile').addEventListener('change', function(e) {
             const f = e.target.files[0];
             if (!f) return;
             const r = new FileReader();
@@ -804,7 +827,7 @@
                     const bytes = new Uint8Array(r.result);
                     _cargarBaseDatosComun(bytes, f.name, f.path || f.name);
                 } catch (err) {
-                    alert('Error al abrir BD: ' + err);
+                    alert(MSG.ERROR_ABRIR_BD(err));
                 }
             };
             r.readAsArrayBuffer(f);
@@ -826,7 +849,7 @@
                 dbModificado = false;
                 actualizarEstadoBD('<i class="fas fa-check"></i> Guardado');
             } catch (err) {
-                console.error('Error al guardar BD:', err);
+                DEBUG.error('Error al guardar BD:', err);
             }
         }
 
@@ -843,7 +866,7 @@
         }
 
         function actualizarEstadoBD(msg) {
-            const el = document.getElementById('estado-bd');
+            const el = $('estado-bd');
             if (el) el.innerHTML = msg || '';
         }
 
@@ -864,7 +887,7 @@
         // Drag & Drop con feedback visual y validaciones
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
-            document.getElementById('body').classList.add('drag-over');
+            $(SELECTORS.BODY).classList.add('drag-over');
         });
         document.addEventListener('dragover', (e) => {
             e.preventDefault();
@@ -872,23 +895,15 @@
         });
         document.addEventListener('dragleave', (e) => {
             if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
-                document.getElementById('body').classList.remove('drag-over');
+                $(SELECTORS.BODY).classList.remove('drag-over');
             }
         });
         document.addEventListener('drop', async (e) => {
             e.preventDefault();
-            document.getElementById('body').classList.remove('drag-over');
+            $(SELECTORS.BODY).classList.remove('drag-over');
             const file = e.dataTransfer?.files?.[0];
             if (!file) return;
-            if (!file.name.toLowerCase().match(/\.(db|sqlite)$/)) {
-                alert('Solo se aceptan archivos .db o .sqlite');
-                return;
-            }
-            const MAX_SIZE = 100 * 1024 * 1024;
-            if (file.size > MAX_SIZE) {
-                alert(`El archivo es demasiado grande (${(file.size / 1024 / 1024).toFixed(2)} MB). Máximo: 100 MB`);
-                return;
-            }
+            if (!validarArchivoBD(file)) return;
             try {
                 const reader = new FileReader();
                 const buffer = await new Promise((resolve, reject) => {
@@ -899,8 +914,8 @@
                 const bytes = new Uint8Array(buffer);
                 _cargarBaseDatosComun(bytes, file.name, file.path || file.name);
             } catch (err) {
-                console.error('Error en drop:', err);
-                alert('Error al abrir archivo: ' + err.message);
+                DEBUG.error('Error en drop:', err);
+                alert(MSG.ERROR_LECTURA(err));
             }
         });
 
@@ -908,7 +923,7 @@
         // UTILIDADES BD
         // ================================================================
         function execSafe(sql, params) {
-            if (!db) { alert('Primero carga un archivo .db'); return null; }
+            if (!db) { alert(MSG.ERROR_NO_DB); return null; }
             try {
                 if (params && params.length) {
                     const escaped = sql.replace(/\?/g, () => {
@@ -921,7 +936,7 @@
                 }
                 return db.exec(sql);
             } catch (err) {
-                alert('Error en consulta: ' + err.message);
+                alert(MSG.ERROR_CONSULTA(err));
                 return null;
             }
         }
@@ -944,6 +959,30 @@
         }
 
         // ================================================================
+        // DATA LAYER — Consultas aisladas (SoC: sin mezcla con UI)
+        // ================================================================
+        function obtenerRutaProcesos() {
+            if (!db) return [];
+            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+                e.emisor, e.receptor, e.documento, e.estatus_detalle,
+                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
+                FROM ${SCHEMA_CONFIG.viewName} e
+                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            return dbToObjects(r);
+        }
+
+        function obtenerDocumentosPendientes() {
+            if (!db) return [];
+            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+                e.emisor, e.receptor, e.documento, e.estatus_detalle,
+                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
+                FROM ${SCHEMA_CONFIG.viewName} e
+                WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
+                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            return dbToObjects(r);
+        }
+
+        // ================================================================
         // CATÁLOGOS
         // ================================================================
         function cargarCatalogos() {
@@ -959,7 +998,7 @@
 
         function poblarSelectores() {
             Object.entries(SCHEMA_CONFIG.catalogoPorSelect).forEach(([selectId, info]) => {
-                const sel = document.getElementById(selectId);
+                const sel = $(selectId);
                 if (!sel) return;
                 sel.innerHTML = '<option value=""></option>';
                 (catalogosCache[info.key] || []).forEach(item => {
@@ -973,8 +1012,8 @@
         }
 
         function cargarSuperintendencias() {
-            const gerenciaId = document.getElementById('f-id_gerencia').value;
-            const sel = document.getElementById('f-id_superintendencia');
+            const gerenciaId = $('f-id_gerencia').value;
+            const sel = $('f-id_superintendencia');
             sel.innerHTML = '<option value=""></option>';
             catalogosCache['superintendencia']
                 .filter(item => !gerenciaId || item.id_gerencia === parseInt(gerenciaId))
@@ -991,21 +1030,21 @@
         // ================================================================
         function cargarDatos() {
             if (!db) return;
-            const orden = document.getElementById('sort-order')?.value || 'id_expediente DESC';
+            const orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
             const res = db.exec(`SELECT * FROM ${SCHEMA_CONFIG.viewName} ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
         }
         function cambiarOrden() {
             cargarDatos();
-            const searchEl = document.getElementById('search');
+            const searchEl = $(SELECTORS.SEARCH);
             if (searchEl && searchEl.value) {
                 searchEl.dispatchEvent(new Event('input'));
             }
         }
 
         function renderizarTabla(lista) {
-            const cuerpo = document.getElementById('tabla-cuerpo');
+            const cuerpo = $(SELECTORS.TABLA_CUERPO);
             cuerpo.innerHTML = '';
 
             if (lista.length === 0) {
@@ -1109,7 +1148,7 @@
                                     const textId = `obs-text-${exp.id_expediente}`;
                                     let html = `<div class="flex items-center justify-between mb-2">`;
                                     if (anteriores.length > 0) {
-                                        html += `<div class="flex items-center gap-2 cursor-pointer hover:text-teal-300 select-none" onclick="event.stopPropagation(); document.getElementById('${toggleId}').classList.toggle('hidden'); document.getElementById('${chevronId}').classList.toggle('rotate-180'); return false;">
+                                        html += `<div class="flex items-center gap-2 cursor-pointer hover:text-teal-300 select-none" onclick="event.stopPropagation(); $('${toggleId}').classList.toggle('hidden'); $('${chevronId}').classList.toggle('rotate-180'); return false;">
                                             <i id="${chevronId}" class="fas fa-chevron-down text-xs transition-transform duration-200"></i>
                                             <span class="text-gray-400 font-bold"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
                                         </div>`;
@@ -1179,16 +1218,16 @@
         }
 
         function validarFechas() {
-            const recibido = document.getElementById('f-fecha_recibido').value;
-            const devuelto = document.getElementById('f-fecha_devuelto').value;
-            const errEl = document.getElementById('f-error-fechas');
+            const recibido = $('f-fecha_recibido').value;
+            const devuelto = $('f-fecha_devuelto').value;
+            const errEl = $('f-error-fechas');
             if (recibido && devuelto && devuelto < recibido) {
                 if (!errEl) {
                     const div = document.createElement('div');
                     div.id = 'f-error-fechas';
                     div.className = 'text-red-400 text-xs mt-1';
                     div.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-1"></i> Fecha Devuelto no puede ser anterior a Fecha Recibido';
-                    document.getElementById('f-fecha_devuelto').parentNode.appendChild(div);
+                    $('f-fecha_devuelto').parentNode.appendChild(div);
                 }
                 return false;
             }
@@ -1200,15 +1239,15 @@
         // DESPLEGABLE DE HISTORIAL
         // ================================================================
         function toggleDesplegable(id) {
-            const subfila = document.getElementById(`subfila-${id}`);
-            const btn = document.getElementById(`btn-${id}`);
+            const subfila = $(`subfila-${id}`);
+            const btn = $(`btn-${id}`);
             subfila.classList.toggle('hidden');
             btn.innerHTML = subfila.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
         }
 
         function toggleDetalle(prefix, id) {
-            const sub = document.getElementById(prefix + id);
-            const btn = document.getElementById(prefix + 'btn-' + id);
+            const sub = $(prefix + id);
+            const btn = $(prefix + 'btn-' + id);
             if (!sub) return;
             sub.classList.toggle('hidden');
             btn.innerHTML = sub.classList.contains('hidden') ? '<i class="fas fa-search mr-1"></i>Detalle' : '<i class="fas fa-times mr-1"></i>Cerrar';
@@ -1221,13 +1260,13 @@
 
         function mostrarFormulario(id) {
             editandoId = id;
-            const modal = document.getElementById('form-modal');
-            const titulo = document.getElementById('form-titulo');
-            const btnEliminar = document.getElementById('btn-eliminar');
+            const modal = $(SELECTORS.FORM_MODAL);
+            const titulo = $('form-titulo');
+            const btnEliminar = $('btn-eliminar');
 
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
-            document.getElementById('f-id_expediente').value = '';
+            $('f-id_expediente').value = '';
 
             if (id) {
                 // MODO EDICIÓN
@@ -1239,7 +1278,7 @@
                 // MODO NUEVO
                 titulo.textContent = 'Nuevo Expediente';
                 btnEliminar.classList.add('hidden');
-                document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
+                $('f-id_estatus').value = '1'; // PENDIENTE por defecto
                 snapshotEdicion = null;
             }
 
@@ -1250,7 +1289,7 @@
         }
 
         function cancelarFormulario() {
-            document.getElementById('form-modal').classList.add('hidden');
+            $(SELECTORS.FORM_MODAL).classList.add('hidden');
             document.body.style.overflow = '';
             editandoId = null;
             _obsPrevia = '';
@@ -1258,10 +1297,10 @@
 
         function cargarExpediente(id) {
             const safeId = toInt(id);
-            if (!safeId) { alert('ID de expediente inválido'); cancelarFormulario(); return; }
+            if (!safeId) { alert(MSG.ERROR_ID_INVALIDO); cancelarFormulario(); return; }
             const res = db.exec(`SELECT * FROM expedientes WHERE id_expediente = ${safeId}`);
             if (!res || res.length === 0) {
-                alert('No se encontró el expediente.');
+                alert(MSG.ERROR_NO_EXPEDIENTE);
                 cancelarFormulario();
                 return;
             }
@@ -1270,43 +1309,43 @@
             const data = {};
             cols.forEach((col, i) => data[col] = vals[i]);
 
-            document.getElementById('f-id_expediente').value = data.id_expediente || '';
-            document.getElementById('f-solped').value = data.solped || '';
-            document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
-            document.getElementById('f-id_documento').value = data.id_documento || '';
-            document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
-            document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
+            $('f-id_expediente').value = data.id_expediente || '';
+            $('f-solped').value = data.solped || '';
+            $('f-nro_proceso').value = data.nro_proceso || '';
+            $('f-id_documento').value = data.id_documento || '';
+            $('f-descripcion_proceso').value = data.descripcion_proceso || '';
+            $('f-id_gerencia').value = data.id_gerencia || '';
             cargarSuperintendencias();
-            document.getElementById('f-id_superintendencia').value = data.id_superintendencia || '';
-            document.getElementById('f-id_plan').value = data.id_plan || '';
-            document.getElementById('f-id_modalidad').value = data.id_modalidad || '';
-            document.getElementById('f-id_art').value = data.id_art || '';
-            document.getElementById('f-id_tipo_contrato').value = data.id_tipo_contrato || '';
-            document.getElementById('f-fecha_presupuesto_base').value = data.fecha_presupuesto_base || '';
-            document.getElementById('f-presupuesto_base_usd').value = formatNum(data.presupuesto_base_usd);
-            document.getElementById('f-tipo_cambio').value = formatNum(data.tipo_cambio);
-            document.getElementById('f-presupuesto_base_bs').value = formatNum(data.presupuesto_base_bs);
-            document.getElementById('f-id_emisor').value = data.id_emisor || '';
-            document.getElementById('f-id_receptor').value = data.id_receptor || '';
-            document.getElementById('f-id_estatus').value = data.id_estatus || '1';
-            document.getElementById('f-fecha_recibido').value = data.fecha_recibido || '';
-            document.getElementById('f-fecha_devuelto').value = data.fecha_devuelto || '';
-            document.getElementById('f-nro_acta_apertura').value = data.nro_acta_apertura || '';
-            document.getElementById('f-cantidad_frentes').value = data.cantidad_frentes || '';
-            document.getElementById('f-nro_resolucion_jd').value = data.nro_resolucion_jd || '';
-            document.getElementById('f-id_resultado').value = data.id_resultado || '';
-            document.getElementById('f-id_empresa').value = data.id_empresa || '';
-            document.getElementById('f-nro_contrato_sicac').value = data.nro_contrato_sicac || '';
-            document.getElementById('f-nro_contrato_sap').value = data.nro_contrato_sap || '';
-            document.getElementById('f-tiempo_ejecucion').value = parseTiempoEjecucionParaEdicion(data.tiempo_ejecucion);
-            document.getElementById('f-monto_adjudicado_usd').value = formatNum(data.monto_adjudicado_usd);
-            document.getElementById('f-monto_adjudicado_bs').value = formatNum(data.monto_adjudicado_bs);
-            document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
+            $('f-id_superintendencia').value = data.id_superintendencia || '';
+            $('f-id_plan').value = data.id_plan || '';
+            $('f-id_modalidad').value = data.id_modalidad || '';
+            $('f-id_art').value = data.id_art || '';
+            $('f-id_tipo_contrato').value = data.id_tipo_contrato || '';
+            $('f-fecha_presupuesto_base').value = data.fecha_presupuesto_base || '';
+            $('f-presupuesto_base_usd').value = formatNum(data.presupuesto_base_usd);
+            $('f-tipo_cambio').value = formatNum(data.tipo_cambio);
+            $('f-presupuesto_base_bs').value = formatNum(data.presupuesto_base_bs);
+            $('f-id_emisor').value = data.id_emisor || '';
+            $('f-id_receptor').value = data.id_receptor || '';
+            $('f-id_estatus').value = data.id_estatus || '1';
+            $('f-fecha_recibido').value = data.fecha_recibido || '';
+            $('f-fecha_devuelto').value = data.fecha_devuelto || '';
+            $('f-nro_acta_apertura').value = data.nro_acta_apertura || '';
+            $('f-cantidad_frentes').value = data.cantidad_frentes || '';
+            $('f-nro_resolucion_jd').value = data.nro_resolucion_jd || '';
+            $('f-id_resultado').value = data.id_resultado || '';
+            $('f-id_empresa').value = data.id_empresa || '';
+            $('f-nro_contrato_sicac').value = data.nro_contrato_sicac || '';
+            $('f-nro_contrato_sap').value = data.nro_contrato_sap || '';
+            $('f-tiempo_ejecucion').value = parseTiempoEjecucionParaEdicion(data.tiempo_ejecucion);
+            $('f-monto_adjudicado_usd').value = formatNum(data.monto_adjudicado_usd);
+            $('f-monto_adjudicado_bs').value = formatNum(data.monto_adjudicado_bs);
+            $('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
 
             // Guardar snapshot de campos de edición frecuente para detectar cambios al guardar
             snapshotEdicion = {};
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
-                const el = document.getElementById(`f-${campo}`);
+                const el = $(`f-${campo}`);
                 if (el) {
                     snapshotEdicion[campo] = el.value || '';
                     if (el.tagName === 'SELECT') {
@@ -1316,8 +1355,8 @@
             });
             // Cargar observación previa y regenerar (extrae texto libre, reemplaza parte auto-generada)
             _obsPrevia = data.observaciones || '';
-            document.getElementById('f-observaciones').value = _obsPrevia;
-            document.getElementById('f-notas').value = data.notas || '';
+            $('f-observaciones').value = _obsPrevia;
+            $('f-notas').value = data.notas || '';
             previewObservacion();
         }
 
@@ -1325,31 +1364,31 @@
         function calcularBs(origen) {
             if (_calculando) return;
             _calculando = true;
-            const tc = parseFloat(parseNum(document.getElementById('f-tipo_cambio').value)) || 0;
+            const tc = parseFloat(parseNum($('f-tipo_cambio').value)) || 0;
             if (origen !== 'bs_presup') {
-                const usd = parseFloat(parseNum(document.getElementById('f-presupuesto_base_usd').value)) || 0;
+                const usd = parseFloat(parseNum($('f-presupuesto_base_usd').value)) || 0;
                 if (usd && tc) {
-                    document.getElementById('f-presupuesto_base_bs').value = formatNum(usd * tc);
+                    $('f-presupuesto_base_bs').value = formatNum(usd * tc);
                 }
             }
             if (tc) {
-                const adjUsd = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_usd').value)) || 0;
-                const adjBs = parseFloat(parseNum(document.getElementById('f-monto_adjudicado_bs').value)) || 0;
+                const adjUsd = parseFloat(parseNum($('f-monto_adjudicado_usd').value)) || 0;
+                const adjBs = parseFloat(parseNum($('f-monto_adjudicado_bs').value)) || 0;
                 if (origen === 'bs_adj') {
                     if (adjBs) {
-                        document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
+                        $('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
                     }
                 } else if (origen === 'usd_adj') {
                     if (adjUsd) {
-                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                        $('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
                     }
                 } else {
                     if (adjUsd && !adjBs) {
-                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                        $('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
                     } else if (adjBs && !adjUsd) {
-                        document.getElementById('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
+                        $('f-monto_adjudicado_usd').value = formatNum(adjBs / tc);
                     } else if (adjUsd && adjBs) {
-                        document.getElementById('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
+                        $('f-monto_adjudicado_bs').value = formatNum(adjUsd * tc);
                     }
                 }
             }
@@ -1360,47 +1399,47 @@
             if (!db) return;
 
             const data = {
-                solped:                  sanitizeNull(document.getElementById('f-solped').value),
-                id_gerencia:             sanitizeNull(document.getElementById('f-id_gerencia').value),
-                id_superintendencia:     sanitizeNull(document.getElementById('f-id_superintendencia').value),
-                id_emisor:               sanitizeNull(document.getElementById('f-id_emisor').value),
-                id_documento:            sanitizeNull(document.getElementById('f-id_documento').value),
-                fecha_presupuesto_base:  sanitizeNull(document.getElementById('f-fecha_presupuesto_base').value),
-                presupuesto_base_usd:    sanitizeNull(parseNum(document.getElementById('f-presupuesto_base_usd').value)),
-                tipo_cambio:             sanitizeNull(parseNum(document.getElementById('f-tipo_cambio').value)),
-                presupuesto_base_bs:     sanitizeNull(parseNum(document.getElementById('f-presupuesto_base_bs').value)),
-                id_plan:                 sanitizeNull(document.getElementById('f-id_plan').value),
-                descripcion_proceso:     sanitizeNull(document.getElementById('f-descripcion_proceso').value),
-                id_modalidad:            sanitizeNull(document.getElementById('f-id_modalidad').value),
-                id_art:                  sanitizeNull(document.getElementById('f-id_art').value),
-                id_tipo_contrato:        sanitizeNull(document.getElementById('f-id_tipo_contrato').value),
-                nro_acta_apertura:       sanitizeNull(document.getElementById('f-nro_acta_apertura').value),
-                cantidad_frentes:        sanitizeNull(document.getElementById('f-cantidad_frentes').value),
-                nro_resolucion_jd:       sanitizeNull(document.getElementById('f-nro_resolucion_jd').value),
-                id_estatus:              sanitizeNull(document.getElementById('f-id_estatus').value) || 1,
-                fecha_recibido:          sanitizeNull(document.getElementById('f-fecha_recibido').value),
-                fecha_devuelto:          sanitizeNull(document.getElementById('f-fecha_devuelto').value),
-                id_receptor:             sanitizeNull(document.getElementById('f-id_receptor').value),
-                nro_proceso:             sanitizeNull(document.getElementById('f-nro_proceso').value),
-                id_resultado:            sanitizeNull(document.getElementById('f-id_resultado').value),
-                nro_contrato_sicac:      sanitizeNull(document.getElementById('f-nro_contrato_sicac').value),
-                nro_contrato_sap:        sanitizeNull(document.getElementById('f-nro_contrato_sap').value),
-                id_empresa:              sanitizeNull(document.getElementById('f-id_empresa').value),
-                tiempo_ejecucion:        sanitizeNull(document.getElementById('f-tiempo_ejecucion').value),
-                monto_adjudicado_bs:     sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
-                monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
-                fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
+                solped:                  sanitizeNull($('f-solped').value),
+                id_gerencia:             sanitizeNull($('f-id_gerencia').value),
+                id_superintendencia:     sanitizeNull($('f-id_superintendencia').value),
+                id_emisor:               sanitizeNull($('f-id_emisor').value),
+                id_documento:            sanitizeNull($('f-id_documento').value),
+                fecha_presupuesto_base:  sanitizeNull($('f-fecha_presupuesto_base').value),
+                presupuesto_base_usd:    sanitizeNull(parseNum($('f-presupuesto_base_usd').value)),
+                tipo_cambio:             sanitizeNull(parseNum($('f-tipo_cambio').value)),
+                presupuesto_base_bs:     sanitizeNull(parseNum($('f-presupuesto_base_bs').value)),
+                id_plan:                 sanitizeNull($('f-id_plan').value),
+                descripcion_proceso:     sanitizeNull($('f-descripcion_proceso').value),
+                id_modalidad:            sanitizeNull($('f-id_modalidad').value),
+                id_art:                  sanitizeNull($('f-id_art').value),
+                id_tipo_contrato:        sanitizeNull($('f-id_tipo_contrato').value),
+                nro_acta_apertura:       sanitizeNull($('f-nro_acta_apertura').value),
+                cantidad_frentes:        sanitizeNull($('f-cantidad_frentes').value),
+                nro_resolucion_jd:       sanitizeNull($('f-nro_resolucion_jd').value),
+                id_estatus:              sanitizeNull($('f-id_estatus').value) || 1,
+                fecha_recibido:          sanitizeNull($('f-fecha_recibido').value),
+                fecha_devuelto:          sanitizeNull($('f-fecha_devuelto').value),
+                id_receptor:             sanitizeNull($('f-id_receptor').value),
+                nro_proceso:             sanitizeNull($('f-nro_proceso').value),
+                id_resultado:            sanitizeNull($('f-id_resultado').value),
+                nro_contrato_sicac:      sanitizeNull($('f-nro_contrato_sicac').value),
+                nro_contrato_sap:        sanitizeNull($('f-nro_contrato_sap').value),
+                id_empresa:              sanitizeNull($('f-id_empresa').value),
+                tiempo_ejecucion:        sanitizeNull($('f-tiempo_ejecucion').value),
+                monto_adjudicado_bs:     sanitizeNull(parseNum($('f-monto_adjudicado_bs').value)),
+                monto_adjudicado_usd:    sanitizeNull(parseNum($('f-monto_adjudicado_usd').value)),
+                fecha_firma_contrato:    sanitizeNull($('f-fecha_firma_contrato').value),
                 observaciones: (() => {
-                    const textoActual = document.getElementById('f-observaciones').value.trim();
+                    const textoActual = $('f-observaciones').value.trim();
                     return sanitizeNull(textoActual || SCHEMA_CONFIG.generarObservacion() || null);
                 })(),
-                notas: sanitizeNull(document.getElementById('f-notas').value.trim())
+                notas: sanitizeNull($('f-notas').value.trim())
             };
 
             // Validar campos obligatorios
             if (!validarFechas()) {
-                alert('Fecha Devuelto no puede ser anterior a Fecha Recibido.');
-                document.getElementById('f-fecha_devuelto').focus();
+                alert(MSG.FECHA_DEVUELTO_INVALIDA);
+                $('f-fecha_devuelto').focus();
                 return;
             }
 
@@ -1411,11 +1450,11 @@
                 if (editandoId) {
                     const sql = `UPDATE expedientes SET ${COLS.map(c => c + ' = ?').join(', ')}, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`;
                     db.run(sql, [...valores, editandoId]);
-                    alert('Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.');
+                    alert(MSG.EXITO_ACTUALIZADO);
                 } else {
                     const sql = `INSERT INTO expedientes (${COLS.join(', ')}) VALUES (${COLS.map(() => '?').join(', ')})`;
                     db.run(sql, valores);
-                    alert('Expediente creado correctamente.');
+                    alert(MSG.EXITO_CREADO);
                 }
 
                 cancelarFormulario();
@@ -1424,7 +1463,7 @@
                 guardarBD();
 
             } catch (err) {
-                alert('Error al guardar: ' + err.message);
+                alert(MSG.ERROR_GUARDAR(err));
             }
         }
 
@@ -1436,20 +1475,20 @@
             try {
                 db.run('DELETE FROM historial_movimientos WHERE id_expediente = ?', [editandoId]);
                 db.run('DELETE FROM expedientes WHERE id_expediente = ?', [editandoId]);
-                alert('Expediente eliminado correctamente.');
+                alert(MSG.EXITO_ELIMINADO);
                 cancelarFormulario();
                 cargarDatos();
                 marcarModificado();
                 guardarBD();
             } catch (err) {
-                alert('Error al eliminar: ' + err.message);
+                alert(MSG.ERROR_ELIMINAR(err));
             }
         }
 
         // ================================================================
         // BUSCADOR
         // ================================================================
-        document.getElementById('search').addEventListener('input', function(e) {
+        $(SELECTORS.SEARCH).addEventListener('input', function(e) {
             const txt = e.target.value.toLowerCase();
             const filtrados = expedientesCache.filter(exp => 
                 (exp.solped && exp.solped.toLowerCase().includes(txt)) ||
@@ -1469,22 +1508,22 @@
         // HISTORIAL COMPLETO MODAL
         // ================================================================
         function abrirHistorialCompleto(id) {
-            const modal = document.getElementById('historial-modal');
-            document.getElementById('historial-titulo').innerHTML = `<i class="fas fa-hourglass-half mr-1"></i> Historial Completo - Expediente #${id}`;
+            const modal = $('historial-modal');
+            $('historial-titulo').innerHTML = `<i class="fas fa-hourglass-half mr-1"></i> Historial Completo - Expediente #${id}`;
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             cargarHistorialCompleto(id);
         }
 
         function cerrarHistorialCompleto() {
-            document.getElementById('historial-modal').classList.add('hidden');
+            $('historial-modal').classList.add('hidden');
             document.body.style.overflow = '';
         }
 
         function cargarHistorialCompleto(id) {
             const safeId = toInt(id);
-            if (!safeId) { document.getElementById('historial-cuerpo').innerHTML = '<p class="text-gray-500 text-center py-8">ID inválido.</p>'; return; }
-            const cuerpo = document.getElementById('historial-cuerpo');
+            if (!safeId) { $('historial-cuerpo').innerHTML = '<p class="text-gray-500 text-center py-8">ID inválido.</p>'; return; }
+            const cuerpo = $('historial-cuerpo');
             cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando...</p>';
 
             const r = db.exec(`
@@ -1589,7 +1628,7 @@
         // ================================================================
         // SIDEBAR FRECUENTES (#9)
         // ================================================================
-        const SIDEBAR_KEY = 'sidebarFrecuentes';
+        const SIDEBAR_KEY = STORAGE_KEYS.FRECUENTES;
         function toggleFrecuente(id, solped) {
             let list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
             const idx = list.findIndex(i => i.id === id);
@@ -1600,12 +1639,12 @@
             }
             localStorage.setItem(SIDEBAR_KEY, JSON.stringify(list));
             renderSidebar();
-            const star = document.getElementById(`star-${id}`);
+            const star = $(`star-${id}`);
             if (star) star.classList.toggle('fas', idx === -1);
             if (star) star.classList.toggle('far', idx !== -1);
         }
         function renderSidebar() {
-            const cont = document.getElementById('sidebar-lista');
+            const cont = $('sidebar-lista');
             if (!cont) return;
             const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
             if (list.length === 0) {
@@ -1620,8 +1659,8 @@
             ).join('');
         }
         function toggleSidebar() {
-            const sb = document.getElementById('sidebar');
-            const col = document.getElementById('sidebar-collapsed');
+            const sb = $(SELECTORS.SIDEBAR);
+            const col = $('sidebar-collapsed');
             const isOpen = !sb.classList.contains('hidden');
             sb.classList.toggle('hidden', isOpen);
             sb.classList.toggle('lg:block', !isOpen);
@@ -1635,7 +1674,7 @@
             _origRenderizar(lista);
             const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
             list.forEach(item => {
-                const star = document.getElementById(`star-${item.id}`);
+                const star = $(`star-${item.id}`);
                 if (star) { star.className = 'fas fa-star pointer-events-none'; }
             });
         };
@@ -1646,7 +1685,7 @@
         let _modoOrdenForm = 'secciones'; // 'secciones' | 'excel'
         let _originalPadres = {};
         function toggleModoOrdenForm() {
-            const btn = document.getElementById('btn-modo-orden');
+            const btn = $('btn-modo-orden');
             if (_modoOrdenForm === 'secciones') {
                 _modoOrdenForm = 'excel';
                 btn.innerHTML = '<i class="fas fa-layer-group mr-1"></i> Secciones';
@@ -1663,7 +1702,7 @@
             // Ocultar fieldsets, guardar referencias
             container.querySelectorAll('fieldset').forEach(fs => fs.classList.add('hidden'));
             // Crear contenedor plano
-            let flatDiv = document.getElementById('form-flat-excel');
+            let flatDiv = $('form-flat-excel');
             if (!flatDiv) {
                 flatDiv = document.createElement('div');
                 flatDiv.id = 'form-flat-excel';
@@ -1672,7 +1711,7 @@
             }
             flatDiv.innerHTML = '';
             SCHEMA_CONFIG.ordenExcel.forEach(fid => {
-                const el = document.getElementById(fid);
+                const el = $(fid);
                 if (!el) return;
                 const wrapper = el.closest('div');
                 if (!wrapper || wrapper.closest('fieldset') === null) return;
@@ -1681,7 +1720,7 @@
             });
         }
         function restaurarOrdenSecciones() {
-            const flatDiv = document.getElementById('form-flat-excel');
+            const flatDiv = $('form-flat-excel');
             if (flatDiv) flatDiv.remove();
             document.querySelectorAll('#form-modal fieldset').forEach(fs => fs.classList.remove('hidden'));
         }
@@ -1691,14 +1730,9 @@
         // ================================================================
         function abrirRutaProcesos() {
             if (!db) return;
-            document.getElementById('modal-ruta').classList.remove('hidden');
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
-                FROM ${SCHEMA_CONFIG.viewName} e
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
-            const data = dbToObjects(r);
-            const cont = document.getElementById('ruta-contenido');
+            $(SELECTORS.MODAL_RUTA).classList.remove('hidden');
+            const data = obtenerRutaProcesos();
+            const cont = $(SELECTORS.RUTA_CONTENIDO);
             if (!data.length) {
                 cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin datos.</p>';
                 return;
@@ -1733,7 +1767,7 @@
             cont.innerHTML = html;
         }
         function cerrarRutaProcesos() {
-            document.getElementById('modal-ruta').classList.add('hidden');
+            $(SELECTORS.MODAL_RUTA).classList.add('hidden');
         }
 
         // ================================================================
@@ -1741,15 +1775,9 @@
         // ================================================================
         function abrirDocumentosPendientes() {
             if (!db) return;
-            document.getElementById('modal-pendientes').classList.remove('hidden');
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
-                FROM ${SCHEMA_CONFIG.viewName} e
-                WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
-            const data = dbToObjects(r);
-            const cont = document.getElementById('pendientes-contenido');
+            $(SELECTORS.MODAL_PENDIENTES).classList.remove('hidden');
+            const data = obtenerDocumentosPendientes();
+            const cont = $(SELECTORS.PENDIENTES_CONTENIDO);
             if (!data.length) {
                 cont.innerHTML = '<p class="text-emerald-400 text-center py-8 text-base font-semibold"><i class="fas fa-check-circle mr-2"></i>Todos los documentos están firmados.</p>';
                 return;
@@ -1777,7 +1805,7 @@
             cont.innerHTML = html;
         }
         function cerrarPendientes() {
-            document.getElementById('modal-pendientes').classList.add('hidden');
+            $(SELECTORS.MODAL_PENDIENTES).classList.add('hidden');
         }
     </script>
 </body>

@@ -3,7 +3,80 @@
 // ================================================================
 // Centraliza todo lo que depende del schema actual (Tablas8.sql):
 // catálogos, columnas, formato de observaciones, colores de estatus.
+// También define constantes de toda la app (CONFIG, MSG, etc.)
 // ================================================================
+
+// ---- CONSTANTES GLOBALES -----------------------------------------
+
+const CONFIG = {
+    MAX_FILE_SIZE_BYTES: 100 * 1024 * 1024,
+    MAX_FILE_SIZE_MB: 100,
+    AUTOSAVE_INTERVAL_MS: 30000,
+};
+
+const DEBUG = {
+    isEnabled: false,
+    log: function(...args) { if (DEBUG.isEnabled) console.log(...args); },
+    error: function(...args) { if (DEBUG.isEnabled) console.error(...args); },
+};
+
+const MSG = {
+    ERROR_NO_DB: 'Primero carga un archivo .db',
+    ERROR_TIPO_ARCHIVO: 'Solo se aceptan archivos .db o .sqlite',
+    ERROR_TAMANO: (sizeMB) =>
+        `El archivo es demasiado grande (${sizeMB.toFixed(2)} MB). Máximo: ${CONFIG.MAX_FILE_SIZE_MB} MB`,
+    ERROR_LECTURA: err => 'Error al abrir archivo: ' + (err?.message || err),
+    ERROR_CONSULTA: err => 'Error en consulta: ' + (err?.message || err),
+    ERROR_GUARDAR: err => 'Error al guardar: ' + (err?.message || err),
+    ERROR_ELIMINAR: err => 'Error al eliminar: ' + (err?.message || err),
+    ERROR_NO_EXPEDIENTE: 'No se encontró el expediente.',
+    ERROR_ID_INVALIDO: 'ID de expediente inválido',
+    ERROR_NO_BD_VALIDA: 'El archivo no parece ser una base de datos SQLite válida.',
+    ERROR_NO_REABRIR: err => 'No se pudo abrir la base de datos: ' + (err?.message || err),
+    ERROR_ABRIR_BD: err => 'Error al abrir BD: ' + (err?.message || err),
+    NOMBRE_OBLIGATORIO: 'El nombre es obligatorio.',
+    EXITO_ACTUALIZADO: 'Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.',
+    EXITO_CREADO: 'Expediente creado correctamente.',
+    EXITO_ELIMINADO: 'Expediente eliminado correctamente.',
+    FECHA_DEVUELTO_INVALIDA: 'Fecha Devuelto no puede ser anterior a Fecha Recibido.',
+};
+
+const STORAGE_KEYS = {
+    FRECUENTES: 'sidebarFrecuentes',
+    RECIENTES: 'recientes',
+    SIDEBAR_VISIBLE: 'sidebarVisible',
+};
+
+const SELECTORS = {
+    TABLA_CUERPO: 'tabla-cuerpo',
+    FORM_MODAL: 'form-modal',
+    SEARCH: 'search',
+    SORT_ORDER: 'sort-order',
+    SIDEBAR: 'sidebar',
+    SIDEBAR_TOGGLE: 'sidebar-toggle',
+    BODY: 'body',
+    FILE_INPUT: 'dbfile',
+    MENU_RECIENTES: 'menu-recientes',
+    MODAL_RUTA: 'modal-ruta',
+    RUTA_CONTENIDO: 'ruta-contenido',
+    MODAL_PENDIENTES: 'modal-pendientes',
+    PENDIENTES_CONTENIDO: 'pendientes-contenido',
+    MODAL_HISTORIAL: 'modal-historial',
+    HISTORIAL_CONTENIDO: 'historial-contenido',
+    MODAL_CATALOGO: 'modal-agregar-catalogo',
+    AC_NOMBRE: 'ac-nombre',
+    AC_SELECT_ID: 'ac-select-id',
+    AC_CATALOG_KEY: 'ac-catalog-key',
+    AC_TABLA: 'ac-tabla',
+    AC_CAMPO_LABEL: 'ac-campo-label',
+    AC_EXTRA_FIELDS: 'ac-extra-fields',
+    AC_EXTRA_LABEL: 'ac-extra-label',
+    AC_EXTRA_VAL: 'ac-extra-val',
+    F_OBSERVACIONES: 'f-observaciones',
+    GUARDAR_BD_BTN: 'btn-guardar-bd',
+};
+
+// ---- SCHEMA CONFIG ------------------------------------------------
 
 const SCHEMA_CONFIG = {
 
@@ -47,19 +120,10 @@ const SCHEMA_CONFIG = {
     },
 
     // Genera la línea de observación auto-generada (estatus - documento - fechas)
-    generarObservacion: function() {
-        const obtenerTexto = function(id) {
-            const el = document.getElementById(id);
-            if (!el || !el.options) return '';
-            return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
-        };
-        const estatus = obtenerTexto('f-id_estatus') || 'PENDIENTE';
-        const doc = obtenerTexto('f-id_documento') || 'N/A';
-        const recibido = document.getElementById('f-fecha_recibido')?.value || '';
-        const devuelto = document.getElementById('f-fecha_devuelto')?.value || '';
-        const partes = [estatus, doc];
-        if (recibido) partes.push('*Fecha recibido* ' + recibido);
-        if (devuelto) partes.push('*Fecha devuelto* ' + devuelto);
+    generarObservacion: function(estatus, documento, fechaRecibido, fechaDevuelto) {
+        const partes = [estatus || 'PENDIENTE', documento || 'N/A'];
+        if (fechaRecibido) partes.push('*Fecha recibido* ' + fechaRecibido);
+        if (fechaDevuelto) partes.push('*Fecha devuelto* ' + fechaDevuelto);
         return partes.join(' - ');
     },
 
@@ -98,7 +162,6 @@ const SCHEMA_CONFIG = {
     },
 
     // Orden de campos en el formulario según aparecen en el Excel
-    // (usado por modo "orden Excel" en edición)
     ordenExcel: [
         'f-solped', 'f-id_gerencia', 'f-id_superintendencia', 'f-id_emisor',
         'f-id_documento', 'f-fecha_presupuesto_base', 'f-presupuesto_base_usd',

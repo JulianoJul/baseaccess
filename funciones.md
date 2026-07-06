@@ -12,6 +12,9 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `toInt(v)` | `v`: valor a parsear | `parseInt(v,10)` con null-safe. Retorna `null` si no es número válido |
 | `dbToObjects(res)` | `res`: resultado crudo de `db.exec()` | Convierte array de columnas+values a `[{col:val}]`. Retorna `[]` si vacío |
 | `sanitizeNull(val)` | `val`: valor de la UI | Retorna `null` si es `null/undefined/''`, si no `val` tal cual |
+| `validarArchivoBD(file)` | `file`: File object del input/drop | Valida extensión (.db/.sqlite) y tamaño (&lt;= CONFIG.MAX_FILE_SIZE_BYTES). Retorna `true/false` |
+| `obtenerRutaProcesos()` | — | Consulta `SCHEMA_CONFIG.viewName` con JOIN completo para ruta de procesos. Retorna `[{...}]` |
+| `obtenerDocumentosPendientes()` | — | Consulta expedientes donde estatus ≠ FIRMADO. Retorna `[{...}]` |
 | `cargarCatalogos()` | — | Carga todos los catálogos desde BD a `catalogosCache` según `SCHEMA_CONFIG.catalogoPorSelect`. Luego llama `poblarSelectores()` |
 | `poblarSelectores()` | — | Llena todos los `<select>` con opciones desde `catalogosCache`. Al final llama `cargarSuperintendencias()` |
 | `cargarSuperintendencias()` | — | Filtra superintendencias según gerencia seleccionada (FK dependiente) |
@@ -113,11 +116,27 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 
 ---
 
+## Constantes Globales (schema-config.js)
+
+| Constante | Descripción |
+|-----------|-------------|
+| `CONFIG` | Config numérica: `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `AUTOSAVE_INTERVAL_MS` |
+| `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` (controlado por `DEBUG.isEnabled`) |
+| `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA` |
+| `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE` |
+| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN` |
+
+## Helper (index.html)
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
+
 ## SCHEMA_CONFIG (schema-config.js)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `generarObservacion()` | (usa datos del formulario global) | Retorna string auto-generado: `[ESTATUS] Doc: [documento] [fechas]` |
+| `generarObservacion(estatus, documento, fechaRecibido, fechaDevuelto)` | `estatus`: string, `documento`: string, `fechaRecibido`: string, `fechaDevuelto`: string | Retorna string auto-generado: `[ESTATUS] - [Documento] - ...` |
 | `extraerTextoLibre(currentValue, autoLine)` | `currentValue`: texto completo del textarea, `autoLine`: línea automática | Resta `autoLine` de `currentValue` para aislar el texto libre del usuario |
 | `estatusClass(estatus)` | `estatus`: string | Retorna clase CSS según estatus (verde=firmado, amarillo=en_proceso, rojo=devuelto, gris=pendiente) |
 | `esEstatusFirmado(estatus)` | `estatus`: string | Retorna `true` si el estatus es FIRMADO o equivalente |
