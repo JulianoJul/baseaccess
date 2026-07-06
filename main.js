@@ -36,13 +36,13 @@ function createWindow() {
     height: 900,
     title: 'Gestión de Expedientes con Historial',
     webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
+      preload: path.join(__dirname, 'src', 'preload.js'),
       nodeIntegration: false,
       contextIsolation: true,
     }
   })
 
-  win.loadFile('index.html')
+  win.loadFile('src/index.html')
   win.setMenuBarVisibility(false)
 
   win.webContents.on('before-input-event', (_event, input) => {

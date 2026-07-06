@@ -28,7 +28,7 @@ El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar 
 
 ## ⚠️ Limitación: `file://` + WASM
 
-Al abrir `index.html` con doble click (`file://` protocol), los navegadores **bloquean la carga del binario WASM** por seguridad. Síntomas:
+Al abrir `src/index.html` con doble click (`file://` protocol), los navegadores **bloquean la carga del binario WASM** por seguridad. Síntomas:
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
@@ -41,7 +41,7 @@ Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
 
 Dos modos de ejecución:
 
-1. **Navegador** — abrir `index.html` directo (dependencias locales en `vendor/`)
+1. **Navegador** — abrir `src/index.html` directo (dependencias locales en `src/vendor/`)
 2. **Electron WinUnpacked** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
 
 ```
@@ -93,29 +93,36 @@ Tailwind CSS (dark mode personalizado):
 
 ```
 baseaccess/
-├── index.html           # App completa (HTML + CSS + JS)
-├── schema-config.js     # Configuración específica del schema (catálogos, columnas, formato observaciones, estatus)
+├── src/                  # Código fuente
+│   ├── index.html        # App completa (HTML + CSS + JS)
+│   ├── schema-config.js  # Config específica del schema (catálogos, columnas, formato observaciones, estatus)
+│   ├── preload.js        # contextBridge para IPC
+│   └── vendor/           # Dependencias locales (sin CDN)
+│       ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
+│       ├── sql-wasm.js      # sql.js loader
+│       ├── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
+│       ├── styles.css       # Estilos adicionales
+│       ├── fontawesome.min.css # Font Awesome Free
+│       └── webfonts/         # Fuentes de iconos
+├── data/                 # Archivos de datos
+│   ├── sql/
+│   │   └── Tablas8.sql   # Schema SQLite v8 (actual)
+│   ├── importar_datos.py # Script de importación desde Excel (openpyxl)
+│   └── *.db              # Bases de datos (gitignored)
+├── docs/                 # Documentación
+│   ├── doc.md            # Documentación + pendientes + changelog
+│   ├── decisiones.md     # ADR: Architecture Decision Records
+│   ├── ai-context.md     # Anchor file para IAs (stack, líneas rojas, estado actual)
+│   └── funciones.md      # Catálogo SPOT de funciones (DRY)
 ├── main.js              # Electron main process (ventana 1400x900)
 ├── package.json         # Electron + electron-builder config
-├── vendor/              # Dependencias locales (sin CDN)
-│   ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
-│   ├── sql-wasm.js      # sql.js loader
-│   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
-├── bdd/                 # Schemas y bases de datos
-│   ├── Tablas8.sql      # Schema SQLite v8 (actual)
-│   ├── importar_datos.py # Script de importación desde Excel (openpyxl)
-│   ├── Makefile          # Regeneración de BD: python3 importar_datos.py
-│   └── *.db              # Bases de datos (gitignored)
-├── doc.md               # Documentación + pendientes + changelog
-├── decisiones.md         # ADR: Architecture Decision Records
-├── ai-context.md         # Anchor file para IAs (stack, líneas rojas, estado actual)
-├── funciones.md          # Catálogo SPOT de funciones (DRY)
 ├── prompt               # Prompt para Qwen Coder (planificador)
 ├── .clinerules           # Skill de Opencode (protocolo de modificación)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
 ├── .gitignore           # node_modules/, dist/, *.db
-└── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
+├── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
+└── node_modules/        # Dependencias (gitignored)
 ```
 
 ## Tablas del Schema (Tablas8.sql)
@@ -140,7 +147,7 @@ baseaccess/
 
 ## Dependencias Locales (vendor/)
 
-Para evitar CDNs y funcionar sin internet, todo está en `vendor/`:
+Para evitar CDNs y funcionar sin internet, todo está en `src/vendor/`:
 
 | Archivo | Fuente | Tamaño |
 |---------|--------|--------|
@@ -152,7 +159,7 @@ Regenerar `tailwind.min.css` si se agregan nuevas clases:
 ```bash
 npm install --save-dev --no-bin-links tailwindcss@3.4.19
 # crear tailwind.config.js apuntando a index.html
-npx tailwindcss -i input.css -o vendor/tailwind.min.css --minify
+npx tailwindcss -i input.css -o src/vendor/tailwind.min.css --minify
 ```
 
 ## Electron WinUnpacked
@@ -161,7 +168,8 @@ Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chr
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
-- `preload.js` — contextBridge para IPC seguro
+- `src/preload.js` — contextBridge para IPC seguro
+- `src/index.html` — UI de la aplicación
 - `package.json` — `electron` + `electron-builder` como devDeps
 
 ### Build (requiere Node.js + npm)
@@ -187,17 +195,17 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md + ai-context.md + funciones.md + .clinerules → combined.txt
+make combine          # Concatena src/index.html + src/schema-config.js + data/sql/Tablas8.sql + main.js + src/preload.js + package.json + docs/doc.md + docs/decisiones.md + docs/ai-context.md + docs/funciones.md + .clinerules → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
-make serve            # python3 -m http.server 8000 (sirve index.html por HTTP para evitar file://)
+make serve            # python3 -m http.server 8000 (sirve src/index.html por HTTP para evitar file://)
 make electron-build-win    # Build win-unpacked para Windows
 make electron-build-linux  # Build AppImage para Linux
 ```
 
-El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make combine` (por defecto usa `bdd/Tablas8.sql`). También concatena `schema-config.js`.
+El schema usado en `make combine` se configura con `SCHEMA=data/sql/Tablas8.sql make combine` (por defecto usa `data/sql/Tablas8.sql`). También concatena `src/schema-config.js`.
 
 ## Reglas del Proceso
 
@@ -218,15 +226,15 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 **Norma:** Antes de invocar `saveDb()`, copiar el `.db` actual a una carpeta oculta con rotación de 3 backups (`.bak0`, `.bak1`, `.bak2`). Así, si el principal se daña, lo peor que se pierden son ~30s de trabajo.
 
-**Archivos afectados:** `main.js` (IPC handler `save-db`), `preload.js` (exponer función de backup), o lógica en `index.html`.
+**Archivos afectados:** `main.js` (IPC handler `save-db`), `src/preload.js` (exponer función de backup), o lógica en `src/index.html`.
 
 ### 2. Control de Versión del Schema via `PRAGMA user_version`
 
-**Riesgo:** El schema se versiona externamente (Tablas6.sql → Tablas8.sql), pero el frontend no valida la versión de la BD al cargarla. Un usuario podría cargar por error un archivo `.db` de una versión anterior, causando fallas silenciosas en vistas o triggers.
+**Riesgo:** El schema se versiona externamente (Tablas6.sql → data/sql/Tablas8.sql), pero el frontend no valida la versión de la BD al cargarla. Un usuario podría cargar por error un archivo `.db` de una versión anterior, causando fallas silenciosas en vistas o triggers.
 
 **Norma:** Asignar `PRAGMA user_version = 8;` al crear la BD en `Tablas8.sql` (o el script que la genere). Al cargar un archivo, el frontend ejecuta `SELECT pragma_user_version` y si no coincide con la esperada, muestra un cartel: *"Schema desactualizado: versión X, esperada Y. Resincroniza la BD."*
 
-**Archivos afectados:** `bdd/Tablas8.sql` (agregar PRAGMA), `index.html` (validación al cargar).
+**Archivos afectados:** `data/sql/Tablas8.sql` (agregar PRAGMA), `src/index.html` (validación al cargar).
 
 ### 3. Error Boundary Global (window.onerror + unhandledrejection)
 
@@ -234,7 +242,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 **Norma:** Registrar `window.onerror` y `window.onunhandledrejection` al inicio del script. Ante un error crítico: mostrar modal elegante *"Algo salió mal"* con opción de **"Descargar BD actual"** (exportar buffer en memoria) para rescatar datos antes de recargar.
 
-**Archivos afectados:** `index.html` (bloque de inicialización).
+**Archivos afectados:** `src/index.html` (bloque de inicialización).
 
 ### 4. Mantenimiento de la BD (VACUUM)
 
@@ -242,7 +250,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 **Norma:** Añadir botón "Compactar BD" en la UI que ejecute `VACUUM;`. Opcional: ejecutar VACUUM automático al cerrar la app en Electron (evento `before-quit`).
 
-**Archivos afectados:** `index.html` (botón + lógica), `main.js` (opcional, VACUUM en cierre).
+**Archivos afectados:** `src/index.html` (botón + lógica), `main.js` (opcional, VACUUM en cierre).
 
 ---
 
@@ -251,11 +259,11 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 Un dato o lógica debe existir en un solo lugar. Si cambia, se actualiza en ese único punto y el resto del sistema lo refleja automáticamente.
 
 **Ejemplos en el proyecto:**
-- `schema-config.js` es el SPOT para todo lo específico del schema (columnas, catálogos, formato de observaciones, estatus). `index.html` solo referencia `SCHEMA_CONFIG.*`.
+- `src/schema-config.js` es el SPOT para todo lo específico del schema (columnas, catálogos, formato de observaciones, estatus). `src/index.html` solo referencia `SCHEMA_CONFIG.*`.
 - `CATALOGO_POR_SELECT` es el SPOT para los mapeos select→catálogo. `cargarCatalogos()` y `poblarSelectores()` iteran sobre él.
 - `CONFIG.MAX_FILE_SIZE_BYTES` sería el SPOT para el límite de drag & drop, en vez del literal `104857600`.
 
-**Violación detectada:** `if (file.size > 104857600)` en `index.html` — número mágico sin constante.
+**Violación detectada:** `if (file.size > 104857600)` en `src/index.html` — número mágico sin constante.
 
 ### 6. KISS — Keep It Simple, Stupid
 
@@ -310,7 +318,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 - **Alta cohesión:** Lo que está dentro de una función coopera para el mismo fin.
 - **Bajo acoplamiento:** Si cambia la BD, el módulo que dibuja tablas no debe romperse.
 
-**Regla:** La interfaz gráfica no debe importar ni conocer la estructura interna de las tablas SQL (eso está en `schema-config.js`).
+**Regla:** La interfaz gráfica no debe importar ni conocer la estructura interna de las tablas SQL (eso está en `src/schema-config.js`).
 
 ---
 
@@ -342,7 +350,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 20 | `index.html` | Eliminada columna "Monto Adjudicado" de la tabla principal + colspan 8→7 | Simplificar vista principal, monto visible solo en detalle expandible |
 | 21 | `package.json` | Agregado script `build:linux`, sección `linux` con targets AppImage/deb, campo `author` | Build para Linux (AppImage generado) |
 | 22 | `bdd/Tablas7.sql`, `index.html` | Eliminada UNIQUE constraint de `solped`, ahora permite texto libre (múltiples SOLPED) | Los expedientes pueden tener uno o varios números SOLPED |
-| 23 | `.gitignore`, `Makefile`, `prompt`, `doc.md`, `bdd/Tablas8.sql` | Reorganización del proyecto: SQL movidos a `bdd/`, Makefile con `SCHEMA` variable y targets win/linux, prompt actualizado a Tablas8.sql, gitignore mejorado | Reflejar estructura actual y dar soporte multiplataforma |
+| 23 | `.gitignore`, `Makefile`, `prompt`, `doc.md`, `data/sql/Tablas8.sql` | Reorganización del proyecto: SQL movidos a `data/sql/`, Makefile con `SCHEMA` variable y targets win/linux, prompt actualizado a Tablas8.sql, gitignore mejorado | Reflejar estructura actual y dar soporte multiplataforma |
 | 24 | `index.html` | Agregado botón "📋 Historial" en detalle de expediente + modal con historial completo (todas las columnas del snapshot) | Acceder al historial completo sin perder el foco en observaciones |
 | 25 | `index.html`, `prompt`, `doc.md` | Fix HIGH: eliminadas refs a `cat_estado_accion` y `id_estado_accion`, unificados toggles a `toggleDetalle(prefix, id)`, sanitizados IDs SQL con `toInt()`, renombrado `escapeSql`→`sanitizeNull`, eliminado `console.error` | Auditoría de código: cerrar hallazgos prioritarios |
 | 26 | `index.html` | Agregada función `execSafe()` con manejo de errores y `toInt()` para validación de IDs | Prevención de SQL injection y errores silenciosos |
@@ -355,20 +363,20 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 33 | `index.html` | P5: FormatTiempoEjecucion — sufijo "DÍAS" automático al perder el foco si el valor es numérico | Consistencia en campo Tiempo Ejecución |
 | 34 | `index.html` | P6: Nro. ejemplares del documento visible en formulario (junto al select) y en el detalle de la tabla | Dato faltante de cat_documento ahora visible en frontend |
 | 35 | `index.html` | P7: Botón "Recientes" con menú desplegable y localStorage; en Electron reabre por path, en navegador abre picker | Acceso rápido a BD abiertas recientemente |
-| 36 | `index.html`, `bdd/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
+| 36 | `index.html`, `data/sql/Tablas8.sql` | P6: `nro_ejemplares` movido de `cat_documento` a `expedientes` como campo editable por registro. Eliminados `actualizarNroEjemplares()`, display en catálogo, y columna de schema en cat_documento | El nro. de ejemplares varía por expediente, no por tipo de documento |
 | 37 | `index.html` | Fix: `calcularBs()` ahora calcula monto_adjudicado en ambos sentidos (USD→BS y BS→USD) cuando cambia tipo de cambio, independientemente del orden en que se llenen los campos | Bidireccionalidad completa en cálculo automático de montos |
 | 38 | `index.html` | Fix: texto libre en observaciones ahora se guarda correctamente (save lee el textarea en lugar de solo generar línea automática). `actualizarObservacion()` append en vez de reemplazar para no perder escritura del usuario | El texto libre del usuario se perdía al guardar |
 | 37 | `index.html` | Unificación DRY: `CATALOGO_POR_SELECT` como fuente única de verdad para catálogos. Expandido con campo `cols`. `cargarCatalogos()` y `poblarSelectores()` ahora iteran sobre `CATALOGO_POR_SELECT` eliminando los mapeos paralelos duplicados | Eliminar duplicación de 3 estructuras de datos que mapeaban select→catálogo (regla DRY del doc.md) |
 | 38 | `index.html` | Fix: `captureAndRestoreFormState()` para preservar valores de selects al repoblar catálogos | Evitar que campos del formulario se vacíen al añadir nuevos registros a catálogos |
 | 39 | `index.html` | Fix: Eliminado `e.stopPropagation()` del botón '+' de catálogo | El botón '+' no despliega menú al tocar el ícono exacto |
 | 40 | `index.html` | Feature: tipo_cambio aplica automáticamente a monto_adjudicado_bs | Calcular monto adjudicado en BS al cambiar monto USD o tipo de cambio |
-| 41 | `index.html`, `bdd/Tablas8.sql` | Historial overhaul: subformulario eliminado en edición, trigger INSERT para snapshot inicial, observaciones con formato sin prefijos (solo valores), ficha muestra solo observación más nueva con expand, "ver historial completo" como tabla de snapshots | Reemplazar modelo de diferencias por snapshot completo desde creación |
+| 41 | `index.html`, `data/sql/Tablas8.sql` | Historial overhaul: subformulario eliminado en edición, trigger INSERT para snapshot inicial, observaciones con formato sin prefijos (solo valores), ficha muestra solo observación más nueva con expand, "ver historial completo" como tabla de snapshots | Reemplazar modelo de diferencias por snapshot completo desde creación |
 | 42 | `index.html` | Bug ENOENT: `mostrarMenuRecientes()` usa data-attributes con `encodeURIComponent` + listener delegativo en lugar de inline onclick. Agregadas `escapeHtml()` y `eliminarRecienteIndex()` | Caracteres especiales en rutas de BD recientes causaban error al abrir |
 | 43 | `index.html` | Botón "+" de catálogos: `pointer-events-none` en `<i>` + `preventDefault`/`stopPropagation` en onclick | Click en ícono no propagaba al botón |
 | 44 | `index.html` | `captureAndRestoreFormState()` captura TODOS los elementos del formulario (inputs, textareas, selects) con restauración asíncrona + `guardarNuevoCatalogo()` repuebla solo el select afectado | Campos se vaciaban al añadir nuevo registro a catálogo |
-| 45 | `bdd/Tablas8.sql` | `historial_movimientos` ampliado a 34 columnas con snapshot completo. `trg_exp_auditoria` sin WHEN condicional (registra en todo UPDATE). Triggers incluyen solped, plan, modalidad, art, presupuesto_bs, monto_bs, descripción, nro_ejemplares, etc. | Snapshot incompleto no capturaba todos los campos del expediente |
+| 45 | `data/sql/Tablas8.sql` | `historial_movimientos` ampliado a 34 columnas con snapshot completo. `trg_exp_auditoria` sin WHEN condicional (registra en todo UPDATE). Triggers incluyen solped, plan, modalidad, art, presupuesto_bs, monto_bs, descripción, nro_ejemplares, etc. | Snapshot incompleto no capturaba todos los campos del expediente |
 | 46 | `index.html` | Botón "Abrir BD" se contrae a solo ícono al cargar base de datos | Liberar espacio horizontal cuando ya hay BD abierta |
-| 47 | `bdd/Tablas8.sql`, `index.html`, `bdd/importar_datos.py` | `observaciones_generales` → `observaciones`, añadida columna `notas TEXT`, eliminada columna `nro_ejemplares` de ambas tablas, triggers y vista | Separar observaciones auto-generadas de notas libres del usuario |
+| 47 | `data/sql/Tablas8.sql`, `index.html`, `data/importar_datos.py` | `observaciones_generales` → `observaciones`, añadida columna `notas TEXT`, eliminada columna `nro_ejemplares` de ambas tablas, triggers y vista | Separar observaciones auto-generadas de notas libres del usuario |
 | 48 | `index.html` | Removido encabezado izquierdo ("Carga tu base de datos..."), añadida tarjeta NOTAS condicional en desplegable, ícono lupa verde en buscador | UI cleanup solicitado por usuario |
 | 49 | `index.html` | `observaciones`: reemplazo de una sola línea (sin acumulación). Nueva `extractFreeText()` que resta partes auto-generadas del textarea para preservar solo el texto libre del usuario. `previewObservacion()` y `guardarExpediente()` ya no concatenan con `_obsPrevia`. | Evitar acumulación de líneas; texto libre se mantiene al regenerar la parte auto-generada |
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
@@ -385,7 +393,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 61 | `index.html` | **Botón VACUUM (Compactar)** en header, ejecuta `db.run('VACUUM')` con reporte de tamaño antes/después. Deshabilitado hasta cargar BD | Mantenimiento de BD: SQLite no libera espacio en disco al eliminar/actualizar |
 | 62 | `index.html` | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal `#modal-error-critico`, botón "Descargar BD actual" (`descargarBDError()`), y deshabilitación de botones de edición (`updateUIOnError()`) | Evitar UI congelada sin feedback; permitir rescatar datos en memoria |
 | 63 | `schema-config.js` | Nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` (6 entradas para VACUUM y error boundary), y constante `BACKUP` | SPOT: centralizar todo en schema-config.js |
-| 64 | `bdd/Tablas8.sql` | Añadido `PRAGMA user_version = 8;` al final del archivo | Versionado de schema para validación al cargar BD |
+| 64 | `data/sql/Tablas8.sql` | Añadido `PRAGMA user_version = 8;` al final del archivo | Versionado de schema para validación al cargar BD |
 | 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
 
 ---
@@ -398,17 +406,17 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | — | 🟢 Baja | ~~Archivo de config específico para BDD (`bdd_config.json`)~~ Reemplazado por `schema-config.js` | — | **reemplazado** |
 | 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | **completado** |
 | 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html`, `schema-config.js` | **completado** |
-| 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
-| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
-| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | **completado** |
-| 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
-| 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
-| 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
-| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | **completado** |
-| — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `schema-config.js` | **completado** |
-| — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `bdd/Tablas8.sql`, `schema-config.js`, `index.html` | **completado** |
-| — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `index.html` | **completado** |
-| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `index.html` | **completado** |
+| 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `src/index.html`, `src/vendor/styles.css` | pendiente |
+| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `src/index.html` | **completado** |
+| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `src/index.html` | **completado** |
+| 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `data/sql/*.sql` | pendiente |
+| 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `src/index.html` | **completado** |
+| 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `src/index.html` | **completado** |
+| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `src/index.html`, `src/vendor/styles.css` | **completado** |
+| — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `src/schema-config.js` | **completado** |
+| — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `data/sql/Tablas8.sql`, `src/schema-config.js`, `src/index.html` | **completado** |
+| — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `src/index.html` | **completado** |
+| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `src/index.html` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)

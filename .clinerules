@@ -6,20 +6,20 @@
 
 ## Modus Operandi (Protocolo de Modificación)
 
-Antes de modificar o agregar funcionalidad en `index.html`, sigue este algoritmo:
+Antes de modificar o agregar funcionalidad en `src/index.html`, sigue este algoritmo:
 
 ### Fase 1: Lectura
-- Revisa `ai-context.md` (líneas rojas, stack, estado actual)
-- Revisa `funciones.md` (catálogo de funciones — NO duplicar)
+- Revisa `docs/ai-context.md` (líneas rojas, stack, estado actual)
+- Revisa `docs/funciones.md` (catálogo de funciones — NO duplicar)
 
 ### Fase 2: Anti-Duplicación (DRY)
-- Si la tarea requiere una utilidad (sanitizar, convertir, renderizar), USA las funciones registradas en `funciones.md`.
+- Si la tarea requiere una utilidad (sanitizar, convertir, renderizar), USA las funciones registradas en `docs/funciones.md`.
 - Queda prohibido reescribir lógica idéntica.
 
 ### Fase 3: Registro (si creas función nueva)
 - Solo si NO existe ninguna función similar.
 - Prográmala siguiendo las líneas rojas (sin hardcodeo, sin efectos secundarios, SoC, SPOT).
-- REGISTRA la nueva función en `funciones.md` de inmediato: nombre, parámetros, descripción, capa.
+- REGISTRA la nueva función en `docs/funciones.md` de inmediato: nombre, parámetros, descripción, capa.
 
 ### Fase 4: Commit
 - Formato obligatorio:
@@ -34,6 +34,6 @@ Antes de modificar o agregar funcionalidad en `index.html`, sigue este algoritmo
 - Cero hardcodeo: usar `CONFIG.*` o constantes con nombre
 - SoC: SQL separado de UI
 - KISS + YAGNI: solo lo pedido, nada "por si acaso"
-- SPOT: schema-config.js es la fuente única del schema
+- SPOT: src/schema-config.js es la fuente única del schema
 - Sin efectos secundarios ocultos (Least Astonishment)
 - Makefile único para automatización

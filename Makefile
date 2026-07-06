@@ -1,19 +1,19 @@
 .PHONY: clean commit push github combine serve electron-install electron-build
 
-SCHEMA ?= bdd/Tablas8.sql
+SCHEMA ?= data/sql/Tablas8.sql
 
 combine:
 	{ \
-	  echo "=== index.html ===" && cat index.html && \
-	  echo "" && echo "=== schema-config.js ===" && cat schema-config.js && \
+	  echo "=== index.html ===" && cat src/index.html && \
+	  echo "" && echo "=== schema-config.js ===" && cat src/schema-config.js && \
 	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
-	  echo "" && echo "=== preload.js ===" && cat preload.js && \
+	  echo "" && echo "=== preload.js ===" && cat src/preload.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
-	  echo "" && echo "=== doc.md ===" && cat doc.md && \
-	  echo "" && echo "=== decisiones.md ===" && cat decisiones.md && \
-	  echo "" && echo "=== ai-context.md ===" && cat ai-context.md && \
-	  echo "" && echo "=== funciones.md ===" && cat funciones.md && \
+	  echo "" && echo "=== doc.md ===" && cat docs/doc.md && \
+	  echo "" && echo "=== decisiones.md ===" && cat docs/decisiones.md && \
+	  echo "" && echo "=== ai-context.md ===" && cat docs/ai-context.md && \
+	  echo "" && echo "=== funciones.md ===" && cat docs/funciones.md && \
 	  echo "" && echo "=== .clinerules ===" && cat .clinerules; \
 	} > combined.txt
 	@echo "combined.txt generado (schema: $(SCHEMA))"
@@ -22,7 +22,7 @@ clean:
 	rm -f combined.txt
 
 serve:
-	python3 -m http.server 8000
+	python3 -m http.server 8000 --directory .
 
 electron-install:
 	npm install --save-dev electron@latest electron-builder@latest

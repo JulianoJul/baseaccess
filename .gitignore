@@ -1,11 +1,11 @@
 node_modules/
 dist/
 *.tgz
-bdd/*.db
-bdd/*.sqlite
+data/*.db
+data/*.sqlite
 src-tauri/target/
 src-tauri/
-bdd/datos_excel.sql
+data/datos_excel.sql
 __pycache__/
 *.pyc
 *.xlsx

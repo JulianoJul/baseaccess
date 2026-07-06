@@ -22,7 +22,7 @@ App web para gestionar expedientes de contrataciones con historial de movimiento
 | `index.html` | App completa (HTML + CSS + JS) |
 | `schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
 | `main.js` | Electron main process |
-| `bdd/Tablas8.sql` | Schema SQLite v8 |
+| `data/sql/Tablas8.sql` | Schema SQLite v8 |
 | `doc.md` | Documentación + pendientes + changelog |
 | `decisiones.md` | ADR: historial de decisiones técnicas |
 | `funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |

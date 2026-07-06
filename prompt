@@ -9,7 +9,7 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 **No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md + decisiones.md + ai-context.md + main.js + preload.js + package.json)
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (src/index.html + src/schema-config.js + data/sql/Tablas8.sql + docs/doc.md + docs/decisiones.md + docs/ai-context.md + main.js + src/preload.js + package.json)
 - ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql, decisiones.md, ai-context.md por separado)
 - Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
 
@@ -179,18 +179,18 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 
 | Archivo | Propósito |
 |---------|-----------|
-| `index.html` | App completa (HTML + CSS + JS) |
-| `schema-config.js` | Config específica del schema (catálogos, columnas, formato observaciones, estatus, orden Excel) |
+| `src/index.html` | App completa (HTML + CSS + JS) |
+| `src/schema-config.js` | Config específica del schema (catálogos, columnas, formato observaciones, estatus, orden Excel) |
 | `main.js` | Electron main process |
-| `preload.js` | contextBridge para IPC |
+| `src/preload.js` | contextBridge para IPC |
 | `package.json` | Electron + electron-builder |
-| `bdd/Tablas8.sql` | Schema SQLite v8 |
-| `bdd/importar_datos.py` | Script de importación desde Excel |
-| `vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
-| `doc.md` | Documentación + pendientes + changelog |
-| `decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
-| `funciones.md` | Catálogo SPOT de funciones (verificar antes de proponer crear nuevas) |
-| `ai-context.md` | Anchor file: stack, líneas rojas, estado actual (lee esto primero) |
+| `data/sql/Tablas8.sql` | Schema SQLite v8 |
+| `data/importar_datos.py` | Script de importación desde Excel |
+| `src/vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
+| `docs/doc.md` | Documentación + pendientes + changelog |
+| `docs/decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
+| `docs/funciones.md` | Catálogo SPOT de funciones (verificar antes de proponer crear nuevas) |
+| `docs/ai-context.md` | Anchor file: stack, líneas rojas, estado actual (lee esto primero) |
 | `.clinerules` | Skill de Opencode (protocolo de modificación para la IA de código) |
 | `combined.txt` | Consolidado para sesiones (make combine) |
 | `Makefile` | combine / clean / commit / push / github / serve / electron-build |
