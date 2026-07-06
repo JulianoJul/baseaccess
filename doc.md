@@ -257,6 +257,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 47 | `bdd/Tablas8.sql`, `index.html`, `bdd/importar_datos.py` | `observaciones_generales` → `observaciones`, añadida columna `notas TEXT`, eliminada columna `nro_ejemplares` de ambas tablas, triggers y vista | Separar observaciones auto-generadas de notas libres del usuario |
 | 48 | `index.html` | Removido encabezado izquierdo ("Carga tu base de datos..."), añadida tarjeta NOTAS condicional en desplegable, ícono lupa verde en buscador | UI cleanup solicitado por usuario |
 | 49 | `index.html` | `observaciones`: reemplazo de una sola línea (sin acumulación). Nueva `extractFreeText()` que resta partes auto-generadas del textarea para preservar solo el texto libre del usuario. `previewObservacion()` y `guardarExpediente()` ya no concatenan con `_obsPrevia`. | Evitar acumulación de líneas; texto libre se mantiene al regenerar la parte auto-generada |
+| 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
 
 ---
 
@@ -272,8 +273,8 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | pendiente |
 | 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | pendiente |
 | 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
-| 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | pendiente |
-| 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | pendiente |
+| 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
+| 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
 | 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | pendiente |
 
 ---

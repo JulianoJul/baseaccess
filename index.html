@@ -63,6 +63,14 @@
         <div class="mb-4 relative">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
             <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
+            <div class="flex items-center gap-2 mt-2 text-xs">
+                <span class="text-gray-400">Ordenar:</span>
+                <select id="sort-order" class="input" style="width: auto; padding: 0.25rem 0.5rem;" onchange="cambiarOrden()" disabled>
+                    <option value="id_expediente DESC">Reciente primero</option>
+                    <option value="fecha_creacion DESC">Fecha creación</option>
+                    <option value="fecha_actualizacion DESC">Fecha modificación</option>
+                </select>
+            </div>
         </div>
 
         <!-- Tabla Principal -->
@@ -77,13 +85,14 @@
                                 <th class="p-3">SOLPED</th>
                                 <th class="p-3">Gerencia</th>
                                 <th class="p-3">Documento</th>
+                                <th class="p-3 max-w-xs">Descripción</th>
                                 <th class="p-3">Estatus Detalle</th>
                                 <th class="p-3">Nro Proceso</th>
                             </tr>
                         </thead>
                         <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
                             <tr>
-                                <td colspan="7" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
+                                <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -643,6 +652,7 @@
             dbFilePath = filePath || fileName;
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
             document.getElementById('search').disabled = false;
+            document.getElementById('sort-order').disabled = false;
             document.getElementById('btn-nuevo').disabled = false;
             document.getElementById('btn-guardar').disabled = false;
             document.getElementById('dbfile').value = '';
@@ -969,9 +979,17 @@
         // ================================================================
         function cargarDatos() {
             if (!db) return;
-            const res = db.exec("SELECT * FROM vw_reporte_excel_contrataciones ORDER BY id_expediente DESC");
+            const orden = document.getElementById('sort-order')?.value || 'id_expediente DESC';
+            const res = db.exec(`SELECT * FROM vw_reporte_excel_contrataciones ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
             renderizarTabla(expedientesCache);
+        }
+        function cambiarOrden() {
+            cargarDatos();
+            const searchEl = document.getElementById('search');
+            if (searchEl && searchEl.value) {
+                searchEl.dispatchEvent(new Event('input'));
+            }
         }
 
         function renderizarTabla(lista) {
@@ -979,7 +997,7 @@
             cuerpo.innerHTML = '';
 
             if (lista.length === 0) {
-                cuerpo.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
+                cuerpo.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
                 return;
             }
 
@@ -996,6 +1014,7 @@
                     <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
                     <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
                     <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
                     <td class="p-3">
                         <span class="px-2 py-0.5 rounded-full text-xs font-medium ${getEstatusClass(exp.estatus_detalle)}">
                             ${exp.estatus_detalle || 'PENDIENTE'}
@@ -1011,7 +1030,7 @@
                 filaDesplegable.className = "hidden bg-gray-950/40 border-l-4 border-teal-500 transition-all";
                 
                 filaDesplegable.innerHTML = `
-                    <td colspan="7" class="p-5">
+                    <td colspan="8" class="p-5">
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                             
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
