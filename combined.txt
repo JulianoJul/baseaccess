@@ -29,6 +29,32 @@
             padding-left: 6px;
         }
     </style>
+    <!-- Modal Ruta Procesos -->
+    <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-6xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 px-5 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
+                <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5" id="ruta-contenido">
+                <p class="text-gray-500 text-center py-8">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Documentos Pendientes -->
+    <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 px-5 py-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
+                <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-5" id="pendientes-contenido">
+                <p class="text-gray-500 text-center py-8">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
     <script src="vendor/sql-wasm.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
@@ -47,6 +73,14 @@
                 <button id="btn-nuevo" onclick="mostrarFormulario(null)" disabled
                     class="btn btn-primary">
                     + Nuevo Expediente
+                </button>
+                <button onclick="abrirRutaProcesos()" disabled
+                    class="btn btn-primary" id="btn-ruta">
+                    <i class="fas fa-route mr-1"></i> Ruta Procesos
+                </button>
+                <button onclick="abrirDocumentosPendientes()" disabled
+                    class="btn btn-primary" id="btn-pendientes">
+                    <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
                 <button id="btn-guardar" onclick="guardarBD()" disabled
                     class="btn btn-primary">
@@ -656,6 +690,8 @@
             document.getElementById('sort-order').disabled = false;
             document.getElementById('btn-nuevo').disabled = false;
             document.getElementById('btn-guardar').disabled = false;
+            document.getElementById('btn-ruta').disabled = false;
+            document.getElementById('btn-pendientes').disabled = false;
             document.getElementById('dbfile').value = '';
             document.getElementById('body').classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
@@ -1590,6 +1626,100 @@
                 default: return 'bg-gray-500/20 text-gray-400';
             }
         }
+
+        // ================================================================
+        // RUTA PROCESOS (#4)
+        // ================================================================
+        function abrirRutaProcesos() {
+            if (!db) return;
+            document.getElementById('modal-ruta').classList.remove('hidden');
+            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+                e.emisor, e.receptor, e.documento, e.estatus_detalle,
+                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
+                FROM vw_reporte_excel_contrataciones e
+                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const data = dbToObjects(r);
+            const cont = document.getElementById('ruta-contenido');
+            if (!data.length) {
+                cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin datos.</p>';
+                return;
+            }
+            let html = `<div class="text-xs text-gray-400 mb-3">${data.length} proceso(s)</div>
+                <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                <thead><tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                    <th class="p-2">SOLPED</th>
+                    <th class="p-2">Documento</th>
+                    <th class="p-2">Emisor</th>
+                    <th class="p-2">Receptor</th>
+                    <th class="p-2">Estatus</th>
+                    <th class="p-2">Recibido</th>
+                    <th class="p-2">Devuelto</th>
+                    <th class="p-2">Nro Proceso</th>
+                </tr></thead><tbody>`;
+            data.forEach(p => {
+                const cls = getEstatusClass(p.estatus_detalle);
+                html += `<tr class="border-b border-gray-700/40 hover:bg-gray-700/20">
+                    <td class="p-2 font-semibold text-gray-200">${p.solped || 'N/A'}</td>
+                    <td class="p-2 text-gray-300">${p.documento || 'N/A'}</td>
+                    <td class="p-2 text-gray-300">${p.emisor || 'N/A'}</td>
+                    <td class="p-2 text-gray-300">${p.receptor || 'N/A'}</td>
+                    <td class="p-2"><span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${p.estatus_detalle || 'N/A'}</span></td>
+                    <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_recibido || 'N/A'}</td>
+                    <td class="p-2 text-gray-400 font-mono text-xs">${p.fecha_devuelto || 'N/A'}</td>
+                    <td class="p-2 text-gray-400 font-mono text-xs">${p.nro_proceso || 'N/A'}</td>
+                </tr>`;
+            });
+            html += '</tbody></table></div>';
+            cont.innerHTML = html;
+        }
+        function cerrarRutaProcesos() {
+            document.getElementById('modal-ruta').classList.add('hidden');
+        }
+
+        // ================================================================
+        // DOCUMENTOS PENDIENTES (#5)
+        // ================================================================
+        function abrirDocumentosPendientes() {
+            if (!db) return;
+            document.getElementById('modal-pendientes').classList.remove('hidden');
+            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+                e.emisor, e.receptor, e.documento, e.estatus_detalle,
+                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
+                FROM vw_reporte_excel_contrataciones e
+                WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
+                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const data = dbToObjects(r);
+            const cont = document.getElementById('pendientes-contenido');
+            if (!data.length) {
+                cont.innerHTML = '<p class="text-emerald-400 text-center py-8 text-base font-semibold"><i class="fas fa-check-circle mr-2"></i>Todos los documentos están firmados.</p>';
+                return;
+            }
+            let html = `<div class="text-xs text-amber-400 font-semibold mb-3">${data.length} documento(s) pendiente(s) de firma</div>`;
+            data.forEach(p => {
+                const cls = getEstatusClass(p.estatus_detalle);
+                html += `<div class="bg-gray-900/60 rounded-lg border border-gray-700/60 p-4 mb-3">
+                    <div class="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                            <span class="text-gray-200 font-semibold text-sm">${p.solped || 'N/A'}</span>
+                            <span class="text-gray-400 text-xs ml-2">${p.documento || ''}</span>
+                        </div>
+                        <span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap">${p.estatus_detalle || 'N/A'}</span>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-400 grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div><span class="text-gray-500">Emisor:</span> ${p.emisor || 'N/A'}</div>
+                        <div><span class="text-gray-500">Receptor:</span> ${p.receptor || 'N/A'}</div>
+                        <div><span class="text-gray-500">Recibido:</span> ${p.fecha_recibido || 'N/A'}</div>
+                        <div><span class="text-gray-500">Nro:</span> ${p.nro_proceso || 'N/A'}</div>
+                    </div>
+                    <div class="mt-1 text-xs text-gray-500 truncate">${p.descripcion_proceso || ''}</div>
+                </div>`;
+            });
+            cont.innerHTML = html;
+        }
+        function cerrarPendientes() {
+            document.getElementById('modal-pendientes').classList.add('hidden');
+        }
     </script>
 </body>
 </html>
@@ -2422,6 +2552,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 48 | `index.html` | Removido encabezado izquierdo ("Carga tu base de datos..."), añadida tarjeta NOTAS condicional en desplegable, ícono lupa verde en buscador | UI cleanup solicitado por usuario |
 | 49 | `index.html` | `observaciones`: reemplazo de una sola línea (sin acumulación). Nueva `extractFreeText()` que resta partes auto-generadas del textarea para preservar solo el texto libre del usuario. `previewObservacion()` y `guardarExpediente()` ya no concatenan con `_obsPrevia`. | Evitar acumulación de líneas; texto libre se mantiene al regenerar la parte auto-generada |
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
+| 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
 
 ---
 
@@ -2434,8 +2565,8 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | pendiente |
 | 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
 | 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
-| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | pendiente |
-| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | pendiente |
+| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
+| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | **completado** |
 | 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |

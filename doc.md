@@ -258,6 +258,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 48 | `index.html` | Removido encabezado izquierdo ("Carga tu base de datos..."), añadida tarjeta NOTAS condicional en desplegable, ícono lupa verde en buscador | UI cleanup solicitado por usuario |
 | 49 | `index.html` | `observaciones`: reemplazo de una sola línea (sin acumulación). Nueva `extractFreeText()` que resta partes auto-generadas del textarea para preservar solo el texto libre del usuario. `previewObservacion()` y `guardarExpediente()` ya no concatenan con `_obsPrevia`. | Evitar acumulación de líneas; texto libre se mantiene al regenerar la parte auto-generada |
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
+| 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
 
 ---
 
@@ -270,8 +271,8 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | pendiente |
 | 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
 | 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
-| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | pendiente |
-| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | pendiente |
+| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
+| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | **completado** |
 | 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
