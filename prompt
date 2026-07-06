@@ -189,7 +189,9 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 | `vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
 | `doc.md` | Documentación + pendientes + changelog |
 | `decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
+| `funciones.md` | Catálogo SPOT de funciones (verificar antes de proponer crear nuevas) |
 | `ai-context.md` | Anchor file: stack, líneas rojas, estado actual (lee esto primero) |
+| `.clinerules` | Skill de Opencode (protocolo de modificación para la IA de código) |
 | `combined.txt` | Consolidado para sesiones (make combine) |
 | `Makefile` | combine / clean / commit / push / github / serve / electron-build |
 

@@ -12,7 +12,9 @@ combine:
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat doc.md && \
 	  echo "" && echo "=== decisiones.md ===" && cat decisiones.md && \
-	  echo "" && echo "=== ai-context.md ===" && cat ai-context.md; \
+	  echo "" && echo "=== ai-context.md ===" && cat ai-context.md && \
+	  echo "" && echo "=== funciones.md ===" && cat funciones.md && \
+	  echo "" && echo "=== .clinerules ===" && cat .clinerules; \
 	} > combined.txt
 	@echo "combined.txt generado (schema: $(SCHEMA))"
 

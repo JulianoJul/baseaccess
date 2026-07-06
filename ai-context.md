@@ -25,8 +25,10 @@ App web para gestionar expedientes de contrataciones con historial de movimiento
 | `bdd/Tablas8.sql` | Schema SQLite v8 |
 | `doc.md` | Documentación + pendientes + changelog |
 | `decisiones.md` | ADR: historial de decisiones técnicas |
+| `funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |
+| `.clinerules` | Skill de Opencode (protocolo de modificación) |
 | `Makefile` | combine / clean / commit / push / serve / electron-build |
 | `combined.txt` | Consolidado (make combine) para sesiones |
 
 ## Regla de Oro
-Antes de tocar código: leer `doc.md` (pendientes) + `decisiones.md` (ADR) + `ai-context.md` (esto).
+Antes de tocar código: leer `doc.md` (pendientes) + `decisiones.md` (ADR) + `funciones.md` (catálogo) + `ai-context.md` (esto) + `.clinerules` (skill).

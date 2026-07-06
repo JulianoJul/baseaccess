@@ -2,6 +2,7 @@
 
 > **Ver también:** [`decisiones.md`](decisiones.md) — ADR con historial de decisiones técnicas.
 > **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
+> **Catálogo:** [`funciones.md`](funciones.md) — SPOT de funciones (DRY: verificar antes de crear).
 
 ## Contexto Termux (Android)
 
@@ -108,7 +109,9 @@ baseaccess/
 ├── doc.md               # Documentación + pendientes + changelog
 ├── decisiones.md         # ADR: Architecture Decision Records
 ├── ai-context.md         # Anchor file para IAs (stack, líneas rojas, estado actual)
+├── funciones.md          # Catálogo SPOT de funciones (DRY)
 ├── prompt               # Prompt para Qwen Coder (planificador)
+├── .clinerules           # Skill de Opencode (protocolo de modificación)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
 ├── .gitignore           # node_modules/, dist/, *.db
@@ -184,7 +187,7 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md + ai-context.md → combined.txt
+make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md + ai-context.md + funciones.md + .clinerules → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
@@ -376,6 +379,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 55 | `doc.md`, `prompt` | Agregados principios SPOT, KISS y anti-magic-numbers en `doc.md` (sección Normas de Desarrollo) y `prompt` (NORMAS DE CÓDIGO LIMPIO) | Formalizar principios de diseño que aplican al proyecto offline-first |
 | 56 | `doc.md`, `prompt` | Agregados principios YAGNI, SoC, Least Astonishment, High Cohesion/Low Coupling en `doc.md` y `prompt` | Completar catálogo de principios de ingeniería de software para guiar a las IA |
 | 57 | `ai-context.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `ai-context.md` (anchor file IA: stack, líneas rojas, estado actual). `prompt` actualizado con formato de commits estructurado (RAZÓN TÉCNICA + SUPOSICIÓN). `Makefile` combine incluye `ai-context.md` | Pipeline nativo IA: anchor + commit logs + PAR integrados |
+| 58 | `funciones.md`, `.clinerules`, `doc.md`, `prompt`, `Makefile`, `ai-context.md` | **Creados** `funciones.md` (catálogo SPOT con 58 funciones) y `.clinerules` (skill de Opencode con protocolo de modificación). Todos los archivos de contexto actualizados para referenciarlos | Cerrar el círculo DRY: la IA debe verificar funciones.md antes de escribir código nuevo |
 
 ---
 
