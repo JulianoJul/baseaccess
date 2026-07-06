@@ -2407,14 +2407,19 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 
 ## Pendientes / Por Hacer
 
-### Estado de la BDD (schema v8 actual)
-
-El schema actual (`bdd/Tablas8.sql`) tiene 10 catálogos + expedientes + historial con snapshot completo. Todos los puntos del plan de funcionalidades han sido implementados excepto los siguientes:
-
 | # | Prioridad | Descripción | Archivos | Estado |
 |---|-----------|-------------|----------|--------|
-| 4 | 🟡 Media | Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`) | `db-settings.js` o schema | pendiente — requiere decisión A vs B |
-| — | 🟢 Baja | Archivo de config específico para BDD (`bdd_config.json`) | Nuevo archivo | pendiente |
+| — | 🟡 Media | ~~Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`)~~ Reemplazado por `schema-config.js` | `schema-config.js` | **reemplazado** |
+| — | 🟢 Baja | ~~Archivo de config específico para BDD (`bdd_config.json`)~~ Reemplazado por `schema-config.js` | — | **reemplazado** |
+| 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | pendiente |
+| 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
+| 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
+| 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | pendiente |
+| 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | pendiente |
+| 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
+| 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | pendiente |
+| 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | pendiente |
+| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | pendiente |
 
 ---
 ### Bug de persistencia resuelto (Electron)
