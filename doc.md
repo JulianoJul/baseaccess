@@ -97,10 +97,10 @@ baseaccess/
 │   ├── sql-wasm.js      # sql.js loader
 │   └── sql-wasm.wasm    # Motor SQLite WASM (~600KB)
 ├── bdd/                 # Schemas y bases de datos
-│   ├── Tablas6.sql      # Schema SQLite v6 (legacy)
-│   ├── Tablas7.sql      # Schema SQLite v7
 │   ├── Tablas8.sql      # Schema SQLite v8 (actual)
-│   └── si.db            # Base de datos de prueba
+│   ├── importar_datos.py # Script de importación desde Excel (openpyxl)
+│   ├── Makefile          # Regeneración de BD: python3 importar_datos.py
+│   └── *.db              # Bases de datos (gitignored)
 ├── doc.md               # Esta documentación
 ├── prompt               # Prompt para auditorías (opencode)
 ├── combined.txt         # Consolidado para auditorías (make combine)
@@ -125,10 +125,9 @@ baseaccess/
 | `cat_empresas` | Empresas adjudicadas |
 | `cat_responsables` | Emisores/Receptores |
 | `cat_estado_accion` | Estado acción (Firma, Modificación, Recibo) |
-| `expedientes` | **Tabla principal**: ~31 columnas con fechas, montos, FK, nro_ejemplares |
+| `expedientes` | **Tabla principal**: ~30 columnas con fechas, montos, FK, observaciones, notas |
 | `historial_movimientos` | Traza de cambios: INSERT automático vía trigger |
 | `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
-| `vw_historial_celdas_multilinea` | Vista con GROUP_CONCAT para LibreOffice |
 
 ## Dependencias Locales (vendor/)
 
@@ -255,6 +254,8 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make 
 | 44 | `index.html` | `captureAndRestoreFormState()` captura TODOS los elementos del formulario (inputs, textareas, selects) con restauración asíncrona + `guardarNuevoCatalogo()` repuebla solo el select afectado | Campos se vaciaban al añadir nuevo registro a catálogo |
 | 45 | `bdd/Tablas8.sql` | `historial_movimientos` ampliado a 34 columnas con snapshot completo. `trg_exp_auditoria` sin WHEN condicional (registra en todo UPDATE). Triggers incluyen solped, plan, modalidad, art, presupuesto_bs, monto_bs, descripción, nro_ejemplares, etc. | Snapshot incompleto no capturaba todos los campos del expediente |
 | 46 | `index.html` | Botón "Abrir BD" se contrae a solo ícono al cargar base de datos | Liberar espacio horizontal cuando ya hay BD abierta |
+| 47 | `bdd/Tablas8.sql`, `index.html`, `bdd/importar_datos.py` | `observaciones_generales` → `observaciones`, añadida columna `notas TEXT`, eliminada columna `nro_ejemplares` de ambas tablas, triggers y vista | Separar observaciones auto-generadas de notas libres del usuario |
+| 48 | `index.html` | Removido encabezado izquierdo ("Carga tu base de datos..."), añadida tarjeta NOTAS condicional en desplegable, ícono lupa verde en buscador | UI cleanup solicitado por usuario |
 
 ---
 

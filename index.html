@@ -36,10 +36,7 @@
 
         <!-- Encabezado -->
         <header class="mb-6 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-teal-400 flex items-center gap-2"><i class="fas fa-folder-open mr-1"></i> Gesti&oacute;n de Expedientes con Historial</h1>
-                <p class="text-xs text-gray-400">Carga tu base de datos SQLite para trabajar de forma 100% local.</p>
-            </div>
+
             <div class="flex items-center gap-3 flex-wrap">
                 <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
                 <button id="btn-abrir" onclick="abrirBaseDatos()"
@@ -63,8 +60,9 @@
         </header>
 
         <!-- Buscador -->
-        <div class="mb-4">
-            <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" disabled>
+        <div class="mb-4 relative">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
+            <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
         </div>
 
         <!-- Tabla Principal -->
@@ -211,12 +209,9 @@
                             <label class="label">Cant. Frentes</label>
                             <input type="number" step="1" min="0" id="f-cantidad_frentes" class="input">
                         </div>
+
                         <div>
-                            <label class="label">Nro. Ejemplares</label>
-                            <input type="number" step="1" min="1" id="f-nro_ejemplares" class="input">
-                        </div>
-                        <div>
-                            <label class="label">Nro. Resolución JD</label>
+                            <label class="label">Nro. Resolución Junta Directiva</label>
                             <input type="text" id="f-nro_resolucion_jd" class="input">
                         </div>
                     </div>
@@ -352,7 +347,7 @@
         const CAMPOS_EDICION_FRECUENTE = [
             'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
             'id_superintendencia', 'id_documento', 'id_estatus',
-            'fecha_recibido', 'fecha_devuelto', 'observaciones', 'notas'
+            'fecha_recibido', 'fecha_devuelto', 'observaciones'
         ];
         let snapshotEdicion = null;
 
@@ -978,7 +973,7 @@
                     </td>
                     <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
                     <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
-                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}${exp.nro_ejemplares ? ' ('+exp.nro_ejemplares+' ejemplares)' : ''}">${exp.documento || 'N/A'}${exp.nro_ejemplares ? ` <span class="text-xs text-gray-500">(${exp.nro_ejemplares})</span>` : ''}</td>
+                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
                     <td class="p-3">
                         <span class="px-2 py-0.5 rounded-full text-xs font-medium ${getEstatusClass(exp.estatus_detalle)}">
                             ${exp.estatus_detalle || 'PENDIENTE'}
@@ -1007,7 +1002,7 @@
                                     <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">${exp.art || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">${exp.tipo_contrato || 'N/A'}</span></div>
                                     <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">${exp.cantidad_frentes || 0}</span></div>
-                                    <div><span class="text-gray-400 block">Nro. Ejemplares:</span> <span class="text-gray-200 font-medium">${exp.nro_ejemplares || 1}</span></div>
+
                                 </div>
                             </div>
 
@@ -1081,6 +1076,14 @@
                                 })()}
                             </div>
                         </div>
+                        ${exp.notas ? `
+                        <div class="mt-4 border-t border-gray-700/50 pt-4">
+                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
+                                <p class="text-gray-300 whitespace-pre-wrap">${exp.notas}</p>
+                            </div>
+                        </div>
+                        ` : ''}
                     </td>
                 `;
 
@@ -1217,7 +1220,6 @@
             document.getElementById('f-solped').value = data.solped || '';
             document.getElementById('f-nro_proceso').value = data.nro_proceso || '';
             document.getElementById('f-id_documento').value = data.id_documento || '';
-            document.getElementById('f-nro_ejemplares').value = data.nro_ejemplares || '';
             document.getElementById('f-descripcion_proceso').value = data.descripcion_proceso || '';
             document.getElementById('f-id_gerencia').value = data.id_gerencia || '';
             cargarSuperintendencias();
@@ -1320,7 +1322,6 @@
                 id_tipo_contrato:        sanitizeNull(document.getElementById('f-id_tipo_contrato').value),
                 nro_acta_apertura:       sanitizeNull(document.getElementById('f-nro_acta_apertura').value),
                 cantidad_frentes:        sanitizeNull(document.getElementById('f-cantidad_frentes').value),
-                nro_ejemplares:          sanitizeNull(document.getElementById('f-nro_ejemplares').value),
                 nro_resolucion_jd:       sanitizeNull(document.getElementById('f-nro_resolucion_jd').value),
                 id_estatus:              sanitizeNull(document.getElementById('f-id_estatus').value) || 1,
                 fecha_recibido:          sanitizeNull(document.getElementById('f-fecha_recibido').value),
@@ -1356,7 +1357,7 @@
                 'id_documento', 'fecha_presupuesto_base', 'presupuesto_base_usd',
                 'tipo_cambio', 'presupuesto_base_bs', 'id_plan', 'descripcion_proceso',
                 'id_modalidad', 'id_art', 'id_tipo_contrato', 'nro_acta_apertura',
-                'cantidad_frentes', 'nro_ejemplares', 'nro_resolucion_jd', 'id_estatus',
+                'cantidad_frentes', 'nro_resolucion_jd', 'id_estatus',
                 'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
                 'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
                 'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
