@@ -95,16 +95,18 @@ def main():
             row = [parse_value(v) for v in raw]
             all_rows.append(row)
 
-    # Leer observaciones del Excel (Col 20 = OBSERVACIONES HISTORIAL)
+    # Leer observaciones del Excel (Col 20 = OBSERVACIONES HISTORIAL, Col 34 = OBSERVACIONES)
     if os.path.exists(EXCEL):
         import openpyxl
         wb = openpyxl.load_workbook(EXCEL, data_only=True)
         ws = wb.active
         obs_col = COLUMNS.index('observaciones_generales')
         for i, row in enumerate(all_rows):
-            excel_obs = ws.cell(i + 2, 20).value  # +2 porque fila 1 es header, 0-indexed
-            if excel_obs:
-                row[obs_col] = str(excel_obs)
+            hist = str(ws.cell(i + 2, 20).value or '').strip()
+            general = str(ws.cell(i + 2, 34).value or '').strip()
+            partes = [p for p in [hist, general] if p]
+            if partes:
+                row[obs_col] = '\n'.join(partes)
 
     insert_cols = ', '.join(COLUMNS)
     placeholders = ', '.join(['?' for _ in COLUMNS])
