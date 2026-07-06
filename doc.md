@@ -261,6 +261,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
 | 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
 | 52 | `schema-config.js`, `index.html` | Creado `schema-config.js` con toda la configuración específica del schema (catálogos, columnas, formato de observaciones, colores de estatus). `index.html` refactorizado para usar `SCHEMA_CONFIG` en lugar de constantes/funciones hardcodeadas. | DRY + modularización; eliminar hardcodeo del schema en index.html (pendiente #1) |
+| 53 | `index.html`, `schema-config.js` | Sidebar de documentos frecuentes colapsable + búsqueda sticky (#9). Toggle de orden de campos en edición (secciones / orden Excel) (#2) con `ordenExcel` en `schema-config.js`. | Pendientes #2 y #9 |
 
 ---
 
@@ -271,14 +272,14 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | — | 🟡 Media | ~~Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`)~~ Reemplazado por `schema-config.js` | `schema-config.js` | **reemplazado** |
 | — | 🟢 Baja | ~~Archivo de config específico para BDD (`bdd_config.json`)~~ Reemplazado por `schema-config.js` | — | **reemplazado** |
 | 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | **completado** |
-| 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
+| 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html`, `schema-config.js` | **completado** |
 | 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
 | 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
 | 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | **completado** |
 | 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
-| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | pendiente |
+| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)

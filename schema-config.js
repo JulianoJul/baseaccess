@@ -95,5 +95,20 @@ const SCHEMA_CONFIG = {
     // Determina si un estatus se considera "FIRMADO"
     esEstatusFirmado: function(estatus) {
         return estatus && estatus.toUpperCase() === 'FIRMADO';
-    }
+    },
+
+    // Orden de campos en el formulario según aparecen en el Excel
+    // (usado por modo "orden Excel" en edición)
+    ordenExcel: [
+        'f-solped', 'f-id_gerencia', 'f-id_superintendencia', 'f-id_emisor',
+        'f-id_documento', 'f-fecha_presupuesto_base', 'f-presupuesto_base_usd',
+        'f-tipo_cambio', 'f-presupuesto_base_bs', 'f-id_plan',
+        'f-descripcion_proceso', 'f-id_modalidad', 'f-id_art', 'f-id_tipo_contrato',
+        'f-nro_acta_apertura', 'f-cantidad_frentes', 'f-nro_resolucion_jd',
+        'f-id_estatus', 'f-fecha_recibido', 'f-fecha_devuelto', 'f-id_receptor',
+        'f-nro_proceso', 'f-id_resultado', 'f-nro_contrato_sicac',
+        'f-nro_contrato_sap', 'f-id_empresa', 'f-tiempo_ejecucion',
+        'f-monto_adjudicado_bs', 'f-monto_adjudicado_usd', 'f-fecha_firma_contrato',
+        'f-observaciones', 'f-notas'
+    ]
 };

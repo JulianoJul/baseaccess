@@ -63,7 +63,7 @@
     <div class="max-w-[1600px] mx-auto" id="app">
 
         <!-- Encabezado -->
-        <header class="mb-6 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
+        <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
 
             <div class="flex items-center gap-3 flex-wrap">
                 <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
@@ -95,43 +95,65 @@
             </div>
         </header>
 
-        <!-- Buscador -->
-        <div class="mb-4 relative">
-            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
-            <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
-            <div class="flex items-center gap-2 mt-2 text-xs">
-                <span class="text-gray-400">Ordenar:</span>
-                <select id="sort-order" class="input" style="width: auto; padding: 0.25rem 0.5rem;" onchange="cambiarOrden()" disabled>
-                    <option value="id_expediente DESC">Reciente primero</option>
-                    <option value="fecha_creacion DESC">Fecha creación</option>
-                    <option value="fecha_actualizacion DESC">Fecha modificación</option>
-                </select>
+        <div class="flex gap-4">
+            <!-- Sidebar Documentos Frecuentes -->
+            <div id="sidebar" class="hidden lg:block w-64 shrink-0">
+                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2 bg-gray-700/40 border-b border-gray-700">
+                        <span class="text-xs font-bold text-teal-400 uppercase tracking-wider"><i class="fas fa-star mr-1"></i> Frecuentes</span>
+                        <button onclick="toggleSidebar()" class="text-gray-400 hover:text-white text-xs"><i class="fas fa-chevron-left"></i></button>
+                    </div>
+                    <div id="sidebar-lista" class="p-2 space-y-1 max-h-[70vh] overflow-y-auto text-xs">
+                        <p class="text-gray-500 italic p-2">Haz clic en <i class="fas fa-star text-teal-400"></i> de un expediente para a&ntilde;adirlo.</p>
+                    </div>
+                </div>
             </div>
-        </div>
+            <div id="sidebar-collapsed" class="hidden">
+                <button onclick="toggleSidebar()" class="bg-gray-800 border border-gray-700 rounded-xl px-2 py-4 text-teal-400 hover:text-teal-300" title="Mostrar sidebar"><i class="fas fa-chevron-right"></i></button>
+            </div>
 
-        <!-- Tabla Principal -->
-        <div id="vista-tabla">
-            <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                                <th class="p-3 w-12 text-center">Ver</th>
-                                <th class="p-3 w-20 text-center">Acción</th>
-                                <th class="p-3">SOLPED</th>
-                                <th class="p-3">Gerencia</th>
-                                <th class="p-3">Documento</th>
-                                <th class="p-3 max-w-xs">Descripción</th>
-                                <th class="p-3">Estatus Detalle</th>
-                                <th class="p-3">Nro Proceso</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
-                            <tr>
-                                <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="flex-1 min-w-0">
+                <!-- Buscador (sticky) -->
+                <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
+                        <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
+                        <div class="flex items-center gap-2 mt-2 text-xs">
+                            <span class="text-gray-400">Ordenar:</span>
+                            <select id="sort-order" class="input" style="width: auto; padding: 0.25rem 0.5rem;" onchange="cambiarOrden()" disabled>
+                                <option value="id_expediente DESC">Reciente primero</option>
+                                <option value="fecha_creacion DESC">Fecha creación</option>
+                                <option value="fecha_actualizacion DESC">Fecha modificación</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla Principal -->
+                <div id="vista-tabla">
+                    <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                                        <th class="p-3 w-12 text-center">Ver</th>
+                                        <th class="p-3 w-20 text-center">Acción</th>
+                                        <th class="p-3">SOLPED</th>
+                                        <th class="p-3">Gerencia</th>
+                                        <th class="p-3">Documento</th>
+                                        <th class="p-3 max-w-xs">Descripción</th>
+                                        <th class="p-3">Estatus Detalle</th>
+                                        <th class="p-3">Nro Proceso</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+                                    <tr>
+                                        <td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -145,7 +167,10 @@
             
             <!-- Cabecera del modal -->
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
-                <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
+                <div class="flex items-center gap-3">
+                    <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
+                    <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded border border-gray-600 text-gray-400 hover:text-teal-400 hover:border-teal-500 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
+                </div>
                 <button onclick="cancelarFormulario()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
 
@@ -995,6 +1020,7 @@
                 filaPrincipal.innerHTML = `
                     <td class="p-3 text-center">
                         <button class="btn-icon text-link" id="btn-${exp.id_expediente}"><i class="fas fa-plus pointer-events-none"></i></button>
+                        <button onclick="event.stopPropagation(); toggleFrecuente(${exp.id_expediente}, '${exp.solped?.replace(/'/g, "\\'") || ''}')" class="btn-icon text-amber-400 hover:text-amber-300 ml-1" title="Añadir a frecuentes"><i class="fas fa-star pointer-events-none" id="star-${exp.id_expediente}"></i></button>
                     </td>
                     <td class="p-3 text-center">
                         <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit pointer-events-none"></i></button>
@@ -1562,6 +1588,106 @@
         }
 
         // ================================================================
+        // SIDEBAR FRECUENTES (#9)
+        // ================================================================
+        const SIDEBAR_KEY = 'sidebarFrecuentes';
+        function toggleFrecuente(id, solped) {
+            let list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            const idx = list.findIndex(i => i.id === id);
+            if (idx !== -1) {
+                list.splice(idx, 1);
+            } else {
+                list.push({ id, solped });
+            }
+            localStorage.setItem(SIDEBAR_KEY, JSON.stringify(list));
+            renderSidebar();
+            const star = document.getElementById(`star-${id}`);
+            if (star) star.classList.toggle('fas', idx === -1);
+            if (star) star.classList.toggle('far', idx !== -1);
+        }
+        function renderSidebar() {
+            const cont = document.getElementById('sidebar-lista');
+            if (!cont) return;
+            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            if (list.length === 0) {
+                cont.innerHTML = '<p class="text-gray-500 italic p-2">Haz clic en <i class="fas fa-star text-teal-400"></i> de un expediente para a&ntilde;adirlo.</p>';
+                return;
+            }
+            cont.innerHTML = list.map(item =>
+                `<div class="flex items-center justify-between px-2 py-1.5 rounded hover:bg-gray-700/40 cursor-pointer" onclick="mostrarFormulario(${item.id})">
+                    <span class="text-gray-300 truncate">${item.solped || '#' + item.id}</span>
+                    <button onclick="event.stopPropagation(); toggleFrecuente(${item.id}, '${item.solped?.replace(/'/g, "\\'") || ''}')" class="text-gray-500 hover:text-red-400 text-xs ml-1"><i class="fas fa-times"></i></button>
+                </div>`
+            ).join('');
+        }
+        function toggleSidebar() {
+            const sb = document.getElementById('sidebar');
+            const col = document.getElementById('sidebar-collapsed');
+            const isOpen = !sb.classList.contains('hidden');
+            sb.classList.toggle('hidden', isOpen);
+            sb.classList.toggle('lg:block', !isOpen);
+            col.classList.toggle('hidden', isOpen);
+        }
+        // Inicializar sidebar
+        renderSidebar();
+        // Refrescar estrellas al cargar datos
+        const _origRenderizar = renderizarTabla;
+        renderizarTabla = function(lista) {
+            _origRenderizar(lista);
+            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            list.forEach(item => {
+                const star = document.getElementById(`star-${item.id}`);
+                if (star) { star.className = 'fas fa-star pointer-events-none'; }
+            });
+        };
+
+        // ================================================================
+        // MODO DE ORDEN EN EDICIÓN (#2)
+        // ================================================================
+        let _modoOrdenForm = 'secciones'; // 'secciones' | 'excel'
+        let _originalPadres = {};
+        function toggleModoOrdenForm() {
+            const btn = document.getElementById('btn-modo-orden');
+            if (_modoOrdenForm === 'secciones') {
+                _modoOrdenForm = 'excel';
+                btn.innerHTML = '<i class="fas fa-layer-group mr-1"></i> Secciones';
+                aplicarOrdenExcel();
+            } else {
+                _modoOrdenForm = 'secciones';
+                btn.innerHTML = '<i class="fas fa-table mr-1"></i> Orden Excel';
+                restaurarOrdenSecciones();
+            }
+        }
+        function aplicarOrdenExcel() {
+            const container = document.querySelector('#form-modal .space-y-6');
+            if (!container) return;
+            // Ocultar fieldsets, guardar referencias
+            container.querySelectorAll('fieldset').forEach(fs => fs.classList.add('hidden'));
+            // Crear contenedor plano
+            let flatDiv = document.getElementById('form-flat-excel');
+            if (!flatDiv) {
+                flatDiv = document.createElement('div');
+                flatDiv.id = 'form-flat-excel';
+                flatDiv.className = 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+                container.appendChild(flatDiv);
+            }
+            flatDiv.innerHTML = '';
+            SCHEMA_CONFIG.ordenExcel.forEach(fid => {
+                const el = document.getElementById(fid);
+                if (!el) return;
+                const wrapper = el.closest('div');
+                if (!wrapper || wrapper.closest('fieldset') === null) return;
+                const clone = wrapper.cloneNode(true);
+                flatDiv.appendChild(clone);
+            });
+        }
+        function restaurarOrdenSecciones() {
+            const flatDiv = document.getElementById('form-flat-excel');
+            if (flatDiv) flatDiv.remove();
+            document.querySelectorAll('#form-modal fieldset').forEach(fs => fs.classList.remove('hidden'));
+        }
+
+        // ================================================================
         // RUTA PROCESOS (#4)
         // ================================================================
         function abrirRutaProcesos() {
@@ -1756,7 +1882,22 @@ const SCHEMA_CONFIG = {
     // Determina si un estatus se considera "FIRMADO"
     esEstatusFirmado: function(estatus) {
         return estatus && estatus.toUpperCase() === 'FIRMADO';
-    }
+    },
+
+    // Orden de campos en el formulario según aparecen en el Excel
+    // (usado por modo "orden Excel" en edición)
+    ordenExcel: [
+        'f-solped', 'f-id_gerencia', 'f-id_superintendencia', 'f-id_emisor',
+        'f-id_documento', 'f-fecha_presupuesto_base', 'f-presupuesto_base_usd',
+        'f-tipo_cambio', 'f-presupuesto_base_bs', 'f-id_plan',
+        'f-descripcion_proceso', 'f-id_modalidad', 'f-id_art', 'f-id_tipo_contrato',
+        'f-nro_acta_apertura', 'f-cantidad_frentes', 'f-nro_resolucion_jd',
+        'f-id_estatus', 'f-fecha_recibido', 'f-fecha_devuelto', 'f-id_receptor',
+        'f-nro_proceso', 'f-id_resultado', 'f-nro_contrato_sicac',
+        'f-nro_contrato_sap', 'f-id_empresa', 'f-tiempo_ejecucion',
+        'f-monto_adjudicado_bs', 'f-monto_adjudicado_usd', 'f-fecha_firma_contrato',
+        'f-observaciones', 'f-notas'
+    ]
 };
 
 === Tablas8.sql ===
@@ -2590,6 +2731,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | 50 | `index.html` | Añadida columna "Descripción" visible en tabla principal (8 columnas). Añadido selector de orden (Reciente/Fecha creación/Fecha modificación) con función `cambiarOrden()`. | Pendientes #7 y #8 |
 | 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
 | 52 | `schema-config.js`, `index.html` | Creado `schema-config.js` con toda la configuración específica del schema (catálogos, columnas, formato de observaciones, colores de estatus). `index.html` refactorizado para usar `SCHEMA_CONFIG` en lugar de constantes/funciones hardcodeadas. | DRY + modularización; eliminar hardcodeo del schema en index.html (pendiente #1) |
+| 53 | `index.html`, `schema-config.js` | Sidebar de documentos frecuentes colapsable + búsqueda sticky (#9). Toggle de orden de campos en edición (secciones / orden Excel) (#2) con `ordenExcel` en `schema-config.js`. | Pendientes #2 y #9 |
 
 ---
 
@@ -2600,14 +2742,14 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | — | 🟡 Media | ~~Archivo separado para ajustes de BD (opción A: tabla `app_config` en SQLite vs opción B: `db-settings.js`)~~ Reemplazado por `schema-config.js` | `schema-config.js` | **reemplazado** |
 | — | 🟢 Baja | ~~Archivo de config específico para BDD (`bdd_config.json`)~~ Reemplazado por `schema-config.js` | — | **reemplazado** |
 | 1 | 🟡 Media | **`schema-config.js`**: archivo JS aparte con constantes del schema (columnas, etiquetas, campos de edición frecuente, etc.) para no tenerlo hardcodeado en `index.html` | `schema-config.js`, `index.html` | **completado** |
-| 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html` | pendiente |
+| 2 | 🟡 Media | **Dos modos de orden en edición**: mantener el actual (campos agrupados por secciones) + agregar modo con el mismo orden que aparece en el Excel | `index.html`, `schema-config.js` | **completado** |
 | 3 | 🟢 Baja | **Colores por frecuencia de edición**: color distinto para campos según qué tan frecuente se editan (1ra, 2da, 3ra vez, etc.) | `index.html`, `vendor/styles.css` | pendiente |
 | 4 | 🟡 Media | **Menú Ruta Procesos**: botón que lleve a una pantalla distinta imitando el comportamiento del Excel | `index.html` | **completado** |
 | 5 | 🟡 Media | **Botón Documentos Pendientes**: listado/modal con todos los expedientes cuyo estatus no sea FIRMADO | `index.html` | **completado** |
 | 6 | 🔴 Alta | **Schemas separados para demás hojas del Excel**: cada hoja del Excel es un módulo independiente con su propio schema (ej. `Tablas8_hoja2.sql`), sin contaminar el schema principal | `bdd/*.sql` | pendiente |
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
-| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | pendiente |
+| 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)
