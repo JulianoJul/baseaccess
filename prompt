@@ -1,6 +1,6 @@
 # Contexto: Proyecto Web HTML/JS (sql.js + Tailwind CSS + SQLite)
 
-App web 100% cliente-side para gestión de expedientes de contrataciones con historial de movimientos. SQLite en el navegador vía sql.js (WASM), UI con Tailwind CSS, sin backend ni servidor.
+App web 100% cliente-side para gestión de expedientes de contrataciones con historial de movimientos. SQLite en el navegador vía sql.js (WASM), UI con Tailwind CSS, sin backend ni servidor. Se ejecuta en navegador (file:/// con Electron) o en Termux (Android) para desarrollo.
 
 ---
 
@@ -9,180 +9,122 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 **No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + Tablas8.sql + doc.md)
-- ❌ **NO LEAS:** Archivos individuales (index.html, Tablas8.sql por separado)
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md)
+- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql por separado)
 - Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
 
 ---
 
 ## Rol
 
-Auditor de código estático. Buscas violaciones a las reglas del proyecto en el código HTML/JS contenido en `combined.txt`, usando `Tablas8.sql` como referencia estructural de la BD.
+Eres un desarrollador que trabaja en este proyecto. Debes leer `combined.txt` (y `doc.md` dentro de él) para entender el estado actual, luego implementar cambios según las instrucciones del usuario.
+
+**Filosofía:** Si una implementación requiere más trabajo pero es más robusta, mantenible y escalable, hazla de una vez. Estamos en etapa de mejora interna del código, no en parches rápidos.
 
 ---
 
 ## REGLAS DEL PROYECTO (priorizadas)
 
 ### 1. Cero hardcodeo de schema
-No debe haber strings literales que dependan del schema (nombres de tabla, columnas, prefijos `cat_`, `id_`, patrones de estado). Nombres de catálogos, columnas y vistas deben extraerse dinámicamente de la BD al cargar el archivo .db.
+No debe haber strings literales que dependan del schema en index.html. Todo lo específico del schema debe estar en `schema-config.js` (el objeto global `SCHEMA_CONFIG`). Nombres de catálogos, columnas, formato de observaciones, colores de estatus, orden de campos, etc.
 
 ### 2. DRY + Reutilización
-Toda lógica debe tener representación única. No copiar-pegar bloques. Si un patrón aparece en más de un lugar, extraer a función reutilizable.
+Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer a funciones. Si un patrón aparece en más de un lugar, crear función reutilizable.
 
-**Funciones ya extraídas (no reportar como duplicadas si se usan consistentemente):**
+**Funciones ya extraídas (usar sin crear duplicados):**
 - `dbToObjects` — convierte resultado SQL a array de objetos
-- `escapeSql` — sanitiza valores nulos/vacíos
-- `cargarCatalogos` — carga todos los catálogos de una vez
+- `sanitizeNull` — sanitiza valores nulos/vacíos
+- `cargarCatalogos` — carga todos los catálogos de una vez desde `SCHEMA_CONFIG.catalogoPorSelect`
 - `poblarSelectores` — llena todos los `<select>` con opciones
 - `cargarSuperintendencias` — filtro dependiente de gerencia
 - `toggleDesplegable` — expande/colapsa detalle de expediente
 - `calcularBs` — convierte USD a Bs con tipo de cambio
-- `getEstatusClass` — devuelve clase CSS según estatus
+- `getEstatusClass` — delega en `SCHEMA_CONFIG.estatusClass()`
+- `generarObservacionAutomatica` — delega en `SCHEMA_CONFIG.generarObservacion()`
+- `previewObservacion` — usa `SCHEMA_CONFIG.extraerTextoLibre()` y `SCHEMA_CONFIG.generarObservacion()`
 
 ### 3. SQL correcto
 - Sin CAST innecesarios
 - ORDER BY en consultas paginadas
 - GROUP BY consistente con SELECT
-- Bound parameters o escape sanitizado (nunca interpolación directa de user input)
+- Bound parameters o sanitizeNull (nunca interpolación directa de user input)
 - JOINs en vez de subqueries correlacionadas cuando sea práctico
 
 ### 4. Manejo de errores
 - Sin `console.log` en producción (solo debugging temporal)
-- Errores de BD deben mostrarse al usuario (alert, o div de error), no silenciarse
+- Errores de BD deben mostrarse al usuario (alert o div de error), no silenciarse
 - Validar existencia de `db` antes de ejecutar consultas
 - Manejar casos donde `db.exec()` devuelva resultados vacíos
 
 ---
 
-## SCHEMA (Tablas8.sql — leer este archivo para la estructura exacta)
+## SCHEMA (Tablas8.sql)
 
-- **11 catálogos:** `cat_gerencia`, `cat_documento` (+nro_ejemplares), `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle` (fusionado con estado_accion), `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_superintendencia` (con FK a gerencia)
-- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, ~30 cols con fechas, montos, FK a catálogos, `fecha_creacion`/`fecha_actualizacion` DEFAULT, solped TEXT sin UNIQUE)
-- **Historial:** `historial_movimientos` (PK `id_movimiento AUTOINCREMENT`, FK a expedientes + snapshot completo de columnas clave)
-- **Triggers:** `trg_exp_auditoria` AFTER UPDATE — inserta en historial cuando cambian campos clave, actualiza `fecha_actualizacion`
-- **Vistas:** `vw_reporte_excel_contrataciones` (JOIN completo expedientes + catálogos)
-
-**NOTA:** El código SQL en JS debe ser consistente con este schema. Usar `SELECT *` cuando sea práctico, nombres de columna explícitos en JOINs.
+- **11 catálogos:** `cat_gerencia`, `cat_documento`, `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle`, `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_superintendencia` (FK a gerencia)
+- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, columnas: solped, id_gerencia, id_superintendencia, id_emisor, id_documento, fecha_presupuesto_base, presupuesto_base_usd, tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso, id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura, cantidad_frentes, nro_resolucion_jd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, fecha_firma_contrato, observaciones, notas, fecha_creacion, fecha_actualizacion)
+- **Historial:** `historial_movimientos` (snapshot completo de columnas clave al cambiar)
+- **Triggers:** `trg_exp_auditoria` AFTER UPDATE — inserta en historial + actualiza `fecha_actualizacion`
+- **Vista:** `vw_reporte_excel_contrataciones` (JOIN completo)
 
 ---
 
 ## FUNCIONALIDAD YA IMPLEMENTADA
 
-- Carga de archivo .db / .sqlite vía input file + sql.js WASM
-- Catálogos cargados al abrir BD, selectores poblados dinámicamente
-- Tabla principal con vista `vw_reporte_excel_contrataciones` ordenada por `id_expediente DESC`
-- Filas desplegables con detalle completo del expediente (3 tarjetas + historial)
-- Modal de formulario para crear/editar expedientes con 6 secciones
-- Historial de movimientos cargado bajo demanda al expandir fila
-- Modal de historial completo con snapshot de todas las columnas (abrirHistorialCompleto)
-- Conversión automática USD→Bs en presupuesto base
-- Filtro instantáneo por texto (SOLPED, Proceso, Gerencia, Contrato, Empresa)
-- Botón "Eliminar" en modo edición
-- CRUD completo: INSERT/UPDATE/DELETE sobre expedientes
+- Carga de archivo .db / .sqlite vía input file + drag & drop + Electron
+- Catálogos cargados dinámicamente, selectores poblados desde BD
+- Tabla principal con vista, 8 columnas (Ver, Acción, SOLPED, Gerencia, Documento, Descripción, Estatus, Nro Proceso)
+- Filas desplegables con detalle completo + historial + notas
+- Modal de formulario para crear/editar con 5 secciones + toggle "Orden Excel"
+- Historial de movimientos: modal expandible, snapshot completo por movimiento
+- Observaciones auto-generadas (una línea, sin acumular) con extracción de texto libre
+- Notas como campo separado y persistente
+- Conversión USD→Bs automática
+- Filtro instantáneo por texto
+- Selector de orden: Reciente / Fecha Creación / Fecha Modificación
+- CRUD completo: INSERT/UPDATE/DELETE
+- Botón "Ruta Procesos": modal con tabla de procesos ordenados por estatus
+- Botón "Documentos Pendientes": listado de expedientes no firmados
+- Sidebar de documentos frecuentes (localStorage, colapsable, estrella en tabla)
+- Búsqueda sticky
+- schema-config.js con toda la configuración específica del schema
+- Exportación BD (Electron: saveDb vía IPC, navegador: download)
 
 ---
 
-## 📁 ESTRUCTURA DEL PROYECTO (dentro de combined.txt)
+## 📁 ESTRUCTURA DEL PROYECTO
 
-Identifica estas secciones dentro de `combined.txt` por su contenido:
-
-| Sección | Contenido clave |
-|---------|-----------------|
-| `index.html` (HEAD) | Tailwind CSS, sql.js, sql-wasm.js. Configuración inicial de `initSqlJs`, listener de `dbfile` change |
-| `index.html` (Tabla) | HTML de la tabla principal con 7 columnas, `toggleDesplegable`, botón editar |
-| `index.html` (Modal) | Formulario completo con 6 fieldset: Info Proceso, Presupuesto, Gestión, Adjudicación, Observaciones, Historial |
-| `index.html` (JS - Estado global) | `let db`, `expedientesCache`, `catalogosCache` |
-| `index.html` (JS - Catálogos) | `cargarCatalogos()`, `poblarSelectores()`, `cargarSuperintendencias()` |
-| `index.html` (JS - CRUD) | `cargarDatos()`, `renderizarTabla()`, `mostrarFormulario()`, `cargarExpediente()`, `guardarExpediente()`, `eliminarExpediente()` |
-| `index.html` (JS - Historial) | `toggleDesplegable()`, `cargarHistorialFormulario()`, `abrirHistorialCompleto()`, `cargarHistorialCompleto()`, `campoHistorial()`, `toggleDetalleCompleto()` |
-| `index.html` (Modal Historial) | Modal con historial completo expandible por movimiento, 16 campos del snapshot + observaciones |
-| `Tablas8.sql` | Schema completo con catálogos, expedientes, historial, triggers, vistas, inserts |
-
----
-
-## INSTRUCCIÓN ESPECÍFICA
-
-Realiza una auditoría completa del código HTML/JS (**leyendo únicamente `combined.txt`**) buscando:
-
-### a) VIOLACIONES DE HARDCODEO
-Literales que dependan del schema (nombres de columna, prefijos, patrones) que deberían obtenerse dinámicamente.
-
-### b) VIOLACIONES DE DRY/REUTILIZACIÓN
-Lógica duplicada (bloques copiados en >1 lugar), patrones que deberían ser funciones reutilizables. No importa el tamaño en líneas.
-
-### c) VIOLACIONES SQL
-Interpolación directa de strings en consultas (SQL injection), falta de ORDER BY, JOINs innecesariamente complejos.
-
-### d) ERRORES DE MANEJO
-Falta de validación de `db` antes de ejecutar, errores silenciados, casos borde no cubiertos (nulls, valores vacíos, tipos incorrectos).
+| Archivo | Propósito |
+|---------|-----------|
+| `index.html` | App completa (HTML + CSS + JS) |
+| `schema-config.js` | Config específica del schema (catálogos, columnas, formato observaciones, estatus, orden Excel) |
+| `main.js` | Electron main process |
+| `preload.js` | contextBridge para IPC |
+| `package.json` | Electron + electron-builder |
+| `bdd/Tablas8.sql` | Schema SQLite v8 |
+| `bdd/importar_datos.py` | Script de importación desde Excel |
+| `vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
+| `doc.md` | Documentación + pendientes + changelog |
+| `combined.txt` | Consolidado para sesiones (make combine) |
+| `Makefile` | combine / clean / commit / push / github / serve / electron-build |
 
 ---
 
-## FORMATO DE REPORTE
+## PENDIENTES (de doc.md)
 
-Para cada hallazgo indica:
-```
-[SEVERIDAD] archivo:línea
-- Regla violada: [descripción breve]
-- Problema: [código o patrón específico]
-- Fix sugerido: [acción concreta]
-```
-
-**Severidad:** Alta | Media | Baja
+Revisar `doc.md` sección "Pendientes / Por Hacer" para la lista actualizada. Al completar un pendiente:
+1. Marcar como **completado** en doc.md
+2. Agregar entrada en el changelog con #, archivos, descripción y razón
+3. Ejecutar `make combine`
+4. Commit + push
 
 ---
 
-## ENTREGABLE FINAL
+## REGLAS DEL PROCESO
 
-Al final del reporte, genera un archivo llamado `plan_modificaciones.md` con:
-
-```markdown
-# Plan de Modificaciones - Auditoría de Código
-
-Prioridad: Alta > Media > Baja
-Estado inicial: pendiente
-
----
-
-## 🔴 PRIORIDAD ALTA
-[Hallazgos Alta]
-
-## 🟡 PRIORIDAD MEDIA
-[Hallazgos Media]
-
-## 🟢 PRIORIDAD BAJA
-[Hallazgos Baja]
-
-## ✅ SIN ACCIÓN REQUERIDA (Compliant)
-[Verificaciones aprobadas]
-```
-
-Cada entrada debe incluir:
-- **Archivo:** ruta relativa dentro del proyecto
-- **Línea:** número aproximado (basado en `combined.txt`)
-- **Descripción del problema:** claro y específico
-- **Fix sugerido:** acción concreta implementable
-- **Estado:** `pendiente`
-
-Este archivo servirá como guía para implementar los fixes uno por uno.
-
----
-
-## REGLAS DEL PROCESO PARA OPENCODE
-
-1. `plan_modificaciones.md` es la guía — opencode lee este archivo e implementa los fixes uno por uno de mayor a menor prioridad
-2. Después de cada fix, ejecutar `make combine` para regenerar `combined.txt`
-3. Al terminar todos los fixes, ejecutar `make combine` y actualizar `doc.md`
-4. Actualizar `doc.md` con historial de cambios (fecha, archivos, razón de cada fix)
-5. Subir a GitHub con `make github msg="mensaje"`
-
----
-
-## FLUJO DE TRABAJO RECOMENDADO
-
-1. Lee `Tablas8.sql` para entender la estructura del schema
-2. Lee `combined.txt` completo (usa búsqueda por nombres de sección para navegar)
-3. Identifica violaciones a las 4 reglas
-4. Genera el reporte con hallazgos priorizados
-5. Crea `plan_modificaciones.md` con el formato especificado
-6. **No leas archivos .html, .sql individuales** — todo está en `combined.txt`
+1. **doc.md primero**: antes de implementar, leer doc.md para conocer el estado y pendientes
+2. **schema-config.js**: cualquier constante o función específica del schema va aquí, no en index.html
+3. **Makefile**: después de cambios, ejecutar `make combine` y actualizar `combined.txt`
+4. **Robustez > Rapidez**: si una implementación más robusta requiere más trabajo, hazla. Estamos en etapa de mejora interna.
+5. **Changelog**: cada cambio significativo debe tener entrada en el changelog de doc.md
+6. **Commit + Push**: al terminar, `git add -A && git commit -m "mensaje" && git push`
+7. **Sin hardcodeo**: los nombres de columnas, tablas, catálogos van en `SCHEMA_CONFIG`, no en strings literales en index.html
