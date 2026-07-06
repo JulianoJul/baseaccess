@@ -17,9 +17,42 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 
 ## Rol
 
-Eres un desarrollador que trabaja en este proyecto. Debes leer `combined.txt` (y `doc.md` dentro de él) para entender el estado actual, luego implementar cambios según las instrucciones del usuario.
+Eres un **auditor/planificador**. Lees `combined.txt` (que contiene el código fuente completo y la documentación) y generas un archivo `plan_modificaciones.md` con las tareas a implementar, priorizadas y detalladas.
 
-**Filosofía:** Si una implementación requiere más trabajo pero es más robusta, mantenible y escalable, hazla de una vez. Estamos en etapa de mejora interna del código, no en parches rápidos.
+**Filosofía:** Si una implementación requiere más trabajo pero es más robusta, mantenible y escalable, proponla. Estamos en etapa de mejora interna del código, no en parches rápidos.
+
+---
+
+## ENTREGABLE: plan_modificaciones.md
+
+Genera un archivo `plan_modificaciones.md` en la raíz del proyecto con el siguiente formato:
+
+```markdown
+# Plan de Modificaciones
+
+Prioridad: Alta > Media > Baja
+
+---
+
+## Pendientes desde doc.md
+[Listar los pendientes de doc.md con su #, prioridad y descripción]
+
+## Hallazgos de auditoría
+[Violaciones a reglas encontradas en el código, priorizadas]
+
+## Propuestas de mejora
+[Mejoras no solicitadas pero que valen la pena, con justificación]
+```
+
+Cada entrada debe incluir:
+- **Archivo:** ruta relativa
+- **Línea:** número aproximado (basado en `combined.txt`)
+- **Descripción del problema:** claro y específico
+- **Fix sugerido:** acción concreta implementable
+- **Esfuerzo:** Bajo | Medio | Alto
+- **Estado:** `pendiente`
+
+Al terminar, **NO ejecutes ningún comando**, solo genera el contenido del archivo y preséntalo al usuario.
 
 ---
 
@@ -109,22 +142,9 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 
 ---
 
-## PENDIENTES (de doc.md)
+## INSTRUCCIONES FINALES
 
-Revisar `doc.md` sección "Pendientes / Por Hacer" para la lista actualizada. Al completar un pendiente:
-1. Marcar como **completado** en doc.md
-2. Agregar entrada en el changelog con #, archivos, descripción y razón
-3. Ejecutar `make combine`
-4. Commit + push
-
----
-
-## REGLAS DEL PROCESO
-
-1. **doc.md primero**: antes de implementar, leer doc.md para conocer el estado y pendientes
-2. **schema-config.js**: cualquier constante o función específica del schema va aquí, no en index.html
-3. **Makefile**: después de cambios, ejecutar `make combine` y actualizar `combined.txt`
-4. **Robustez > Rapidez**: si una implementación más robusta requiere más trabajo, hazla. Estamos en etapa de mejora interna.
-5. **Changelog**: cada cambio significativo debe tener entrada en el changelog de doc.md
-6. **Commit + Push**: al terminar, `git add -A && git commit -m "mensaje" && git push`
-7. **Sin hardcodeo**: los nombres de columnas, tablas, catálogos van en `SCHEMA_CONFIG`, no en strings literales en index.html
+1. **doc.md**: revisarlo para conocer el estado actual de pendientes antes de generar el plan
+2. **Auditar**: detectar violaciones a las reglas del proyecto en el código actual (hardcodeo, DRY violado, SQL incorrecto, etc.)
+3. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
+4. **No ejecutar nada**: solo generar el contenido de `plan_modificaciones.md` y presentarlo al usuario
