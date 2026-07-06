@@ -156,3 +156,20 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Alternativas evaluadas:**
   - N/A — son normas nuevas a implementar, no decisiones tomadas.
 - **Impacto:** `doc.md`: nueva sección "Normas de Desarrollo / Buenas Prácticas". Próximos cambios en `main.js`, `index.html`, `Tablas8.sql`.
+
+---
+
+## DEC-015: Auditoría de Código Limpio — Centralización de Constantes
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El plan de auditoría (plan_modificaciones.md) identificó 12 violaciones en el código: números mágicos, console.log sueltos, strings literales en alertas, localStorage keys hardcodeadas, selectores DOM repetidos, SQL mezclado con UI, y `generarObservacion()` acoplada al DOM. Se resolvieron creando constantes globales en `schema-config.js`.
+- **Alternativas evaluadas:**
+  - Mantener las constantes en `index.html` — descartado por violación a SPOT y schema-config.js como fuente única.
+  - Archivo separado `constants.js` — descartado: generar otro archivo para 15 constantes es over-engineering.
+- **Impacto:**
+  - `schema-config.js`: nuevas secciones `CONFIG`, `DEBUG`, `MSG`, `STORAGE_KEYS`, `SELECTORS`.
+  - `index.html`: `$` helper reemplaza `document.getElementById`. Todas las alertas, console.log, localStorage keys y números mágicos referencian constantes.
+  - `main.js`: console.log envueltos en `DEBUG.isEnabled`.
+  - `generarObservacion()` ahora recibe parámetros en lugar de leer el DOM.
+  - Nuevas funciones data layer: `obtenerRutaProcesos()`, `obtenerDocumentosPendientes()`, `validarArchivoBD()`.
+  - `captureAndRestoreFormState()` hecho async.
