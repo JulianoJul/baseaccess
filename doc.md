@@ -1,5 +1,7 @@
 # Gestión de Expedientes con Historial — Documentación
 
+> **Ver también:** [`decisiones.md`](decisiones.md) — Architecture Decision Records con el historial de decisiones técnicas del proyecto.
+
 ## Contexto Termux (Android)
 
 Este proyecto se edita y construye desde **Termux** en Android. Si inicias una sesión nueva:
@@ -102,7 +104,8 @@ baseaccess/
 │   ├── importar_datos.py # Script de importación desde Excel (openpyxl)
 │   ├── Makefile          # Regeneración de BD: python3 importar_datos.py
 │   └── *.db              # Bases de datos (gitignored)
-├── doc.md               # Esta documentación
+├── doc.md               # Documentación + pendientes + changelog
+├── decisiones.md         # ADR: Architecture Decision Records
 ├── prompt               # Prompt para auditorías (opencode)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
@@ -179,7 +182,7 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + package.json + doc.md → combined.txt
+make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
@@ -193,7 +196,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 ## Reglas del Proceso
 
-1. **doc.md primero**: antes de cualquier implementación o cambio de código, actualizar esta documentación con lo que se planea hacer.
+1. **doc.md + decisiones.md primero**: antes de cualquier implementación o cambio de código, leer ambos archivos. `decisiones.md` contiene el ADR con el porqué de cada decisión técnica.
 2. **Makefile siempre**: después de cambios, ejecutar `make combine`.
 3. **Sin hardcodeo**: cero assumptions de naming conventions. Toda heurística debe ser configurable.
 4. **Historial de cambios**: cada cambio debe agregarse a la cronología en `doc.md` con fecha, archivo, y razón.
@@ -298,6 +301,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | 51 | `index.html` | Añadidos botones "Ruta Procesos" (#4) y "Documentos Pendientes" (#5) en header. Modales independientes con tabla de ruteo y listado de pendientes de firma. | Pendientes #4 y #5 |
 | 52 | `schema-config.js`, `index.html` | Creado `schema-config.js` con toda la configuración específica del schema (catálogos, columnas, formato de observaciones, colores de estatus). `index.html` refactorizado para usar `SCHEMA_CONFIG` en lugar de constantes/funciones hardcodeadas. | DRY + modularización; eliminar hardcodeo del schema en index.html (pendiente #1) |
 | 53 | `index.html`, `schema-config.js` | Sidebar de documentos frecuentes colapsable + búsqueda sticky (#9). Toggle de orden de campos en edición (secciones / orden Excel) (#2) con `ordenExcel` en `schema-config.js`. | Pendientes #2 y #9 |
+| 54 | `decisiones.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `decisiones.md` con 14 ADR entries. `prompt` actualizado con ADR y normas de código limpio. `doc.md` referencias a `decisiones.md`. `Makefile` combine incluye `decisiones.md`. | Bitácora de decisiones técnicas para trazabilidad de arquitectura |
 
 ---
 

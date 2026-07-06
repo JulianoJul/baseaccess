@@ -10,7 +10,8 @@ combine:
 	  echo "" && echo "=== main.js ===" && cat main.js && \
 	  echo "" && echo "=== preload.js ===" && cat preload.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
-	  echo "" && echo "=== doc.md ===" && cat doc.md; \
+	  echo "" && echo "=== doc.md ===" && cat doc.md && \
+	  echo "" && echo "=== decisiones.md ===" && cat decisiones.md; \
 	} > combined.txt
 	@echo "combined.txt generado (schema: $(SCHEMA))"
 

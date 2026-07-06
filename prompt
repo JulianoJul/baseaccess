@@ -9,8 +9,8 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 **No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md)
-- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql por separado)
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md + decisiones.md)
+- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql, decisiones.md por separado)
 - Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
 
 ---
@@ -23,7 +23,7 @@ Eres un **auditor/planificador**. Lees `combined.txt` (que contiene el código f
 
 ---
 
-## ENTREGABLE: plan_modificaciones.md
+## ENTREGABLE 1: plan_modificaciones.md
 
 Genera un archivo `plan_modificaciones.md` en la raíz del proyecto con el siguiente formato:
 
@@ -53,6 +53,36 @@ Cada entrada debe incluir:
 - **Estado:** `pendiente`
 
 Al terminar, **NO ejecutes ningún comando**, solo genera el contenido del archivo y preséntalo al usuario.
+
+---
+
+## ENTREGABLE 2: decisiones.md (ADR - Architecture Decision Records)
+
+**Mantener actualizado** el archivo `decisiones.md` en la raíz del proyecto. Cada vez que analices el repositorio o propongas cambios, debes registrar cronológicamente cada decisión técnica nueva bajo esta estructura:
+
+- **[ID-Título Corto]** (Ej: `DEC-004: Uso de PRAGMA user_version`)
+- **Origen:** `[Instrucción Explícita del Usuario]` | `[Suposición/Iniciativa de la IA]` | `[Norma del Proyecto]`
+- **Contexto y Causa:** ¿Por qué se tomó esta decisión? Si fue suposición, explica el razonamiento lógico o estándar de la industria usado como base.
+- **Alternativas evaluadas:** Qué otra opción había y por qué se descartó.
+- **Impacto:** Archivos o lógica del sistema afectados.
+
+Para decisiones ya registradas, solo añadir nuevas entradas al final. No modificar ni reordenar existentes.
+
+---
+
+## NORMAS DE CÓDIGO LIMPIO (auditar contra estas reglas)
+
+### A. Anti-Hardcoding
+> Queda prohibido escribir valores fijos (rutas, nombres de BD, selectores CSS repetidos, mensajes de error literales) dentro de funciones de lógica. Todo valor variable debe ir en un objeto `CONFIG` o constantes al inicio.
+
+**Mal:** `if (file.size > 104857600)`
+**Bien:** `if (file.size > CONFIG.MAX_FILE_SIZE_BYTES)`
+
+### B. DRY (Don't Repeat Yourself)
+> Si la misma lógica JS, validación o consulta SQL aparece más de dos veces en distintas partes, es obligatorio abstraerla en una función utilitaria pura y reutilizable.
+
+### C. Makefile Único
+> El Makefile es la única fuente de verdad para automatización local. Cualquier comando nuevo de build/preprocesado/limpieza debe registrarse como target en el Makefile, no darse como comando suelto.
 
 ---
 
@@ -137,6 +167,7 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 | `bdd/importar_datos.py` | Script de importación desde Excel |
 | `vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
 | `doc.md` | Documentación + pendientes + changelog |
+| `decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
 | `combined.txt` | Consolidado para sesiones (make combine) |
 | `Makefile` | combine / clean / commit / push / github / serve / electron-build |
 
@@ -145,6 +176,7 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 ## INSTRUCCIONES FINALES
 
 1. **doc.md**: revisarlo para conocer el estado actual de pendientes antes de generar el plan
-2. **Auditar**: detectar violaciones a las reglas del proyecto en el código actual (hardcodeo, DRY violado, SQL incorrecto, etc.)
-3. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
-4. **No ejecutar nada**: solo generar el contenido de `plan_modificaciones.md` y presentarlo al usuario
+2. **decisiones.md**: revisarlo y actualizarlo con nuevas decisiones si aplica. Si no existe, crearlo desde cero analizando commits/changelog.
+3. **Auditar**: detectar violaciones a las normas del proyecto en el código actual (hardcodeo, DRY violado, SQL incorrecto, etc.)
+4. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
+5. **No ejecutar nada**: solo generar el contenido de `plan_modificaciones.md`, presentarlo, y actualizar `decisiones.md` si corresponde
