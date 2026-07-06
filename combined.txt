@@ -385,11 +385,33 @@
             if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
             return partes.join(' - ');
         }
+        function extractFreeText(currentValue, autoLine) {
+            if (!currentValue) return '';
+            let remaining = currentValue;
+            const autoParts = autoLine.split(' - ');
+            for (const part of autoParts) {
+                const idx = remaining.indexOf(part);
+                if (idx !== -1) {
+                    remaining = remaining.slice(0, idx) + remaining.slice(idx + part.length);
+                }
+            }
+            remaining = remaining.replace(/\*Fecha (recibido|devuelto)\*(\s+\d{4}-\d{2}-\d{2})?/g, '');
+            remaining = remaining.replace(/ - /g, ' ').replace(/\s+/g, ' ').trim();
+            remaining = remaining.replace(/^-+/, '').replace(/-+$/, '').trim();
+            return remaining;
+        }
         function previewObservacion() {
             const ta = document.getElementById('f-observaciones');
             if (!ta || !editandoId) return;
-            const linea = generarObservacionAutomatica();
-            if (linea) ta.value = (_obsPrevia ? _obsPrevia + '\n' : '') + linea;
+            const currentValue = ta.value;
+            const autoLine = generarObservacionAutomatica();
+            if (!autoLine) return;
+            const freeText = extractFreeText(currentValue, autoLine);
+            if (freeText) {
+                ta.value = autoLine + ' - ' + freeText;
+            } else {
+                ta.value = autoLine;
+            }
         }
 
         function aplicarTriggerFirma() {
@@ -1261,9 +1283,9 @@
                     }
                 }
             });
-            // Cargar observación previa y mostrar preview
+            // Cargar observación previa y regenerar (extrae texto libre, reemplaza parte auto-generada)
             _obsPrevia = data.observaciones || '';
-            document.getElementById('f-observaciones').value = '';
+            document.getElementById('f-observaciones').value = _obsPrevia;
             document.getElementById('f-notas').value = data.notas || '';
             previewObservacion();
         }
@@ -1339,9 +1361,7 @@
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
                 observaciones: (() => {
                     const textoActual = document.getElementById('f-observaciones').value.trim();
-                    const linea = textoActual || generarObservacionAutomatica();
-                    if (!editandoId) return sanitizeNull(linea || null);
-                    return sanitizeNull((_obsPrevia || '') + (_obsPrevia ? '\n' : '') + linea);
+                    return sanitizeNull(textoActual || generarObservacionAutomatica() || null);
                 })(),
                 notas: sanitizeNull(document.getElementById('f-notas').value.trim())
             };
