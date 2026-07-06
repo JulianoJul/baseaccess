@@ -7,5 +7,4 @@ bdd/*.db
 bdd/*.sqlite
 src-tauri/target/
 src-tauri/
-combined.txt
 bdd/datos_excel.sql
