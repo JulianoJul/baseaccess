@@ -124,7 +124,7 @@
                         </div>
                         <div>
                             <label class="label">Documento</label>
-                            <select id="f-id_documento" class="input" onchange="actualizarObservacion()"></select>
+                            <select id="f-id_documento" class="input" onchange="previewObservacion()"></select>
                         </div>
                         <div class="md:col-span-2 lg:col-span-3">
                             <label class="label">Descripción del Proceso</label>
@@ -194,15 +194,15 @@
                         </div>
                         <div>
                             <label class="label">Estatus Detalle</label>
-                            <select id="f-id_estatus" class="input" onchange="actualizarObservacion()"></select>
+                            <select id="f-id_estatus" class="input" onchange="previewObservacion()"></select>
                         </div>
                         <div>
                             <label class="label">Fecha Recibido</label>
-                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_recibido" class="input" onchange="validarFechas();previewObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Fecha Devuelto</label>
-                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas();actualizarObservacion()" onblur="validarFechas()">
+                            <input type="date" id="f-fecha_devuelto" class="input" onchange="validarFechas();previewObservacion()" onblur="validarFechas()">
                         </div>
                         <div>
                             <label class="label">Nro. Acta Apertura</label>
@@ -266,7 +266,12 @@
                 <fieldset class="card">
                     <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
                     <div class="mt-3">
-                        <textarea id="f-observaciones_generales" rows="3" class="input"></textarea>
+                        <label class="label">Observaciones automáticas</label>
+                        <textarea id="f-observaciones" rows="3" class="input"></textarea>
+                    </div>
+                    <div class="mt-2">
+                        <label class="label">Notas</label>
+                        <textarea id="f-notas" rows="2" class="input"></textarea>
                     </div>
                 </fieldset>
 
@@ -348,10 +353,10 @@
         const CAMPOS_EDICION_FRECUENTE = [
             'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
             'id_superintendencia', 'id_documento', 'id_estatus',
-            'fecha_recibido', 'fecha_devuelto', 'observaciones_generales'
+            'fecha_recibido', 'fecha_devuelto', 'observaciones', 'notas'
         ];
         let snapshotEdicion = null;
-        let observacionesPreviasCache = '';
+
 
         function marcarCamposEdicionFrecuente() {
             CAMPOS_EDICION_FRECUENTE.forEach(campo => {
@@ -374,6 +379,7 @@
             return el.options[el.selectedIndex] ? el.options[el.selectedIndex].text : '';
         }
 
+        let _obsPrevia = '';
         function generarObservacionAutomatica() {
             const estatus = obtenerTextoSelect('f-id_estatus') || 'PENDIENTE';
             const doc = obtenerTextoSelect('f-id_documento') || 'N/A';
@@ -384,21 +390,11 @@
             if (devuelto) partes.push(`*Fecha devuelto* ${devuelto}`);
             return partes.join(' - ');
         }
-
-        function actualizarObservacion() {
-            if (!editandoId) return;
-            const textarea = document.getElementById('f-observaciones_generales');
+        function previewObservacion() {
+            const ta = document.getElementById('f-observaciones');
+            if (!ta || !editandoId) return;
             const linea = generarObservacionAutomatica();
-            if (!linea) return;
-            const actual = textarea.value;
-            if (!actual || actual.trim() === linea || actual.trim() === _ultimaLineaAuto) {
-                textarea.value = linea;
-            } else if (_ultimaLineaAuto && actual.startsWith(_ultimaLineaAuto)) {
-                textarea.value = linea + actual.slice(_ultimaLineaAuto.length);
-            } else {
-                textarea.value = actual + '\n' + linea;
-            }
-            _ultimaLineaAuto = linea;
+            if (linea) ta.value = (_obsPrevia ? _obsPrevia + '\n' : '') + linea;
         }
 
         function aplicarTriggerFirma() {
@@ -414,7 +410,6 @@
                     if (opt.text.toUpperCase() === 'PENDIENTE') sel.value = opt.value;
                 });
             }
-            actualizarObservacion();
         }
 
         const CATALOGO_POR_SELECT = {
@@ -573,7 +568,7 @@
                 const selector = document.getElementById(selectId);
                 if (selector) {
                     const valorAnterior = selector.value;
-                    selector.innerHTML = '<option value="">-- Seleccione --</option>';
+                    selector.innerHTML = '<option value=""></option>';
                     (catalogosCache[catKey] || []).forEach(item => {
                         const opt = document.createElement('option');
                         opt.value = item.id;
@@ -928,7 +923,7 @@
             Object.entries(CATALOGO_POR_SELECT).forEach(([selectId, info]) => {
                 const sel = document.getElementById(selectId);
                 if (!sel) return;
-                sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+                sel.innerHTML = '<option value=""></option>';
                 (catalogosCache[info.key] || []).forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = item.id;
@@ -942,7 +937,7 @@
         function cargarSuperintendencias() {
             const gerenciaId = document.getElementById('f-id_gerencia').value;
             const sel = document.getElementById('f-id_superintendencia');
-            sel.innerHTML = '<option value="">-- Seleccionar --</option>';
+            sel.innerHTML = '<option value=""></option>';
             catalogosCache['superintendencia']
                 .filter(item => !gerenciaId || item.id_gerencia === parseInt(gerenciaId))
                 .forEach(item => {
@@ -1051,7 +1046,7 @@
                         <div class="mt-4 border-t border-gray-700/50 pt-4">
                             <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
                                 ${(() => {
-                                    const lineas = (exp.observaciones_generales || '').split('\n').filter(l => l.trim());
+                                    const lineas = (exp.observaciones || '').split('\n').filter(l => l.trim());
                                     if (lineas.length === 0) {
                                         return `<div class="flex items-center justify-between mb-2">
                                             <span class="text-gray-400 font-bold"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
@@ -1177,14 +1172,12 @@
             // Limpiar formulario
             document.querySelectorAll('#form-modal input:not([type=hidden]), #form-modal select, #form-modal textarea').forEach(el => el.value = '');
             document.getElementById('f-id_expediente').value = '';
-            _ultimaLineaAuto = '';
 
             if (id) {
                 // MODO EDICIÓN
                 titulo.textContent = `Editar Expediente #${id}`;
                 btnEliminar.classList.remove('hidden');
                 snapshotEdicion = null;
-                observacionesPreviasCache = '';
                 cargarExpediente(id);
             } else {
                 // MODO NUEVO
@@ -1192,7 +1185,6 @@
                 btnEliminar.classList.add('hidden');
                 document.getElementById('f-id_estatus').value = '1'; // PENDIENTE por defecto
                 snapshotEdicion = null;
-                observacionesPreviasCache = '';
             }
 
             modal.classList.remove('hidden');
@@ -1205,6 +1197,7 @@
             document.getElementById('form-modal').classList.add('hidden');
             document.body.style.overflow = '';
             editandoId = null;
+            _obsPrevia = '';
         }
 
         function cargarExpediente(id) {
@@ -1256,7 +1249,6 @@
             document.getElementById('f-fecha_firma_contrato').value = data.fecha_firma_contrato || '';
 
             // Guardar snapshot de campos de edición frecuente para detectar cambios al guardar
-            observacionesPreviasCache = data.observaciones_generales || '';
             snapshotEdicion = {};
             CAMPOS_EDICION_FRECUENTE.forEach(campo => {
                 const el = document.getElementById(`f-${campo}`);
@@ -1267,13 +1259,14 @@
                     }
                 }
             });
-            // No precargar el textarea para evitar editar el historial acumulado por error
-            document.getElementById('f-observaciones_generales').value = '';
-            actualizarObservacion();
+            // Cargar observación previa y mostrar preview
+            _obsPrevia = data.observaciones || '';
+            document.getElementById('f-observaciones').value = '';
+            document.getElementById('f-notas').value = data.notas || '';
+            previewObservacion();
         }
 
         let _calculando = false;
-        let _ultimaLineaAuto = '';
         function calcularBs(origen) {
             if (_calculando) return;
             _calculando = true;
@@ -1343,14 +1336,13 @@
                 monto_adjudicado_bs:     sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
-                observaciones_generales: (() => {
-                    const textoActual = document.getElementById('f-observaciones_generales').value.trim();
+                observaciones: (() => {
+                    const textoActual = document.getElementById('f-observaciones').value.trim();
                     const linea = textoActual || generarObservacionAutomatica();
-                    if (!editandoId) {
-                        return sanitizeNull(linea || null);
-                    }
-                    return sanitizeNull((observacionesPreviasCache || '') + (observacionesPreviasCache ? '\n' : '') + linea);
-                })()
+                    if (!editandoId) return sanitizeNull(linea || null);
+                    return sanitizeNull((_obsPrevia || '') + (_obsPrevia ? '\n' : '') + linea);
+                })(),
+                notas: sanitizeNull(document.getElementById('f-notas').value.trim())
             };
 
             // Validar campos obligatorios
@@ -1369,7 +1361,7 @@
                 'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
                 'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
                 'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
-                'fecha_firma_contrato', 'observaciones_generales'
+                'fecha_firma_contrato', 'observaciones', 'notas'
             ];
 
             try {
@@ -1473,7 +1465,8 @@
                     COALESCE(emp.nombre, '-')           AS empresa,
                     COALESCE(h.tiempo_ejecucion, '-')   AS tiempo_ejecucion,
                     COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
-                    COALESCE(h.observaciones_generales, '') AS observaciones
+                    COALESCE(h.observaciones, '') AS observaciones,
+                    COALESCE(h.notas, '') AS notas
                 FROM historial_movimientos h
                 LEFT JOIN cat_tipo_contrato tc   ON h.id_tipo_contrato    = tc.id
                 LEFT JOIN cat_gerencia g         ON h.id_gerencia         = g.id
@@ -1532,6 +1525,10 @@
                 html += `<div class="mt-3 pt-3 border-t border-gray-700/50">`;
                 html += `<span class="text-gray-500 text-xs block mb-1"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>`;
                 html += `<p class="text-gray-300 italic whitespace-pre-wrap text-xs">${obs}</p>`;
+                if (h.notas) {
+                    html += `<span class="text-gray-500 text-xs block mt-2 mb-1"><i class="fas fa-sticky-note mr-1"></i> Notas</span>`;
+                    html += `<p class="text-gray-400 whitespace-pre-wrap text-xs">${h.notas}</p>`;
+                }
                 html += `</div>`;
                 html += `</div>`;
                 html += `</div>`;
@@ -1605,7 +1602,6 @@ CREATE TABLE expedientes (
     id_tipo_contrato        INTEGER,
     nro_acta_apertura       TEXT,
     cantidad_frentes        INTEGER,
-    nro_ejemplares          INTEGER DEFAULT 1,
     nro_resolucion_jd       TEXT,
     id_estatus              INTEGER DEFAULT 1,
     fecha_recibido          DATE,
@@ -1620,7 +1616,8 @@ CREATE TABLE expedientes (
     monto_adjudicado_bs     REAL,
     monto_adjudicado_usd    REAL,
     fecha_firma_contrato    DATE,
-    observaciones_generales TEXT,
+    observaciones           TEXT,
+    notas                   TEXT,
     fecha_creacion          DATE DEFAULT CURRENT_DATE,
     fecha_actualizacion     DATE DEFAULT CURRENT_DATE,
     CONSTRAINT fk_exp_ger      FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
@@ -1673,8 +1670,8 @@ CREATE TABLE historial_movimientos (
     monto_adjudicado_bs     REAL,
     tiempo_ejecucion        TEXT,
     cantidad_frentes        INTEGER,
-    nro_ejemplares          INTEGER,
-    observaciones_generales TEXT,
+    observaciones           TEXT,
+    notas                   TEXT,
     FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
     FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
     FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
@@ -1726,8 +1723,8 @@ BEGIN
         descripcion_proceso,
         presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
         monto_adjudicado_usd, monto_adjudicado_bs,
-        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
-        observaciones_generales
+        tiempo_ejecucion, cantidad_frentes,
+        observaciones, notas
     ) VALUES (
         NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
         NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
@@ -1740,8 +1737,8 @@ BEGIN
         NEW.descripcion_proceso,
         NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
         NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
-        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
-        NEW.observaciones_generales
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes,
+        NEW.observaciones, NEW.notas
     );
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
@@ -1759,8 +1756,8 @@ BEGIN
         descripcion_proceso,
         presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
         monto_adjudicado_usd, monto_adjudicado_bs,
-        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
-        observaciones_generales
+        tiempo_ejecucion, cantidad_frentes,
+        observaciones, notas
     ) VALUES (
         NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
         NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
@@ -1773,8 +1770,8 @@ BEGIN
         NEW.descripcion_proceso,
         NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
         NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
-        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
-        NEW.observaciones_generales
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes,
+        NEW.observaciones, NEW.notas
     );
 
     UPDATE expedientes
@@ -1804,7 +1801,6 @@ SELECT
     s.nombre                                     AS superintendencia,
     emisor.nombre                                AS emisor,
     d.nombre                                     AS documento,
-    e.nro_ejemplares                             AS nro_ejemplares,
     e.fecha_presupuesto_base,
     e.presupuesto_base_usd,
     e.tipo_cambio,
@@ -1830,7 +1826,8 @@ SELECT
     e.monto_adjudicado_bs,
     e.monto_adjudicado_usd,
     COALESCE(e.fecha_firma_contrato, 'NO APLICA') AS fecha_firma_contrato,
-    e.observaciones_generales,
+    e.observaciones,
+    e.notas,
     e.fecha_creacion,
     e.fecha_actualizacion
 FROM expedientes e
@@ -1948,9 +1945,10 @@ INSERT INTO cat_empresas (id, nombre) VALUES
 (12, 'SERVICIOS Y TRANSPORTE LOS 2 HERMANOS, C.A'),
 (13, 'POWERLINE CONSTRUCCIONES, C.A');
 
--- 11. RESPONSABLES (Placeholder temporal)
+-- 11. RESPONSABLES
 INSERT INTO cat_responsables (id, nombre) VALUES
-(1, 'EMISOR/RECEPTOR POR CONFIGURAR');
+(1, 'SIN IDENTIFICAR');
+
 
 === main.js ===
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')

@@ -45,7 +45,6 @@ CREATE TABLE expedientes (
     id_tipo_contrato        INTEGER,
     nro_acta_apertura       TEXT,
     cantidad_frentes        INTEGER,
-    nro_ejemplares          INTEGER DEFAULT 1,
     nro_resolucion_jd       TEXT,
     id_estatus              INTEGER DEFAULT 1,
     fecha_recibido          DATE,
@@ -60,7 +59,8 @@ CREATE TABLE expedientes (
     monto_adjudicado_bs     REAL,
     monto_adjudicado_usd    REAL,
     fecha_firma_contrato    DATE,
-    observaciones_generales TEXT,
+    observaciones           TEXT,
+    notas                   TEXT,
     fecha_creacion          DATE DEFAULT CURRENT_DATE,
     fecha_actualizacion     DATE DEFAULT CURRENT_DATE,
     CONSTRAINT fk_exp_ger      FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
@@ -113,8 +113,8 @@ CREATE TABLE historial_movimientos (
     monto_adjudicado_bs     REAL,
     tiempo_ejecucion        TEXT,
     cantidad_frentes        INTEGER,
-    nro_ejemplares          INTEGER,
-    observaciones_generales TEXT,
+    observaciones           TEXT,
+    notas                   TEXT,
     FOREIGN KEY (id_expediente)       REFERENCES expedientes(id_expediente),
     FOREIGN KEY (id_gerencia)         REFERENCES cat_gerencia(id),
     FOREIGN KEY (id_superintendencia) REFERENCES cat_superintendencia(id),
@@ -166,8 +166,8 @@ BEGIN
         descripcion_proceso,
         presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
         monto_adjudicado_usd, monto_adjudicado_bs,
-        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
-        observaciones_generales
+        tiempo_ejecucion, cantidad_frentes,
+        observaciones, notas
     ) VALUES (
         NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
         NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
@@ -180,8 +180,8 @@ BEGIN
         NEW.descripcion_proceso,
         NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
         NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
-        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
-        NEW.observaciones_generales
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes,
+        NEW.observaciones, NEW.notas
     );
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
@@ -199,8 +199,8 @@ BEGIN
         descripcion_proceso,
         presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
         monto_adjudicado_usd, monto_adjudicado_bs,
-        tiempo_ejecucion, cantidad_frentes, nro_ejemplares,
-        observaciones_generales
+        tiempo_ejecucion, cantidad_frentes,
+        observaciones, notas
     ) VALUES (
         NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
         NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
@@ -213,8 +213,8 @@ BEGIN
         NEW.descripcion_proceso,
         NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
         NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
-        NEW.tiempo_ejecucion, NEW.cantidad_frentes, NEW.nro_ejemplares,
-        NEW.observaciones_generales
+        NEW.tiempo_ejecucion, NEW.cantidad_frentes,
+        NEW.observaciones, NEW.notas
     );
 
     UPDATE expedientes
@@ -244,7 +244,6 @@ SELECT
     s.nombre                                     AS superintendencia,
     emisor.nombre                                AS emisor,
     d.nombre                                     AS documento,
-    e.nro_ejemplares                             AS nro_ejemplares,
     e.fecha_presupuesto_base,
     e.presupuesto_base_usd,
     e.tipo_cambio,
@@ -270,7 +269,8 @@ SELECT
     e.monto_adjudicado_bs,
     e.monto_adjudicado_usd,
     COALESCE(e.fecha_firma_contrato, 'NO APLICA') AS fecha_firma_contrato,
-    e.observaciones_generales,
+    e.observaciones,
+    e.notas,
     e.fecha_creacion,
     e.fecha_actualizacion
 FROM expedientes e

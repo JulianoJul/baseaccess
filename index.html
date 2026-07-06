@@ -265,7 +265,12 @@
                 <fieldset class="card">
                     <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
                     <div class="mt-3">
-                        <textarea id="f-observaciones_generales" rows="3" class="input"></textarea>
+                        <label class="label">Observaciones automáticas</label>
+                        <textarea id="f-observaciones" rows="3" class="input"></textarea>
+                    </div>
+                    <div class="mt-2">
+                        <label class="label">Notas</label>
+                        <textarea id="f-notas" rows="2" class="input"></textarea>
                     </div>
                 </fieldset>
 
@@ -347,7 +352,7 @@
         const CAMPOS_EDICION_FRECUENTE = [
             'id_tipo_contrato', 'id_emisor', 'id_receptor', 'id_gerencia',
             'id_superintendencia', 'id_documento', 'id_estatus',
-            'fecha_recibido', 'fecha_devuelto', 'observaciones_generales'
+            'fecha_recibido', 'fecha_devuelto', 'observaciones', 'notas'
         ];
         let snapshotEdicion = null;
 
@@ -385,7 +390,7 @@
             return partes.join(' - ');
         }
         function previewObservacion() {
-            const ta = document.getElementById('f-observaciones_generales');
+            const ta = document.getElementById('f-observaciones');
             if (!ta || !editandoId) return;
             const linea = generarObservacionAutomatica();
             if (linea) ta.value = (_obsPrevia ? _obsPrevia + '\n' : '') + linea;
@@ -1040,7 +1045,7 @@
                         <div class="mt-4 border-t border-gray-700/50 pt-4">
                             <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
                                 ${(() => {
-                                    const lineas = (exp.observaciones_generales || '').split('\n').filter(l => l.trim());
+                                    const lineas = (exp.observaciones || '').split('\n').filter(l => l.trim());
                                     if (lineas.length === 0) {
                                         return `<div class="flex items-center justify-between mb-2">
                                             <span class="text-gray-400 font-bold"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
@@ -1254,8 +1259,9 @@
                 }
             });
             // Cargar observación previa y mostrar preview
-            _obsPrevia = data.observaciones_generales || '';
-            document.getElementById('f-observaciones_generales').value = '';
+            _obsPrevia = data.observaciones || '';
+            document.getElementById('f-observaciones').value = '';
+            document.getElementById('f-notas').value = data.notas || '';
             previewObservacion();
         }
 
@@ -1329,12 +1335,13 @@
                 monto_adjudicado_bs:     sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_bs').value)),
                 monto_adjudicado_usd:    sanitizeNull(parseNum(document.getElementById('f-monto_adjudicado_usd').value)),
                 fecha_firma_contrato:    sanitizeNull(document.getElementById('f-fecha_firma_contrato').value),
-                observaciones_generales: (() => {
-                    const textoActual = document.getElementById('f-observaciones_generales').value.trim();
+                observaciones: (() => {
+                    const textoActual = document.getElementById('f-observaciones').value.trim();
                     const linea = textoActual || generarObservacionAutomatica();
                     if (!editandoId) return sanitizeNull(linea || null);
                     return sanitizeNull((_obsPrevia || '') + (_obsPrevia ? '\n' : '') + linea);
-                })()
+                })(),
+                notas: sanitizeNull(document.getElementById('f-notas').value.trim())
             };
 
             // Validar campos obligatorios
@@ -1353,7 +1360,7 @@
                 'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso',
                 'id_resultado', 'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa',
                 'tiempo_ejecucion', 'monto_adjudicado_bs', 'monto_adjudicado_usd',
-                'fecha_firma_contrato', 'observaciones_generales'
+                'fecha_firma_contrato', 'observaciones', 'notas'
             ];
 
             try {
@@ -1457,7 +1464,8 @@
                     COALESCE(emp.nombre, '-')           AS empresa,
                     COALESCE(h.tiempo_ejecucion, '-')   AS tiempo_ejecucion,
                     COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
-                    COALESCE(h.observaciones_generales, '') AS observaciones
+                    COALESCE(h.observaciones, '') AS observaciones,
+                    COALESCE(h.notas, '') AS notas
                 FROM historial_movimientos h
                 LEFT JOIN cat_tipo_contrato tc   ON h.id_tipo_contrato    = tc.id
                 LEFT JOIN cat_gerencia g         ON h.id_gerencia         = g.id
@@ -1516,6 +1524,10 @@
                 html += `<div class="mt-3 pt-3 border-t border-gray-700/50">`;
                 html += `<span class="text-gray-500 text-xs block mb-1"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>`;
                 html += `<p class="text-gray-300 italic whitespace-pre-wrap text-xs">${obs}</p>`;
+                if (h.notas) {
+                    html += `<span class="text-gray-500 text-xs block mt-2 mb-1"><i class="fas fa-sticky-note mr-1"></i> Notas</span>`;
+                    html += `<p class="text-gray-400 whitespace-pre-wrap text-xs">${h.notas}</p>`;
+                }
                 html += `</div>`;
                 html += `</div>`;
                 html += `</div>`;

@@ -14,7 +14,7 @@ COLUMNS = [
     'nro_acta_apertura', 'cantidad_frentes', 'nro_resolucion_jd', 'id_estatus',
     'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso', 'id_resultado',
     'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa', 'tiempo_ejecucion',
-    'monto_adjudicado_bs', 'monto_adjudicado_usd', 'fecha_firma_contrato', 'observaciones_generales'
+    'monto_adjudicado_bs', 'monto_adjudicado_usd', 'fecha_firma_contrato', 'observaciones', 'notas'
 ]
 
 def parse_row_values(line):
@@ -91,22 +91,25 @@ def main():
     all_rows = []
     for line in lines:
         raw = parse_row_values(line)
-        if raw is not None and len(raw) == len(COLUMNS):
+        if raw is not None and len(raw) == len(COLUMNS) - 1:
             row = [parse_value(v) for v in raw]
+            row.append(None)  # notas column
             all_rows.append(row)
 
-    # Leer observaciones del Excel (Col 20 = OBSERVACIONES HISTORIAL, Col 34 = OBSERVACIONES)
+    # Leer observaciones y notas del Excel (Col 20 = OBSERVACIONES HISTORIAL, Col 34 = OBSERVACIONES)
     if os.path.exists(EXCEL):
         import openpyxl
         wb = openpyxl.load_workbook(EXCEL, data_only=True)
         ws = wb.active
-        obs_col = COLUMNS.index('observaciones_generales')
+        obs_col = COLUMNS.index('observaciones')
+        notas_col = COLUMNS.index('notas')
         for i, row in enumerate(all_rows):
             hist = str(ws.cell(i + 2, 20).value or '').strip()
-            general = str(ws.cell(i + 2, 34).value or '').strip()
-            partes = [p for p in [hist, general] if p]
-            if partes:
-                row[obs_col] = '\n'.join(partes)
+            if hist:
+                row[obs_col] = hist
+            notas = str(ws.cell(i + 2, 34).value or '').strip()
+            if notas:
+                row[notas_col] = notas
 
     insert_cols = ', '.join(COLUMNS)
     placeholders = ', '.join(['?' for _ in COLUMNS])
@@ -180,9 +183,9 @@ def main():
             print(f"  {s}: {c} veces")
 
     print("\n--- Muestra de observaciones ---")
-    for row in cur.execute("SELECT id_expediente, solped, observaciones_generales FROM expedientes WHERE observaciones_generales IS NOT NULL LIMIT 3"):
+    for row in cur.execute("SELECT id_expediente, solped, observaciones FROM expedientes WHERE observaciones IS NOT NULL LIMIT 3"):
         print(f"  id={row[0]} solped={row[1]}: {row[2][:80]}...")
-    for row in cur.execute("SELECT id_expediente, solped, observaciones_generales FROM historial_movimientos WHERE observaciones_generales IS NOT NULL AND observaciones_generales != '' LIMIT 3"):
+    for row in cur.execute("SELECT id_expediente, solped, observaciones FROM historial_movimientos WHERE observaciones IS NOT NULL AND observaciones != '' LIMIT 3"):
         print(f"  HIST id={row[0]} solped={row[1]}: {row[2][:80]}...")
 
     con.close()
