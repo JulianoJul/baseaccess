@@ -2671,6 +2671,42 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 ---
 
+## Normas de Desarrollo / Buenas Prácticas
+
+### 1. Backup Rotativo antes de cada `saveDb()`
+
+**Riesgo:** Si ocurre un corte de energía, fallo del sistema o cierre forzado mientras Electron escribe el buffer en disco, el archivo `.db` se corrompe irremediablemente. La app escribe directamente sobre el .db en cada guardado, eliminación y autoguardado cada 30s.
+
+**Norma:** Antes de invocar `saveDb()`, copiar el `.db` actual a una carpeta oculta con rotación de 3 backups (`.bak0`, `.bak1`, `.bak2`). Así, si el principal se daña, lo peor que se pierden son ~30s de trabajo.
+
+**Archivos afectados:** `main.js` (IPC handler `save-db`), `preload.js` (exponer función de backup), o lógica en `index.html`.
+
+### 2. Control de Versión del Schema via `PRAGMA user_version`
+
+**Riesgo:** El schema se versiona externamente (Tablas6.sql → Tablas8.sql), pero el frontend no valida la versión de la BD al cargarla. Un usuario podría cargar por error un archivo `.db` de una versión anterior, causando fallas silenciosas en vistas o triggers.
+
+**Norma:** Asignar `PRAGMA user_version = 8;` al crear la BD en `Tablas8.sql` (o el script que la genere). Al cargar un archivo, el frontend ejecuta `SELECT pragma_user_version` y si no coincide con la esperada, muestra un cartel: *"Schema desactualizado: versión X, esperada Y. Resincroniza la BD."*
+
+**Archivos afectados:** `bdd/Tablas8.sql` (agregar PRAGMA), `index.html` (validación al cargar).
+
+### 3. Error Boundary Global (window.onerror + unhandledrejection)
+
+**Riesgo:** Como es SPA (index.html gestiona toda la UI y lógica), un error JS no controlado rompe el hilo de ejecución y congela la interfaz sin feedback al usuario.
+
+**Norma:** Registrar `window.onerror` y `window.onunhandledrejection` al inicio del script. Ante un error crítico: mostrar modal elegante *"Algo salió mal"* con opción de **"Descargar BD actual"** (exportar buffer en memoria) para rescatar datos antes de recargar.
+
+**Archivos afectados:** `index.html` (bloque de inicialización).
+
+### 4. Mantenimiento de la BD (VACUUM)
+
+**Riesgo:** SQLite no reduce el tamaño del archivo en disco al eliminar/actualizar registros; solo marca bloques como reutilizables. Con ediciones constantes, el archivo crece innecesariamente, alargando lecturas y transferencias IPC.
+
+**Norma:** Añadir botón "Compactar BD" en la UI que ejecute `VACUUM;`. Opcional: ejecutar VACUUM automático al cerrar la app en Electron (evento `before-quit`).
+
+**Archivos afectados:** `index.html` (botón + lógica), `main.js` (opcional, VACUUM en cierre).
+
+---
+
 ## Cambios Realizados
 
 ### Migración a Web HTML/JS (Julio 2026)
