@@ -11,7 +11,8 @@ combine:
 	  echo "" && echo "=== preload.js ===" && cat preload.js && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat doc.md && \
-	  echo "" && echo "=== decisiones.md ===" && cat decisiones.md; \
+	  echo "" && echo "=== decisiones.md ===" && cat decisiones.md && \
+	  echo "" && echo "=== ai-context.md ===" && cat ai-context.md; \
 	} > combined.txt
 	@echo "combined.txt generado (schema: $(SCHEMA))"
 

@@ -1,6 +1,7 @@
 # Gestión de Expedientes con Historial — Documentación
 
-> **Ver también:** [`decisiones.md`](decisiones.md) — Architecture Decision Records con el historial de decisiones técnicas del proyecto.
+> **Ver también:** [`decisiones.md`](decisiones.md) — ADR con historial de decisiones técnicas.
+> **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
 
 ## Contexto Termux (Android)
 
@@ -106,7 +107,8 @@ baseaccess/
 │   └── *.db              # Bases de datos (gitignored)
 ├── doc.md               # Documentación + pendientes + changelog
 ├── decisiones.md         # ADR: Architecture Decision Records
-├── prompt               # Prompt para auditorías (opencode)
+├── ai-context.md         # Anchor file para IAs (stack, líneas rojas, estado actual)
+├── prompt               # Prompt para Qwen Coder (planificador)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
 ├── .gitignore           # node_modules/, dist/, *.db
@@ -182,7 +184,7 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md → combined.txt
+make combine          # Concatena index.html + schema-config.js + Tablas8.sql + main.js + preload.js + package.json + doc.md + decisiones.md + ai-context.md → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
@@ -196,11 +198,12 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 ## Reglas del Proceso
 
-1. **doc.md + decisiones.md primero**: antes de cualquier implementación o cambio de código, leer ambos archivos. `decisiones.md` contiene el ADR con el porqué de cada decisión técnica.
+1. **ai-context.md + doc.md + decisiones.md primero**: `ai-context.md` orienta en 10 segundos (stack, líneas rojas). `doc.md` tiene pendientes y changelog. `decisiones.md` contiene el ADR con el porqué de cada decisión técnica.
 2. **Makefile siempre**: después de cambios, ejecutar `make combine`.
 3. **Sin hardcodeo**: cero assumptions de naming conventions. Toda heurística debe ser configurable.
 4. **Historial de cambios**: cada cambio debe agregarse a la cronología en `doc.md` con fecha, archivo, y razón.
 5. **DRY + Reutilización**: toda pieza de lógica debe tener una representación única. No repetir código ni copiar-pegar bloques. Si un patrón aparece en más de un lugar, extraer a función reutilizable. La modularidad no se mide en líneas por archivo ni por función, sino en ausencia de redundancia y en que cada función tenga una única responsabilidad (SRP). Una función de 200 líneas sin duplicación interna es mejor que 4 funciones de 50 líneas con lógica repetida.
+6. **Commits estructurados**: toda confirmación debe incluir `RAZÓN TÉCNICA` y `SUPOSICIÓN` para trazabilidad de decisiones de la IA.
 
 ---
 
@@ -372,6 +375,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 54 | `decisiones.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `decisiones.md` con 14 ADR entries. `prompt` actualizado con ADR y normas de código limpio. `doc.md` referencias a `decisiones.md`. `Makefile` combine incluye `decisiones.md`. | Bitácora de decisiones técnicas para trazabilidad de arquitectura |
 | 55 | `doc.md`, `prompt` | Agregados principios SPOT, KISS y anti-magic-numbers en `doc.md` (sección Normas de Desarrollo) y `prompt` (NORMAS DE CÓDIGO LIMPIO) | Formalizar principios de diseño que aplican al proyecto offline-first |
 | 56 | `doc.md`, `prompt` | Agregados principios YAGNI, SoC, Least Astonishment, High Cohesion/Low Coupling en `doc.md` y `prompt` | Completar catálogo de principios de ingeniería de software para guiar a las IA |
+| 57 | `ai-context.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `ai-context.md` (anchor file IA: stack, líneas rojas, estado actual). `prompt` actualizado con formato de commits estructurado (RAZÓN TÉCNICA + SUPOSICIÓN). `Makefile` combine incluye `ai-context.md` | Pipeline nativo IA: anchor + commit logs + PAR integrados |
 
 ---
 

@@ -9,8 +9,8 @@ App web 100% cliente-side para gestión de expedientes de contrataciones con his
 **No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md + decisiones.md)
-- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql, decisiones.md por separado)
+- ✅ **LEE ÚNICAMENTE:** `combined.txt` (index.html + schema-config.js + Tablas8.sql + doc.md + decisiones.md + ai-context.md + main.js + preload.js + package.json)
+- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql, decisiones.md, ai-context.md por separado)
 - Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
 
 ---
@@ -189,6 +189,7 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 | `vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
 | `doc.md` | Documentación + pendientes + changelog |
 | `decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
+| `ai-context.md` | Anchor file: stack, líneas rojas, estado actual (lee esto primero) |
 | `combined.txt` | Consolidado para sesiones (make combine) |
 | `Makefile` | combine / clean / commit / push / github / serve / electron-build |
 
@@ -196,8 +197,24 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 
 ## INSTRUCCIONES FINALES
 
-1. **doc.md**: revisarlo para conocer el estado actual de pendientes antes de generar el plan
-2. **decisiones.md**: revisarlo y actualizarlo con nuevas decisiones si aplica. Si no existe, crearlo desde cero analizando commits/changelog.
-3. **Auditar**: detectar violaciones a las normas del proyecto en el código actual (hardcodeo, DRY violado, SQL incorrecto, etc.)
-4. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
-5. **No ejecutar nada**: solo generar el contenido de `plan_modificaciones.md`, presentarlo, y actualizar `decisiones.md` si corresponde
+1. **ai-context.md**: leerlo primero para orientarte en 10 segundos
+2. **doc.md**: revisar estado actual de pendientes
+3. **decisiones.md**: revisar y actualizar con nuevas decisiones. Si no existe, crearlo analizando commits/changelog
+4. **Auditar**: detectar violaciones a las normas (hardcodeo, DRY, SoC, YAGNI, números mágicos, etc.)
+5. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
+6. **No ejecutar nada**: solo generar contenido de `plan_modificaciones.md`, presentarlo, y actualizar `decisiones.md` si corresponde
+
+---
+
+## FORMATO DE COMMITS (para auditar)
+
+La IA de código (DeepSeek/Opencode) debe estructurar cada commit así:
+
+```
+feat/fix: [Descripción breve del cambio]
+
+RAZÓN TÉCNICA: [Por qué se eligió esta solución]
+SUPOSICIÓN: [Qué asumió la IA porque no estaba explícito en el prompt]
+```
+
+Auditar que los commits recientes sigan este formato. Reportar omisiones.
