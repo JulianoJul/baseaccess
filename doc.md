@@ -240,6 +240,42 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 
 ---
 
+### 5. SPOT — Single Point of Truth
+
+Un dato o lógica debe existir en un solo lugar. Si cambia, se actualiza en ese único punto y el resto del sistema lo refleja automáticamente.
+
+**Ejemplos en el proyecto:**
+- `schema-config.js` es el SPOT para todo lo específico del schema (columnas, catálogos, formato de observaciones, estatus). `index.html` solo referencia `SCHEMA_CONFIG.*`.
+- `CATALOGO_POR_SELECT` es el SPOT para los mapeos select→catálogo. `cargarCatalogos()` y `poblarSelectores()` iteran sobre él.
+- `CONFIG.MAX_FILE_SIZE_BYTES` sería el SPOT para el límite de drag & drop, en vez del literal `104857600`.
+
+**Violación detectada:** `if (file.size > 104857600)` en `index.html` — número mágico sin constante.
+
+### 6. KISS — Keep It Simple, Stupid
+
+El código debe ser lo más sencillo posible. Simple no es trivial: es la solución más directa que cumple el requerimiento sin over-engineering.
+
+**Ejemplos en el proyecto:**
+- Modales en vez de SPA routing para Ruta Procesos y Documentos Pendientes (DEC-013).
+- localStorage en vez de tabla `app_config` en BD para la sidebar de frecuentes (DEC-011).
+- `observaciones` de una sola línea en vez de append con separadores (DEC-008).
+
+**Contraejemplo a evitar:** Un sistema de migraciones con versionado complejo cuando `PRAGMA user_version` + un `if` alcanza.
+
+### 7. Evitar Números/Textos Mágicos
+
+Los valores literales sin nombre (hardcodeados) se llaman "mágicos" porque su significado no es evidente. Se solucionan asignándolos a constantes con nombre descriptivo.
+
+| Mal | Bien |
+|-----|------|
+| `if (file.size > 104857600)` | `if (file.size > CONFIG.MAX_FILE_SIZE_BYTES)` |
+| `if (edad > 18)` | `if (edad > EDAD_MINIMA_VOTAR)` |
+| `toast("Guardado exitoso")` | `toast(MSG_GUARDADO_EXITOSO)` |
+
+**Regla:** En el proyecto, cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe estar definido como constante en un objeto `CONFIG` o al inicio del script. --
+
+---
+
 ## Cambios Realizados
 
 ### Migración a Web HTML/JS (Julio 2026)
@@ -302,6 +338,7 @@ El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make 
 | 52 | `schema-config.js`, `index.html` | Creado `schema-config.js` con toda la configuración específica del schema (catálogos, columnas, formato de observaciones, colores de estatus). `index.html` refactorizado para usar `SCHEMA_CONFIG` en lugar de constantes/funciones hardcodeadas. | DRY + modularización; eliminar hardcodeo del schema en index.html (pendiente #1) |
 | 53 | `index.html`, `schema-config.js` | Sidebar de documentos frecuentes colapsable + búsqueda sticky (#9). Toggle de orden de campos en edición (secciones / orden Excel) (#2) con `ordenExcel` en `schema-config.js`. | Pendientes #2 y #9 |
 | 54 | `decisiones.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `decisiones.md` con 14 ADR entries. `prompt` actualizado con ADR y normas de código limpio. `doc.md` referencias a `decisiones.md`. `Makefile` combine incluye `decisiones.md`. | Bitácora de decisiones técnicas para trazabilidad de arquitectura |
+| 55 | `doc.md`, `prompt` | Agregados principios SPOT, KISS y anti-magic-numbers en `doc.md` (sección Normas de Desarrollo) y `prompt` (NORMAS DE CÓDIGO LIMPIO) | Formalizar principios de diseño que aplican al proyecto offline-first |
 
 ---
 

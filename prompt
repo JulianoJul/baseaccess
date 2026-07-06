@@ -81,7 +81,16 @@ Para decisiones ya registradas, solo añadir nuevas entradas al final. No modifi
 ### B. DRY (Don't Repeat Yourself)
 > Si la misma lógica JS, validación o consulta SQL aparece más de dos veces en distintas partes, es obligatorio abstraerla en una función utilitaria pura y reutilizable.
 
-### C. Makefile Único
+### C. SPOT — Single Point of Truth
+> Un dato o lógica debe existir en un solo lugar. Si cambia, se actualiza en ese único punto y el resto del sistema lo refleja automáticamente. `schema-config.js` es el SPOT del schema. `CATALOGO_POR_SELECT` es el SPOT de los mapeos select→catálogo.
+
+### D. KISS — Keep It Simple, Stupid
+> La solución más simple que cumpla el requerimiento. Sin over-engineering. Modales > SPA routing. localStorage > tabla app_config. Una línea > append con separadores.
+
+### E. Sin Números/Textos Mágicos
+> Cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe ser una constante con nombre (`CONFIG.MAX_FILE_SIZE_BYTES`, `MSG_ERROR_GUARDADO`, etc.).
+
+### F. Makefile Único
 > El Makefile es la única fuente de verdad para automatización local. Cualquier comando nuevo de build/preprocesado/limpieza debe registrarse como target en el Makefile, no darse como comando suelto.
 
 ---
