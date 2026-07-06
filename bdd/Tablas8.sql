@@ -392,3 +392,5 @@ INSERT INTO cat_empresas (id, nombre) VALUES
 INSERT INTO cat_responsables (id, nombre) VALUES
 (1, 'SIN IDENTIFICAR');
 
+PRAGMA user_version = 8;
+

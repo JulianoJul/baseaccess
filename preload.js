@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-console.log('[PRELOAD] Iniciando preload script...');
+const DEBUG = { isEnabled: false };
+DEBUG.isEnabled && console.log('[PRELOAD] Iniciando preload script...');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   saveDb: (dataBase64) => ipcRenderer.invoke('save-db', dataBase64),
@@ -8,17 +9,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDbPath: (filePath) => ipcRenderer.invoke('set-db-path', filePath),
   getDbPath: () => ipcRenderer.invoke('get-db-path'),
   openDbDialog: async () => {
-    console.log('[PRELOAD] Llamando a ipcRenderer.invoke para open-db-dialog');
+    DEBUG.isEnabled && console.log('[PRELOAD] Llamando a ipcRenderer.invoke para open-db-dialog');
     try {
       const result = await ipcRenderer.invoke('open-db-dialog');
-      console.log('[PRELOAD] Resultado recibido:', result);
+      DEBUG.isEnabled && console.log('[PRELOAD] Resultado recibido:', result);
       return result;
     } catch (err) {
-      console.error('[PRELOAD] Error en openDbDialog:', err);
+      DEBUG.isEnabled && console.error('[PRELOAD] Error en openDbDialog:', err);
       throw err;
     }
   },
   openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
 });
 
-console.log('[PRELOAD] contextBridge configurado correctamente');
+DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctamente');

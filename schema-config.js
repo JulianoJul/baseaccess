@@ -34,6 +34,8 @@ const MSG = {
     ERROR_NO_BD_VALIDA: 'El archivo no parece ser una base de datos SQLite válida.',
     ERROR_NO_REABRIR: err => 'No se pudo abrir la base de datos: ' + (err?.message || err),
     ERROR_ABRIR_BD: err => 'Error al abrir BD: ' + (err?.message || err),
+    ERROR_SCHEMA_VERSION: (actual, esperada) =>
+        `Schema desactualizado: versión ${actual}, esperada ${esperada}. Resincroniza la base de datos.`,
     NOMBRE_OBLIGATORIO: 'El nombre es obligatorio.',
     EXITO_ACTUALIZADO: 'Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.',
     EXITO_CREADO: 'Expediente creado correctamente.',
@@ -74,6 +76,25 @@ const SELECTORS = {
     AC_EXTRA_VAL: 'ac-extra-val',
     F_OBSERVACIONES: 'f-observaciones',
     GUARDAR_BD_BTN: 'btn-guardar-bd',
+    BTN_VACUUM: 'btn-vacuum',
+    MODAL_ERROR: 'modal-error-critico',
+    ERROR_CONTENIDO: 'error-critico-contenido',
+    BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
+};
+
+const MSG_EXTRA = {
+    VACUUM_INICIADO: 'Optimizando base de datos...',
+    VACUUM_COMPLETADO: (antes, despues) =>
+        `Base de datos optimizada: ${antes} → ${despues} MB (${((1 - despues/antes) * 100).toFixed(1)}% reducción)`,
+    VACUUM_ERROR: err => 'Error al optimizar BD: ' + (err?.message || err),
+    ERROR_CRITICO: 'Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.',
+    PROMESA_RECHAZADA: 'Una operación asíncrona falló inesperadamente.',
+    BD_DESCARGADA: 'BD descargada. Recarga la aplicación y continúa.',
+};
+
+const BACKUP = {
+    MAX_COPIES: 5,
+    SUFFIX: '.bak.',
 };
 
 // ---- SCHEMA CONFIG ------------------------------------------------
@@ -173,5 +194,24 @@ const SCHEMA_CONFIG = {
         'f-nro_contrato_sap', 'f-id_empresa', 'f-tiempo_ejecucion',
         'f-monto_adjudicado_bs', 'f-monto_adjudicado_usd', 'f-fecha_firma_contrato',
         'f-observaciones', 'f-notas'
-    ]
+    ],
+
+    // Versión del schema para validación PRAGMA user_version
+    VERSION: 8,
+
+    // Queries SQL centralizadas (SPOT: cambiar aquí si cambia el schema)
+    queries: {
+        reporteExcel: `SELECT * FROM vw_reporte_excel_contrataciones`,
+        rutaProcesos: `SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+            e.emisor, e.receptor, e.documento, e.estatus_detalle,
+            e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
+            FROM vw_reporte_excel_contrataciones e
+            ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+        documentosPendientes: `SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+            e.emisor, e.receptor, e.documento, e.estatus_detalle,
+            e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
+            FROM vw_reporte_excel_contrataciones e
+            WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
+            ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+    }
 };

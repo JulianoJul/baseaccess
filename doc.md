@@ -381,6 +381,12 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 57 | `ai-context.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `ai-context.md` (anchor file IA: stack, líneas rojas, estado actual). `prompt` actualizado con formato de commits estructurado (RAZÓN TÉCNICA + SUPOSICIÓN). `Makefile` combine incluye `ai-context.md` | Pipeline nativo IA: anchor + commit logs + PAR integrados |
 | 58 | `funciones.md`, `.clinerules`, `doc.md`, `prompt`, `Makefile`, `ai-context.md` | **Creados** `funciones.md` (catálogo SPOT con 58 funciones) y `.clinerules` (skill de Opencode con protocolo de modificación). Todos los archivos de contexto actualizados para referenciarlos | Cerrar el círculo DRY: la IA debe verificar funciones.md antes de escribir código nuevo |
 | 59 | `schema-config.js`, `index.html`, `main.js`, `funciones.md`, `doc.md` | **Auditoría de código limpio**: CONFIG, DEBUG, MSG, STORAGE_KEYS, SELECTORS creados en schema-config.js. `$` helper añadido. Todas las alertas, console.*, localStorage keys y números mágicos reemplazados por referencias a constantes. `generarObservacion()` desacoplada del DOM. SQL extraído a data layer (`obtenerRutaProcesos`, `obtenerDocumentosPendientes`). `captureAndRestoreFormState` hecho async. Drag-drop validation extraída a `validarArchivoBD()`. DEBUG condicional en main.js + index.html | Fix de 12 hallazgos del plan_modificaciones.md (números mágicos, console.log, strings literales, localStorage keys, selectores, SoC SQL/UI, acoplamiento DOM) |
+| 60 | `main.js` | **Backup rotativo**: nueva función `crearBackupRotativo()` con rotación de 5 copias (`archivo.db.bak.1`..`.bak.5`), llamada antes de cada `save-db`. Config `BACKUP` en schema-config.js | Riesgo crítico: proteger contra corrupción por corte de energía durante escritura |
+| 61 | `index.html` | **Botón VACUUM (Compactar)** en header, ejecuta `db.run('VACUUM')` con reporte de tamaño antes/después. Deshabilitado hasta cargar BD | Mantenimiento de BD: SQLite no libera espacio en disco al eliminar/actualizar |
+| 62 | `index.html` | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal `#modal-error-critico`, botón "Descargar BD actual" (`descargarBDError()`), y deshabilitación de botones de edición (`updateUIOnError()`) | Evitar UI congelada sin feedback; permitir rescatar datos en memoria |
+| 63 | `schema-config.js` | Nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` (6 entradas para VACUUM y error boundary), y constante `BACKUP` | SPOT: centralizar todo en schema-config.js |
+| 64 | `bdd/Tablas8.sql` | Añadido `PRAGMA user_version = 8;` al final del archivo | Versionado de schema para validación al cargar BD |
+| 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
 
 ---
 
@@ -399,6 +405,10 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
 | 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | **completado** |
+| — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `schema-config.js` | **completado** |
+| — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `bdd/Tablas8.sql`, `schema-config.js`, `index.html` | **completado** |
+| — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `index.html` | **completado** |
+| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `index.html` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)

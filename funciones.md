@@ -113,6 +113,15 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `marcarModificado()` | — | Marca la BD como modificada (habilita botón guardar si aplica) |
 | `iniciarAutoguardado()` | — | Inicia intervalo de autoguardado cada 30s |
 | `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
+| `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Reporta tamaño antes/después |
+| `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
+| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar, compactar) al ocurrir un error crítico |
+
+## Electron (main.js) — Backup Rotativo
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `crearBackupRotativo(filePath)` | `filePath`: ruta del archivo .db actual | Rota hasta 5 backups (`.bak.1`..`.bak.5`), elimina el más antiguo, copia el actual como `.bak.1`. Llamado antes de cada `save-db` |
 
 ---
 
@@ -124,7 +133,9 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` (controlado por `DEBUG.isEnabled`) |
 | `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA` |
 | `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE` |
-| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN` |
+| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD` |
+| `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA` |
+| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 5`, `SUFFIX: '.bak.'` |
 
 ## Helper (index.html)
 
@@ -141,6 +152,13 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `estatusClass(estatus)` | `estatus`: string | Retorna clase CSS según estatus (verde=firmado, amarillo=en_proceso, rojo=devuelto, gris=pendiente) |
 | `esEstatusFirmado(estatus)` | `estatus`: string | Retorna `true` si el estatus es FIRMADO o equivalente |
 
+## SCHEMA_CONFIG (schema-config.js) — Nuevos campos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `VERSION` | number | `8` — version del schema SQLite, validado contra `PRAGMA user_version` al cargar BD |
+| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel` |
+
 ---
 
 ## Electron IPC (main.js)
@@ -153,6 +171,12 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `get-db-path` | — | Retorna la ruta actual de BD |
 | `open-db-file` | `filePath`: string | Lee archivo y retorna buffer como base64 |
 | `open-db-dialog` | — | Abre diálogo nativo para seleccionar archivo .db |
+
+## Electron Interna (main.js)
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta BACKUP.MAX_COPIES backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
 
 ## Electron Preload (preload.js)
 

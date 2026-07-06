@@ -87,6 +87,10 @@
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
+                <button id="btn-vacuum" onclick="optimizarBD()" disabled
+                    class="btn btn-primary text-xs px-3 py-2" title="Compactar base de datos (VACUUM)">
+                    <i class="fas fa-compress-alt mr-1"></i> Compactar
+                </button>
                 <div class="relative">
                     <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
                     <div id="menu-recientes" class="hidden absolute right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[280px] max-w-sm"></div>
@@ -400,6 +404,22 @@
     </div>
     </div>
 
+    <!-- Error Boundary Modal -->
+    <div id="modal-error-critico" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80">
+        <div class="bg-gray-800 border border-red-700 rounded-xl max-w-md w-full shadow-2xl">
+            <div class="bg-red-900/40 p-4 rounded-t-xl border-b border-red-700/60">
+                <h3 class="text-red-400 font-bold text-lg"><i class="fas fa-exclamation-triangle mr-2"></i>Error inesperado</h3>
+            </div>
+            <div id="error-critico-contenido" class="p-4 text-gray-300 text-sm space-y-3">
+                <p>Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.</p>
+            </div>
+            <div class="border-t border-gray-700 p-4 flex justify-end gap-3">
+                <button onclick="descargarBDError()" id="btn-descargar-bd-error" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar BD actual</button>
+                <button onclick="location.reload()" class="btn btn-secondary"><i class="fas fa-redo mr-1"></i> Recargar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ================================================================
         // ESTADO GLOBAL
@@ -416,7 +436,22 @@
         // por completitud, no porque esos campos se editen con más frecuencia.
         let snapshotEdicion = null;
         let _obsPrevia = '';
-        const $ = id => $(id);
+        const $ = id => document.getElementById(id);
+
+        // Error boundary global — captura errores no manejados
+        window.onerror = function(msg, source, lineno, colno, err) {
+            updateUIOnError();
+            const cont = $(SELECTORS.ERROR_CONTENIDO);
+            if (cont) cont.innerHTML = `<p>${MSG_EXTRA.ERROR_CRITICO}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${err?.stack || msg}</pre>`;
+            $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
+            return true;
+        };
+        window.onunhandledrejection = function(event) {
+            updateUIOnError();
+            const cont = $(SELECTORS.ERROR_CONTENIDO);
+            if (cont) cont.innerHTML = `<p>${MSG_EXTRA.PROMESA_RECHAZADA}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${event?.reason?.stack || event?.reason || ''}</pre>`;
+            $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
+        };
 
         function marcarCamposEdicionFrecuente() {
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
@@ -683,6 +718,14 @@
                 return false;
             }
             db = new SQL.Database(bytes);
+            // Validar versión del schema via PRAGMA user_version
+            const versionRes = db.exec("PRAGMA user_version");
+            const version = versionRes[0]?.values[0]?.[0] || 0;
+            if (version !== SCHEMA_CONFIG.VERSION) {
+                alert(MSG.ERROR_SCHEMA_VERSION(version, SCHEMA_CONFIG.VERSION));
+                db = null;
+                return false;
+            }
             dbFilePath = filePath || fileName;
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
@@ -691,6 +734,7 @@
             $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
+            $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
@@ -885,6 +929,46 @@
             }
         });
 
+        // ---- Utilidades de error y mantenimiento -----------------------
+
+        function s2ab(buf) {
+            return Uint8Array.from(buf.split('').map(c => c.charCodeAt(0) & 0xff));
+        }
+
+        function descargarBDError() {
+            if (!db) return;
+            const data = db.export();
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < data.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
+            }
+            const blob = new Blob([s2ab(binary)], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_${new Date().toISOString().slice(0,10)}.db`;
+            a.click();
+            URL.revokeObjectURL(url);
+            $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+        }
+
+        async function optimizarBD() {
+            if (!db) return;
+            const antes = (db.export().length / (1024 * 1024)).toFixed(2);
+            DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
+            db.run('VACUUM;');
+            const despues = (db.export().length / (1024 * 1024)).toFixed(2);
+            DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+        }
+
+        function updateUIOnError() {
+            // Deshabilitar botones de modificación en estado de error
+            ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
+                $(id)?.setAttribute('disabled', 'true');
+            });
+        }
+
         // Drag & Drop con feedback visual y validaciones
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
@@ -964,22 +1048,13 @@
         // ================================================================
         function obtenerRutaProcesos() {
             if (!db) return [];
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
-                FROM ${SCHEMA_CONFIG.viewName} e
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const r = db.exec(SCHEMA_CONFIG.queries.rutaProcesos);
             return dbToObjects(r);
         }
 
         function obtenerDocumentosPendientes() {
             if (!db) return [];
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
-                FROM ${SCHEMA_CONFIG.viewName} e
-                WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const r = db.exec(SCHEMA_CONFIG.queries.documentosPendientes);
             return dbToObjects(r);
         }
 
@@ -1629,16 +1704,15 @@
         // ================================================================
         // SIDEBAR FRECUENTES (#9)
         // ================================================================
-        const SIDEBAR_KEY = STORAGE_KEYS.FRECUENTES;
         function toggleFrecuente(id, solped) {
-            let list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            let list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             const idx = list.findIndex(i => i.id === id);
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
                 list.push({ id, solped });
             }
-            localStorage.setItem(SIDEBAR_KEY, JSON.stringify(list));
+            localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
             renderSidebar();
             const star = $(`star-${id}`);
             if (star) star.classList.toggle('fas', idx === -1);
@@ -1647,7 +1721,7 @@
         function renderSidebar() {
             const cont = $('sidebar-lista');
             if (!cont) return;
-            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             if (list.length === 0) {
                 cont.innerHTML = '<p class="text-gray-500 italic p-2">Haz clic en <i class="fas fa-star text-teal-400"></i> de un expediente para a&ntilde;adirlo.</p>';
                 return;
@@ -1673,7 +1747,7 @@
         const _origRenderizar = renderizarTabla;
         renderizarTabla = function(lista) {
             _origRenderizar(lista);
-            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             list.forEach(item => {
                 const star = $(`star-${item.id}`);
                 if (star) { star.className = 'fas fa-star pointer-events-none'; }
@@ -1849,6 +1923,8 @@ const MSG = {
     ERROR_NO_BD_VALIDA: 'El archivo no parece ser una base de datos SQLite válida.',
     ERROR_NO_REABRIR: err => 'No se pudo abrir la base de datos: ' + (err?.message || err),
     ERROR_ABRIR_BD: err => 'Error al abrir BD: ' + (err?.message || err),
+    ERROR_SCHEMA_VERSION: (actual, esperada) =>
+        `Schema desactualizado: versión ${actual}, esperada ${esperada}. Resincroniza la base de datos.`,
     NOMBRE_OBLIGATORIO: 'El nombre es obligatorio.',
     EXITO_ACTUALIZADO: 'Expediente actualizado correctamente. El trigger de auditoría ha registrado los cambios en el historial.',
     EXITO_CREADO: 'Expediente creado correctamente.',
@@ -1889,6 +1965,25 @@ const SELECTORS = {
     AC_EXTRA_VAL: 'ac-extra-val',
     F_OBSERVACIONES: 'f-observaciones',
     GUARDAR_BD_BTN: 'btn-guardar-bd',
+    BTN_VACUUM: 'btn-vacuum',
+    MODAL_ERROR: 'modal-error-critico',
+    ERROR_CONTENIDO: 'error-critico-contenido',
+    BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
+};
+
+const MSG_EXTRA = {
+    VACUUM_INICIADO: 'Optimizando base de datos...',
+    VACUUM_COMPLETADO: (antes, despues) =>
+        `Base de datos optimizada: ${antes} → ${despues} MB (${((1 - despues/antes) * 100).toFixed(1)}% reducción)`,
+    VACUUM_ERROR: err => 'Error al optimizar BD: ' + (err?.message || err),
+    ERROR_CRITICO: 'Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.',
+    PROMESA_RECHAZADA: 'Una operación asíncrona falló inesperadamente.',
+    BD_DESCARGADA: 'BD descargada. Recarga la aplicación y continúa.',
+};
+
+const BACKUP = {
+    MAX_COPIES: 5,
+    SUFFIX: '.bak.',
 };
 
 // ---- SCHEMA CONFIG ------------------------------------------------
@@ -1988,7 +2083,26 @@ const SCHEMA_CONFIG = {
         'f-nro_contrato_sap', 'f-id_empresa', 'f-tiempo_ejecucion',
         'f-monto_adjudicado_bs', 'f-monto_adjudicado_usd', 'f-fecha_firma_contrato',
         'f-observaciones', 'f-notas'
-    ]
+    ],
+
+    // Versión del schema para validación PRAGMA user_version
+    VERSION: 8,
+
+    // Queries SQL centralizadas (SPOT: cambiar aquí si cambia el schema)
+    queries: {
+        reporteExcel: `SELECT * FROM vw_reporte_excel_contrataciones`,
+        rutaProcesos: `SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+            e.emisor, e.receptor, e.documento, e.estatus_detalle,
+            e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
+            FROM vw_reporte_excel_contrataciones e
+            ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+        documentosPendientes: `SELECT e.id_expediente, e.solped, e.descripcion_proceso,
+            e.emisor, e.receptor, e.documento, e.estatus_detalle,
+            e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
+            FROM vw_reporte_excel_contrataciones e
+            WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
+            ORDER BY e.estatus_detalle, e.id_expediente DESC`,
+    }
 };
 
 === Tablas8.sql ===
@@ -2386,6 +2500,8 @@ INSERT INTO cat_empresas (id, nombre) VALUES
 INSERT INTO cat_responsables (id, nombre) VALUES
 (1, 'SIN IDENTIFICAR');
 
+PRAGMA user_version = 8;
+
 
 === main.js ===
 const { app, BrowserWindow, ipcMain, dialog } = require('electron')
@@ -2397,6 +2513,28 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
+const MAX_BACKUPS = 5
+
+function crearBackupRotativo(filePath) {
+  try {
+    const dir = path.dirname(filePath)
+    const base = path.basename(filePath)
+    // Eliminar el backup más antiguo si existe
+    const oldest = path.join(dir, base + '.bak.' + MAX_BACKUPS)
+    if (fs.existsSync(oldest)) fs.unlinkSync(oldest)
+    // Rotar: .bak.4 → .bak.5, .bak.3 → .bak.4, etc.
+    for (let i = MAX_BACKUPS - 1; i >= 1; i--) {
+      const src = path.join(dir, base + '.bak.' + i)
+      if (fs.existsSync(src)) {
+        fs.renameSync(src, path.join(dir, base + '.bak.' + (i + 1)))
+      }
+    }
+    // Copiar el archivo actual como .bak.1
+    fs.copyFileSync(filePath, path.join(dir, base + '.bak.1'))
+  } catch (err) {
+    DEBUG.isEnabled && console.error('[MAIN] Error al crear backup rotativo:', err.message)
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -2423,6 +2561,7 @@ function createWindow() {
 // IPC handlers
 ipcMain.handle('save-db', async (_event, dataBase64) => {
   if (!currentDbPath) throw new Error('No hay archivo abierto')
+  crearBackupRotativo(currentDbPath)
   const data = Buffer.from(dataBase64, 'base64')
   fs.writeFileSync(currentDbPath, data)
   return true
@@ -2486,7 +2625,8 @@ app.on('window-all-closed', () => app.quit())
 === preload.js ===
 const { contextBridge, ipcRenderer } = require('electron');
 
-console.log('[PRELOAD] Iniciando preload script...');
+const DEBUG = { isEnabled: false };
+DEBUG.isEnabled && console.log('[PRELOAD] Iniciando preload script...');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   saveDb: (dataBase64) => ipcRenderer.invoke('save-db', dataBase64),
@@ -2494,20 +2634,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   setDbPath: (filePath) => ipcRenderer.invoke('set-db-path', filePath),
   getDbPath: () => ipcRenderer.invoke('get-db-path'),
   openDbDialog: async () => {
-    console.log('[PRELOAD] Llamando a ipcRenderer.invoke para open-db-dialog');
+    DEBUG.isEnabled && console.log('[PRELOAD] Llamando a ipcRenderer.invoke para open-db-dialog');
     try {
       const result = await ipcRenderer.invoke('open-db-dialog');
-      console.log('[PRELOAD] Resultado recibido:', result);
+      DEBUG.isEnabled && console.log('[PRELOAD] Resultado recibido:', result);
       return result;
     } catch (err) {
-      console.error('[PRELOAD] Error en openDbDialog:', err);
+      DEBUG.isEnabled && console.error('[PRELOAD] Error en openDbDialog:', err);
       throw err;
     }
   },
   openDbFilePath: (filePath) => ipcRenderer.invoke('open-db-file', filePath),
 });
 
-console.log('[PRELOAD] contextBridge configurado correctamente');
+DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctamente');
 
 === package.json ===
 {
@@ -2944,6 +3084,12 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 57 | `ai-context.md`, `prompt`, `doc.md`, `Makefile` | **Creado** `ai-context.md` (anchor file IA: stack, líneas rojas, estado actual). `prompt` actualizado con formato de commits estructurado (RAZÓN TÉCNICA + SUPOSICIÓN). `Makefile` combine incluye `ai-context.md` | Pipeline nativo IA: anchor + commit logs + PAR integrados |
 | 58 | `funciones.md`, `.clinerules`, `doc.md`, `prompt`, `Makefile`, `ai-context.md` | **Creados** `funciones.md` (catálogo SPOT con 58 funciones) y `.clinerules` (skill de Opencode con protocolo de modificación). Todos los archivos de contexto actualizados para referenciarlos | Cerrar el círculo DRY: la IA debe verificar funciones.md antes de escribir código nuevo |
 | 59 | `schema-config.js`, `index.html`, `main.js`, `funciones.md`, `doc.md` | **Auditoría de código limpio**: CONFIG, DEBUG, MSG, STORAGE_KEYS, SELECTORS creados en schema-config.js. `$` helper añadido. Todas las alertas, console.*, localStorage keys y números mágicos reemplazados por referencias a constantes. `generarObservacion()` desacoplada del DOM. SQL extraído a data layer (`obtenerRutaProcesos`, `obtenerDocumentosPendientes`). `captureAndRestoreFormState` hecho async. Drag-drop validation extraída a `validarArchivoBD()`. DEBUG condicional en main.js + index.html | Fix de 12 hallazgos del plan_modificaciones.md (números mágicos, console.log, strings literales, localStorage keys, selectores, SoC SQL/UI, acoplamiento DOM) |
+| 60 | `main.js` | **Backup rotativo**: nueva función `crearBackupRotativo()` con rotación de 5 copias (`archivo.db.bak.1`..`.bak.5`), llamada antes de cada `save-db`. Config `BACKUP` en schema-config.js | Riesgo crítico: proteger contra corrupción por corte de energía durante escritura |
+| 61 | `index.html` | **Botón VACUUM (Compactar)** en header, ejecuta `db.run('VACUUM')` con reporte de tamaño antes/después. Deshabilitado hasta cargar BD | Mantenimiento de BD: SQLite no libera espacio en disco al eliminar/actualizar |
+| 62 | `index.html` | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal `#modal-error-critico`, botón "Descargar BD actual" (`descargarBDError()`), y deshabilitación de botones de edición (`updateUIOnError()`) | Evitar UI congelada sin feedback; permitir rescatar datos en memoria |
+| 63 | `schema-config.js` | Nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` (6 entradas para VACUUM y error boundary), y constante `BACKUP` | SPOT: centralizar todo en schema-config.js |
+| 64 | `bdd/Tablas8.sql` | Añadido `PRAGMA user_version = 8;` al final del archivo | Versionado de schema para validación al cargar BD |
+| 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
 
 ---
 
@@ -2962,6 +3108,10 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 7 | 🟢 Baja | **Orden por fecha en pantalla principal**: ordenar tabla por `fecha_creacion` y `fecha_actualizacion` (independiente de los modos de orden del formulario de edición) | `index.html` | **completado** |
 | 8 | 🟢 Baja | **Columna "descripción de proceso" visible** en la tabla principal (actualmente solo en el desplegable) | `index.html` | **completado** |
 | 9 | 🟡 Media | **Sidebar de documentos frecuentes** (colapsable, arrastrar expedientes del usuario) + **barra de búsqueda sticky** (position: sticky al hacer scroll) | `index.html`, `vendor/styles.css` | **completado** |
+| — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `schema-config.js` | **completado** |
+| — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `bdd/Tablas8.sql`, `schema-config.js`, `index.html` | **completado** |
+| — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `index.html` | **completado** |
+| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `index.html` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)
@@ -3173,7 +3323,44 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `main.js`: console.log envueltos en `DEBUG.isEnabled`.
   - `generarObservacion()` ahora recibe parámetros en lugar de leer el DOM.
   - Nuevas funciones data layer: `obtenerRutaProcesos()`, `obtenerDocumentosPendientes()`, `validarArchivoBD()`.
-  - `captureAndRestoreFormState()` hecho async.
+   - `captureAndRestoreFormState()` hecho async.
+
+---
+
+## DEC-016: Implementación de las Cuatro Normas Críticas (VACUUM, Backup, Error Boundary, PRAGMA)
+
+- **Origen:** `[Instrucción Explícita del Usuario desde DEC-014]`
+- **Contexto y Causa:** Las normas críticas documentadas en DEC-014 requerían implementación concreta. Se añadieron los mecanismos de protección faltantes.
+- **Alternativas evaluadas:**
+  - N/A — implementación directa de lo acordado.
+- **Impacto:**
+  - `main.js`: nueva función `crearBackupRotativo()` con rotación de hasta 5 copias (`archivo.db.bak.1`..`.bak.5`), llamada antes de cada `save-db`.
+  - `index.html`: botón "Compactar" en header que ejecuta `VACUUM`, error boundary modal (`#modal-error-critico`) activado por `window.onerror` + `window.onunhandledrejection`, y funciones `optimizarBD()` y `descargarBDError()`.
+  - `schema-config.js`: nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` y constante `BACKUP`.
+  - `Tablas8.sql`: añadido `PRAGMA user_version = 8`.
+
+---
+
+## DEC-017: MSG_EXTRA — Mensajes Fuera del Flujo Principal
+
+- **Origen:** `[Iniciativa de la IA]`
+- **Contexto y Causa:** `MSG` contenía solo mensajes del flujo principal (alertas de UI). Los mensajes de VACUUM, error boundary y otras utilidades de mantenimiento no pertenecían ahí. Se creó `MSG_EXTRA` como espacio separado.
+- **Alternativas evaluadas:**
+  - Fusionar todo en `MSG` — mezcla responsabilidades, viola SoC.
+  - Strings literales — viola SPOT.
+- **Impacto:** `schema-config.js`: nueva sección `MSG_EXTRA` con 6 entradas (VACUUM inicio/completo/error, error crítico, promesa rechazada, BD descargada).
+
+---
+
+## DEC-018: Gestión de Versionado del Schema con PRAGMA user_version
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Sin un versionado, cambios en `Tablas8.sql` podían dejar la BD del usuario en un schema antiguo sin detección. Se implementó validación al cargar la BD comparando `PRAGMA user_version` contra `SCHEMA_CONFIG.VERSION`.
+- **Alternativas evaluadas:**
+  - Sistema de migraciones con tabla `_schema_version` y scripts UP/DOWN — sobreingeniería para una app cliente-side con un solo schema.
+  - Sin control — riesgo alto de errores silenciosos.
+- **Impacto:** `Tablas8.sql`: `PRAGMA user_version = 8` al final. `schema-config.js`: `VERSION: 8` en `SCHEMA_CONFIG`. `_cargarBaseDatosComun()` valida al cargar y muestra alerta si no coincide.
+
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
@@ -3327,6 +3514,15 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `marcarModificado()` | — | Marca la BD como modificada (habilita botón guardar si aplica) |
 | `iniciarAutoguardado()` | — | Inicia intervalo de autoguardado cada 30s |
 | `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
+| `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Reporta tamaño antes/después |
+| `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
+| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar, compactar) al ocurrir un error crítico |
+
+## Electron (main.js) — Backup Rotativo
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `crearBackupRotativo(filePath)` | `filePath`: ruta del archivo .db actual | Rota hasta 5 backups (`.bak.1`..`.bak.5`), elimina el más antiguo, copia el actual como `.bak.1`. Llamado antes de cada `save-db` |
 
 ---
 
@@ -3338,7 +3534,9 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` (controlado por `DEBUG.isEnabled`) |
 | `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA` |
 | `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE` |
-| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN` |
+| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD` |
+| `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA` |
+| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 5`, `SUFFIX: '.bak.'` |
 
 ## Helper (index.html)
 
@@ -3355,6 +3553,13 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `estatusClass(estatus)` | `estatus`: string | Retorna clase CSS según estatus (verde=firmado, amarillo=en_proceso, rojo=devuelto, gris=pendiente) |
 | `esEstatusFirmado(estatus)` | `estatus`: string | Retorna `true` si el estatus es FIRMADO o equivalente |
 
+## SCHEMA_CONFIG (schema-config.js) — Nuevos campos
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `VERSION` | number | `8` — version del schema SQLite, validado contra `PRAGMA user_version` al cargar BD |
+| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel` |
+
 ---
 
 ## Electron IPC (main.js)
@@ -3367,6 +3572,12 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `get-db-path` | — | Retorna la ruta actual de BD |
 | `open-db-file` | `filePath`: string | Lee archivo y retorna buffer como base64 |
 | `open-db-dialog` | — | Abre diálogo nativo para seleccionar archivo .db |
+
+## Electron Interna (main.js)
+
+| Función | Parámetros | Descripción |
+|---------|-----------|-------------|
+| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta BACKUP.MAX_COPIES backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
 
 ## Electron Preload (preload.js)
 

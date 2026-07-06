@@ -7,6 +7,28 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
+const MAX_BACKUPS = 5
+
+function crearBackupRotativo(filePath) {
+  try {
+    const dir = path.dirname(filePath)
+    const base = path.basename(filePath)
+    // Eliminar el backup más antiguo si existe
+    const oldest = path.join(dir, base + '.bak.' + MAX_BACKUPS)
+    if (fs.existsSync(oldest)) fs.unlinkSync(oldest)
+    // Rotar: .bak.4 → .bak.5, .bak.3 → .bak.4, etc.
+    for (let i = MAX_BACKUPS - 1; i >= 1; i--) {
+      const src = path.join(dir, base + '.bak.' + i)
+      if (fs.existsSync(src)) {
+        fs.renameSync(src, path.join(dir, base + '.bak.' + (i + 1)))
+      }
+    }
+    // Copiar el archivo actual como .bak.1
+    fs.copyFileSync(filePath, path.join(dir, base + '.bak.1'))
+  } catch (err) {
+    DEBUG.isEnabled && console.error('[MAIN] Error al crear backup rotativo:', err.message)
+  }
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -33,6 +55,7 @@ function createWindow() {
 // IPC handlers
 ipcMain.handle('save-db', async (_event, dataBase64) => {
   if (!currentDbPath) throw new Error('No hay archivo abierto')
+  crearBackupRotativo(currentDbPath)
   const data = Buffer.from(dataBase64, 'base64')
   fs.writeFileSync(currentDbPath, data)
   return true

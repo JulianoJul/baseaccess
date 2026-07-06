@@ -172,4 +172,41 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `main.js`: console.log envueltos en `DEBUG.isEnabled`.
   - `generarObservacion()` ahora recibe parámetros en lugar de leer el DOM.
   - Nuevas funciones data layer: `obtenerRutaProcesos()`, `obtenerDocumentosPendientes()`, `validarArchivoBD()`.
-  - `captureAndRestoreFormState()` hecho async.
+   - `captureAndRestoreFormState()` hecho async.
+
+---
+
+## DEC-016: Implementación de las Cuatro Normas Críticas (VACUUM, Backup, Error Boundary, PRAGMA)
+
+- **Origen:** `[Instrucción Explícita del Usuario desde DEC-014]`
+- **Contexto y Causa:** Las normas críticas documentadas en DEC-014 requerían implementación concreta. Se añadieron los mecanismos de protección faltantes.
+- **Alternativas evaluadas:**
+  - N/A — implementación directa de lo acordado.
+- **Impacto:**
+  - `main.js`: nueva función `crearBackupRotativo()` con rotación de hasta 5 copias (`archivo.db.bak.1`..`.bak.5`), llamada antes de cada `save-db`.
+  - `index.html`: botón "Compactar" en header que ejecuta `VACUUM`, error boundary modal (`#modal-error-critico`) activado por `window.onerror` + `window.onunhandledrejection`, y funciones `optimizarBD()` y `descargarBDError()`.
+  - `schema-config.js`: nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` y constante `BACKUP`.
+  - `Tablas8.sql`: añadido `PRAGMA user_version = 8`.
+
+---
+
+## DEC-017: MSG_EXTRA — Mensajes Fuera del Flujo Principal
+
+- **Origen:** `[Iniciativa de la IA]`
+- **Contexto y Causa:** `MSG` contenía solo mensajes del flujo principal (alertas de UI). Los mensajes de VACUUM, error boundary y otras utilidades de mantenimiento no pertenecían ahí. Se creó `MSG_EXTRA` como espacio separado.
+- **Alternativas evaluadas:**
+  - Fusionar todo en `MSG` — mezcla responsabilidades, viola SoC.
+  - Strings literales — viola SPOT.
+- **Impacto:** `schema-config.js`: nueva sección `MSG_EXTRA` con 6 entradas (VACUUM inicio/completo/error, error crítico, promesa rechazada, BD descargada).
+
+---
+
+## DEC-018: Gestión de Versionado del Schema con PRAGMA user_version
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Sin un versionado, cambios en `Tablas8.sql` podían dejar la BD del usuario en un schema antiguo sin detección. Se implementó validación al cargar la BD comparando `PRAGMA user_version` contra `SCHEMA_CONFIG.VERSION`.
+- **Alternativas evaluadas:**
+  - Sistema de migraciones con tabla `_schema_version` y scripts UP/DOWN — sobreingeniería para una app cliente-side con un solo schema.
+  - Sin control — riesgo alto de errores silenciosos.
+- **Impacto:** `Tablas8.sql`: `PRAGMA user_version = 8` al final. `schema-config.js`: `VERSION: 8` en `SCHEMA_CONFIG`. `_cargarBaseDatosComun()` valida al cargar y muestra alerta si no coincide.
+

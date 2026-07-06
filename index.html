@@ -86,6 +86,10 @@
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
+                <button id="btn-vacuum" onclick="optimizarBD()" disabled
+                    class="btn btn-primary text-xs px-3 py-2" title="Compactar base de datos (VACUUM)">
+                    <i class="fas fa-compress-alt mr-1"></i> Compactar
+                </button>
                 <div class="relative">
                     <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
                     <div id="menu-recientes" class="hidden absolute right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[280px] max-w-sm"></div>
@@ -399,6 +403,22 @@
     </div>
     </div>
 
+    <!-- Error Boundary Modal -->
+    <div id="modal-error-critico" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80">
+        <div class="bg-gray-800 border border-red-700 rounded-xl max-w-md w-full shadow-2xl">
+            <div class="bg-red-900/40 p-4 rounded-t-xl border-b border-red-700/60">
+                <h3 class="text-red-400 font-bold text-lg"><i class="fas fa-exclamation-triangle mr-2"></i>Error inesperado</h3>
+            </div>
+            <div id="error-critico-contenido" class="p-4 text-gray-300 text-sm space-y-3">
+                <p>Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.</p>
+            </div>
+            <div class="border-t border-gray-700 p-4 flex justify-end gap-3">
+                <button onclick="descargarBDError()" id="btn-descargar-bd-error" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar BD actual</button>
+                <button onclick="location.reload()" class="btn btn-secondary"><i class="fas fa-redo mr-1"></i> Recargar</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // ================================================================
         // ESTADO GLOBAL
@@ -415,7 +435,22 @@
         // por completitud, no porque esos campos se editen con más frecuencia.
         let snapshotEdicion = null;
         let _obsPrevia = '';
-        const $ = id => $(id);
+        const $ = id => document.getElementById(id);
+
+        // Error boundary global — captura errores no manejados
+        window.onerror = function(msg, source, lineno, colno, err) {
+            updateUIOnError();
+            const cont = $(SELECTORS.ERROR_CONTENIDO);
+            if (cont) cont.innerHTML = `<p>${MSG_EXTRA.ERROR_CRITICO}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${err?.stack || msg}</pre>`;
+            $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
+            return true;
+        };
+        window.onunhandledrejection = function(event) {
+            updateUIOnError();
+            const cont = $(SELECTORS.ERROR_CONTENIDO);
+            if (cont) cont.innerHTML = `<p>${MSG_EXTRA.PROMESA_RECHAZADA}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${event?.reason?.stack || event?.reason || ''}</pre>`;
+            $(SELECTORS.MODAL_ERROR)?.classList.remove('hidden');
+        };
 
         function marcarCamposEdicionFrecuente() {
             SCHEMA_CONFIG.camposEdicionFrecuente.forEach(campo => {
@@ -682,6 +717,14 @@
                 return false;
             }
             db = new SQL.Database(bytes);
+            // Validar versión del schema via PRAGMA user_version
+            const versionRes = db.exec("PRAGMA user_version");
+            const version = versionRes[0]?.values[0]?.[0] || 0;
+            if (version !== SCHEMA_CONFIG.VERSION) {
+                alert(MSG.ERROR_SCHEMA_VERSION(version, SCHEMA_CONFIG.VERSION));
+                db = null;
+                return false;
+            }
             dbFilePath = filePath || fileName;
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
@@ -690,6 +733,7 @@
             $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
+            $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
@@ -884,6 +928,46 @@
             }
         });
 
+        // ---- Utilidades de error y mantenimiento -----------------------
+
+        function s2ab(buf) {
+            return Uint8Array.from(buf.split('').map(c => c.charCodeAt(0) & 0xff));
+        }
+
+        function descargarBDError() {
+            if (!db) return;
+            const data = db.export();
+            let binary = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < data.length; i += chunkSize) {
+                binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
+            }
+            const blob = new Blob([s2ab(binary)], { type: 'application/octet-stream' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup_${new Date().toISOString().slice(0,10)}.db`;
+            a.click();
+            URL.revokeObjectURL(url);
+            $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+        }
+
+        async function optimizarBD() {
+            if (!db) return;
+            const antes = (db.export().length / (1024 * 1024)).toFixed(2);
+            DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
+            db.run('VACUUM;');
+            const despues = (db.export().length / (1024 * 1024)).toFixed(2);
+            DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
+        }
+
+        function updateUIOnError() {
+            // Deshabilitar botones de modificación en estado de error
+            ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
+                $(id)?.setAttribute('disabled', 'true');
+            });
+        }
+
         // Drag & Drop con feedback visual y validaciones
         document.addEventListener('dragenter', (e) => {
             e.preventDefault();
@@ -963,22 +1047,13 @@
         // ================================================================
         function obtenerRutaProcesos() {
             if (!db) return [];
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso
-                FROM ${SCHEMA_CONFIG.viewName} e
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const r = db.exec(SCHEMA_CONFIG.queries.rutaProcesos);
             return dbToObjects(r);
         }
 
         function obtenerDocumentosPendientes() {
             if (!db) return [];
-            const r = db.exec(`SELECT e.id_expediente, e.solped, e.descripcion_proceso,
-                e.emisor, e.receptor, e.documento, e.estatus_detalle,
-                e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada
-                FROM ${SCHEMA_CONFIG.viewName} e
-                WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO'
-                ORDER BY e.estatus_detalle, e.id_expediente DESC`);
+            const r = db.exec(SCHEMA_CONFIG.queries.documentosPendientes);
             return dbToObjects(r);
         }
 
@@ -1628,16 +1703,15 @@
         // ================================================================
         // SIDEBAR FRECUENTES (#9)
         // ================================================================
-        const SIDEBAR_KEY = STORAGE_KEYS.FRECUENTES;
         function toggleFrecuente(id, solped) {
-            let list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            let list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             const idx = list.findIndex(i => i.id === id);
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
                 list.push({ id, solped });
             }
-            localStorage.setItem(SIDEBAR_KEY, JSON.stringify(list));
+            localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
             renderSidebar();
             const star = $(`star-${id}`);
             if (star) star.classList.toggle('fas', idx === -1);
@@ -1646,7 +1720,7 @@
         function renderSidebar() {
             const cont = $('sidebar-lista');
             if (!cont) return;
-            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             if (list.length === 0) {
                 cont.innerHTML = '<p class="text-gray-500 italic p-2">Haz clic en <i class="fas fa-star text-teal-400"></i> de un expediente para a&ntilde;adirlo.</p>';
                 return;
@@ -1672,7 +1746,7 @@
         const _origRenderizar = renderizarTabla;
         renderizarTabla = function(lista) {
             _origRenderizar(lista);
-            const list = JSON.parse(localStorage.getItem(SIDEBAR_KEY) || '[]');
+            const list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             list.forEach(item => {
                 const star = $(`star-${item.id}`);
                 if (star) { star.className = 'fas fa-star pointer-events-none'; }
