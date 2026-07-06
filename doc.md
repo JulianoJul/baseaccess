@@ -110,7 +110,7 @@ baseaccess/
 └── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
 ```
 
-## Tablas del Schema (Tablas7.sql)
+## Tablas del Schema (Tablas8.sql)
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -189,7 +189,7 @@ make electron-build-win    # Build win-unpacked para Windows
 make electron-build-linux  # Build AppImage para Linux
 ```
 
-El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas7.sql make combine` (por defecto usa `bdd/Tablas8.sql`). También concatena `schema-config.js`.
+El schema usado en `make combine` se configura con `SCHEMA=bdd/Tablas8.sql make combine` (por defecto usa `bdd/Tablas8.sql`). También concatena `schema-config.js`.
 
 ## Reglas del Proceso
 
