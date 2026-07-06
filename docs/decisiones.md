@@ -210,3 +210,17 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - Sin control — riesgo alto de errores silenciosos.
 - **Impacto:** `Tablas8.sql`: `PRAGMA user_version = 8` al final. `schema-config.js`: `VERSION: 8` en `SCHEMA_CONFIG`. `_cargarBaseDatosComun()` valida al cargar y muestra alerta si no coincide.
 
+---
+
+## DEC-019: Auditoría de Código Julio 2026 — Plan de Modificaciones Actualizado
+
+- **Origen:** `[Iniciativa de la IA]`
+- **Contexto y Causa:** Se realizó una auditoría completa del código consolidado en `combined.txt` (3640 líneas) para verificar el cumplimiento de las normas de código limpio y el estado de los pendientes documentados en `doc.md`. La auditoría confirmó que todos los pendientes históricos están completados y las violaciones críticas fueron resueltas en la iteración anterior (#59).
+- **Alternativas evaluadas:**
+  - No realizar auditoría — descartado: sin revisión periódica, el código tiende a degradarse con nuevas features.
+  - Auditoría automatizada con linter — descartado: el proyecto es 100% cliente-side sin build step, las reglas son específicas del proyecto (SPOT, SoC, anti-hardcodeo) que un linter genérico no detecta.
+- **Impacto:**
+  - `plan_modificaciones.md`: creado con 3 hallazgos de Media Prioridad, 4 de Baja Prioridad, y 5 propuestas de mejora.
+  - `decisiones.md`: este registro ADR para trazabilidad.
+  - Ningún cambio en código fuente (solo documentación).
+
