@@ -62,10 +62,27 @@
     <div class="max-w-[1600px] mx-auto" id="app">
 
         <!-- Encabezado -->
-        <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap justify-between items-center gap-4">
+        <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
 
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex items-center gap-2 flex-wrap">
+
                 <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
+
+                <!-- Hamburguesa + Ordenar -->
+                <button onclick="toggleSidebar()" class="btn btn-primary text-sm px-2 py-2" title="Mostrar/ocultar sidebar">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="flex items-center gap-1 text-xs border-l border-gray-700 pl-2 ml-1">
+                    <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
+                    <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
+                        <option value="id_expediente DESC">Reciente</option>
+                        <option value="fecha_creacion DESC">Creación</option>
+                        <option value="fecha_actualizacion DESC">Modificación</option>
+                    </select>
+                </div>
+
+                <span class="w-px h-6 bg-gray-700 mx-1 hidden sm:block"></span>
+
                 <button id="btn-abrir" onclick="abrirBaseDatos()"
                     class="btn btn-primary">
                     <i class="fas fa-folder-open mr-1"></i> Abrir Base de Datos
@@ -100,7 +117,7 @@
 
         <div class="flex gap-4">
             <!-- Sidebar Documentos Frecuentes -->
-            <div id="sidebar" class="hidden lg:block w-64 shrink-0">
+            <div id="sidebar" class="hidden w-64 shrink-0">
                 <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
                     <div class="flex items-center justify-between px-3 py-2 bg-gray-700/40 border-b border-gray-700">
                         <span class="text-xs font-bold text-teal-400 uppercase tracking-wider"><i class="fas fa-star mr-1"></i> Frecuentes</span>
@@ -111,7 +128,7 @@
                     </div>
                 </div>
             </div>
-            <div id="sidebar-collapsed" class="hidden">
+            <div id="sidebar-collapsed" class="">
                 <button onclick="toggleSidebar()" class="bg-gray-800 border border-gray-700 rounded-xl px-2 py-4 text-teal-400 hover:text-teal-300" title="Mostrar sidebar"><i class="fas fa-chevron-right"></i></button>
             </div>
 
@@ -121,14 +138,6 @@
                     <div class="relative">
                         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
                         <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
-                        <div class="flex items-center gap-2 mt-2 text-xs">
-                            <span class="text-gray-400">Ordenar:</span>
-                            <select id="sort-order" class="input" style="width: auto; padding: 0.25rem 0.5rem;" onchange="cambiarOrden()" disabled>
-                                <option value="id_expediente DESC">Reciente primero</option>
-                                <option value="fecha_creacion DESC">Fecha creación</option>
-                                <option value="fecha_actualizacion DESC">Fecha modificación</option>
-                            </select>
-                        </div>
                     </div>
                 </div>
 
@@ -733,19 +742,19 @@
                 return false;
             }
             db = new SQL.Database(bytes);
-            // Validar versión del schema via PRAGMA user_version
-            if (typeof SCHEMA_CONFIG.VERSION !== 'number') {
-                alert('Error interno: SCHEMA_CONFIG.VERSION debe ser un número');
-                db = null;
-                return false;
-            }
-            const versionRes = db.exec("PRAGMA user_version");
-            const version = versionRes[0]?.values[0]?.[0] || 0;
-            if (version !== SCHEMA_CONFIG.VERSION) {
-                alert(MSG.ERROR_SCHEMA_VERSION(version, SCHEMA_CONFIG.VERSION));
-                db = null;
-                return false;
-            }
+            // // Validar versión del schema via PRAGMA user_version
+            // if (typeof SCHEMA_CONFIG.VERSION !== 'number') {
+            //     alert('Error interno: SCHEMA_CONFIG.VERSION debe ser un número');
+            //     db = null;
+            //     return false;
+            // }
+            // const versionRes = db.exec("PRAGMA user_version");
+            // const version = versionRes[0]?.values[0]?.[0] || 0;
+            // if (version !== SCHEMA_CONFIG.VERSION) {
+            //     alert(MSG.ERROR_SCHEMA_VERSION(version, SCHEMA_CONFIG.VERSION));
+            //     db = null;
+            //     return false;
+            // }
             dbFilePath = filePath || fileName;
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
@@ -1778,12 +1787,8 @@
             ).join('');
         }
         function toggleSidebar() {
-            const sb = $(SELECTORS.SIDEBAR);
-            const col = $('sidebar-collapsed');
-            const isOpen = !sb.classList.contains('hidden');
-            sb.classList.toggle('hidden', isOpen);
-            sb.classList.toggle('lg:block', !isOpen);
-            col.classList.toggle('hidden', isOpen);
+            $(SELECTORS.SIDEBAR).classList.toggle('hidden');
+            $('sidebar-collapsed').classList.toggle('hidden');
         }
         // Inicializar sidebar
         renderSidebar();

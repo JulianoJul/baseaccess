@@ -200,8 +200,8 @@ const SCHEMA_CONFIG = {
         'f-observaciones', 'f-notas'
     ],
 
-    // Versión del schema para validación PRAGMA user_version
-    VERSION: 8,
+    // // Versión del schema para validación PRAGMA user_version
+    // VERSION: 8,
 
     // Queries SQL centralizadas (SPOT: cambiar aquí si cambia el schema)
     queries: {
