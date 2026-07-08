@@ -1370,7 +1370,7 @@
         function toggleDetalle(prefix, id) {
             const sub = $(prefix + id);
             const btn = $(prefix + 'btn-' + id);
-            if (!sub) return;
+            if (!sub || !btn) return;
             sub.classList.toggle('hidden');
             btn.innerHTML = sub.classList.contains('hidden') ? '<i class="fas fa-search mr-1"></i>Detalle' : '<i class="fas fa-times mr-1"></i>Cerrar';
         }
@@ -1703,7 +1703,7 @@
                 html += `<span class="text-teal-300 font-medium">${h.estatus}</span>`;
                 html += `<span class="text-gray-400">Rec: ${h.fecha_recibido} - Dev: ${h.fecha_devuelto}</span>`;
                 html += `</div>`;
-                html += `<span class="text-amber-400 text-xs font-semibold" id="hcbtn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
+                html += `<span class="text-amber-400 text-xs font-semibold" id="hcdet-btn-${mid}"><i class="fas fa-search mr-1"></i> Detalle</span>`;
                 html += `</div>`;
                 html += `<div id="hcdet-${mid}" class="hidden p-4 text-xs">`;
                 html += `<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">`;
