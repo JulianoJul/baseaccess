@@ -403,6 +403,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 71 | `src/index.html` | Click fuera del modal lo cierra (5 modales + error boundary). Añadido helper `cerrarModalSiOverlay()`. Corregido overflow management en modales ruta y pendientes (faltaba body.style.overflow) | UX: cerrar modal tocando afuera; consistencia en scroll lock |
 | 72 | `src/index.html`, `src/schema-config.js`, `src/vendor/styles.css`, `plan_modificaciones.md` | **Auditoría completa**: 7 hallazgos (AUD-001 a AUD-007) + 5 propuestas (PROP-001 a PROP-005) implementados | Ver plan_modificaciones.md para detalle |
 | 73 | `src/schema-config.js` | Nuevas constantes: `MAX_RECIENTES`, `EXPORT_CHUNK_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB`, `ERROR_BD_CORRUPTA`, `ORDEN_PREFERIDO`, `CSV_DESCARGADO`, `BTN_EXPORTAR_CSV` | SPOT: centralizar todos los valores en schema-config.js |
+| 74 | `src/index.html` | Fix: revertido `table-fixed` → `table-layout: auto` para que expandir fila ensanche la tabla; `flex-1` → `grow` para que el contenedor use `flex-basis: auto`; eliminados `w-full` redundantes en contenedores internos; `gap-4` restaurado en flex container para gap izquierdo, `pr-4` en contenido para gap derecho simétrico | Fix: tabla angosta al abrir sin BD, expandir fila no adaptaba ancho, gaps laterales asimétricos |
 
 ---
 
