@@ -142,6 +142,7 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
+| `cerrarModalSiOverlay(e, closeFn)` | `e`: event, `closeFn`: function | Cierra modal si se hizo clic fuera del contenido (e.target === e.currentTarget). Se usa como onclick del overlay del modal |
 
 ## SCHEMA_CONFIG (schema-config.js)
 

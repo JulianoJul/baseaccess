@@ -256,3 +256,21 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/doc.md`: item 68 corregido, item 69 añadido.
   - `docs/ai-context.md`: estado actual actualizado.
 
+---
+
+## DEC-022: Tabla Full-Width + Click Fuera para Cerrar Modales
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario reportó que la tabla no ocupaba todo el ancho de la ventana en la pantalla de inicio. Además solicitó poder cerrar cualquier modal tocando fuera del contenido (click en el overlay).
+- **Alternativas evaluadas:**
+  - Mantener `max-w-[1600px]` y solo centrar — descartado: la tabla queda angosta en pantallas grandes.
+  - Event listener programático en JS — descartado por simplicidad: inline onclick en cada overlay es más directo y sigue el estilo del proyecto.
+- **Impacto:**
+  - `src/index.html`: `#app` cambió de `max-w-[1600px] mx-auto` a `w-full`.
+  - `src/index.html`: nuevo helper `cerrarModalSiOverlay(e, closeFn)` (línea 442) con onclick en los 5 modales (ruta, pendientes, formulario, historial, agregar catálogo). Error boundary excluido (no debe cerrarse sin acción explícita).
+  - `src/index.html`: añadido `body.style.overflow = 'hidden'` en `abrirRutaProcesos()` y `abrirDocumentosPendientes()`, y `overflow = ''` en sus respectivos close.
+  - `docs/doc.md`: changelog items 70-71.
+  - `docs/ai-context.md`: estado actual actualizado.
+  - `docs/funciones.md`: registrado `cerrarModalSiOverlay()` en Helper.
+
+

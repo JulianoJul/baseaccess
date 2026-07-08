@@ -399,6 +399,8 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 67 | `src/index.html` | **Header rework**: botones alineados a la izquierda, hamburguesa (☰) togglea sidebar, selector de orden movido al header junto a hamburguesa, sidebar oculta por defecto | UX: sidebar no ocupa espacio si no se usa |
 | 68 | `src/index.html` | Botón "Compactar" (VACUUM) eliminado visualmente del header; función `optimizarBD()` preservada | Se quitó solo el botón visual; el código de VACUUM se conserva para uso programático futuro |
 | 69 | `src/index.html` | Borde eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) en modal de edición | Limpieza visual: el botón toggle no necesita borde distintivo |
+| 70 | `src/index.html` | `#app` cambió de `max-w-[1600px] mx-auto` a `w-full` para que la tabla ocupe todo el ancho de la ventana | La tabla no se dibujaba al ancho completo en pantalla de inicio |
+| 71 | `src/index.html` | Click fuera del modal lo cierra (5 modales + error boundary). Añadido helper `cerrarModalSiOverlay()`. Corregido overflow management en modales ruta y pendientes (faltaba body.style.overflow) | UX: cerrar modal tocando afuera; consistencia en scroll lock |
 
 ---
 

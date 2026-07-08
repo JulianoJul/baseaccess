@@ -30,7 +30,7 @@
         }
     </style>
     <!-- Modal Ruta Procesos -->
-    <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRutaProcesos)">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-6xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
@@ -43,7 +43,7 @@
     </div>
 
     <!-- Modal Documentos Pendientes -->
-    <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarPendientes)">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
@@ -60,7 +60,7 @@
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
 
-    <div class="max-w-[1600px] mx-auto" id="app">
+    <div class="w-full" id="app">
 
         <!-- Encabezado -->
         <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
@@ -168,7 +168,7 @@
     <!-- ============================================================ -->
     <!-- MODAL DEL FORMULARIO DE EXPEDIENTE                           -->
     <!-- ============================================================ -->
-    <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cancelarFormulario)">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
             
             <!-- Cabecera del modal -->
@@ -362,7 +362,7 @@
     <!-- ============================================================ -->
     <!-- MODAL DEL HISTORIAL COMPLETO                                 -->
     <!-- ============================================================ -->
-    <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarHistorialCompleto)">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
@@ -378,7 +378,7 @@
     </div>
 
     <!-- Modal de Agregar a Catálogo -->
-    <div id="modal-agregar-catalogo" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-agregar-catalogo" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarAgregarCatalogo)">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-plus-circle mr-1"></i> Agregar a catálogo</h2>
@@ -439,6 +439,12 @@
         let snapshotEdicion = null;
         let _obsPrevia = '';
         const $ = id => document.getElementById(id);
+
+        function cerrarModalSiOverlay(e, closeFn) {
+            if (e.target === e.currentTarget) {
+                closeFn();
+            }
+        }
 
         // Error boundary global — captura errores no manejados
         window.onerror = function(msg, source, lineno, colno, err) {
@@ -1847,6 +1853,7 @@
         function abrirRutaProcesos() {
             if (!db) return;
             $(SELECTORS.MODAL_RUTA).classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
             const data = obtenerRutaProcesos();
             const cont = $(SELECTORS.RUTA_CONTENIDO);
             if (!data.length) {
@@ -1883,6 +1890,7 @@
         }
         function cerrarRutaProcesos() {
             $(SELECTORS.MODAL_RUTA).classList.add('hidden');
+            document.body.style.overflow = '';
         }
 
         // ================================================================
@@ -1891,6 +1899,7 @@
         function abrirDocumentosPendientes() {
             if (!db) return;
             $(SELECTORS.MODAL_PENDIENTES).classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
             const data = obtenerDocumentosPendientes();
             const cont = $(SELECTORS.PENDIENTES_CONTENIDO);
             if (!data.length) {
@@ -1921,6 +1930,7 @@
         }
         function cerrarPendientes() {
             $(SELECTORS.MODAL_PENDIENTES).classList.add('hidden');
+            document.body.style.overflow = '';
         }
     </script>
 </body>
@@ -3161,6 +3171,8 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 67 | `src/index.html` | **Header rework**: botones alineados a la izquierda, hamburguesa (☰) togglea sidebar, selector de orden movido al header junto a hamburguesa, sidebar oculta por defecto | UX: sidebar no ocupa espacio si no se usa |
 | 68 | `src/index.html` | Botón "Compactar" (VACUUM) eliminado visualmente del header; función `optimizarBD()` preservada | Se quitó solo el botón visual; el código de VACUUM se conserva para uso programático futuro |
 | 69 | `src/index.html` | Borde eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) en modal de edición | Limpieza visual: el botón toggle no necesita borde distintivo |
+| 70 | `src/index.html` | `#app` cambió de `max-w-[1600px] mx-auto` a `w-full` para que la tabla ocupe todo el ancho de la ventana | La tabla no se dibujaba al ancho completo en pantalla de inicio |
+| 71 | `src/index.html` | Click fuera del modal lo cierra (5 modales + error boundary). Añadido helper `cerrarModalSiOverlay()`. Corregido overflow management en modales ruta y pendientes (faltaba body.style.overflow) | UX: cerrar modal tocando afuera; consistencia en scroll lock |
 
 ---
 
@@ -3478,6 +3490,24 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/doc.md`: item 68 corregido, item 69 añadido.
   - `docs/ai-context.md`: estado actual actualizado.
 
+---
+
+## DEC-022: Tabla Full-Width + Click Fuera para Cerrar Modales
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario reportó que la tabla no ocupaba todo el ancho de la ventana en la pantalla de inicio. Además solicitó poder cerrar cualquier modal tocando fuera del contenido (click en el overlay).
+- **Alternativas evaluadas:**
+  - Mantener `max-w-[1600px]` y solo centrar — descartado: la tabla queda angosta en pantallas grandes.
+  - Event listener programático en JS — descartado por simplicidad: inline onclick en cada overlay es más directo y sigue el estilo del proyecto.
+- **Impacto:**
+  - `src/index.html`: `#app` cambió de `max-w-[1600px] mx-auto` a `w-full`.
+  - `src/index.html`: nuevo helper `cerrarModalSiOverlay(e, closeFn)` (línea 442) con onclick en los 5 modales (ruta, pendientes, formulario, historial, agregar catálogo). Error boundary excluido (no debe cerrarse sin acción explícita).
+  - `src/index.html`: añadido `body.style.overflow = 'hidden'` en `abrirRutaProcesos()` y `abrirDocumentosPendientes()`, y `overflow = ''` en sus respectivos close.
+  - `docs/doc.md`: changelog items 70-71.
+  - `docs/ai-context.md`: estado actual actualizado.
+  - `docs/funciones.md`: registrado `cerrarModalSiOverlay()` en Helper.
+
+
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
@@ -3496,7 +3526,7 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual en header) para uso programático futuro. Botón toggle Orden Excel/Secciones sin borde visual.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual en header) para uso programático futuro. Botón toggle Orden Excel/Secciones sin borde visual. Tabla a ancho completo (sin max-w). Todos los modales se cierran al clickear fuera del contenido.
 
 ## Archivos Clave
 | Archivo | Para qué |
@@ -3660,6 +3690,7 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
+| `cerrarModalSiOverlay(e, closeFn)` | `e`: event, `closeFn`: function | Cierra modal si se hizo clic fuera del contenido (e.target === e.currentTarget). Se usa como onclick del overlay del modal |
 
 ## SCHEMA_CONFIG (schema-config.js)
 
