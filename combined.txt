@@ -31,7 +31,7 @@
     </style>
     <!-- Modal Ruta Procesos -->
     <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRutaProcesos)">
-        <div class="relative modal-content w-full max-w-6xl my-8">
+        <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -50,6 +50,19 @@
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-4" id="pendientes-contenido">
+                <p class="text-gray-500 text-center py-8">Cargando...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal BD Recientes -->
+    <div id="modal-recientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRecientes)">
+        <div class="relative modal-content w-full max-w-4xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
+                <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4" id="recientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -76,7 +89,6 @@
                 <div class="flex items-center gap-1 text-xs border-l border-gray-700 pl-2 ml-1">
                     <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
                     <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
-                        <option value="id_expediente DESC">Reciente</option>
                         <option value="fecha_creacion DESC">Creación</option>
                         <option value="fecha_actualizacion DESC">Modificación</option>
                     </select>
@@ -108,10 +120,7 @@
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
-                <div class="relative">
-                    <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
-                    <div id="menu-recientes" class="hidden absolute right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[280px] max-w-sm"></div>
-                </div>
+                <button onclick="abrirRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
                 <span id="estado-bd" class="text-xs text-gray-500 italic"></span>
             </div>
         </header>
@@ -715,14 +724,6 @@
             SQL = sqlLib;
         });
 
-        document.addEventListener('click', (e) => {
-            const menu = $('menu-recientes');
-            const btn = menu?.previousElementSibling;
-            if (menu && !menu.classList.contains('hidden') && btn !== e.target && !menu.contains(e.target)) {
-                menu.classList.add('hidden');
-            }
-        });
-
         function validarArchivoBD(file) {
             if (!file.name.toLowerCase().match(/\.(db|sqlite)$/)) {
                 alert(MSG.ERROR_TIPO_ARCHIVO);
@@ -817,7 +818,7 @@
             try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             recientes = recientes.filter(r => r.path !== path);
             localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
-            mostrarMenuRecientes();
+            abrirRecientes();
         }
         function eliminarRecienteIndex(index) {
             let recientes = [];
@@ -826,7 +827,7 @@
                 recientes.splice(index, 1);
             }
             localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
-            mostrarMenuRecientes();
+            abrirRecientes();
         }
         function escapeHtml(text) {
             if (!text) return '';
@@ -851,23 +852,24 @@
                 const input = $('dbfile');
                 if (input) input.click();
             }
-            $('menu-recientes')?.classList.add('hidden');
+            cerrarRecientes();
         }
 
-        function mostrarMenuRecientes() {
-            const menu = $('menu-recientes');
-            if (!menu) return;
-            const abierto = !menu.classList.contains('hidden');
-            if (abierto) { menu.classList.add('hidden'); return; }
+        function abrirRecientes() {
+            const modal = $(SELECTORS.MODAL_RECIENTES);
+            const cont = $(SELECTORS.RECIENTES_CONTENIDO);
+            if (!modal || !cont) return;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
             let recientes = [];
             try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (recientes.length === 0) {
-                menu.innerHTML = '<div class="px-4 py-3 text-xs text-gray-500">Sin recientes</div>';
+                cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>';
             } else {
-                menu.innerHTML = recientes.map((r, i) => `
-                    <div class="reciente-item flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}"
+                cont.innerHTML = recientes.map((r, i) => `
+                    <div class="reciente-item flex items-center justify-between px-4 py-3 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}"
                          data-path="${encodeURIComponent(r.path)}">
-            <div class="flex-1 min-w-0 w-full">
+                        <div class="flex-1 min-w-0">
                             <div class="text-sm text-gray-200 truncate">${escapeHtml(r.nombre)}</div>
                             <div class="text-xs text-gray-500 truncate">${escapeHtml(r.path || '')}</div>
                         </div>
@@ -875,10 +877,14 @@
                     </div>
                 `).join('');
             }
-            menu.classList.remove('hidden');
         }
 
-        $('menu-recientes')?.addEventListener('click', (e) => {
+        function cerrarRecientes() {
+            $(SELECTORS.MODAL_RECIENTES)?.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        $(SELECTORS.MODAL_RECIENTES)?.addEventListener('click', (e) => {
             const item = e.target.closest('.reciente-item');
             if (item) {
                 const path = decodeURIComponent(item.dataset.path);
@@ -2081,6 +2087,8 @@ const SELECTORS = {
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
     ESTADO_BD: 'estado-bd',
     BTN_EXPORTAR_CSV: 'btn-exportar-csv',
+    MODAL_RECIENTES: 'modal-recientes',
+    RECIENTES_CONTENIDO: 'recientes-contenido',
 };
 
 const MSG_EXTRA = {

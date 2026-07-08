@@ -90,6 +90,8 @@ const SELECTORS = {
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
     ESTADO_BD: 'estado-bd',
     BTN_EXPORTAR_CSV: 'btn-exportar-csv',
+    MODAL_RECIENTES: 'modal-recientes',
+    RECIENTES_CONTENIDO: 'recientes-contenido',
 };
 
 const MSG_EXTRA = {
