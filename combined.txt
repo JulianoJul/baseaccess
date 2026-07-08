@@ -32,11 +32,11 @@
     <!-- Modal Ruta Procesos -->
     <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-6xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 px-5 py-4 flex items-center justify-between">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-5" id="ruta-contenido">
+            <div class="p-4" id="ruta-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -45,11 +45,11 @@
     <!-- Modal Documentos Pendientes -->
     <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 px-5 py-4 flex items-center justify-between">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-5" id="pendientes-contenido">
+            <div class="p-4" id="pendientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -103,10 +103,6 @@
                 <button id="btn-guardar" onclick="guardarBD()" disabled
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
-                </button>
-                <button id="btn-vacuum" onclick="optimizarBD()" disabled
-                    class="btn btn-primary text-xs px-3 py-2" title="Compactar base de datos (VACUUM)">
-                    <i class="fas fa-compress-alt mr-1"></i> Compactar
                 </button>
                 <div class="relative">
                     <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
@@ -179,7 +175,7 @@
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <div class="flex items-center gap-3">
                     <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
-                    <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded border border-gray-600 text-gray-400 hover:text-teal-400 hover:border-teal-500 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
+                    <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded text-gray-400 hover:text-teal-400 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
                 </div>
                 <button onclick="cancelarFormulario()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
@@ -761,7 +757,6 @@
             $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
-            $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
             // Sincronizar configuración de backups con Electron
@@ -995,13 +990,13 @@
                 const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
                 DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
             } catch (err) {
-                DEBUG.error('Error en VACUUM:', err);
+                DEBUG.error('Error en VACUUM: ', err);
                 alert(MSG_EXTRA.VACUUM_ERROR(err));
             }
         }
 
         function updateUIOnError() {
-            ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
+            ['btn-nuevo', 'btn-guardar', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
             const estado = $(SELECTORS.ESTADO_BD);
@@ -3164,6 +3159,8 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
 | 66 | `src/schema-config.js`, `src/index.html`, `main.js`, `src/preload.js` | **Auditoría plan_modificaciones.md**: 12 items implementados — BYTES_PER_MB, VACUUM catch, error badge, BD_DESCARGADA, backup configurable vía localStorage+IPC, validación VERSION, log SQL errors, queries centralizadas, AUTOSAVE_ENABLED, renderBadgeEstatus(), smoke test SELECTORS | Cierre completo del plan |
 | 67 | `src/index.html` | **Header rework**: botones alineados a la izquierda, hamburguesa (☰) togglea sidebar, selector de orden movido al header junto a hamburguesa, sidebar oculta por defecto | UX: sidebar no ocupa espacio si no se usa |
+| 68 | `src/index.html` | Botón "Compactar" (VACUUM) eliminado visualmente del header; función `optimizarBD()` preservada | Se quitó solo el botón visual; el código de VACUUM se conserva para uso programático futuro |
+| 69 | `src/index.html` | Borde eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) en modal de edición | Limpieza visual: el botón toggle no necesita borde distintivo |
 
 ---
 
@@ -3185,7 +3182,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `src/schema-config.js` | **completado** |
 | — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `data/sql/Tablas8.sql`, `src/schema-config.js`, `src/index.html` | **completado** |
 | — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `src/index.html` | **completado** |
-| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `src/index.html` | **completado** |
+| — | 🟡 Media | **Función VACUUM** (`optimizarBD()`) disponible, sin botón visual en header (eliminado por solicitud) | `src/index.html` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)
@@ -3465,6 +3462,22 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/funciones.md`: actualizado con nuevas funciones y constantes.
   - `docs/doc.md`: changelog items 66-67.
 
+---
+
+## DEC-021: Corrección VACUUM — Solo Botón Visual Eliminado, Código Preservado
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** En DEC-020 se eliminó por completo el botón VACUUM y la función `optimizarBD()`. El usuario aclaró que solo debía eliminarse el botón visual, conservando el código de la función para uso programático futuro.
+- **Alternativas evaluadas:**
+  - Eliminar todo — descartado: el usuario quería conservar el código.
+  - Dejar ambos — descartado: el botón visual no debía estar.
+- **Impacto:**
+  - `src/index.html`: `optimizarBD()` restaurada (línea 983), botón `<button id="btn-vacuum">` no se reintroduce.
+  - `src/index.html`: borde CSS eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) por solicitud del usuario.
+  - `src/schema-config.js`: `BTN_VACUUM`, `MSG_EXTRA.VACUUM_*` se mantienen como referencias válidas para la función.
+  - `docs/doc.md`: item 68 corregido, item 69 añadido.
+  - `docs/ai-context.md`: estado actual actualizado.
+
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
@@ -3483,7 +3496,7 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual en header) para uso programático futuro. Botón toggle Orden Excel/Secciones sin borde visual.
 
 ## Archivos Clave
 | Archivo | Para qué |
@@ -3620,7 +3633,7 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
 | `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Reporta tamaño antes/después |
 | `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
-| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar, compactar) al ocurrir un error crítico |
+| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar) y añade badge de solo-lectura al ocurrir un error crítico |
 
 ## Electron (main.js) — Backup Rotativo
 

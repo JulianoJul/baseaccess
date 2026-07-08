@@ -240,3 +240,19 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/funciones.md`: actualizado con nuevas funciones y constantes.
   - `docs/doc.md`: changelog items 66-67.
 
+---
+
+## DEC-021: Corrección VACUUM — Solo Botón Visual Eliminado, Código Preservado
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** En DEC-020 se eliminó por completo el botón VACUUM y la función `optimizarBD()`. El usuario aclaró que solo debía eliminarse el botón visual, conservando el código de la función para uso programático futuro.
+- **Alternativas evaluadas:**
+  - Eliminar todo — descartado: el usuario quería conservar el código.
+  - Dejar ambos — descartado: el botón visual no debía estar.
+- **Impacto:**
+  - `src/index.html`: `optimizarBD()` restaurada (línea 983), botón `<button id="btn-vacuum">` no se reintroduce.
+  - `src/index.html`: borde CSS eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) por solicitud del usuario.
+  - `src/schema-config.js`: `BTN_VACUUM`, `MSG_EXTRA.VACUUM_*` se mantienen como referencias válidas para la función.
+  - `docs/doc.md`: item 68 corregido, item 69 añadido.
+  - `docs/ai-context.md`: estado actual actualizado.
+

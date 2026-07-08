@@ -14,7 +14,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual en header) para uso programático futuro. Botón toggle Orden Excel/Secciones sin borde visual.
 
 ## Archivos Clave
 | Archivo | Para qué |

@@ -115,7 +115,7 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
 | `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Reporta tamaño antes/después |
 | `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
-| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar, compactar) al ocurrir un error crítico |
+| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar) y añade badge de solo-lectura al ocurrir un error crítico |
 
 ## Electron (main.js) — Backup Rotativo
 

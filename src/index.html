@@ -103,10 +103,6 @@
                     class="btn btn-primary">
                     <i class="fas fa-save mr-1"></i> Guardar BD
                 </button>
-                <button id="btn-vacuum" onclick="optimizarBD()" disabled
-                    class="btn btn-primary text-xs px-3 py-2" title="Compactar base de datos (VACUUM)">
-                    <i class="fas fa-compress-alt mr-1"></i> Compactar
-                </button>
                 <div class="relative">
                     <button onclick="mostrarMenuRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
                     <div id="menu-recientes" class="hidden absolute right-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl min-w-[280px] max-w-sm"></div>
@@ -178,7 +174,7 @@
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <div class="flex items-center gap-3">
                     <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
-                    <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded border border-gray-600 text-gray-400 hover:text-teal-400 hover:border-teal-500 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
+                    <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded text-gray-400 hover:text-teal-400 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
                 </div>
                 <button onclick="cancelarFormulario()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
             </div>
@@ -760,7 +756,6 @@
             $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
-            $('btn-vacuum').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
             // Sincronizar configuración de backups con Electron
@@ -994,13 +989,13 @@
                 const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
                 DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
             } catch (err) {
-                DEBUG.error('Error en VACUUM:', err);
+                DEBUG.error('Error en VACUUM: ', err);
                 alert(MSG_EXTRA.VACUUM_ERROR(err));
             }
         }
 
         function updateUIOnError() {
-            ['btn-nuevo', 'btn-guardar', 'btn-vacuum', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
+            ['btn-nuevo', 'btn-guardar', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
             const estado = $(SELECTORS.ESTADO_BD);

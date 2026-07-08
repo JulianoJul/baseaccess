@@ -397,6 +397,8 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
 | 66 | `src/schema-config.js`, `src/index.html`, `main.js`, `src/preload.js` | **Auditoría plan_modificaciones.md**: 12 items implementados — BYTES_PER_MB, VACUUM catch, error badge, BD_DESCARGADA, backup configurable vía localStorage+IPC, validación VERSION, log SQL errors, queries centralizadas, AUTOSAVE_ENABLED, renderBadgeEstatus(), smoke test SELECTORS | Cierre completo del plan |
 | 67 | `src/index.html` | **Header rework**: botones alineados a la izquierda, hamburguesa (☰) togglea sidebar, selector de orden movido al header junto a hamburguesa, sidebar oculta por defecto | UX: sidebar no ocupa espacio si no se usa |
+| 68 | `src/index.html` | Botón "Compactar" (VACUUM) eliminado visualmente del header; función `optimizarBD()` preservada | Se quitó solo el botón visual; el código de VACUUM se conserva para uso programático futuro |
+| 69 | `src/index.html` | Borde eliminado del botón `btn-modo-orden` (Orden Excel/Secciones) en modal de edición | Limpieza visual: el botón toggle no necesita borde distintivo |
 
 ---
 
@@ -418,7 +420,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | — | 🔴 Alta | **Backup rotativo automático**: copia el .db actual antes de cada escritura con rotación de 5 backups | `main.js`, `src/schema-config.js` | **completado** |
 | — | 🔴 Alta | **PRAGMA user_version**: validación al cargar BD contra `SCHEMA_CONFIG.VERSION` | `data/sql/Tablas8.sql`, `src/schema-config.js`, `src/index.html` | **completado** |
 | — | 🟡 Media | **Error boundary global**: `window.onerror` + `window.onunhandledrejection` con modal de rescate | `src/index.html` | **completado** |
-| — | 🟡 Media | **Botón VACUUM** (Compactar BD) en header | `src/index.html` | **completado** |
+| — | 🟡 Media | **Función VACUUM** (`optimizarBD()`) disponible, sin botón visual en header (eliminado por solicitud) | `src/index.html` | **completado** |
 
 ---
 ### Bug de persistencia resuelto (Electron)
