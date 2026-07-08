@@ -175,6 +175,33 @@ Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer
 
 ---
 
+## 🎨 REVISIÓN UI/UX — Responsive y Consistencia Visual
+
+Al auditar el frontend, verificar:
+
+### A. Responsive layout
+- La UI debe adaptarse al redimensionar la ventana (estrechar/ensanchar). Verificar que contenedores, tablas y modales usen unidades relativas y no tengan anchos fijos que rompan el layout.
+- Prestar atención al `#app` container, `#vista-tabla`, y la tabla principal.
+- La tabla no debe tener un espacio a la derecha mayor que a la izquierda (asimetría horizontal).
+
+### B. Estado inicial vs estado con datos
+- La UI no debe verse "angosta/vacía" antes de cargar una BD. El layout debe mantenerse consistente: sidebar oculta ocupa 0 espacio, la tabla principal ocupa el ancho completo disponible desde el inicio.
+
+### C. DRY para UI (CSS/Tailwind)
+- Las clases Tailwind no deben repetirse en patrones idénticos. Si un mismo conjunto de clases (ej. `bg-gray-800 rounded-xl border border-gray-700`) aparece en más de 2 lugares, extraer a una clase utilitaria en `styles.css`.
+- Revisar que componentes similares (modales, tarjetas, botones, inputs) compartan las mismas clases en lugar de tener variaciones inconsistentes.
+- Botones con la misma función visual deben tener las mismas clases. No duplicar estilos con variaciones menores sin justificación.
+
+### D. Padding y márgenes consistentes
+- Todos los modales deben usar el mismo padding (verificar `p-4` vs `px-5 py-4` vs otros).
+- La tabla y sus contenedores deben tener padding simétrico (izquierda = derecha).
+
+### E. Overflow y scroll
+- Modales con contenido largo deben manejar overflow correctamente sin romper el layout.
+- El body scroll debe bloquearse al abrir cualquier modal y restaurarse al cerrarlo.
+
+---
+
 ## 📁 ESTRUCTURA DEL PROYECTO
 
 | Archivo | Propósito |
