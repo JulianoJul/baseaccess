@@ -200,7 +200,7 @@ make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
-make serve            # python3 -m http.server 8000 (sirve src/index.html por HTTP para evitar file://)
+make serve            # python3 -m http.server 8000 (kills old server, sirve src/index.html por HTTP para evitar file://)
 make electron-build-win    # Build win-unpacked para Windows
 make electron-build-linux  # Build AppImage para Linux
 ```
@@ -395,6 +395,8 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 63 | `schema-config.js` | Nuevos selectores (`BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`), mensajes `MSG_EXTRA` (6 entradas para VACUUM y error boundary), y constante `BACKUP` | SPOT: centralizar todo en schema-config.js |
 | 64 | `data/sql/Tablas8.sql` | Añadido `PRAGMA user_version = 8;` al final del archivo | Versionado de schema para validación al cargar BD |
 | 65 | `decisiones.md` | Añadidos DEC-016 (VACUUM+Backup+Error+PRAGMA), DEC-017 (MSG_EXTRA), DEC-018 (PRAGMA user_version) | Trazabilidad de implementación de normas críticas |
+| 66 | `src/schema-config.js`, `src/index.html`, `main.js`, `src/preload.js` | **Auditoría plan_modificaciones.md**: 12 items implementados — BYTES_PER_MB, VACUUM catch, error badge, BD_DESCARGADA, backup configurable vía localStorage+IPC, validación VERSION, log SQL errors, queries centralizadas, AUTOSAVE_ENABLED, renderBadgeEstatus(), smoke test SELECTORS | Cierre completo del plan |
+| 67 | `src/index.html` | **Header rework**: botones alineados a la izquierda, hamburguesa (☰) togglea sidebar, selector de orden movido al header junto a hamburguesa, sidebar oculta por defecto | UX: sidebar no ocupa espacio si no se usa |
 
 ---
 
