@@ -128,21 +128,18 @@
                     </div>
                 </div>
             </div>
-            <div id="sidebar-collapsed" class="">
-                <button onclick="toggleSidebar()" class="bg-gray-800 border border-gray-700 rounded-xl px-2 py-4 text-teal-400 hover:text-teal-300" title="Mostrar sidebar"><i class="fas fa-chevron-right"></i></button>
-            </div>
 
             <div class="flex-1 min-w-0">
                 <!-- Buscador (sticky) -->
                 <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
-                    <div class="relative">
-                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-teal-400 text-sm pointer-events-none"></i>
-                        <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg" style="padding-left: 2.5rem;" disabled>
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-search text-teal-400 text-sm"></i>
+                        <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg flex-1" disabled>
                     </div>
                 </div>
 
                 <!-- Tabla Principal -->
-                <div id="vista-tabla">
+                <div id="vista-tabla" class="mt-3">
                     <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700">
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -1788,7 +1785,6 @@
         }
         function toggleSidebar() {
             $(SELECTORS.SIDEBAR).classList.toggle('hidden');
-            $('sidebar-collapsed').classList.toggle('hidden');
         }
         // Inicializar sidebar
         renderSidebar();
