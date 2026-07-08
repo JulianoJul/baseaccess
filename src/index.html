@@ -31,7 +31,7 @@
     <!-- Modal Ruta Procesos -->
     <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRutaProcesos)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -44,7 +44,7 @@
     <!-- Modal Documentos Pendientes -->
     <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarPendientes)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -57,7 +57,7 @@
     <!-- Modal BD Recientes -->
     <div id="modal-recientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRecientes)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
                 <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -85,13 +85,6 @@
                 <button onclick="toggleSidebar()" class="btn btn-primary text-sm px-2 py-2" title="Mostrar/ocultar sidebar">
                     <i class="fas fa-bars"></i>
                 </button>
-                <div class="flex items-center gap-1 text-xs border-l border-gray-700 pl-2 ml-1">
-                    <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
-                    <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
-                        <option value="fecha_creacion DESC">Creación</option>
-                        <option value="fecha_actualizacion DESC">Modificación</option>
-                    </select>
-                </div>
 
                 <span class="w-px h-6 bg-gray-700 mx-1 hidden sm:block"></span>
 
@@ -138,10 +131,17 @@
                 </div>
             </div>
 
-            <div class="min-w-0 pr-4">
+            <div class="min-w-0">
                 <!-- Buscador (sticky) -->
                 <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                     <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 text-xs shrink-0">
+                            <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
+                            <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
+                                <option value="fecha_creacion DESC">Creación</option>
+                                <option value="fecha_actualizacion DESC">Modificación</option>
+                            </select>
+                        </div>
                         <i class="fas fa-search text-teal-400 text-sm"></i>
                         <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg flex-1" disabled>
                     </div>
@@ -189,7 +189,7 @@
                     <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
                     <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded text-gray-400 hover:text-teal-400 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
                 </div>
-                <button onclick="cancelarFormulario()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                <button onclick="cancelarFormulario()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
 
             <!-- Cuerpo del formulario -->
@@ -378,7 +378,7 @@
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
-                <button onclick="cerrarHistorialCompleto()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                <button onclick="cerrarHistorialCompleto()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div id="historial-cuerpo" class="p-4 overflow-x-auto max-h-[75vh] overflow-y-auto">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
@@ -394,7 +394,7 @@
         <div class="relative modal-content w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-plus-circle mr-1"></i> Agregar a catálogo</h2>
-                <button onclick="cerrarAgregarCatalogo()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
+                <button onclick="cerrarAgregarCatalogo()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-4">
                 <p class="text-sm text-gray-400 mb-3">Nuevo registro para: <strong id="ac-campo-label" class="text-gray-200"></strong></p>
@@ -865,8 +865,8 @@
             if (recientes.length === 0) {
                 cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>';
             } else {
-                cont.innerHTML = recientes.map((r, i) => `
-                    <div class="reciente-item flex items-center justify-between px-4 py-3 hover:bg-gray-700/50 cursor-pointer ${i === 0 ? '' : 'border-t border-gray-700/50'}"
+                cont.innerHTML = '<div class="flex flex-col gap-1">' + recientes.map((r, i) => `
+                    <div class="reciente-item flex items-center justify-between px-4 py-3 hover:bg-gray-700/50 cursor-pointer rounded-lg"
                          data-path="${encodeURIComponent(r.path)}">
                         <div class="flex-1 min-w-0">
                             <div class="text-sm text-gray-200 truncate">${escapeHtml(r.nombre)}</div>
@@ -874,7 +874,7 @@
                         </div>
                         <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-xs text-gray-500 hover:text-red-400 ml-2 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
                     </div>
-                `).join('');
+                `).join('') + '</div>';
             }
         }
 
