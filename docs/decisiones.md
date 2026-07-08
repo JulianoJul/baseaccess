@@ -224,3 +224,19 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `decisiones.md`: este registro ADR para trazabilidad.
   - Ningún cambio en código fuente (solo documentación).
 
+---
+
+## DEC-020: Implementación Completa del Plan de Modificaciones + Header Rework
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Se implementaron los 12 items del `plan_modificaciones.md` (3 Media, 4 Baja, 5 Propuestas) y se rediseñó el header de la UI para mejor usabilidad.
+- **Alternativas evaluadas:**
+  - N/A — implementación directa de lo planificado y solicitado por el usuario.
+- **Impacto:**
+  - `src/schema-config.js`: añadidos `BYTES_PER_MB`, `AUTOSAVE_ENABLED`, `STORAGE_KEYS.BACKUP_MAX_COPIES`, `SELECTORS.ESTADO_BD`, queries `expedientesSelect`/`expedientePorId`.
+  - `src/index.html`: header rework (hamburguesa ☰, selector de orden en header, sidebar oculta por defecto), `renderBadgeEstatus()` SPOT, smoke test SELECTORS, error badge en `updateUIOnError()`, `MSG_EXTRA.BD_DESCARGADA` usado, `MSG_EXTRA.VACUUM_ERROR` en catch, `obtenerMaxBackups()` para backup configurable.
+  - `main.js`: backup rotativo ahora usa `backupMaxCopies` variable (configurable vía IPC `set-backup-copies`/`get-backup-copies`).
+  - `src/preload.js`: expone `setBackupCopies`/`getBackupCopies` en `electronAPI`.
+  - `docs/funciones.md`: actualizado con nuevas funciones y constantes.
+  - `docs/doc.md`: changelog items 66-67.
+

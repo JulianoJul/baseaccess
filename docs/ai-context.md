@@ -14,18 +14,18 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes, orden por fecha, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha en header, ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Electron IPC + autoguardado.
 
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|
-| `index.html` | App completa (HTML + CSS + JS) |
-| `schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
+| `src/index.html` | App completa (HTML + CSS + JS) |
+| `src/schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
 | `main.js` | Electron main process |
 | `data/sql/Tablas8.sql` | Schema SQLite v8 |
-| `doc.md` | Documentación + pendientes + changelog |
-| `decisiones.md` | ADR: historial de decisiones técnicas |
-| `funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |
+| `docs/doc.md` | Documentación + pendientes + changelog |
+| `docs/decisiones.md` | ADR: historial de decisiones técnicas |
+| `docs/funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |
 | `.clinerules` | Skill de Opencode (protocolo de modificación) |
 | `Makefile` | combine / clean / commit / push / serve / electron-build |
 | `combined.txt` | Consolidado (make combine) para sesiones |
