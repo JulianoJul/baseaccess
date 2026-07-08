@@ -33,7 +33,8 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `formatNum(v)` | `v`: número | Formatea con `toLocaleString('es-VE')` + 2 decimales |
 | `parseNum(v)` | `v`: string de la UI | Convierte string numérico a `float` respetando separador `.` |
 | `limitDecimals(v)` | `v`: número | Limita a 2 decimales sin redondeo excesivo |
-| `validarFechas()` | — | Valida coherencia de fechas en el formulario (fecha_firma >= fecha_recibido, etc.). Retorna `true/false` |
+| `validarFechas()` | — | Valida coherencia de fechas en el formulario (fecha_recibido vs fecha_devuelto). Retorna `true/false`. Usa `validarFechasEntre()` internamente |
+| `validarFechasEntre(recibido, devuelto)` | `recibido`: string fecha, `devuelto`: string fecha | Función pura: retorna `{valid: boolean, errorMsg: string|null}` sin tocar el DOM |
 
 ---
 
@@ -113,7 +114,8 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `marcarModificado()` | — | Marca la BD como modificada (habilita botón guardar si aplica) |
 | `iniciarAutoguardado()` | — | Inicia intervalo de autoguardado cada 30s |
 | `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
-| `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Reporta tamaño antes/después |
+| `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Confirma si BD > CONFIG.VACUUM_CONFIRM_THRESHOLD_MB. Reporta tamaño antes/después |
+| `exportarCSV()` | — | Exporta datos de `vw_reporte_excel_contrataciones` como archivo CSV descargable |
 | `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
 | `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar) y añade badge de solo-lectura al ocurrir un error crítico |
 
@@ -129,12 +131,12 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 
 | Constante | Descripción |
 |-----------|-------------|
-| `CONFIG` | Config numérica: `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `AUTOSAVE_INTERVAL_MS` |
+| `CONFIG` | Config numérica: `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `BYTES_PER_MB`, `AUTOSAVE_INTERVAL_MS`, `AUTOSAVE_ENABLED`, `MAX_RECIENTES`, `EXPORT_CHUNK_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB` |
 | `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` (controlado por `DEBUG.isEnabled`) |
-| `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA` |
-| `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE` |
-| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD` |
-| `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA` |
+| `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA`, `ERROR_BD_CORRUPTA` |
+| `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES`, `ORDEN_PREFERIDO` |
+| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD`, `BTN_EXPORTAR_CSV` |
+| `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA`, `CSV_DESCARGADO` |
 | `BACKUP` | Config de backup rotativo: `MAX_COPIES: 5`, `SUFFIX: '.bak.'` |
 
 ## Helper (index.html)

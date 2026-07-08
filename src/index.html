@@ -30,7 +30,7 @@
     </style>
     <!-- Modal Ruta Procesos -->
     <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRutaProcesos)">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-6xl my-8">
+        <div class="relative modal-content w-full max-w-6xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -43,7 +43,7 @@
 
     <!-- Modal Documentos Pendientes -->
     <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarPendientes)">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
+        <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
@@ -98,6 +98,10 @@
                 <button onclick="abrirDocumentosPendientes()" disabled
                     class="btn btn-primary" id="btn-pendientes">
                     <i class="fas fa-clock mr-1"></i> Pendientes
+                </button>
+                <button onclick="exportarCSV()" disabled
+                    class="btn btn-primary" id="btn-exportar-csv">
+                    <i class="fas fa-file-csv mr-1"></i> CSV
                 </button>
                 <button id="btn-guardar" onclick="guardarBD()" disabled
                     class="btn btn-primary">
@@ -168,7 +172,7 @@
     <!-- MODAL DEL FORMULARIO DE EXPEDIENTE                           -->
     <!-- ============================================================ -->
     <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cancelarFormulario)">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl my-8">
+        <div class="relative modal-content w-full max-w-4xl my-8">
             
             <!-- Cabecera del modal -->
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
@@ -362,7 +366,7 @@
     <!-- MODAL DEL HISTORIAL COMPLETO                                 -->
     <!-- ============================================================ -->
     <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarHistorialCompleto)">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-5xl my-8">
+        <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
                 <button onclick="cerrarHistorialCompleto()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
@@ -378,7 +382,7 @@
 
     <!-- Modal de Agregar a Catálogo -->
     <div id="modal-agregar-catalogo" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarAgregarCatalogo)">
-        <div class="relative bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-md my-8">
+        <div class="relative modal-content w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-plus-circle mr-1"></i> Agregar a catálogo</h2>
                 <button onclick="cerrarAgregarCatalogo()" class="text-gray-400 hover:text-white text-2xl leading-none">&times;</button>
@@ -447,6 +451,7 @@
 
         // Error boundary global — captura errores no manejados
         window.onerror = function(msg, source, lineno, colno, err) {
+            document.body.style.overflow = 'hidden';
             updateUIOnError();
             const cont = $(SELECTORS.ERROR_CONTENIDO);
             if (cont) cont.innerHTML = `<p>${MSG_EXTRA.ERROR_CRITICO}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${err?.stack || msg}</pre>`;
@@ -454,6 +459,7 @@
             return true;
         };
         window.onunhandledrejection = function(event) {
+            document.body.style.overflow = 'hidden';
             updateUIOnError();
             const cont = $(SELECTORS.ERROR_CONTENIDO);
             if (cont) cont.innerHTML = `<p>${MSG_EXTRA.PROMESA_RECHAZADA}</p><pre class="bg-gray-900 p-2 rounded text-xs text-red-300 mt-2 overflow-auto max-h-24">${event?.reason?.stack || event?.reason || ''}</pre>`;
@@ -466,7 +472,7 @@
                 .filter(([, id]) => id && !$(id))
                 .map(([key, id]) => `${key} ('${id}')`);
             if (missing.length) {
-                console.error('[SMOKE] SELECTORS faltantes:', missing.join(', '));
+                DEBUG.error('[SMOKE] SELECTORS faltantes:', missing.join(', '));
             }
         })();
 
@@ -741,6 +747,12 @@
                 return false;
             }
             db = new SQL.Database(bytes);
+            const integrity = db.exec("PRAGMA integrity_check");
+            if (integrity[0]?.values[0]?.[0] !== 'ok') {
+                alert(MSG.ERROR_BD_CORRUPTA);
+                db = null;
+                return false;
+            }
             // // Validar versión del schema via PRAGMA user_version
             // if (typeof SCHEMA_CONFIG.VERSION !== 'number') {
             //     alert('Error interno: SCHEMA_CONFIG.VERSION debe ser un número');
@@ -758,10 +770,13 @@
             if (electronAPI && filePath) electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
             $(SELECTORS.SORT_ORDER).disabled = false;
+            const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
+            if (ordenGuardado) $(SELECTORS.SORT_ORDER).value = ordenGuardado;
             $('btn-nuevo').disabled = false;
             $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
+            $('btn-exportar-csv').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
             // Sincronizar configuración de backups con Electron
@@ -792,7 +807,7 @@
             const idx = recientes.findIndex(r => r.path === path);
             if (idx !== -1) recientes.splice(idx, 1);
             recientes.unshift({ nombre, path, timestamp: Date.now() });
-            if (recientes.length > 8) recientes = recientes.slice(0, 8);
+            if (recientes.length > CONFIG.MAX_RECIENTES) recientes = recientes.slice(0, CONFIG.MAX_RECIENTES);
             localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
         }
 
@@ -914,7 +929,7 @@
             try {
                 const data = db.export();
                 let binary = '';
-                const chunkSize = 8192;
+                const chunkSize = CONFIG.EXPORT_CHUNK_SIZE;
                 for (let i = 0; i < data.length; i += chunkSize) {
                     binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
                 }
@@ -971,7 +986,7 @@
             if (!db) return;
             const data = db.export();
             let binary = '';
-            const chunkSize = 8192;
+            const chunkSize = CONFIG.EXPORT_CHUNK_SIZE;
             for (let i = 0; i < data.length; i += chunkSize) {
                 binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
             }
@@ -990,6 +1005,9 @@
             if (!db) return;
             try {
                 const antes = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
+                if (antes > CONFIG.VACUUM_CONFIRM_THRESHOLD_MB) {
+                    if (!confirm(`La BD pesa ${antes} MB. VACUUM puede tardar varios segundos. ¿Continuar?`)) return;
+                }
                 DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
                 db.run('VACUUM;');
                 const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
@@ -1000,8 +1018,32 @@
             }
         }
 
+        function exportarCSV() {
+            if (!db) return;
+            const res = db.exec(SCHEMA_CONFIG.queries.reporteExcel);
+            const data = dbToObjects(res);
+            if (!data.length) { alert('No hay datos para exportar.'); return; }
+            const headers = Object.keys(data[0]);
+            const csv = headers.join(',') + '\n' + data.map(row =>
+                headers.map(h => {
+                    const v = row[h];
+                    if (v === null || v === undefined) return '';
+                    const s = String(v).replace(/"/g, '""');
+                    return /[,"\n]/.test(s) ? '"' + s + '"' : s;
+                }).join(',')
+            ).join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `reporte_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            alert(MSG_EXTRA.CSV_DESCARGADO);
+        }
+
         function updateUIOnError() {
-            ['btn-nuevo', 'btn-guardar', SELECTORS.GUARDAR_BD_BTN].forEach(id => {
+            ['btn-nuevo', 'btn-guardar', SELECTORS.GUARDAR_BD_BTN, SELECTORS.BTN_EXPORTAR_CSV].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
             const estado = $(SELECTORS.ESTADO_BD);
@@ -1160,6 +1202,7 @@
             renderizarTabla(expedientesCache);
         }
         function cambiarOrden() {
+            localStorage.setItem(STORAGE_KEYS.ORDEN_PREFERIDO, $(SELECTORS.SORT_ORDER).value);
             cargarDatos();
             const searchEl = $(SELECTORS.SEARCH);
             if (searchEl && searchEl.value) {
@@ -1233,6 +1276,7 @@
                                     <div><span class="text-gray-400">Receptor Actual:</span> <span class="text-gray-200 block truncate">${exp.receptor || 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">${exp.fecha_recibido || 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">${exp.fecha_devuelto || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Última Modificación:</span> <span class="text-gray-300 block font-mono">${exp.fecha_actualizacion || 'N/A'}</span></div>
                                 </div>
                             </div>
 
@@ -1339,16 +1383,24 @@
             return s;
         }
 
+        function validarFechasEntre(recibido, devuelto) {
+            if (recibido && devuelto && devuelto < recibido) {
+                return { valid: false, errorMsg: 'Fecha Devuelto no puede ser anterior a Fecha Recibido' };
+            }
+            return { valid: true, errorMsg: null };
+        }
+
         function validarFechas() {
             const recibido = $('f-fecha_recibido').value;
             const devuelto = $('f-fecha_devuelto').value;
+            const result = validarFechasEntre(recibido, devuelto);
             const errEl = $('f-error-fechas');
-            if (recibido && devuelto && devuelto < recibido) {
+            if (!result.valid) {
                 if (!errEl) {
                     const div = document.createElement('div');
                     div.id = 'f-error-fechas';
                     div.className = 'text-red-400 text-xs mt-1';
-                    div.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-1"></i> Fecha Devuelto no puede ser anterior a Fecha Recibido';
+                    div.innerHTML = '<i class="fas fa-exclamation-triangle text-red-400 mr-1"></i> ' + result.errorMsg;
                     $('f-fecha_devuelto').parentNode.appendChild(div);
                 }
                 return false;
@@ -1420,7 +1472,7 @@
         function cargarExpediente(id) {
             const safeId = toInt(id);
             if (!safeId) { alert(MSG.ERROR_ID_INVALIDO); cancelarFormulario(); return; }
-            const res = db.exec(`SELECT * FROM expedientes WHERE id_expediente = ${safeId}`);
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientePorId.replace('?', safeId));
             if (!res || res.length === 0) {
                 alert(MSG.ERROR_NO_EXPEDIENTE);
                 cancelarFormulario();

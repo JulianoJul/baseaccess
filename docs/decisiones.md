@@ -273,4 +273,24 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/ai-context.md`: estado actual actualizado.
   - `docs/funciones.md`: registrado `cerrarModalSiOverlay()` en Helper.
 
+---
+
+## DEC-023: Auditoría de Código Julio 2026 — Implementación Completa (AUD-001 a AUD-007 + PROP-001 a PROP-005)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Se realizó una auditoría completa del código consolidado en `combined.txt` y se generó `plan_modificaciones.md` con 7 hallazgos (3 Media, 4 Baja) y 5 propuestas de mejora. El usuario autorizó implementar todo.
+- **Alternativas evaluadas:**
+  - Implementar solo Media/Baja — descartado: el usuario pidió "todo".
+  - Postergar propuestas YAGNI — descartado: el usuario explícitamente dijo "si a todo".
+- **Impacto:**
+  - `src/schema-config.js`: añadidos `CONFIG.MAX_RECIENTES`, `CONFIG.EXPORT_CHUNK_SIZE`, `CONFIG.VACUUM_CONFIRM_THRESHOLD_MB`, `MSG.ERROR_BD_CORRUPTA`, `STORAGE_KEYS.ORDEN_PREFERIDO`, `MSG_EXTRA.CSV_DESCARGADO`, `SELECTORS.BTN_EXPORTAR_CSV`.
+  - `src/index.html`: AUD-001 a AUD-007 implementados. PROP-001 a PROP-005 implementados.
+  - `src/vendor/styles.css`: nueva clase `.modal-content` para DRY de modales.
+  - `plan_modificaciones.md`: actualizado con todos los items en ✅.
+  - `docs/funciones.md`: registrada `exportarCSV()`, `validarFechasEntre()`.
+  - `docs/doc.md`: changelog items 72-73.
+  - `docs/ai-context.md`: estado actual actualizado.
+
+
+
 

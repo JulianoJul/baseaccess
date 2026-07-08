@@ -14,6 +14,9 @@ const CONFIG = {
     BYTES_PER_MB: 1048576,
     AUTOSAVE_INTERVAL_MS: 30000,
     AUTOSAVE_ENABLED: true,
+    MAX_RECIENTES: 8,
+    EXPORT_CHUNK_SIZE: 8192,
+    VACUUM_CONFIRM_THRESHOLD_MB: 50,
 };
 
 const DEBUG = {
@@ -43,6 +46,7 @@ const MSG = {
     EXITO_CREADO: 'Expediente creado correctamente.',
     EXITO_ELIMINADO: 'Expediente eliminado correctamente.',
     FECHA_DEVUELTO_INVALIDA: 'Fecha Devuelto no puede ser anterior a Fecha Recibido.',
+    ERROR_BD_CORRUPTA: 'La base de datos está corrupta. Usa una copia de seguridad.',
 };
 
 const STORAGE_KEYS = {
@@ -50,6 +54,7 @@ const STORAGE_KEYS = {
     RECIENTES: 'recientes',
     SIDEBAR_VISIBLE: 'sidebarVisible',
     BACKUP_MAX_COPIES: 'BACKUP_MAX_COPIES',
+    ORDEN_PREFERIDO: 'ordenPreferido',
 };
 
 const SELECTORS = {
@@ -84,6 +89,7 @@ const SELECTORS = {
     ERROR_CONTENIDO: 'error-critico-contenido',
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
     ESTADO_BD: 'estado-bd',
+    BTN_EXPORTAR_CSV: 'btn-exportar-csv',
 };
 
 const MSG_EXTRA = {
@@ -94,6 +100,7 @@ const MSG_EXTRA = {
     ERROR_CRITICO: 'Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.',
     PROMESA_RECHAZADA: 'Una operación asíncrona falló inesperadamente.',
     BD_DESCARGADA: 'BD descargada. Recarga la aplicación y continúa.',
+    CSV_DESCARGADO: 'Reporte exportado como CSV.',
 };
 
 const BACKUP = {
