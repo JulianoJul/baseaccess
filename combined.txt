@@ -32,11 +32,11 @@
     <!-- Modal Ruta Procesos -->
     <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRutaProcesos)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4" id="ruta-contenido">
+            <div class="p-4 overflow-y-auto max-h-[75vh]" id="ruta-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -45,11 +45,11 @@
     <!-- Modal Documentos Pendientes -->
     <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarPendientes)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4" id="pendientes-contenido">
+            <div class="p-4 overflow-y-auto max-h-[75vh]" id="pendientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -58,11 +58,11 @@
     <!-- Modal BD Recientes -->
     <div id="modal-recientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70" onclick="cerrarModalSiOverlay(event, cerrarRecientes)">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
                 <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4" id="recientes-contenido">
+            <div class="p-4 overflow-y-auto max-h-[75vh]" id="recientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
