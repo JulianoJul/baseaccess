@@ -16,6 +16,8 @@ struct FileResult {
     data: String,
 }
 
+use tauri_plugin_dialog::FilePath;
+
 fn crear_backup_rotativo(file_path: &str, max_copies: u32) {
     let oldest = format!("{}.bak.{}", file_path, max_copies);
     if std::path::Path::new(&oldest).exists() {
@@ -50,7 +52,11 @@ fn save_db(state: State<AppState>, data_base64: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn save_db_as(app: tauri::AppHandle, state: State<AppState>, data_base64: String) -> Result<Option<String>, String> {
+fn save_db_as(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+    data_base64: String,
+) -> Result<Option<String>, String> {
     let file = app
         .dialog()
         .file()
@@ -58,13 +64,14 @@ fn save_db_as(app: tauri::AppHandle, state: State<AppState>, data_base64: String
         .blocking_save_file();
 
     match file {
-        Some(file_path) => {
-            let path_str = file_path.as_path().to_string_lossy().to_string();
+        Some(FilePath::Path(path_buf)) => {
+            let path_str = path_buf.to_string_lossy().to_string();
             let data = BASE64.decode(&data_base64).map_err(|e| e.to_string())?;
             std::fs::write(&path_str, &data).map_err(|e| e.to_string())?;
             *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(path_str.clone());
             Ok(Some(path_str))
         }
+        Some(FilePath::Url(_)) => Err("URL no soportada".to_string()),
         None => Ok(None),
     }
 }
@@ -77,7 +84,11 @@ fn set_db_path(state: State<AppState>, file_path: String) -> Result<(), String> 
 
 #[tauri::command]
 fn get_db_path(state: State<AppState>) -> Result<Option<String>, String> {
-    Ok(state.current_db_path.lock().map_err(|e| e.to_string())?.clone())
+    Ok(state
+        .current_db_path
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone())
 }
 
 #[tauri::command]
@@ -88,7 +99,10 @@ fn open_db_file(state: State<AppState>, file_path: String) -> Result<String, Str
 }
 
 #[tauri::command]
-fn open_db_dialog(app: tauri::AppHandle, state: State<AppState>) -> Result<Option<FileResult>, String> {
+fn open_db_dialog(
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<Option<FileResult>, String> {
     let file = app
         .dialog()
         .file()
@@ -96,8 +110,8 @@ fn open_db_dialog(app: tauri::AppHandle, state: State<AppState>) -> Result<Optio
         .blocking_pick_file();
 
     match file {
-        Some(file_path) => {
-            let path_str = file_path.as_path().to_string_lossy().to_string();
+        Some(FilePath::Path(path_buf)) => {
+            let path_str = path_buf.to_string_lossy().to_string();
             let data = std::fs::read(&path_str).map_err(|e| e.to_string())?;
             *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(path_str.clone());
             Ok(Some(FileResult {
@@ -105,6 +119,7 @@ fn open_db_dialog(app: tauri::AppHandle, state: State<AppState>) -> Result<Optio
                 data: BASE64.encode(&data),
             }))
         }
+        Some(FilePath::Url(_)) => Err("URL no soportada".to_string()),
         None => Ok(None),
     }
 }

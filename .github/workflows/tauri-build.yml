@@ -56,7 +56,7 @@ jobs:
           mkdir -p src-tauri/icons
           python3 -c "
           import struct, zlib
-          def create_png(w, h, r, g, b):
+          def create_png(w, h, r, g, b, a=255):
               def chunk(t, d):
                   c = t + d
                   return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
@@ -64,9 +64,9 @@ jobs:
               for y in range(h):
                   raw += b'\x00'
                   for x in range(w):
-                      raw += struct.pack('BBB', r, g, b)
+                      raw += struct.pack('BBBB', r, g, b, a)
               return (b'\x89PNG\r\n\x1a\n' +
-                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) +
+                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
                       chunk(b'IDAT', zlib.compress(raw)) +
                       chunk(b'IEND', b''))
           for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
@@ -140,7 +140,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path src-tauri/icons
           python3 -c "
           import struct, zlib
-          def create_png(w, h, r, g, b):
+          def create_png(w, h, r, g, b, a=255):
               def chunk(t, d):
                   c = t + d
                   return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
@@ -148,9 +148,9 @@ jobs:
               for y in range(h):
                   raw += b'\x00'
                   for x in range(w):
-                      raw += struct.pack('BBB', r, g, b)
+                      raw += struct.pack('BBBB', r, g, b, a)
               return (b'\x89PNG\r\n\x1a\n' +
-                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) +
+                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
                       chunk(b'IDAT', zlib.compress(raw)) +
                       chunk(b'IEND', b''))
           for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
