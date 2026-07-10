@@ -184,7 +184,7 @@ npx tailwindcss -i input.css -o src/vendor/tailwind.min.css --minify
 
 ## Electron WinUnpacked
 
-Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido (solo rama master).
+Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido (`make electron-build-win`).
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
