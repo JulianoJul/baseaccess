@@ -141,10 +141,10 @@ jobs:
         run: npm install
 
       - name: Generate placeholder icons
-        shell: pwsh
+        shell: bash
         run: |
-          New-Item -ItemType Directory -Force -Path src-tauri/icons
-          python3 -c "
+          mkdir -p src-tauri/icons
+          python -c "
           import struct, zlib
           def create_png(w, h, r, g, b, a=255):
               def chunk(t, d):

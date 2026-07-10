@@ -1,0 +1,141 @@
+# Contexto: Migración Electron → Tauri v2
+
+App migrada de Electron a Tauri v2. Sigue siendo la misma app web HTML/JS (sql.js WASM + Tailwind CSS + SQLite) pero ahora Tauri hace de wrapper nativo (webview) en vez de Electron.
+
+---
+
+## RAMAS
+
+| Rama | Versión |
+|------|---------|
+| `master` | Electron (intacto, `.db` limpiados del historial) |
+| `tauri` | Tauri v2 con backend Rust |
+
+---
+
+## REQUISITOS DE BUILD
+
+### Linux
+- **Target:** `appimage` (único archivo `.AppImage` portable)
+- **Dependencias sistema:** `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`, `patchelf`, `libjavascriptcoregtk-4.1-dev`, `libsoup-3.0-dev`
+- **Comando:** `npx tauri build --bundles appimage`
+
+### Windows
+- **Target:** `nsis` con `installMode: "currentUser"` (NO requiere admin)
+- **WebView2:** Fixed Version Runtime 150.0.4078.65 (portable, sin descargas durante instalación)
+- **Comando:** `npx tauri build --bundles nsis`
+
+---
+
+## ESTRUCTURA Tauri
+
+```
+src-tauri/
+├── Cargo.toml              # Dependencias Rust (tauri, tauri-plugin-dialog, base64, serde)
+├── build.rs                # tauri_build::build()
+├── tauri.conf.json          # Config: frontendDist=../src, ventana 1400x900, withGlobalTauri
+├── capabilities/default.json # Permisos core:default + dialog:default
+├── icons/                   # PNG 32/128/256 RGBA (generados con script Python)
+├── src/
+│   ├── main.rs              # Entry point
+│   └── lib.rs               # Backend Rust con comandos IPC
+src/tauri-preload.js          # Puente JS: window.electronAPI vía window.__TAURI__.core.invoke()
+.github/workflows/tauri-build.yml  # CI con caché (Rust + npm)
+```
+
+---
+
+## BACKEND RUST (src-tauri/src/lib.rs)
+
+Reemplaza el `main.js` de Electron. Comandos implementados:
+
+| Comando Tauri | Reemplaza IPC de Electron |
+|--------------|--------------------------|
+| `save_db` | Guarda BD en ruta actual con backup rotativo |
+| `save_db_as` | Diálogo "Guardar como" + escribe archivo |
+| `set_db_path` | Almacena ruta actual |
+| `get_db_path` | Recupera ruta actual |
+| `open_db_file` | Lee archivo y devuelve base64 |
+| `open_db_dialog` | Diálogo "Abrir" + lee archivo + devuelve {path, data} |
+| `set_backup_copies` | Configura número de backups |
+| `get_backup_copies` | Obtiene número de backups |
+
+**Backup rotativo** idéntico al de Electron: renombra `.bak.1`→`.bak.N` y copia el archivo actual como `.bak.1`.
+
+---
+
+## FRONTEND (src/)
+
+Sin cambios en la lógica de la app. Solo se agregó `tauri-preload.js` que expone `window.electronAPI` usando `window.__TAURI__.core.invoke()` con la misma interfaz que antes.
+
+```js
+window.electronAPI = {
+  saveDb: (dataBase64) => invoke('save_db', { dataBase64 }),
+  saveDbAs: (dataBase64) => invoke('save_db_as', { dataBase64 }),
+  openDbDialog: () => invoke('open_db_dialog'),
+  openDbFilePath: (path) => invoke('open_db_file', { filePath: path }),
+  // ... etc
+};
+```
+
+---
+
+## CI/CD (GitHub Actions)
+
+Workflow: `.github/workflows/tauri-build.yml`
+
+**Cache:**
+- Rust: `~/.cargo/registry/`, `~/.cargo/git/`, `src-tauri/target/` (key: hash de `Cargo.lock`)
+- npm: `~/.npm/`, `node_modules/` (key: hash de `package.json`)
+
+**Windows:**
+1. Descarga el WebView2 Fixed Runtime `.cab` desde Microsoft
+2. Extrae con `expand` a `src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64/`
+3. `webviewInstallMode: { type: "offline", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }` — empaqueta el runtime en el NSIS installer
+4. NSIS con `installMode: "currentUser"` — instala solo para el usuario, sin admin
+
+**Linux:**
+1. Instala dependencias GTK/WebKit via apt
+2. Genera icons placeholder (PNG RGBA)
+3. Build → `.AppImage`
+
+---
+
+## HISTORIAL DE FIXES
+
+1. `.gitignore`: cambiado `src-tauri/` (ignoraba todo) → `src-tauri/gen/` (solo ignorar generados)
+2. Rama renombrada `tauri-migration` → `tauri`
+3. `.db` eliminados del historial git con `git filter-branch`
+4. Actions fallidos eliminados con `gh run delete`
+5. Icons: PNG RGB no funcionaban, cambiados a RGBA (color type 6)
+6. `FilePath` enum de `tauri-plugin-dialog` v2: usa `FilePath::Path(path_buf)` en vez de `as_path()`
+7. `withGlobalTauri`: movido de `app.security` a `app` level
+8. `webviewFixedRuntimePath`: campo eliminado del schema (no existe en esta versión de Tauri v2). Reemplazado por `webviewInstallMode: { type: "offline" }`
+9. URL de descarga WebView2: `msedge.sf.dl.delivery.mp.microsoft.com/...` (la de Azure blob storage no resolvía en CI de GitHub)
+10. Icons Windows: `shell: bash` en vez de `pwsh` (Python multilínea + `python` no `python3`)
+11. `webviewInstallMode`: agregado `path` obligatorio al objeto `{ type: "offline", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }`
+
+---
+
+## SCRIPTS
+
+```bash
+# Desarrollo
+npm run tauri dev        # = cargo tauri dev
+
+# Build
+npm run tauri build      # = cargo tauri build
+
+# CI (GitHub)
+# Se activa con push a la rama tauri
+```
+
+---
+
+## ARCHIVOS ELECTRON (intactos en rama master)
+
+- `main.js` — proceso principal
+- `src/preload.js` — contextBridge
+- `package.json` con electron-builder (solo en master)
+
+En rama `tauri`, `package.json` tiene scripts de Tauri y `@tauri-apps/cli` en devDependencies.

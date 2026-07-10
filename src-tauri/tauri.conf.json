@@ -32,7 +32,10 @@
       "icons/128x128@2x.png"
     ],
     "windows": {
-      "webviewInstallMode": { "type": "offline" },
+      "webviewInstallMode": {
+        "type": "offline",
+        "path": "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
+      },
       "nsis": {
         "installMode": "currentUser"
       }
