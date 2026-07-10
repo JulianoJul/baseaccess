@@ -110,6 +110,7 @@ jobs:
             Write-Host "WebView2 runtime already present"
           } else {
             $urls = @(
+              "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab",
               "https://msedgewebview2storage.blob.core.windows.net/wv2lts/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
             )
             $downloaded = $false
