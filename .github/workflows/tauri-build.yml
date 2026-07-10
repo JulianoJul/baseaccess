@@ -109,20 +109,13 @@ jobs:
           if (Test-Path $out) {
             Write-Host "WebView2 runtime already present"
           } else {
-            $urls = @(
-              "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab",
-              "https://msedgewebview2storage.blob.core.windows.net/wv2lts/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
-            )
-            $downloaded = $false
-            foreach ($url in $urls) {
-              try {
-                Write-Host "Trying $url..."
-                curl.exe -fSL -o $out $url 2>$null
-                if (Test-Path $out) { $downloaded = $true; break }
-              } catch { continue }
-            }
-            if (-not $downloaded) {
-              Write-Host "WebView2 download failed, will use evergreen bootstrapper"
+            Write-Host "Downloading WebView2 fixed runtime..."
+            curl.exe -fSL -o $out "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+            if (Test-Path $out) {
+              Write-Host "Downloaded $out"
+            } else {
+              Write-Host "ERROR: WebView2 download failed"
+              exit 1
             }
           }
 
@@ -166,6 +159,8 @@ jobs:
           "
 
       - name: Build Tauri (Windows)
+        env:
+          TAURI_CONFIG: '{"bundle":{"windows":{"webviewFixedRuntimePath":"Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"}}}'
         run: npx tauri build --bundles nsis
 
       - name: Upload Windows portable
