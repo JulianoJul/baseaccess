@@ -52,7 +52,7 @@ jobs:
           key: linux-npm-${{ hashFiles('package-lock.json', 'package.json') }}
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Generate placeholder icons
         run: |
@@ -187,7 +187,7 @@ jobs:
           key: windows-npm-${{ hashFiles('package-lock.json', 'package.json') }}
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Generate placeholder icons
         shell: bash
