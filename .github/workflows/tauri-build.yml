@@ -1,33 +1,45 @@
 name: Build Tauri
+
 on:
   push:
     branches: [tauri]
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            bundle: appimage
+            upload-path: appimage
+            python-cmd: python3
+            artifact-name: GestionExpedientes-Linux
+          - os: windows-latest
+            bundle: nsis
+            upload-path: nsis
+            python-cmd: python
+            artifact-name: GestionExpedientes-Windows
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CARGO_INCREMENTAL: 0
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
+      - uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.rustup/
-            ~/.cargo/bin/
-            ~/.cargo/registry/
-            ~/.cargo/git/
-            ~/.cache/tauri/
-            src-tauri/target/
-          key: linux-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            linux-cargo-
+          workspaces: "./src-tauri -> target"
 
       - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -42,91 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm/
-            node_modules/
-          key: linux-npm-${{ hashFiles('package-lock.json', 'package.json') }}
+          cache: npm
 
       - name: Install npm dependencies
         run: npm ci
 
-      - name: Generate placeholder icons
-        run: |
-          mkdir -p src-tauri/icons
-          python3 -c "
-          import struct, zlib
-          def create_png(w, h, r, g, b, a=255):
-              def chunk(t, d):
-                  c = t + d
-                  return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
-              raw = b''
-              for y in range(h):
-                  raw += b'\x00'
-                  for x in range(w):
-                      raw += struct.pack('BBBB', r, g, b, a)
-              return (b'\x89PNG\r\n\x1a\n' +
-                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
-                      chunk(b'IDAT', zlib.compress(raw)) +
-                      chunk(b'IEND', b''))
-          pngs = {}
-          for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
-              data = create_png(sz, sz, 45, 212, 191)
-              pngs[sz] = data
-              with open(f'src-tauri/icons/{name}', 'wb') as f:
-                  f.write(data)
-          # Generate icon.ico with embedded PNGs
-          def create_ico(sizes, pngs):
-              num = len(sizes)
-              header = struct.pack('<HHH', 0, 1, num)
-              offset = 6 + num * 16
-              entries = b''
-              images = b''
-              for w, h in sizes:
-                  png = pngs[w]
-                  entry = struct.pack('<BBBBHHII', w if w<256 else 0, h if h<256 else 0, 0, 0, 1, 32, len(png), offset)
-                  entries += entry
-                  images += png
-                  offset += len(png)
-              return header + entries + images
-          with open('src-tauri/icons/icon.ico', 'wb') as f:
-              f.write(create_ico([(32,32), (128,128), (256,256)], pngs))
-          "
-
-      - name: Build Tauri (Linux)
-        run: npx tauri build --bundles appimage
-
-      - name: Upload Linux AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: GestionExpedientes-Linux
-          path: src-tauri/target/release/bundle/appimage/
-
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.rustup/
-            ~/.cargo/bin/
-            ~/.cargo/registry/
-            ~/.cargo/git/
-            src-tauri/target/
-          key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
-          restore-keys: |
-            windows-cargo-
-
-      - name: Cache NSIS and Tauri tooling
+      - name: Cache NSIS and Tauri tooling (Windows)
+        if: matrix.os == 'windows-latest'
         uses: actions/cache@v4
         with:
           path: ~/AppData/Local/tauri
@@ -134,14 +68,16 @@ jobs:
           restore-keys: |
             windows-nsis-
 
-      - name: Cache WebView2 Fixed Runtime
+      - name: Cache WebView2 Fixed Runtime (Windows)
         id: cache-webview
+        if: matrix.os == 'windows-latest'
         uses: actions/cache@v4
         with:
           path: src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64
           key: windows-webview2-150.0.4078.65
 
-      - name: Download & extract WebView2 fixed runtime
+      - name: Download & extract WebView2 fixed runtime (Windows)
+        if: matrix.os == 'windows-latest'
         shell: pwsh
         run: |
           $cab = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
@@ -174,26 +110,11 @@ jobs:
             }
           }
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Cache npm
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.npm/
-            node_modules/
-          key: windows-npm-${{ hashFiles('package-lock.json', 'package.json') }}
-
-      - name: Install npm dependencies
-        run: npm ci
-
       - name: Generate placeholder icons
         shell: bash
         run: |
           mkdir -p src-tauri/icons
-          python -c "
+          ${{ matrix.python-cmd }} -c "
           import struct, zlib
           def create_png(w, h, r, g, b, a=255):
               def chunk(t, d):
@@ -214,7 +135,6 @@ jobs:
               pngs[sz] = data
               with open(f'src-tauri/icons/{name}', 'wb') as f:
                   f.write(data)
-          # Generate icon.ico with embedded PNGs
           def create_ico(sizes, pngs):
               num = len(sizes)
               header = struct.pack('<HHH', 0, 1, num)
@@ -232,11 +152,11 @@ jobs:
               f.write(create_ico([(32,32), (128,128), (256,256)], pngs))
           "
 
-      - name: Build Tauri (Windows)
-        run: npx tauri build --bundles nsis
+      - name: Build Tauri
+        run: npx tauri build --bundles ${{ matrix.bundle }}
 
-      - name: Upload Windows portable
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: GestionExpedientes-Windows
-          path: src-tauri/target/release/bundle/nsis/
+          name: ${{ matrix.artifact-name }}
+          path: src-tauri/target/release/bundle/${{ matrix.upload-path }}/
