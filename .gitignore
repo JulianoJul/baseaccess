@@ -8,5 +8,6 @@ src-tauri/gen/
 data/datos_excel.sql
 __pycache__/
 *.pyc
-*.xlsx
 *.xls
+*.xlsx
+plan_modificaciones.md

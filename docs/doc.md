@@ -15,14 +15,14 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 | Node.js | `pkg install nodejs` (si no está) |
 | Descargas | `curl` viene preinstalado |
 
-**Comandos clave para reconstruir el `.exe` (solo en Termux/Android):**
+**Comandos clave para build (solo en Termux/Android):**
 ```bash
-npm install --save-dev --no-bin-links electron@latest electron-builder@latest
-node node_modules/electron-builder/cli.js --win dir --x64
+npm install --save-dev --no-bin-links @tauri-apps/cli@latest
+npx tauri build --bundles nsis
 ```
-El build se genera en `dist/win-unpacked/`. Copiar esa carpeta a USB y ejecutar `GestionExpedientes.exe`.
+El build se genera en `src-tauri/target/release/bundle/nsis/`. Copiar el `.exe` a Windows y ejecutar.
 
-> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `make electron-build-linux` o `npm run build:linux` para generar el AppImage.
+> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `npx tauri build --bundles appimage` para generar el AppImage.
 
 **Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
 
@@ -32,7 +32,7 @@ Al abrir `src/index.html` con doble click (`file://` protocol), los navegadores 
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
-**Usar siempre Electron WinUnpacked** (`dist/win-unpacked/GestionExpedientes.exe`) para evitar este problema.
+**Usar siempre Tauri AppImage/NSIS** para evitar este problema.
 
 ## Arquitectura
 
@@ -460,9 +460,100 @@ El flujo de apertura usa **`<input type="file">` nativo del navegador** (no IPC)
 
 **Por qué no IPC para abrir:** El `<input type="file">` es un estándar web que funciona siempre, sin depender de preload/contextBridge. En la primera versión se intentó con IPC (`pickDbFile` → `dialog.showOpenDialog`) pero fallaba en ciertos entornos (Windows sin focus, problemas con `getWindow()`).
 
-### Rama `tauri-migration`
+### Rama `tauri` — Migración Electron → Tauri v2
 
-Existe la rama `tauri-migration` que reemplaza Electron por Tauri v2 (Rust). `master` queda intacto con Electron. Ver esa rama para los detalles de la migración.
+La app migró de Electron a Tauri v2. Sigue siendo la misma SPA HTML/JS (sql.js WASM + Tailwind CSS + SQLite) pero Tauri hace de wrapper nativo (webview) en vez de Electron.
+
+#### Ramas
+
+| Rama | Versión |
+|------|---------|
+| `master` | Electron (intacto, `.db` limpiados del historial) |
+| `tauri` | Tauri v2 con backend Rust |
+
+#### Requisitos de Build
+
+**Linux**
+- **Target:** `appimage` (único archivo `.AppImage` portable)
+- **Dependencias sistema (Arch):** `webkit2gtk-4.1`, `gtk3`, `base-devel` (mínimo). En Debian/Ubuntu: `libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev libsoup-3.0-dev`
+- **Comando:** `npm run tauri:build` (equivale a `npx tauri build`)
+
+**Windows**
+- **Target:** `nsis` con `installMode: "currentUser"` (NO requiere admin)
+- **WebView2:** Fixed Version Runtime 150.0.4078.65 (portable, sin descargas durante instalación)
+- **Comando:** `npm run tauri:build -- --bundles nsis`
+
+#### Estructura Tauri
+
+```
+src-tauri/
+├── Cargo.toml              # Dependencias Rust (tauri, tauri-plugin-dialog, base64, serde)
+├── build.rs                # tauri_build::build()
+├── tauri.conf.json          # Config: frontendDist=../src, ventana 1400x900, withGlobalTauri
+├── capabilities/default.json # Permisos core:default + dialog:default
+├── icons/                   # PNG 32/128/256 RGBA + icon.ico (generados con script Python)
+└── src/
+    ├── main.rs              # Entry point
+    └── lib.rs               # Backend Rust con comandos IPC
+src/tauri-preload.js          # Puente JS: window.electronAPI vía window.__TAURI__.core.invoke()
+.github/workflows/tauri-build.yml  # CI con caché (Rust + npm)
+```
+
+#### Backend Rust (src-tauri/src/lib.rs)
+
+Reemplaza el `main.js` de Electron. Comandos IPC implementados:
+
+| Comando Tauri | Equivalente Electron | Descripción |
+|--------------|----------------------|-------------|
+| `save_db` | `save-db` | Guardar BD en ruta actual con backup rotativo |
+| `save_db_as` | `save-db-as` | Diálogo "Guardar como" + escribe archivo |
+| `set_db_path` | `set-db-path` | Almacena ruta actual |
+| `get_db_path` | `get-db-path` | Recupera ruta actual |
+| `open_db_file` | `open-db-file` | Lee archivo y devuelve base64 |
+| `open_db_dialog` | `open-db-dialog` | Diálogo "Abrir" + lee archivo + devuelve {path, data} |
+| `set_backup_copies` | `set-backup-copies` | Configura número de backups (1-20) |
+| `get_backup_copies` | `get-backup-copies` | Obtiene número de backups |
+
+**Backup rotativo** (`crear_backup_rotativo`): idéntico al de Electron (`main.js`). Renombra `.bak.1`→`.bak.N` y copia el archivo actual como `.bak.1`.
+
+#### Frontend (src/)
+
+Sin cambios en la lógica de la app. `tauri-preload.js` expone `window.electronAPI` usando `window.__TAURI__.core.invoke()` con la misma interfaz que el preload de Electron, por lo que `index.html` no distingue entre ambos backends.
+
+#### CI/CD (GitHub Actions)
+
+Workflow: `.github/workflows/tauri-build.yml` (se activa con push a `tauri`).
+
+**Caché:** Cargo registry/git + `src-tauri/target/` (key: hash de `Cargo.lock`), npm (`~/.npm` + `node_modules`), Tauri tooling, NSIS/WebView2 (Windows), icons placeholder.
+
+**Windows:** descarga el WebView2 Fixed Runtime `.cab` desde Microsoft → extrae con `expand` → empaqueta en el NSIS installer con `webviewInstallMode: { type: "fixedRuntime", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }`. NSIS con `installMode: "currentUser"` (sin admin).
+
+**Linux:** instala dependencias GTK/WebKit via apt → genera icons placeholder (PNG RGBA) → build → `.AppImage`.
+
+Los scripts de `package.json` usan `npx tauri` (no `cargo tauri`) porque el CLI se instala via npm (`@tauri-apps/cli`) y no como cargo subcommand.
+
+#### Historial de Fixes (Tauri)
+
+1. `.gitignore`: cambiado `src-tauri/` (ignoraba todo) → `src-tauri/gen/` (solo ignorar generados)
+2. Rama renombrada `tauri-migration` → `tauri`
+3. `.db` eliminados del historial git con `git filter-branch`
+4. Actions fallidos eliminados con `gh run delete`
+5. Icons: PNG RGB no funcionaban, cambiados a RGBA (color type 6)
+6. `FilePath` enum de `tauri-plugin-dialog` v2: usa `FilePath::Path(path_buf)` en vez de `as_path()`
+7. `withGlobalTauri`: movido de `app.security` a `app` level
+8. `webviewFixedRuntimePath`: campo eliminado del schema (no existe en esta versión de Tauri v2). Reemplazado por `webviewInstallMode: { type: "fixedRuntime", path }`
+9. URL de descarga WebView2: `msedge.sf.dl.delivery.mp.microsoft.com/...` (la de Azure blob storage no resolvía en CI de GitHub)
+10. Icons Windows: `shell: bash` en vez de `pwsh` (Python multilínea + `python` no `python3`)
+11. `webviewInstallMode`: `"offline"` no existe en Tauri v2, el tipo correcto es `"fixedRuntime"`
+12. Scripts `package.json`: `cargo tauri` → `npx tauri` (el CLI se instala via npm, no como cargo subcommand)
+
+#### Archivos Electron (intactos en rama master)
+
+- `main.js` — proceso principal
+- `src/preload.js` — contextBridge
+- `package.json` con `electron` + `electron-builder` en devDependencies (solo en master)
+
+En rama `tauri`, `package.json` tiene solo `@tauri-apps/cli` en devDependencies.
 
 
 ### Análisis: Bug "Agregué un expediente y no se guardó"

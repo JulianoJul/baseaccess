@@ -7,12 +7,12 @@
     "email": "baseaccess@example.com"
   },
   "scripts": {
-    "tauri": "cargo tauri",
-    "tauri:dev": "cargo tauri dev",
-    "tauri:build": "cargo tauri build",
-    "start": "cargo tauri dev",
-    "dev": "cargo tauri dev",
-    "build": "cargo tauri build"
+    "tauri": "npx tauri",
+    "tauri:dev": "npx tauri dev",
+    "tauri:build": "npx tauri build",
+    "start": "npx tauri dev",
+    "dev": "npx tauri dev",
+    "build": "npx tauri build"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2"
