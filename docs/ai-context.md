@@ -2,7 +2,7 @@
 
 ## Stack (no negociable)
 - SPA 100% cliente-side: HTML + Tailwind CSS + sql.js (SQLite WASM)
-- Empaquetado: Electron (master) / Tauri v2 (tauri) — ambos con misma SPA
+- Empaquetado: Electron / Tauri v2 — ambos en rama master, misma SPA
 - Sin backend, sin CDN, sin frameworks JS
 
 ## Líneas Rojas
@@ -28,8 +28,9 @@ App web para gestionar expedientes de contrataciones con historial de movimiento
 | `.clinerules` | Skill de Opencode (protocolo de modificación) |
 | `Makefile` | combine / clean / commit / push / serve |
 | `combined.txt` | Consolidado (make combine) para sesiones |
-| **Rama master (Electron)** | `main.js` (main process), `src/preload.js` (contextBridge) |
-| **Rama tauri (Tauri)** | `src-tauri/src/lib.rs` (backend Rust), `src/tauri-preload.js` (puente invoke) |
+| `main.js` + `src/preload.js` | Electron main process + contextBridge |
+| `src-tauri/` + `src/tauri-preload.js` | Backend Rust Tauri + puente invoke |
+| `.github/workflows/build.yml` | CI: build Electron + Tauri (Linux y Windows) |
 
 ## Regla de Oro
 Antes de tocar código: leer `doc.md` (pendientes) + `decisiones.md` (ADR) + `funciones.md` (catálogo) + `ai-context.md` (esto) + `.clinerules` (skill).

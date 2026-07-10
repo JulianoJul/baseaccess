@@ -1,4 +1,7 @@
-.PHONY: clean commit push github combine serve electron-install electron-build
+.PHONY: clean commit push github combine serve \
+        electron-install electron-build-win electron-build-linux electron-build \
+        tauri-install tauri-build tauri-build-win tauri-build-linux \
+        build-all
 
 SCHEMA ?= data/sql/Tablas8.sql
 
@@ -9,6 +12,8 @@ combine:
 	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
 	  echo "" && echo "=== main.js ===" && cat main.js && \
 	  echo "" && echo "=== preload.js ===" && cat src/preload.js && \
+	  echo "" && echo "=== tauri-preload.js ===" && cat src/tauri-preload.js && \
+	  echo "" && echo "=== lib.rs ===" && cat src-tauri/src/lib.rs && \
 	  echo "" && echo "=== package.json ===" && cat package.json && \
 	  echo "" && echo "=== doc.md ===" && cat docs/doc.md && \
 	  echo "" && echo "=== decisiones.md ===" && cat docs/decisiones.md && \
@@ -26,17 +31,37 @@ serve:
 	@lsof -ti:8000 | xargs kill -9 2>/dev/null; sleep 0.5
 	python3 -m http.server 8000 --directory .
 
+# --- Electron ---
 electron-install:
-	npm install --save-dev electron@latest electron-builder@latest
+	npm install --save-dev --no-bin-links electron@latest electron-builder@latest
 
 electron-build-win:
 	npm run build
+
+electron-build-win-termux:
+	node node_modules/electron-builder/cli.js --win dir --x64
 
 electron-build-linux:
 	npm run build:linux
 
 electron-build: electron-build-linux
 
+# --- Tauri ---
+tauri-install:
+	npm install --save-dev --no-bin-links @tauri-apps/cli@latest
+
+tauri-build-win:
+	npx tauri build --bundles nsis
+
+tauri-build-linux:
+	npx tauri build --bundles appimage
+
+tauri-build: tauri-build-win
+
+# --- Ambos ---
+build-all: electron-build-win tauri-build-win
+
+# --- Git ---
 commit:
 	git add -A
 	git commit -m "$(msg)"

@@ -307,6 +307,23 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/doc.md`: changelog items 72-73.
   - `docs/ai-context.md`: estado actual actualizado.
 
+---
 
+## DEC-025: Rama Única — Electron + Tauri v2 Unificados
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El proyecto mantenía dos ramas (`master` con Electron, `tauri` con Tauri v2) con el mismo SPA pero distinto empaquetado. Esto duplicaba la documentación, el CI, y requería mantener sincronizados los cambios entre ramas. Se unificó todo en `master`.
+- **Alternativas evaluadas:**
+  - Mantener dos ramas — descartado: duplicación de esfuerzo, docs divergentes, CI duplicado.
+  - Submodulo o monorepo — sobreingeniería para un solo SPA.
+- **Impacto:**
+  - Rama `tauri` fusionada en `master` y eliminada.
+  - `package.json`: devDeps combinadas (`electron` + `electron-builder` + `@tauri-apps/cli`).
+  - `.gitignore`: `src-tauri/target/` + `src-tauri/gen/` en lugar de `src-tauri/` entero.
+  - `src/tauri-preload.js`: añadido `if (!window.__TAURI__) return;` para no romper en Electron.
+  - `src/index.html`: incluye `tauri-preload.js` (seguro en ambos runtimes).
+  - `.github/workflows/build.yml`: jobs `tauri` (Linux/Windows) + `electron` (Linux/Windows).
+  - `Makefile`: targets `electron-build-*`, `tauri-build-*`, `build-all`.
+  - Docs (`doc.md`, `ai-context.md`, `prompt`): actualizados a rama única.
 
 
