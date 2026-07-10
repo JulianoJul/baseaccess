@@ -275,6 +275,23 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 
 ---
 
+## DEC-024: Backup Reducido a 2 Copias + Paginación + Fix Ancho Tabla
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario solicitó tres cambios: (1) reducir backup rotativo de 5 a 2 copias para optimizar espacio en disco, (2) paginación en la tabla principal con 10 expedientes por página y navegación completa con números de página, (3) fix del bug donde la tabla ocupaba el ancho de la ventana pero el contenido de las celdas no se distribuía proporcionalmente.
+- **Alternativas evaluadas:**
+  - Paginación servidor-side (SQL LIMIT/OFFSET) — descartado: la app es 100% cliente-side con sql.js, y el filtrado por búsqueda requiere tener todos los datos en memoria.
+  - `table-layout: auto` con widths mínimos — descartado por no distribuir el espacio sobrante uniformemente.
+- **Impacto:**
+  - `main.js:10`: `backupMaxCopies = 5` → `backupMaxCopies = 2`
+  - `src/schema-config.js:109`: `BACKUP.MAX_COPIES: 5` → `BACKUP.MAX_COPIES: 2`
+  - `src/schema-config.js`: agregado `CONFIG.PAGE_SIZE: 10`
+  - `src/index.html`: nuevo estado global `filteredData`, `currentPage`, `totalPages`; nuevas funciones `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`; modificados `cargarDatos()`, handler de búsqueda, `cambiarOrden()`; tabla con `table-layout: fixed` y anchos porcentuales en `<th>`; celdas con `truncate` y `title` para overflow.
+  - `plan_modificaciones.md`: eliminado por solicitud del usuario.
+  - `docs/funciones.md`: registradas `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`.
+
+---
+
 ## DEC-023: Auditoría de Código Julio 2026 — Implementación Completa (AUD-001 a AUD-007 + PROP-001 a PROP-005)
 
 - **Origen:** `[Instrucción Explícita del Usuario]`

@@ -7,7 +7,7 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
-let backupMaxCopies = 5
+let backupMaxCopies = 2
 
 function setBackupMaxCopies(n) {
   if (n > 0 && n <= 20) backupMaxCopies = n

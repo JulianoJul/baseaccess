@@ -28,6 +28,9 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 |---------|-----------|-------------|
 | `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza la tabla de 8 columnas + fila desplegable por expediente. Incluye botón de estrella (frecuentes) |
 | `cambiarOrden()` | — | Lee el selector de orden (Reciente/Fecha creación/Fecha modificación) y recarga datos ordenados |
+| `aplicarPaginacion()` | — | Calcula `totalPages` desde `filteredData`, obtiene slice para `currentPage`, llama `renderizarTabla()` y `renderPaginacion()` |
+| `irPagina(n)` | `n`: número de página | Valida rango, actualiza `currentPage`, llama `aplicarPaginacion()` |
+| `renderPaginacion()` | — | Renderiza controles de paginación con números de página, botones Anterior/Siguiente/Extremos e indicador "X / Y" |
 | `toggleDesplegable(id)` | `id`: `expediente.id_expediente` | Expande/colapsa fila desplegable con detalle completo, historial y notas |
 | `toggleDetalle(prefix, id)` | `prefix`: string prefijo DOM, `id`: ID del expediente | Alterna visibilidad de detalle (reutilizable para distintos paneles) |
 | `formatNum(v)` | `v`: número | Formatea con `toLocaleString('es-VE')` + 2 decimales |

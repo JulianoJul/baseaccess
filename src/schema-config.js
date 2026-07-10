@@ -15,6 +15,7 @@ const CONFIG = {
     AUTOSAVE_INTERVAL_MS: 30000,
     AUTOSAVE_ENABLED: true,
     MAX_RECIENTES: 8,
+    PAGE_SIZE: 10,
     EXPORT_CHUNK_SIZE: 8192,
     VACUUM_CONFIRM_THRESHOLD_MB: 50,
 };
@@ -106,7 +107,7 @@ const MSG_EXTRA = {
 };
 
 const BACKUP = {
-    MAX_COPIES: 5,
+    MAX_COPIES: 2,
     SUFFIX: '.bak.',
 };
 
