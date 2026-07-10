@@ -17,10 +17,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ~/.rustup/
+            ~/.cargo/bin/
             ~/.cargo/registry/
             ~/.cargo/git/
+            ~/.cache/tauri/
             src-tauri/target/
           key: linux-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            linux-cargo-
 
       - name: Install system dependencies (Linux)
         run: |
@@ -47,7 +52,7 @@ jobs:
           key: linux-npm-${{ hashFiles('package-lock.json', 'package.json') }}
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Generate placeholder icons
         run: |
@@ -112,10 +117,29 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ~/.rustup/
+            ~/.cargo/bin/
             ~/.cargo/registry/
             ~/.cargo/git/
             src-tauri/target/
           key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+          restore-keys: |
+            windows-cargo-
+
+      - name: Cache NSIS and Tauri tooling
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/tauri
+          key: windows-nsis-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            windows-nsis-
+
+      - name: Cache WebView2 Fixed Runtime
+        id: cache-webview
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64
+          key: windows-webview2-150.0.4078.65
 
       - name: Download & extract WebView2 fixed runtime
         shell: pwsh
@@ -123,7 +147,7 @@ jobs:
           $cab = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
           $dir = "src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
           if (Test-Path $dir) {
-            Write-Host "WebView2 runtime already present"
+            Write-Host "WebView2 runtime already present (Restored from Cache)"
           } else {
             if (-not (Test-Path $cab)) {
               Write-Host "Downloading WebView2 fixed runtime..."
@@ -134,7 +158,6 @@ jobs:
               $tmpDir = "$env:TEMP\wv2tmp"
               New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
               expand $cab -F:* $tmpDir
-              # The CAB contains a nested folder; move contents up one level
               $inner = Join-Path $tmpDir "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
               if (Test-Path $inner) {
                 New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -144,6 +167,7 @@ jobs:
                 Move-Item -Path "$tmpDir\*" -Destination $dir -Force
               }
               Write-Host "Extracted to $dir"
+              Remove-Item -Force $cab
             } else {
               Write-Host "ERROR: WebView2 download failed"
               exit 1
@@ -163,7 +187,7 @@ jobs:
           key: windows-npm-${{ hashFiles('package-lock.json', 'package.json') }}
 
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci
 
       - name: Generate placeholder icons
         shell: bash
