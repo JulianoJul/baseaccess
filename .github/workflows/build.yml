@@ -1,0 +1,214 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  tauri:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            bundle: appimage
+            upload-path: appimage
+            python-cmd: python3
+            artifact-name: GestionExpedientes-Linux
+            rustflags: -C link-arg=-fuse-ld=lld
+          - os: windows-latest
+            bundle: nsis
+            upload-path: nsis
+            python-cmd: python
+            artifact-name: GestionExpedientes-Windows
+            rustflags: ""
+
+    runs-on: ${{ matrix.os }}
+
+    env:
+      CARGO_INCREMENTAL: 0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: awalsh128/cache-apt-pkgs-action@latest
+        with:
+          packages: libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev libsoup-3.0-dev lld clang
+          version: 1.0
+
+      - name: Cache Tauri tooling (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/tauri
+          key: linux-tauri-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            linux-tauri-
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Cache NSIS and Tauri tooling (Windows)
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/tauri
+          key: windows-nsis-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            windows-nsis-
+
+      - name: Cache WebView2 Fixed Runtime (Windows)
+        id: cache-webview
+        if: matrix.os == 'windows-latest'
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64
+          key: windows-webview2-${{ hashFiles('src-tauri/tauri.conf.json') }}
+
+      - name: Download & extract WebView2 fixed runtime (Windows)
+        if: matrix.os == 'windows-latest' && steps.cache-webview.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $cab = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+          $dir = "src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
+          if (Test-Path $dir) {
+            Write-Host "WebView2 runtime already present (Restored from Cache)"
+          } else {
+            if (-not (Test-Path $cab)) {
+              Write-Host "Downloading WebView2 fixed runtime..."
+              curl.exe -fSL -o $cab "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+            }
+            if (Test-Path $cab) {
+              Write-Host "Extracting $cab ..."
+              $tmpDir = "$env:TEMP\wv2tmp"
+              New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+              expand $cab -F:* $tmpDir
+              $inner = Join-Path $tmpDir "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
+              if (Test-Path $inner) {
+                New-Item -ItemType Directory -Force -Path $dir | Out-Null
+                Move-Item -Path "$inner\*" -Destination $dir -Force
+                Remove-Item -Recurse -Force $tmpDir
+              } else {
+                Move-Item -Path "$tmpDir\*" -Destination $dir -Force
+              }
+              Write-Host "Extracted to $dir"
+              Remove-Item -Force $cab
+            } else {
+              Write-Host "ERROR: WebView2 download failed"
+              exit 1
+            }
+          }
+
+      - name: Cache placeholder icons
+        id: cache-icons
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/icons
+          key: icons-placeholder-v1
+
+      - name: Generate placeholder icons
+        if: steps.cache-icons.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          mkdir -p src-tauri/icons
+          ${{ matrix.python-cmd }} -c "
+          import struct, zlib
+          def create_png(w, h, r, g, b, a=255):
+              def chunk(t, d):
+                  c = t + d
+                  return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+              raw = b''
+              for y in range(h):
+                  raw += b'\x00'
+                  for x in range(w):
+                      raw += struct.pack('BBBB', r, g, b, a)
+              return (b'\x89PNG\r\n\x1a\n' +
+                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
+                      chunk(b'IDAT', zlib.compress(raw)) +
+                      chunk(b'IEND', b''))
+          pngs = {}
+          for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
+              data = create_png(sz, sz, 45, 212, 191)
+              pngs[sz] = data
+              with open(f'src-tauri/icons/{name}', 'wb') as f:
+                  f.write(data)
+          def create_ico(sizes, pngs):
+              num = len(sizes)
+              header = struct.pack('<HHH', 0, 1, num)
+              offset = 6 + num * 16
+              entries = b''
+              images = b''
+              for w, h in sizes:
+                  png = pngs[w]
+                  entry = struct.pack('<BBBBHHII', w if w<256 else 0, h if h<256 else 0, 0, 0, 1, 32, len(png), offset)
+                  entries += entry
+                  images += png
+                  offset += len(png)
+              return header + entries + images
+          with open('src-tauri/icons/icon.ico', 'wb') as f:
+              f.write(create_ico([(32,32), (128,128), (256,256)], pngs))
+          "
+
+      - name: Build Tauri
+        env:
+          RUSTFLAGS: ${{ matrix.rustflags }}
+        run: npm exec tauri build -- --bundles ${{ matrix.bundle }}
+
+      - name: Upload Tauri artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: src-tauri/target/release/bundle/${{ matrix.upload-path }}/
+
+  electron:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            build-cmd: electron-builder build --linux
+            artifact-name: GestionExpedientes-Electron-Linux
+            upload-path: dist/
+          - os: windows-latest
+            build-cmd: electron-builder build --win dir --x64
+            artifact-name: GestionExpedientes-Electron-Windows
+            upload-path: dist/
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Electron
+        run: ${{ matrix.build-cmd }}
+
+      - name: Upload Electron artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.upload-path }}

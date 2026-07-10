@@ -11,11 +11,15 @@
     "start": "electron .",
     "dev": "electron .",
     "build": "electron-builder build --win dir --x64",
-    "build:linux": "electron-builder build --linux"
+    "build:linux": "electron-builder build --linux",
+    "tauri": "npx tauri",
+    "tauri:dev": "npx tauri dev",
+    "tauri:build": "npx tauri build"
   },
   "devDependencies": {
     "electron": "^43.0.0",
-    "electron-builder": "^26.15.3"
+    "electron-builder": "^26.15.3",
+    "@tauri-apps/cli": "^2"
   },
   "build": {
     "appId": "com.baseaccess.expedientes",

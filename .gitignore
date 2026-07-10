@@ -3,13 +3,11 @@ dist/
 *.tgz
 data/*.db
 data/*.sqlite
+src-tauri/target/
+src-tauri/gen/
 data/datos_excel.sql
 __pycache__/
 *.pyc
 *.xls
 *.xlsx
 plan_modificaciones.md
-# --- Rama master (Electron): ignorar Tauri ---
-src-tauri/
-src/tauri-preload.js
-.github/workflows/tauri-build.yml
