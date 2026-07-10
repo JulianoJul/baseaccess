@@ -105,14 +105,24 @@ jobs:
       - name: Download WebView2 fixed runtime
         shell: pwsh
         run: |
-          $url = "https://msedgewebview2storage.blob.core.windows.net/wv2lts/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
           $out = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
-          if (-not (Test-Path $out)) {
-            Write-Host "Downloading WebView2 fixed runtime..."
-            Invoke-WebRequest -Uri $url -OutFile $out
-            Write-Host "Downloaded $out"
-          } else {
+          if (Test-Path $out) {
             Write-Host "WebView2 runtime already present"
+          } else {
+            $urls = @(
+              "https://msedgewebview2storage.blob.core.windows.net/wv2lts/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+            )
+            $downloaded = $false
+            foreach ($url in $urls) {
+              try {
+                Write-Host "Trying $url..."
+                curl.exe -fSL -o $out $url 2>$null
+                if (Test-Path $out) { $downloaded = $true; break }
+              } catch { continue }
+            }
+            if (-not $downloaded) {
+              Write-Host "WebView2 download failed, will use evergreen bootstrapper"
+            }
           }
 
       - uses: actions/setup-node@v4
