@@ -102,17 +102,23 @@ jobs:
             src-tauri/target/
           key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
 
-      - name: Download WebView2 fixed runtime
+      - name: Download & extract WebView2 fixed runtime
         shell: pwsh
         run: |
-          $out = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
-          if (Test-Path $out) {
+          $cab = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+          $dir = "src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
+          if (Test-Path $dir) {
             Write-Host "WebView2 runtime already present"
           } else {
-            Write-Host "Downloading WebView2 fixed runtime..."
-            curl.exe -fSL -o $out "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
-            if (Test-Path $out) {
-              Write-Host "Downloaded $out"
+            if (-not (Test-Path $cab)) {
+              Write-Host "Downloading WebView2 fixed runtime..."
+              curl.exe -fSL -o $cab "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+            }
+            if (Test-Path $cab) {
+              Write-Host "Extracting $cab to $dir ..."
+              New-Item -ItemType Directory -Force -Path $dir | Out-Null
+              expand $cab -F:* $dir
+              Write-Host "Extracted"
             } else {
               Write-Host "ERROR: WebView2 download failed"
               exit 1
@@ -159,8 +165,6 @@ jobs:
           "
 
       - name: Build Tauri (Windows)
-        env:
-          TAURI_CONFIG: '{"bundle":{"windows":{"webviewFixedRuntimePath":"Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"}}}'
         run: npx tauri build --bundles nsis
 
       - name: Upload Windows portable
