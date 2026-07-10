@@ -16,13 +16,22 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 | Descargas | `curl` viene preinstalado |
 
 **Comandos clave para build (solo en Termux/Android):**
+
+**Electron (rama master):**
+```bash
+npm install --save-dev --no-bin-links electron@latest electron-builder@latest
+node node_modules/electron-builder/cli.js --win dir --x64
+```
+El build se genera en `dist/win-unpacked/`. Copiar carpeta a Windows y ejecutar `GestionExpedientes.exe`.
+
+**Tauri (rama tauri):**
 ```bash
 npm install --save-dev --no-bin-links @tauri-apps/cli@latest
 npx tauri build --bundles nsis
 ```
-El build se genera en `src-tauri/target/release/bundle/nsis/`. Copiar el `.exe` a Windows y ejecutar.
+El build se genera en `src-tauri/target/release/bundle/nsis/`. Copiar `.exe` a Windows y ejecutar.
 
-> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `npx tauri build --bundles appimage` para generar el AppImage.
+> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `make electron-build-linux` (master) o `npx tauri build --bundles appimage` (tauri).
 
 **Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
 
@@ -32,17 +41,18 @@ Al abrir `src/index.html` con doble click (`file://` protocol), los navegadores 
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
-**Usar siempre Tauri AppImage/NSIS** para evitar este problema.
+**Usar siempre la app empaquetada** (Electron win-unpacked / Tauri AppImage/NSIS) para evitar este problema.
 
 ## Arquitectura
 
 App web 100% cliente-side. **HTML + Tailwind CSS = UI** | **sql.js (SQLite WASM) = Data Layer**.
 Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
 
-Dos modos de ejecución:
+Tres modos de ejecución:
 
 1. **Navegador** — abrir `src/index.html` directo (dependencias locales en `src/vendor/`)
-2. **Electron WinUnpacked** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
+2. **Electron (rama master)** — `GestionExpedientes.exe` con Chromium embebido
+3. **Tauri (rama tauri)** — `GestionExpedientes.AppImage`/`.exe` con WebView nativo
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -54,8 +64,9 @@ Dos modos de ejecución:
 │  │   └── JavaScript — lógica CRUD                │
 │  └── Archivo .db / .sqlite (cargado por usuario) │
 ├─────────────────────────────────────────────────┤
-│  Modo Electron (win-unpacked, sin instalación)    │
-│  ├── GestionExpedientes.exe (Chromium + app)     │
+│  Modo Empaquetado (Electron / Tauri)              │
+│  ├── GestionExpedientes (.exe / .AppImage)       │
+│  ├── main.js / lib.rs (backend nativo IPC)       │
 │  └── resources/vendor/ (CSS, WASM, etc.)         │
 └─────────────────────────────────────────────────┘
 ```
@@ -96,7 +107,8 @@ baseaccess/
 ├── src/                  # Código fuente
 │   ├── index.html        # App completa (HTML + CSS + JS)
 │   ├── schema-config.js  # Config específica del schema (catálogos, columnas, formato observaciones, estatus)
-│   ├── preload.js        # contextBridge para IPC
+│   ├── preload.js        # contextBridge para IPC (Electron)
+│   ├── tauri-preload.js  # Puente invoke para Tauri
 │   └── vendor/           # Dependencias locales (sin CDN)
 │       ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
 │       ├── sql-wasm.js      # sql.js loader
@@ -114,13 +126,17 @@ baseaccess/
 │   ├── decisiones.md     # ADR: Architecture Decision Records
 │   ├── ai-context.md     # Anchor file para IAs (stack, líneas rojas, estado actual)
 │   └── funciones.md      # Catálogo SPOT de funciones (DRY)
-├── main.js              # Electron main process (ventana 1400x900)
-├── package.json         # Electron + electron-builder config
+├── main.js              # Electron main process (rama master)
+├── src-tauri/            # Backend Rust Tauri (rama tauri)
+│   ├── src/lib.rs        # Comandos IPC (save_db, open_db, etc.)
+│   ├── Cargo.toml        # Dependencias Rust
+│   └── tauri.conf.json   # Config Tauri
+├── package.json         # Dependencias (Electron o @tauri-apps/cli según rama)
 ├── prompt               # Prompt para Qwen Coder (planificador)
 ├── .clinerules           # Skill de Opencode (protocolo de modificación)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
-├── .gitignore           # node_modules/, dist/, *.db
+├── .gitignore           # node_modules/, dist/, *.db, src-tauri/gen/
 ├── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
 └── node_modules/        # Dependencias (gitignored)
 ```
@@ -164,7 +180,7 @@ npx tailwindcss -i input.css -o src/vendor/tailwind.min.css --minify
 
 ## Electron WinUnpacked
 
-Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido.
+Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido (solo rama master).
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
@@ -201,8 +217,8 @@ make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
 make serve            # python3 -m http.server 8000 (kills old server, sirve src/index.html por HTTP para evitar file://)
-make electron-build-win    # Build win-unpacked para Windows
-make electron-build-linux  # Build AppImage para Linux
+make electron-build-win    # Build win-unpacked para Windows (master)
+make electron-build-linux  # Build AppImage para Linux (master)
 ```
 
 El schema usado en `make combine` se configura con `SCHEMA=data/sql/Tablas8.sql make combine` (por defecto usa `data/sql/Tablas8.sql`). También concatena `src/schema-config.js`.
