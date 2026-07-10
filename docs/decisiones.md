@@ -283,9 +283,8 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - Paginación servidor-side (SQL LIMIT/OFFSET) — descartado: la app es 100% cliente-side con sql.js, y el filtrado por búsqueda requiere tener todos los datos en memoria.
   - `table-layout: auto` con widths mínimos — descartado por no distribuir el espacio sobrante uniformemente.
 - **Impacto:**
-  - `main.js:10`: `backupMaxCopies = 5` → `backupMaxCopies = 2`
-  - `src/schema-config.js:109`: `BACKUP.MAX_COPIES: 5` → `BACKUP.MAX_COPIES: 2`
-  - `src/schema-config.js`: agregado `CONFIG.PAGE_SIZE: 10`
+  - `main.js`/`lib.rs`: `backupMaxCopies` reducido de 5 a 2
+  - `src/schema-config.js`: `BACKUP.MAX_COPIES: 5` → `BACKUP.MAX_COPIES: 2`, agregado `CONFIG.PAGE_SIZE: 10`
   - `src/index.html`: nuevo estado global `filteredData`, `currentPage`, `totalPages`; nuevas funciones `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`; modificados `cargarDatos()`, handler de búsqueda, `cambiarOrden()`; tabla con `table-layout: fixed` y anchos porcentuales en `<th>`; celdas con `truncate` y `title` para overflow.
   - `plan_modificaciones.md`: eliminado por solicitud del usuario.
   - `docs/funciones.md`: registradas `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`.
