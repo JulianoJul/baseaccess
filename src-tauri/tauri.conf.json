@@ -1,0 +1,41 @@
+{
+  "productName": "GestionExpedientes",
+  "version": "1.0.0",
+  "identifier": "com.baseaccess.expedientes",
+  "build": {
+    "frontendDist": "../src",
+    "devUrl": null,
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Gestión de Expedientes con Historial",
+        "width": 1400,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null,
+      "withGlobalTauri": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["appimage", "nsis"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png"
+    ],
+    "windows": {
+      "webviewFixedRuntimePath": "../Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab",
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  }
+}

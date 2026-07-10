@@ -4,7 +4,7 @@ dist/
 data/*.db
 data/*.sqlite
 src-tauri/target/
-src-tauri/
+src-tauri/gen/
 data/datos_excel.sql
 __pycache__/
 *.pyc

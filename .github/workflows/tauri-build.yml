@@ -1,0 +1,164 @@
+name: Build Tauri
+on:
+  push:
+    branches: [tauri]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          cache: false
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            src-tauri/target/
+          key: linux-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Install system dependencies (Linux)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm/
+            node_modules/
+          key: linux-npm-${{ hashFiles('package-lock.json', 'package.json') }}
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Generate placeholder icons
+        run: |
+          mkdir -p src-tauri/icons
+          python3 -c "
+          import struct, zlib
+          def create_png(w, h, r, g, b):
+              def chunk(t, d):
+                  c = t + d
+                  return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+              raw = b''
+              for y in range(h):
+                  raw += b'\x00'
+                  for x in range(w):
+                      raw += struct.pack('BBB', r, g, b)
+              return (b'\x89PNG\r\n\x1a\n' +
+                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) +
+                      chunk(b'IDAT', zlib.compress(raw)) +
+                      chunk(b'IEND', b''))
+          for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
+              with open(f'src-tauri/icons/{name}', 'wb') as f:
+                  f.write(create_png(sz, sz, 45, 212, 191))
+          "
+
+      - name: Build Tauri (Linux)
+        run: npx tauri build --bundles appimage
+
+      - name: Upload Linux AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestionExpedientes-Linux
+          path: src-tauri/target/release/bundle/appimage/
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          cache: false
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/
+            ~/.cargo/git/
+            src-tauri/target/
+          key: windows-cargo-${{ hashFiles('src-tauri/Cargo.lock') }}
+
+      - name: Download WebView2 fixed runtime
+        shell: pwsh
+        run: |
+          $url = "https://msedgewebview2storage.blob.core.windows.net/wv2lts/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+          $out = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
+          if (-not (Test-Path $out)) {
+            Write-Host "Downloading WebView2 fixed runtime..."
+            Invoke-WebRequest -Uri $url -OutFile $out
+            Write-Host "Downloaded $out"
+          } else {
+            Write-Host "WebView2 runtime already present"
+          }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Cache npm
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.npm/
+            node_modules/
+          key: windows-npm-${{ hashFiles('package-lock.json', 'package.json') }}
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Generate placeholder icons
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path src-tauri/icons
+          python3 -c "
+          import struct, zlib
+          def create_png(w, h, r, g, b):
+              def chunk(t, d):
+                  c = t + d
+                  return struct.pack('>I', len(d)) + c + struct.pack('>I', zlib.crc32(c) & 0xffffffff)
+              raw = b''
+              for y in range(h):
+                  raw += b'\x00'
+                  for x in range(w):
+                      raw += struct.pack('BBB', r, g, b)
+              return (b'\x89PNG\r\n\x1a\n' +
+                      chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) +
+                      chunk(b'IDAT', zlib.compress(raw)) +
+                      chunk(b'IEND', b''))
+          for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
+              with open(f'src-tauri/icons/{name}', 'wb') as f:
+                  f.write(create_png(sz, sz, 45, 212, 191))
+          "
+
+      - name: Build Tauri (Windows)
+        run: npx tauri build --bundles nsis
+
+      - name: Upload Windows portable
+        uses: actions/upload-artifact@v4
+        with:
+          name: GestionExpedientes-Windows
+          path: src-tauri/target/release/bundle/nsis/
