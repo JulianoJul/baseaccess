@@ -91,7 +91,7 @@ Workflow: `.github/workflows/tauri-build.yml`
 **Windows:**
 1. Descarga el WebView2 Fixed Runtime `.cab` desde Microsoft
 2. Extrae con `expand` a `src-tauri/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64/`
-3. `webviewInstallMode: { type: "offline", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }` — empaqueta el runtime en el NSIS installer
+3. `webviewInstallMode: { type: "fixedRuntime", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }` — empaqueta el runtime en el NSIS installer
 4. NSIS con `installMode: "currentUser"` — instala solo para el usuario, sin admin
 
 **Linux:**
@@ -113,7 +113,7 @@ Workflow: `.github/workflows/tauri-build.yml`
 8. `webviewFixedRuntimePath`: campo eliminado del schema (no existe en esta versión de Tauri v2). Reemplazado por `webviewInstallMode: { type: "offline" }`
 9. URL de descarga WebView2: `msedge.sf.dl.delivery.mp.microsoft.com/...` (la de Azure blob storage no resolvía en CI de GitHub)
 10. Icons Windows: `shell: bash` en vez de `pwsh` (Python multilínea + `python` no `python3`)
-11. `webviewInstallMode`: agregado `path` obligatorio al objeto `{ type: "offline", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }`
+11. `webviewInstallMode`: `"offline"` no existe en Tauri v2, el tipo correcto es `"fixedRuntime"`
 
 ---
 
