@@ -69,9 +69,28 @@ jobs:
                       chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
                       chunk(b'IDAT', zlib.compress(raw)) +
                       chunk(b'IEND', b''))
+          pngs = {}
           for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
+              data = create_png(sz, sz, 45, 212, 191)
+              pngs[sz] = data
               with open(f'src-tauri/icons/{name}', 'wb') as f:
-                  f.write(create_png(sz, sz, 45, 212, 191))
+                  f.write(data)
+          # Generate icon.ico with embedded PNGs
+          def create_ico(sizes, pngs):
+              num = len(sizes)
+              header = struct.pack('<HHH', 0, 1, num)
+              offset = 6 + num * 16
+              entries = b''
+              images = b''
+              for w, h in sizes:
+                  png = pngs[w]
+                  entry = struct.pack('<BBBBHHII', w if w<256 else 0, h if h<256 else 0, 0, 0, 1, 32, len(png), offset)
+                  entries += entry
+                  images += png
+                  offset += len(png)
+              return header + entries + images
+          with open('src-tauri/icons/icon.ico', 'wb') as f:
+              f.write(create_ico([(32,32), (128,128), (256,256)], pngs))
           "
 
       - name: Build Tauri (Linux)
@@ -115,10 +134,20 @@ jobs:
               curl.exe -fSL -o $cab "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/c00b9782-0422-4114-be27-8eec079b394d/Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
             }
             if (Test-Path $cab) {
-              Write-Host "Extracting $cab to $dir ..."
-              New-Item -ItemType Directory -Force -Path $dir | Out-Null
-              expand $cab -F:* $dir
-              Write-Host "Extracted"
+              Write-Host "Extracting $cab ..."
+              $tmpDir = "$env:TEMP\wv2tmp"
+              New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+              expand $cab -F:* $tmpDir
+              # The CAB contains a nested folder; move contents up one level
+              $inner = Join-Path $tmpDir "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
+              if (Test-Path $inner) {
+                New-Item -ItemType Directory -Force -Path $dir | Out-Null
+                Move-Item -Path "$inner\*" -Destination $dir -Force
+                Remove-Item -Recurse -Force $tmpDir
+              } else {
+                Move-Item -Path "$tmpDir\*" -Destination $dir -Force
+              }
+              Write-Host "Extracted to $dir"
             } else {
               Write-Host "ERROR: WebView2 download failed"
               exit 1
@@ -159,9 +188,28 @@ jobs:
                       chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 6, 0, 0, 0)) +
                       chunk(b'IDAT', zlib.compress(raw)) +
                       chunk(b'IEND', b''))
+          pngs = {}
           for name, sz in [('32x32.png',32), ('128x128.png',128), ('128x128@2x.png',256)]:
+              data = create_png(sz, sz, 45, 212, 191)
+              pngs[sz] = data
               with open(f'src-tauri/icons/{name}', 'wb') as f:
-                  f.write(create_png(sz, sz, 45, 212, 191))
+                  f.write(data)
+          # Generate icon.ico with embedded PNGs
+          def create_ico(sizes, pngs):
+              num = len(sizes)
+              header = struct.pack('<HHH', 0, 1, num)
+              offset = 6 + num * 16
+              entries = b''
+              images = b''
+              for w, h in sizes:
+                  png = pngs[w]
+                  entry = struct.pack('<BBBBHHII', w if w<256 else 0, h if h<256 else 0, 0, 0, 1, 32, len(png), offset)
+                  entries += entry
+                  images += png
+                  offset += len(png)
+              return header + entries + images
+          with open('src-tauri/icons/icon.ico', 'wb') as f:
+              f.write(create_ico([(32,32), (128,128), (256,256)], pngs))
           "
 
       - name: Build Tauri (Windows)
