@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::{DialogExt, FilePath};
+use tokio::time::{timeout, Duration};
 
 struct AppState {
     current_db_path: Mutex<Option<String>>,
@@ -55,14 +56,20 @@ async fn save_db_as(
     state: State<'_, AppState>,
     data_base64: String,
 ) -> Result<Option<String>, String> {
+    eprintln!("[RUST] save_db_as: abriendo dialogo Guardar Como...");
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
         .save_file(move |file_path| {
+            eprintln!("[RUST] save_db_as: callback recibido: {:?}", file_path);
             let _ = tx.send(file_path);
         });
-    let file = rx.await.map_err(|e| e.to_string())?;
+    let file = timeout(Duration::from_secs(60), rx)
+        .await
+        .map_err(|_| "Timeout: el dialogo no respondio en 60s".to_string())?
+        .map_err(|e| format!("Error en oneshot: {}", e))?;
+    eprintln!("[RUST] save_db_as: resultado: {:?}", file);
 
     match file {
         Some(FilePath::Path(path_buf)) => {
@@ -104,14 +111,20 @@ async fn open_db_dialog(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<FileResult>, String> {
+    eprintln!("[RUST] open_db_dialog: abriendo dialogo...");
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
         .pick_file(move |file_path| {
+            eprintln!("[RUST] open_db_dialog: callback recibido: {:?}", file_path);
             let _ = tx.send(file_path);
         });
-    let file = rx.await.map_err(|e| e.to_string())?;
+    let file = timeout(Duration::from_secs(60), rx)
+        .await
+        .map_err(|_| "Timeout: el dialogo no respondio en 60s".to_string())?
+        .map_err(|e| format!("Error en oneshot: {}", e))?;
+    eprintln!("[RUST] open_db_dialog: resultado: {:?}", file);
 
     match file {
         Some(FilePath::Path(path_buf)) => {
