@@ -430,6 +430,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 78 | `data/importar_datos.py`, `data/sql/Tablas8.sql` | `COLUMNS` incluye `fecha_creacion` y `fecha_actualizacion`. Se leen del Excel (Col 22→`fecha_creacion`, Col 23→`fecha_actualizacion`). Fix ruta `sql/Tablas8.sql` | Reimportar DB con fechas reales desde Excel |
 | 79 | `src/index.html` | **Fecha Creación** añadida en vista detalle junto a Última Modificación | Mostrar fecha de creación del expediente |
 | 80 | `src/index.html`, `src/vendor/styles.css` | Recientes: `grid grid-cols-[1fr_auto]`→`flex items-center` + clases `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item` en styles.css | Fix cuadrícula saliéndose del modal (clases no existían en tailwind purgado) |
+| 81 | `src/index.html`, `src/ruta-procesos-data.js` | Re-implementado modal **Ruta Procesos** con un layout Gantt diario de 30 días, colores de celdas por etapas, tooltip detallado en hover y enlace dinámico de registros a base de datos | Re-diseño completo para imitar comportamiento y estética del Excel y conectar con SQLite |
 
 ---
 

@@ -370,3 +370,19 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `src/vendor/styles.css`: nuevas reglas `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item`.
   - `src/index.html`: `grid grid-cols-[1fr_auto]` → `flex items-center`, `justify-self-end` → `shrink-0`. `hover:*` inline classes reemplazadas por CSS vanilla.
   - `docs/doc.md`: changelog items 78-80.
+
+---
+
+## DEC-029: Rediseño de Ruta de Procesos como Gantt Split-Screen e Integración con SQLite
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario solicitó replicar la hoja de "Ruta Procesos" de Excel (con un cronograma diario por semanas, colores por etapas, leyendas y comentarios diarios). Inicialmente, la tabla contenía la descripción del proceso (que es muy larga) a la izquierda de la cuadrícula diaria, lo que causaba un desbordamiento horizontal y problemas de visualización de anchos. Se decidió adoptar un diseño dividido ("Split"): tarjetas de información de procesos arriba y una cuadrícula Gantt compacta abajo, enlazada dinámicamente con los registros reales de la base de datos para edición instantánea.
+- **Alternativas evaluadas:**
+  - Mantener la descripción en la tabla con scroll horizontal — descartado: mala legibilidad y experiencia de usuario incómoda.
+  - Diseño split (Tarjetas de procesos superiores + Tabla compacta de cronograma abajo con solo el Nº) — elegido: elimina el scroll horizontal del cronograma, y permite una vista legible en una sola pantalla.
+- **Impacto:**
+  - `src/ruta-procesos-data.js`: Nuevo archivo con datos estructurados de `Hoja1` y `Hoja2` de `RUTA PROCESOS JUNIO.xls` (fechas, colores y notas de movimientos diarios).
+  - `src/index.html`: Importación de `ruta-procesos-data.js`, ancho de modal ajustado a `max-w-5xl`, rediseño de `abrirRutaProcesos()` con layout split, tooltip en hover con detalles de etapa, botón Ver/Editar vinculado a `mostrarFormulario()`, y círculos de leyendas redimensionados a `w-4 h-4` con texto `text-xs`.
+  - `docs/funciones.md`: Actualizada descripción de `abrirRutaProcesos()`.
+  - `docs/doc.md`: Agregada entrada 81 en changelog e item de prioridad completado.
+

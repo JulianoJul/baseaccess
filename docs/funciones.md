@@ -63,7 +63,7 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `abrirRutaProcesos()` | — | Abre modal con tabla de ruteo: emisor, receptor, estatus, fechas |
+| `abrirRutaProcesos()` | — | Abre modal con vista Gantt-chart de la ruta de procesos, mostrando un cronograma diario por semanas con tooltips de detalles y acceso directo a formularios de edición |
 | `cerrarRutaProcesos()` | — | Cierra modal de ruta de procesos |
 | `abrirDocumentosPendientes()` | — | Abre modal con listado de expedientes donde estatus ≠ FIRMADO |
 | `cerrarPendientes()` | — | Cierra modal de documentos pendientes |
