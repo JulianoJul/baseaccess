@@ -191,3 +191,11 @@ select.input {
 .toast.success { background: #064e3b; border: 1px solid #10b981; }
 .toast.error { background: #7f1d1d; border: 1px solid #ef4444; }
 .toast.warning { background: #78350f; border: 1px solid #f59e0b; }
+
+/* Custom utilities missing in tailwind.min.css */
+.min-w-0 {
+  min-width: 0px;
+}
+.min-w-full {
+  min-width: 100%;
+}
