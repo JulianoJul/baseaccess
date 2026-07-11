@@ -696,15 +696,12 @@
             }
 
             try {
-                const placeholders = cols.map(() => '?').join(', ');
-                const sql = `INSERT INTO ${tabla} (${cols.join(', ')}) VALUES (${placeholders})`;
-                db.run(sql, vals);
+                guardarNuevoCatalogoEnBd(tabla, cols, vals);
                 dbModificado = true;
                 // Recargar SOLO el catálogo afectado
                 const catalogInfo = { id: catKey, tabla, cols: 'id, nombre' };
                 if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
-                const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
-                catalogosCache[catKey] = dbToObjects(res);
+                catalogosCache[catKey] = obtenerElementosCatalogo(tabla, catalogInfo.cols);
                 const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
                 renderCatalogSelect(selectId, catKey, nuevoItem ? nuevoItem.id : undefined);
                 cerrarAgregarCatalogo();
@@ -1042,8 +1039,7 @@
             if (!db) return;
             mostrarSpinner('Exportando CSV...');
             try {
-                const res = db.exec(SCHEMA_CONFIG.queries.reporteExcel);
-                const data = dbToObjects(res);
+                const data = obtenerDatosReporteExcel();
                 if (!data.length) { toast('No hay datos para exportar.', 'warning'); ocultarSpinner(); return; }
                 const headers = Object.keys(data[0]);
                 const csv = headers.join(',') + '\n' + data.map(row =>
@@ -1166,6 +1162,66 @@
             }
         }
 
+        function obtenerExpedientes(orden) {
+            if (!db) return [];
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientesSelect + ` ORDER BY ${orden}`);
+            return dbToObjects(res);
+        }
+
+        function obtenerExpedientePorId(id) {
+            if (!db) return null;
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientePorId, [id]);
+            if (!res || !res.length) return null;
+            return dbToObjects(res)[0];
+        }
+
+        function obtenerHistorialPorId(id) {
+            if (!db) return [];
+            const r = db.exec(SCHEMA_CONFIG.queries.historialPorId, [id]);
+            return dbToObjects(r);
+        }
+
+        function obtenerDatosReporteExcel() {
+            if (!db) return [];
+            const r = db.exec(SCHEMA_CONFIG.queries.reporteExcel);
+            return dbToObjects(r);
+        }
+
+        function obtenerElementosCatalogo(tabla, cols) {
+            if (!db) return [];
+            const res = db.exec(`SELECT ${cols} FROM ${tabla} ORDER BY nombre`);
+            return dbToObjects(res);
+        }
+
+        function guardarExpedienteEnBd(id, data) {
+            if (!db) return false;
+            const COLS = SCHEMA_CONFIG.columnas;
+            const valores = COLS.map(c => data[c]);
+            if (id) {
+                const sql = `UPDATE expedientes SET ${COLS.map(c => c + ' = ?').join(', ')}, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`;
+                db.run(sql, [...valores, id]);
+            } else {
+                const sql = `INSERT INTO expedientes (${COLS.join(', ')}) VALUES (${COLS.map(() => '?').join(', ')})`;
+                db.run(sql, valores);
+            }
+            return true;
+        }
+
+        function eliminarExpedienteDeBd(id) {
+            if (!db) return false;
+            db.run(SCHEMA_CONFIG.queries.deleteHistorialPorId, [id]);
+            db.run(SCHEMA_CONFIG.queries.deleteExpedientePorId, [id]);
+            return true;
+        }
+
+        function guardarNuevoCatalogoEnBd(tabla, cols, vals) {
+            if (!db) return false;
+            const placeholders = cols.map(() => '?').join(', ');
+            const sql = `INSERT INTO ${tabla} (${cols.join(', ')}) VALUES (${placeholders})`;
+            db.run(sql, vals);
+            return true;
+        }
+
         // ================================================================
         // CATÁLOGOS
         // ================================================================
@@ -1228,8 +1284,7 @@
             const ORDENES_VALIDOS = ['id_expediente DESC', 'fecha_creacion DESC', 'fecha_actualizacion DESC'];
             let orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
             if (!ORDENES_VALIDOS.includes(orden)) orden = 'id_expediente DESC';
-            const res = db.exec(SCHEMA_CONFIG.queries.expedientesSelect + ` ORDER BY ${orden}`);
-            expedientesCache = dbToObjects(res);
+            expedientesCache = obtenerExpedientes(orden);
             filteredData = [...expedientesCache];
             currentPage = 1;
             aplicarPaginacion();
@@ -1599,16 +1654,12 @@
         function cargarExpediente(id) {
             const safeId = toInt(id);
             if (!safeId) { alert(MSG.ERROR_ID_INVALIDO); cancelarFormulario(); return; }
-            const res = db.exec(SCHEMA_CONFIG.queries.expedientePorId, [safeId]);
-            if (!res || res.length === 0) {
+            const data = obtenerExpedientePorId(safeId);
+            if (!data) {
                 alert(MSG.ERROR_NO_EXPEDIENTE);
                 cancelarFormulario();
                 return;
             }
-            const cols = res[0].columns;
-            const vals = res[0].values[0];
-            const data = {};
-            cols.forEach((col, i) => data[col] = vals[i]);
 
             $('f-id_expediente').value = data.id_expediente || '';
             $('f-solped').value = data.solped || '';
@@ -1752,14 +1803,10 @@
             const COLS = SCHEMA_CONFIG.columnas;
 
             try {
-                const valores = COLS.map(c => data[c]);
+                guardarExpedienteEnBd(editandoId, data);
                 if (editandoId) {
-                    const sql = `UPDATE expedientes SET ${COLS.map(c => c + ' = ?').join(', ')}, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`;
-                    db.run(sql, [...valores, editandoId]);
                     toast(MSG.EXITO_ACTUALIZADO, 'success');
                 } else {
-                    const sql = `INSERT INTO expedientes (${COLS.join(', ')}) VALUES (${COLS.map(() => '?').join(', ')})`;
-                    db.run(sql, valores);
                     toast(MSG.EXITO_CREADO, 'success');
                 }
 
@@ -1779,8 +1826,7 @@
             if (!confirm(MSG_EXTRA.ELIMINAR_CONFIRMAR_2(editandoId))) return;
 
             try {
-                db.run(SCHEMA_CONFIG.queries.deleteHistorialPorId, [editandoId]);
-                db.run(SCHEMA_CONFIG.queries.deleteExpedientePorId, [editandoId]);
+                eliminarExpedienteDeBd(editandoId);
                 toast(MSG.EXITO_ELIMINADO, 'success');
                 cancelarFormulario();
                 cargarDatos();
@@ -1833,8 +1879,7 @@
             const cuerpo = $('historial-cuerpo');
             cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando...</p>';
 
-            const r = db.exec(SCHEMA_CONFIG.queries.historialPorId, [safeId]);
-            const data = dbToObjects(r);
+            const data = obtenerHistorialPorId(safeId);
 
             if (!data.length) {
                 cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin movimientos registrados en el historial.</p>';

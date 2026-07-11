@@ -386,3 +386,17 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/funciones.md`: Actualizada descripción de `abrirRutaProcesos()`.
   - `docs/doc.md`: Agregada entrada 81 en changelog e item de prioridad completado.
 
+---
+
+## DEC-030: Aislamiento de Consultas y Operaciones SQL (Separation of Concerns - SoC)
+
+- **Origen:** `[Auditoría de Normas del Proyecto]`
+- **Contexto y Causa:** Para cumplir estrictamente con la Norma 9 (SoC - Separation of Concerns) de `doc.md` (la cual prohíbe que funciones de la UI contengan sentencias SQL o interactúen directamente con `db.exec`/`db.run`), se realizó un barrido completo del código de `src/index.html`. Se identificó que varios event handlers y funciones de UI de modales (como `guardarNuevoCatalogo()`, `exportarCSV()`, `cargarDatos()`, `cargarExpediente()`, `guardarExpediente()`, `eliminarExpediente()` y `cargarHistorialCompleto()`) construían y ejecutaban sentencias SQL directamente.
+- **Alternativas evaluadas:**
+  - Mantener las consultas inline en los event handlers — descartado: viola las reglas arquitectónicas del proyecto, dificulta el mantenimiento y expone la lógica a fallos.
+  - Centralizar y encapsular todas las operaciones de la BD en la capa de datos (`DATA LAYER`) — elegido: desacopla por completo la UI del motor de base de datos.
+- **Impacto:**
+  - `src/index.html`: Creadas las funciones auxiliares de capa de datos `obtenerExpedientes()`, `obtenerExpedientePorId()`, `obtenerHistorialPorId()`, `obtenerDatosReporteExcel()`, `obtenerElementosCatalogo()`, `guardarExpedienteEnBd()`, `eliminarExpedienteDeBd()` y `guardarNuevoCatalogoEnBd()`. Toda la UI consume ahora objetos JS limpios devueltos por estas funciones.
+  - `docs/doc.md`: Documentada la auditoría en la cronología.
+
+

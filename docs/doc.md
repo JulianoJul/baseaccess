@@ -431,6 +431,7 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 79 | `src/index.html` | **Fecha Creación** añadida en vista detalle junto a Última Modificación | Mostrar fecha de creación del expediente |
 | 80 | `src/index.html`, `src/vendor/styles.css` | Recientes: `grid grid-cols-[1fr_auto]`→`flex items-center` + clases `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item` en styles.css | Fix cuadrícula saliéndose del modal (clases no existían en tailwind purgado) |
 | 81 | `src/index.html`, `src/ruta-procesos-data.js` | Re-implementado modal **Ruta Procesos** con un layout Gantt diario de 30 días, colores de celdas por etapas, tooltip detallado en hover y enlace dinámico de registros a base de datos | Re-diseño completo para imitar comportamiento y estética del Excel y conectar con SQLite |
+| 82 | `src/index.html`, `docs/decisiones.md` | **Refactorización Data Layer (SoC)**: Extracción completa de consultas y operaciones de modificación SQL (`db.exec` / `db.run`) de los event handlers de la UI a funciones aisladas en la capa de datos (`obtenerExpedientes`, `obtenerExpedientePorId`, `obtenerHistorialPorId`, `obtenerDatosReporteExcel`, `obtenerElementosCatalogo`, `guardarExpedienteEnBd`, `eliminarExpedienteDeBd` y `guardarNuevoCatalogoEnBd`) | Cumplir estrictamente con la Norma 9 (Separation of Concerns) y SPOT de doc.md |
 
 ---
 
