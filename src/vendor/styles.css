@@ -199,3 +199,28 @@ select.input {
 .min-w-full {
   min-width: 100%;
 }
+.flex-col {
+  display: flex;
+  flex-direction: column;
+}
+.flex-1 {
+  flex: 1 1 0%;
+}
+.shrink-0 {
+  flex-shrink: 0;
+}
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+/* Recientes modal item */
+.reciente-item {
+  transition: background-color 0.15s ease;
+}
+.reciente-item:hover {
+  background-color: rgba(55, 65, 81, 0.5);
+}
+.reciente-item .btn-eliminar:hover {
+  color: #f87171;
+}

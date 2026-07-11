@@ -3,7 +3,7 @@ import re
 import os
 
 DB = os.path.join(os.path.dirname(__file__), 'expedientes.db')
-SCHEMA = os.path.join(os.path.dirname(__file__), 'Tablas8.sql')
+SCHEMA = os.path.join(os.path.dirname(__file__), 'sql', 'Tablas8.sql')
 DATA = os.path.join(os.path.dirname(__file__), 'datos_excel.sql')
 EXCEL = os.path.join(os.path.dirname(__file__), 'CONTROL DE DOCUMENTOS JUNIO 2026.xlsx')
 
@@ -14,7 +14,8 @@ COLUMNS = [
     'nro_acta_apertura', 'cantidad_frentes', 'nro_resolucion_jd', 'id_estatus',
     'fecha_recibido', 'fecha_devuelto', 'id_receptor', 'nro_proceso', 'id_resultado',
     'nro_contrato_sicac', 'nro_contrato_sap', 'id_empresa', 'tiempo_ejecucion',
-    'monto_adjudicado_bs', 'monto_adjudicado_usd', 'fecha_firma_contrato', 'observaciones', 'notas'
+    'monto_adjudicado_bs', 'monto_adjudicado_usd', 'fecha_firma_contrato', 'observaciones', 'notas',
+    'fecha_creacion', 'fecha_actualizacion'
 ]
 
 def parse_row_values(line):
@@ -89,20 +90,41 @@ def main():
     lines = rows_part.split('\n')
 
     all_rows = []
+    # Valores esperados por fila del SQL: 31 (sin notas, fecha_creacion, fecha_actualizacion)
+    SQL_VALUES_COUNT = len(COLUMNS) - 3
     for line in lines:
         raw = parse_row_values(line)
-        if raw is not None and len(raw) == len(COLUMNS) - 1:
+        if raw is not None and len(raw) == SQL_VALUES_COUNT:
             row = [parse_value(v) for v in raw]
-            row.append(None)  # notas column
+            row.append(None)   # notas
+            row.append(None)   # fecha_creacion (se setea abajo desde Excel)
+            row.append(None)   # fecha_actualizacion (se setea abajo desde Excel)
             all_rows.append(row)
 
     # Leer observaciones y notas del Excel (Col 20 = OBSERVACIONES HISTORIAL, Col 34 = OBSERVACIONES)
+    # fecha_creacion = fecha_recibido (Col 22), fecha_actualizacion = fecha_devuelto (Col 23)
     if os.path.exists(EXCEL):
         import openpyxl
+        import datetime
         wb = openpyxl.load_workbook(EXCEL, data_only=True)
         ws = wb.active
         obs_col = COLUMNS.index('observaciones')
         notas_col = COLUMNS.index('notas')
+        creacion_col = COLUMNS.index('fecha_creacion')
+        actualizacion_col = COLUMNS.index('fecha_actualizacion')
+
+        def to_date_str(val):
+            if isinstance(val, (datetime.datetime, datetime.date)):
+                return val.strftime('%Y-%m-%d')
+            s = str(val).strip() if val else ''
+            # Intentar parsear DD/MM/YYYY
+            import re
+            m = re.match(r'(\d{2})/(\d{2})/(\d{4})', s)
+            if m:
+                d, mo, y = m.groups()
+                return f'{y}-{mo}-{d}'
+            return None
+
         for i, row in enumerate(all_rows):
             hist = str(ws.cell(i + 2, 20).value or '').strip()
             if hist:
@@ -110,6 +132,10 @@ def main():
             notas = str(ws.cell(i + 2, 34).value or '').strip()
             if notas:
                 row[notas_col] = notas
+            fecha_rec = ws.cell(i + 2, 22).value
+            fecha_dev = ws.cell(i + 2, 23).value
+            row[creacion_col] = to_date_str(fecha_rec)
+            row[actualizacion_col] = to_date_str(fecha_dev) or to_date_str(fecha_rec)
 
     insert_cols = ', '.join(COLUMNS)
     placeholders = ', '.join(['?' for _ in COLUMNS])

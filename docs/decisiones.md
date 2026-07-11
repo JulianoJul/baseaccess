@@ -340,5 +340,33 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `src/schema-config.js`: nuevo `VALIDADORES` con reglas de validación por campo; nuevo query `historialPorId`.
   - `src/vendor/styles.css`: clases `.modal-body`, `.toast`.
   - `src-tauri/Cargo.toml`: agregado `tokio = { version = "1", features = ["sync"] }`.
-  - `docs/funciones.md`: actualizado con nuevas funciones.
-  - `docs/doc.md`: changelog items 76+.
+-   `docs/funciones.md`: actualizado con nuevas funciones.
+  -   `docs/doc.md`: changelog items 76+.
+
+---
+
+## DEC-027: Fecha Creación/Actualización desde Excel (importar_datos.py)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Los expedientes importados desde Excel necesitaban `fecha_creacion` y `fecha_actualizacion` con valores reales en vez de `CURRENT_DATE` (que pondría hoy a todos). Se decidió mapear `fecha_recibido` (Col 22 del Excel) → `fecha_creacion` y `fecha_devuelto` (Col 23) → `fecha_actualizacion`.
+- **Alternativas evaluadas:**
+  - `CURRENT_DATE` para todos — descartado: todos los expedientes tendrían la misma fecha de creación.
+  - Parsear la primera/última fecha del historial completo (Col 21) — descartado: más complejo y el historial ya no se usa.
+- **Impacto:**
+  - `data/importar_datos.py`: `COLUMNS` actualizado con `fecha_creacion` y `fecha_actualizacion`. Nueva función `to_date_str()`. Lectura de Col 22/23 del Excel.
+  - Fix de ruta `sql/Tablas8.sql` (estaba mal).
+  - `src/index.html`: "Fecha Creación" añadido en vista detalle.
+
+---
+
+## DEC-028: Fix Recientes — Tailwind Purgado Sin Clases Grid
+
+- **Origen:** `[Bug reportado por el usuario]`
+- **Contexto y Causa:** El layout de BD Recientes usaba `grid grid-cols-[1fr_auto]` que es una clase arbitraria de Tailwind no incluida en el build purgado (`tailwind.min.css`). El grid no se renderizaba y el contenido se salía del modal.
+- **Alternativas evaluadas:**
+  - Regenerar `tailwind.min.css` con purge que incluya las clases nuevas — descartado: requiere Node.js y Tailwind CLI en el entorno.
+  - Añadir clases faltantes como CSS vanilla en `styles.css` — elegido: funciona sin tooling extra.
+- **Impacto:**
+  - `src/vendor/styles.css`: nuevas reglas `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item`.
+  - `src/index.html`: `grid grid-cols-[1fr_auto]` → `flex items-center`, `justify-self-end` → `shrink-0`. `hover:*` inline classes reemplazadas por CSS vanilla.
+  - `docs/doc.md`: changelog items 78-80.

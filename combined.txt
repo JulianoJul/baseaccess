@@ -81,7 +81,7 @@
 
             <div class="flex items-center gap-2 flex-wrap">
 
-                <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
+                <input type="file" id="dbfile" accept=".db,.sqlite" style="display: block; width: 0; height: 0; opacity: 0; position: absolute; pointer-events: none;">
 
                 <!-- Hamburguesa + Ordenar -->
                 <button onclick="toggleSidebar()" class="btn btn-primary text-sm px-2 py-2" title="Mostrar/ocultar sidebar">
@@ -133,7 +133,7 @@
                 </div>
             </div>
 
-            <div class="min-w-full">
+            <div class="w-full">
                 <!-- Buscador (sticky) -->
                 <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                     <div class="flex items-center gap-3">
@@ -150,10 +150,10 @@
                 </div>
 
                 <!-- Tabla Principal -->
-                <div id="vista-tabla" class="mt-3 min-w-full">
-                    <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 min-w-full">
-                        <div class="overflow-x-auto min-w-full">
-                            <table class="min-w-full text-left border-collapse" style="table-layout: fixed;">
+                <div id="vista-tabla" class="mt-3 w-full">
+                    <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 w-full">
+                        <div class="overflow-x-auto w-full">
+                            <table class="w-full text-left border-collapse" style="table-layout: fixed;">
                                 <thead>
                                     <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
                                         <th class="p-3 w-[6%] text-center whitespace-nowrap">Ver</th>
@@ -727,7 +727,7 @@
             return m ? m[1] : v;
         }
 
-        var electronAPI = window.electronAPI;
+        // Usamos window.electronAPI directamente para soportar inicialización diferida en Tauri
         const config = { locateFile: filename => `vendor/${filename}` };
 
         initSqlJs(config).then(sqlLib => {
@@ -780,7 +780,7 @@
             //     return false;
             // }
             dbFilePath = filePath || fileName;
-            if (electronAPI && filePath) electronAPI.setDbPath(filePath);
+            if (window.electronAPI && filePath) window.electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
             $(SELECTORS.SORT_ORDER).disabled = false;
             const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
@@ -792,9 +792,9 @@
             $('btn-exportar-csv').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
-            // Sincronizar configuración de backups con Electron
-            if (electronAPI && electronAPI.setBackupCopies) {
-                electronAPI.setBackupCopies(obtenerMaxBackups());
+            // Sincronizar configuración de backups con Electron/Tauri
+            if (window.electronAPI && window.electronAPI.setBackupCopies) {
+                window.electronAPI.setBackupCopies(obtenerMaxBackups());
             }
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             // Contraer botón "Abrir BD" a solo ícono
@@ -849,8 +849,9 @@
 
         function abrirBaseDatosReciente(path) {
             if (!path) return;
-            if (electronAPI && electronAPI.openDbFilePath) {
-                electronAPI.openDbFilePath(path).then(dataBase64 => {
+            const api = window.electronAPI;
+            if (api && api.openDbFilePath) {
+                api.openDbFilePath(path).then(dataBase64 => {
                     if (!dataBase64) return;
                     const bytes = Uint8Array.from(atob(dataBase64), c => c.charCodeAt(0));
                     const name = path.split(/[\\/]/).pop();
@@ -877,14 +878,14 @@
             if (recientes.length === 0) {
                 cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>';
             } else {
-                cont.innerHTML = '<div class="flex flex-col gap-1">' + recientes.map((r, i) => `
-                    <div class="reciente-item grid grid-cols-[1fr_auto] items-center gap-2 px-4 py-3 hover:bg-gray-700/50 cursor-pointer rounded-lg"
+                cont.innerHTML = '<div class="flex flex-col gap-2">' + recientes.map((r, i) => `
+                    <div class="reciente-item flex items-center gap-2 px-4 py-3 cursor-pointer rounded-lg"
                          data-path="${encodeURIComponent(r.path)}">
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <div class="text-sm text-gray-200 truncate">${escapeHtml(r.nombre)}</div>
                             <div class="text-xs text-gray-500 truncate">${escapeHtml(r.path || '')}</div>
                         </div>
-                        <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-xs text-gray-500 hover:text-red-400 shrink-0 justify-self-end" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                        <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="btn-eliminar text-xs text-gray-500 shrink-0" title="Quitar de recientes"><i class="fas fa-times"></i></button>
                     </div>
                 `).join('') + '</div>';
             }
@@ -905,10 +906,11 @@
 
         async function abrirBaseDatos() {
             DEBUG.log('[RENDERER] Función abrirBaseDatos llamada');
-            if (electronAPI && electronAPI.openDbDialog) {
-                DEBUG.log('[RENDERER] electronAPI disponible, intentando abrir diálogo...');
+            const api = window.electronAPI;
+            if (api && api.openDbDialog) {
+                DEBUG.log('[RENDERER] API disponible, intentando abrir diálogo...');
                 try {
-                    const result = await electronAPI.openDbDialog();
+                    const result = await api.openDbDialog();
                     DEBUG.log('[RENDERER] Resultado del diálogo:', result);
                     if (!result) {
                         DEBUG.log('[RENDERER] Diálogo cancelado o sin resultado');
@@ -922,7 +924,7 @@
                     $('dbfile').click();
                 }
             } else {
-                DEBUG.log('[RENDERER] electronAPI no disponible, usando file input nativo');
+                DEBUG.log('[RENDERER] API nativa no disponible, usando file input nativo');
                 $('dbfile').click();
             }
         }
@@ -952,8 +954,8 @@
                     binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
                 }
                 const data_base64 = btoa(binary);
-                if (electronAPI && dbFilePath) {
-                    await electronAPI.saveDb(data_base64);
+                if (window.electronAPI && dbFilePath) {
+                    await window.electronAPI.saveDb(data_base64);
                 }
                 dbModificado = false;
                 actualizarEstadoBD('<i class="fas fa-check"></i> Guardado');
@@ -1052,15 +1054,20 @@
                         return /[,"\n]/.test(s) ? '"' + s + '"' : s;
                     }).join(',')
                 ).join('\n');
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `reporte_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
-            ocultarSpinner();
-            toast(MSG_EXTRA.CSV_DESCARGADO, 'success');
+                const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `reporte_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+                ocultarSpinner();
+                toast(MSG_EXTRA.CSV_DESCARGADO, 'success');
+            } catch (err) {
+                DEBUG.error('Error al exportar CSV:', err);
+                toast('Error al exportar CSV.', 'error');
+                ocultarSpinner();
+            }
         }
 
         function updateUIOnError() {
@@ -1358,6 +1365,7 @@
                                     <div><span class="text-gray-400">Receptor Actual:</span> <span class="text-gray-200 block truncate">${exp.receptor || 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">${exp.fecha_recibido || 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">${exp.fecha_devuelto || 'N/A'}</span></div>
+                                    <div><span class="text-gray-400">Fecha Creación:</span> <span class="text-gray-300 block font-mono">${exp.fecha_creacion || 'N/A'}</span></div>
                                     <div><span class="text-gray-400">Última Modificación:</span> <span class="text-gray-300 block font-mono">${exp.fecha_actualizacion || 'N/A'}</span></div>
                                 </div>
                             </div>
@@ -2097,7 +2105,7 @@ const CONFIG = {
 };
 
 const DEBUG = {
-    isEnabled: false,
+    isEnabled: true,
     log: function(...args) { if (DEBUG.isEnabled) console.log(...args); },
     error: function(...args) { if (DEBUG.isEnabled) console.error(...args); },
 };
@@ -2757,7 +2765,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
-const DEBUG = { isEnabled: false }
+const DEBUG = { isEnabled: true }
 
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
@@ -2885,7 +2893,7 @@ app.on('window-all-closed', () => app.quit())
 === preload.js ===
 const { contextBridge, ipcRenderer } = require('electron');
 
-const DEBUG = { isEnabled: false };
+const DEBUG = { isEnabled: true };
 DEBUG.isEnabled && console.log('[PRELOAD] Iniciando preload script...');
 
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -2913,22 +2921,37 @@ DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctament
 
 === tauri-preload.js ===
 (function() {
-    if (!window.__TAURI__) return;
-    const invoke = window.__TAURI__.core.invoke;
+    // Si ya está definida (por ejemplo, en Electron), no sobrescribir
+    if (window.electronAPI) return;
 
-    window.electronAPI = {
-        saveDb: (dataBase64) => invoke('save_db', { dataBase64 }),
-        saveDbAs: (dataBase64) => invoke('save_db_as', { dataBase64 }),
-        setDbPath: (filePath) => invoke('set_db_path', { filePath }),
-        getDbPath: () => invoke('get_db_path'),
-        openDbDialog: async () => {
-            const result = await invoke('open_db_dialog');
-            return result;
+    let tauriAPI = null;
+
+    Object.defineProperty(window, 'electronAPI', {
+        get: function() {
+            if (!window.__TAURI__) {
+                return undefined;
+            }
+            if (!tauriAPI) {
+                const invoke = window.__TAURI__.core.invoke;
+                tauriAPI = {
+                    isTauri: true,
+                    saveDb: (dataBase64) => invoke('save_db', { dataBase64 }),
+                    saveDbAs: (dataBase64) => invoke('save_db_as', { dataBase64 }),
+                    setDbPath: (filePath) => invoke('set_db_path', { filePath }),
+                    getDbPath: () => invoke('get_db_path'),
+                    openDbDialog: async () => {
+                        return await invoke('open_db_dialog');
+                    },
+                    openDbFilePath: (filePath) => invoke('open_db_file', { filePath }),
+                    setBackupCopies: (n) => invoke('set_backup_copies', { n }),
+                    getBackupCopies: () => invoke('get_backup_copies'),
+                };
+            }
+            return tauriAPI;
         },
-        openDbFilePath: (filePath) => invoke('open_db_file', { filePath }),
-        setBackupCopies: (n) => invoke('set_backup_copies', { n }),
-        getBackupCopies: () => invoke('get_backup_copies'),
-    };
+        configurable: true,
+        enumerable: true
+    });
 })();
 
 === lib.rs ===
@@ -2938,6 +2961,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
 use tauri_plugin_dialog::{DialogExt, FilePath};
+use tokio::time::{timeout, Duration};
 
 struct AppState {
     current_db_path: Mutex<Option<String>>,
@@ -2989,14 +3013,20 @@ async fn save_db_as(
     state: State<'_, AppState>,
     data_base64: String,
 ) -> Result<Option<String>, String> {
+    eprintln!("[RUST] save_db_as: abriendo dialogo Guardar Como...");
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
         .save_file(move |file_path| {
+            eprintln!("[RUST] save_db_as: callback recibido: {:?}", file_path);
             let _ = tx.send(file_path);
         });
-    let file = rx.await.map_err(|e| e.to_string())?;
+    let file = timeout(Duration::from_secs(60), rx)
+        .await
+        .map_err(|_| "Timeout: el dialogo no respondio en 60s".to_string())?
+        .map_err(|e| format!("Error en oneshot: {}", e))?;
+    eprintln!("[RUST] save_db_as: resultado: {:?}", file);
 
     match file {
         Some(FilePath::Path(path_buf)) => {
@@ -3038,14 +3068,20 @@ async fn open_db_dialog(
     app: tauri::AppHandle,
     state: State<'_, AppState>,
 ) -> Result<Option<FileResult>, String> {
+    eprintln!("[RUST] open_db_dialog: abriendo dialogo...");
     let (tx, rx) = tokio::sync::oneshot::channel();
     app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
         .pick_file(move |file_path| {
+            eprintln!("[RUST] open_db_dialog: callback recibido: {:?}", file_path);
             let _ = tx.send(file_path);
         });
-    let file = rx.await.map_err(|e| e.to_string())?;
+    let file = timeout(Duration::from_secs(60), rx)
+        .await
+        .map_err(|_| "Timeout: el dialogo no respondio en 60s".to_string())?
+        .map_err(|e| format!("Error en oneshot: {}", e))?;
+    eprintln!("[RUST] open_db_dialog: resultado: {:?}", file);
 
     match file {
         Some(FilePath::Path(path_buf)) => {
@@ -3581,6 +3617,9 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 75 | `src/index.html` | "Ordenar por" movido del header a la barra de búsqueda
 | 76 | `package.json`, `.gitignore`, `src/tauri-preload.js`, `Makefile`, `docs/*`, `prompt`, `.github/workflows/` | Rama `tauri` fusionada en `master`. Rama única con Electron + Tauri v2 | Unificar empaquetado |
 | 77 | `src/index.html`, `src/schema-config.js`, `src-tauri/src/lib.rs`, `src/vendor/styles.css`, `src-tauri/Cargo.toml` | Fix deadlock Tauri Linux (dialog async), overflow estatus badge, SQL bound params, `execSafe` eliminado, `renderCatalogSelect` (DRY), `VALIDADORES`+`validarForma()`, `.modal-body` unificado, `toast()`, `CACHE.catalogos`, spinner overlay, titles en botones | Auditoría de código: implementación completa de hallazgos BUG/AUD/UI/PROP |
+| 78 | `data/importar_datos.py`, `data/sql/Tablas8.sql` | `COLUMNS` incluye `fecha_creacion` y `fecha_actualizacion`. Se leen del Excel (Col 22→`fecha_creacion`, Col 23→`fecha_actualizacion`). Fix ruta `sql/Tablas8.sql` | Reimportar DB con fechas reales desde Excel |
+| 79 | `src/index.html` | **Fecha Creación** añadida en vista detalle junto a Última Modificación | Mostrar fecha de creación del expediente |
+| 80 | `src/index.html`, `src/vendor/styles.css` | Recientes: `grid grid-cols-[1fr_auto]`→`flex items-center` + clases `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item` en styles.css | Fix cuadrícula saliéndose del modal (clases no existían en tailwind purgado) |
 
 ---
 
@@ -4045,8 +4084,36 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `src/schema-config.js`: nuevo `VALIDADORES` con reglas de validación por campo; nuevo query `historialPorId`.
   - `src/vendor/styles.css`: clases `.modal-body`, `.toast`.
   - `src-tauri/Cargo.toml`: agregado `tokio = { version = "1", features = ["sync"] }`.
-  - `docs/funciones.md`: actualizado con nuevas funciones.
-  - `docs/doc.md`: changelog items 76+.
+-   `docs/funciones.md`: actualizado con nuevas funciones.
+  -   `docs/doc.md`: changelog items 76+.
+
+---
+
+## DEC-027: Fecha Creación/Actualización desde Excel (importar_datos.py)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Los expedientes importados desde Excel necesitaban `fecha_creacion` y `fecha_actualizacion` con valores reales en vez de `CURRENT_DATE` (que pondría hoy a todos). Se decidió mapear `fecha_recibido` (Col 22 del Excel) → `fecha_creacion` y `fecha_devuelto` (Col 23) → `fecha_actualizacion`.
+- **Alternativas evaluadas:**
+  - `CURRENT_DATE` para todos — descartado: todos los expedientes tendrían la misma fecha de creación.
+  - Parsear la primera/última fecha del historial completo (Col 21) — descartado: más complejo y el historial ya no se usa.
+- **Impacto:**
+  - `data/importar_datos.py`: `COLUMNS` actualizado con `fecha_creacion` y `fecha_actualizacion`. Nueva función `to_date_str()`. Lectura de Col 22/23 del Excel.
+  - Fix de ruta `sql/Tablas8.sql` (estaba mal).
+  - `src/index.html`: "Fecha Creación" añadido en vista detalle.
+
+---
+
+## DEC-028: Fix Recientes — Tailwind Purgado Sin Clases Grid
+
+- **Origen:** `[Bug reportado por el usuario]`
+- **Contexto y Causa:** El layout de BD Recientes usaba `grid grid-cols-[1fr_auto]` que es una clase arbitraria de Tailwind no incluida en el build purgado (`tailwind.min.css`). El grid no se renderizaba y el contenido se salía del modal.
+- **Alternativas evaluadas:**
+  - Regenerar `tailwind.min.css` con purge que incluya las clases nuevas — descartado: requiere Node.js y Tailwind CLI en el entorno.
+  - Añadir clases faltantes como CSS vanilla en `styles.css` — elegido: funciona sin tooling extra.
+- **Impacto:**
+  - `src/vendor/styles.css`: nuevas reglas `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item`.
+  - `src/index.html`: `grid grid-cols-[1fr_auto]` → `flex items-center`, `justify-self-end` → `shrink-0`. `hover:*` inline classes reemplazadas por CSS vanilla.
+  - `docs/doc.md`: changelog items 78-80.
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
@@ -4065,7 +4132,7 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha movido a la barra de búsqueda (select → lupa → input), ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía IPC nativo + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual) para uso programático. Botón toggle Orden Excel/Secciones sin borde visual. Layout sidebar+contenido con CSS Grid (`grid-cols-[auto_1fr]`), tabla `min-w-full` con `table-layout: auto` (se expande al desplegar fila). X button de modales unificado a `btn-icon`+`fas fa-times`. Sticky solo en barra de búsqueda principal (modales sin sticky). Recientes con `flex flex-col gap-1` sin divisores. Todos los modales se cierran al clickear fuera. Exportación CSV. Integridad de BD al cargar. Orden persistido en localStorage.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha movido a la barra de búsqueda (select → lupa → input), ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía IPC nativo + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual) para uso programático. Botón toggle Orden Excel/Secciones sin borde visual. Layout sidebar+contenido con CSS Grid, tabla `min-w-full` con `table-layout: auto`. Sticky solo en barra de búsqueda principal. BD recientes con layout flexbox (fix tailwind purgado). Todos los modales se cierran al clickear fuera. Exportación CSV. Orden persistido en localStorage. `fecha_creacion` = `fecha_recibido` de Excel, `fecha_actualizacion` = `fecha_devuelto` de Excel en importar_datos.py. Vista detalle muestra "Fecha Creación" y "Última Modificación".
 
 ## Archivos Clave
 | Archivo | Para qué |

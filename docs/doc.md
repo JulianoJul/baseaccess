@@ -427,6 +427,9 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 75 | `src/index.html` | "Ordenar por" movido del header a la barra de búsqueda
 | 76 | `package.json`, `.gitignore`, `src/tauri-preload.js`, `Makefile`, `docs/*`, `prompt`, `.github/workflows/` | Rama `tauri` fusionada en `master`. Rama única con Electron + Tauri v2 | Unificar empaquetado |
 | 77 | `src/index.html`, `src/schema-config.js`, `src-tauri/src/lib.rs`, `src/vendor/styles.css`, `src-tauri/Cargo.toml` | Fix deadlock Tauri Linux (dialog async), overflow estatus badge, SQL bound params, `execSafe` eliminado, `renderCatalogSelect` (DRY), `VALIDADORES`+`validarForma()`, `.modal-body` unificado, `toast()`, `CACHE.catalogos`, spinner overlay, titles en botones | Auditoría de código: implementación completa de hallazgos BUG/AUD/UI/PROP |
+| 78 | `data/importar_datos.py`, `data/sql/Tablas8.sql` | `COLUMNS` incluye `fecha_creacion` y `fecha_actualizacion`. Se leen del Excel (Col 22→`fecha_creacion`, Col 23→`fecha_actualizacion`). Fix ruta `sql/Tablas8.sql` | Reimportar DB con fechas reales desde Excel |
+| 79 | `src/index.html` | **Fecha Creación** añadida en vista detalle junto a Última Modificación | Mostrar fecha de creación del expediente |
+| 80 | `src/index.html`, `src/vendor/styles.css` | Recientes: `grid grid-cols-[1fr_auto]`→`flex items-center` + clases `.flex-col`, `.flex-1`, `.shrink-0`, `.py-3`, `.reciente-item` en styles.css | Fix cuadrícula saliéndose del modal (clases no existían en tailwind purgado) |
 
 ---
 
