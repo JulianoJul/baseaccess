@@ -21,7 +21,7 @@ const CONFIG = {
 };
 
 const DEBUG = {
-    isEnabled: false,
+    isEnabled: true,
     log: function(...args) { if (DEBUG.isEnabled) console.log(...args); },
     error: function(...args) { if (DEBUG.isEnabled) console.error(...args); },
 };

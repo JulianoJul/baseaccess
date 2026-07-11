@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
 
-const DEBUG = { isEnabled: false }
+const DEBUG = { isEnabled: true }
 
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 

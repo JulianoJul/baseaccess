@@ -1,6 +1,6 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-const DEBUG = { isEnabled: false };
+const DEBUG = { isEnabled: true };
 DEBUG.isEnabled && console.log('[PRELOAD] Iniciando preload script...');
 
 contextBridge.exposeInMainWorld('electronAPI', {
