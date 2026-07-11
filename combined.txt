@@ -34,9 +34,9 @@
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
-                <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cerrarRutaProcesos()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto max-h-[75vh]" id="ruta-contenido">
+            <div class="modal-body overflow-y-auto max-h-[75vh]" id="ruta-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -47,9 +47,9 @@
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
-                <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto max-h-[75vh]" id="pendientes-contenido">
+            <div class="modal-body overflow-y-auto max-h-[75vh]" id="pendientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -60,9 +60,9 @@
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
-                <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 overflow-y-auto max-h-[75vh]" id="recientes-contenido">
+            <div class="modal-body overflow-y-auto max-h-[75vh]" id="recientes-contenido">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
         </div>
@@ -153,17 +153,17 @@
                 <div id="vista-tabla" class="mt-3 min-w-full">
                     <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 min-w-full">
                         <div class="overflow-x-auto min-w-full">
-                            <table class="min-w-full text-left border-collapse">
+                            <table class="min-w-full text-left border-collapse" style="table-layout: fixed;">
                                 <thead>
                                     <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                                        <th class="p-3 w-12 text-center whitespace-nowrap">Ver</th>
-                                        <th class="p-3 w-20 text-center whitespace-nowrap">Acción</th>
-                                        <th class="p-3 whitespace-nowrap">SOLPED</th>
-                                        <th class="p-3 whitespace-nowrap">Gerencia</th>
-                                        <th class="p-3 whitespace-nowrap">Documento</th>
-                                        <th class="p-3 whitespace-nowrap max-w-xs">Descripción</th>
-                                        <th class="p-3 whitespace-nowrap">Estatus Detalle</th>
-                                        <th class="p-3 whitespace-nowrap">Nro Proceso</th>
+                                        <th class="p-3 w-[6%] text-center whitespace-nowrap">Ver</th>
+                                        <th class="p-3 w-[5%] text-center whitespace-nowrap">Acción</th>
+                                        <th class="p-3 w-[12%] whitespace-nowrap">SOLPED</th>
+                                        <th class="p-3 w-[12%] whitespace-nowrap">Gerencia</th>
+                                        <th class="p-3 w-[15%] whitespace-nowrap">Documento</th>
+                                        <th class="p-3 w-[25%] whitespace-nowrap">Descripción</th>
+                                        <th class="p-3 w-[13%] whitespace-nowrap">Estatus Detalle</th>
+                                        <th class="p-3 w-[12%] whitespace-nowrap">Nro Proceso</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
@@ -174,6 +174,8 @@
                             </table>
                         </div>
                     </div>
+                    <!-- Paginación -->
+                    <div id="paginacion" class="hidden mt-4 pb-2"></div>
                 </div>
             </div>
         </div>
@@ -191,11 +193,11 @@
                     <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
                     <button id="btn-modo-orden" onclick="toggleModoOrdenForm()" class="text-xs px-2 py-1 rounded text-gray-400 hover:text-teal-400 transition-colors" title="Cambiar orden de campos"><i class="fas fa-table mr-1"></i> Orden Excel</button>
                 </div>
-                <button onclick="cancelarFormulario()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cancelarFormulario()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
 
             <!-- Cuerpo del formulario -->
-            <div class="p-4 space-y-6 overflow-y-auto max-h-[75vh]">
+            <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]">
 
                 <!-- SECCIÓN 1: INFORMACIÓN DEL PROCESO -->
                 <fieldset class="card">
@@ -380,9 +382,9 @@
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
-                <button onclick="cerrarHistorialCompleto()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cerrarHistorialCompleto()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div id="historial-cuerpo" class="p-4 overflow-x-auto max-h-[75vh] overflow-y-auto">
+            <div id="historial-cuerpo" class="modal-body overflow-x-auto max-h-[75vh] overflow-y-auto">
                 <p class="text-gray-500 text-center py-8">Cargando...</p>
             </div>
             <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
@@ -396,10 +398,9 @@
         <div class="relative modal-content w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-plus-circle mr-1"></i> Agregar a catálogo</h2>
-                <button onclick="cerrarAgregarCatalogo()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+                <button onclick="cerrarAgregarCatalogo()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4">
-                <p class="text-sm text-gray-400 mb-3">Nuevo registro para: <strong id="ac-campo-label" class="text-gray-200"></strong></p>
+            <div class="modal-body">
                 <input type="hidden" id="ac-select-id">
                 <input type="hidden" id="ac-catalog-key">
                 <input type="hidden" id="ac-tabla">
@@ -443,7 +444,11 @@
         let db = null;
         let SQL = null;
         let expedientesCache = [];
+        let filteredData = [];
+        let currentPage = 1;
+        let totalPages = 0;
         let catalogosCache = {};
+        const CACHE = { catalogos: {} };
         let dbFilePath = null;
         let dbModificado = false;
         let autosaveTimer = null;
@@ -453,6 +458,27 @@
         let snapshotEdicion = null;
         let _obsPrevia = '';
         const $ = id => document.getElementById(id);
+        function mostrarSpinner(texto = 'Procesando...') {
+            const overlay = $('spinner-overlay');
+            if (overlay) { $('spinner-text').textContent = texto; overlay.classList.remove('hidden'); }
+        }
+        function ocultarSpinner() {
+            const overlay = $('spinner-overlay');
+            if (overlay) overlay.classList.add('hidden');
+        }
+        function toast(mensaje, tipo = 'info') {
+            const container = $('toast-container');
+            if (!container) { alert(mensaje); return; }
+            const el = document.createElement('div');
+            el.className = 'toast ' + tipo;
+            el.textContent = mensaje;
+            container.appendChild(el);
+            requestAnimationFrame(() => el.classList.add('show'));
+            setTimeout(() => {
+                el.classList.remove('show');
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
 
         function cerrarModalSiOverlay(e, closeFn) {
             if (e.target === e.currentTarget) {
@@ -652,9 +678,8 @@
             if (!nombre) { alert(MSG.NOMBRE_OBLIGATORIO); $('ac-nombre').focus(); return; }
 
             const info = SCHEMA_CONFIG.catalogoPorSelect[selectId];
-            let cols = 'nombre';
-            let values = "'" + nombre.replace(/'/g, "''") + "'";
-            let placeholders = ['nombre'];
+            let cols = ['nombre'];
+            let vals = [nombre];
 
             if (info && info.extra) {
                 let extraVal;
@@ -665,39 +690,23 @@
                     extraVal = $('ac-extra-val').value.trim() || info.extra.def || null;
                 }
                 if (extraVal) {
-                    cols += ', ' + info.extra.col;
-                    values += ', ' + extraVal;
-                    placeholders.push(info.extra.col);
+                    cols.push(info.extra.col);
+                    vals.push(extraVal);
                 }
             }
 
             try {
-                const sql = `INSERT INTO ${tabla} (${cols}) VALUES (${values})`;
-                db.exec(sql);
+                const placeholders = cols.map(() => '?').join(', ');
+                const sql = `INSERT INTO ${tabla} (${cols.join(', ')}) VALUES (${placeholders})`;
+                db.run(sql, vals);
                 dbModificado = true;
                 // Recargar SOLO el catálogo afectado
                 const catalogInfo = { id: catKey, tabla, cols: 'id, nombre' };
                 if (info && info.extra) catalogInfo.cols += ', ' + info.extra.col;
                 const res = db.exec(`SELECT ${catalogInfo.cols} FROM ${tabla} ORDER BY nombre`);
                 catalogosCache[catKey] = dbToObjects(res);
-                // Actualizar SOLO el select afectado, no todos
-                const selector = $(selectId);
-                if (selector) {
-                    const valorAnterior = selector.value;
-                    selector.innerHTML = '<option value=""></option>';
-                    (catalogosCache[catKey] || []).forEach(item => {
-                        const opt = document.createElement('option');
-                        opt.value = item.id;
-                        opt.textContent = item.nombre;
-                        selector.appendChild(opt);
-                    });
-                    selector.value = valorAnterior;
-                    // Si hay un nuevo item con ese nombre, seleccionarlo
-                    const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
-                    if (nuevoItem) {
-                        selector.value = nuevoItem.id;
-                    }
-                }
+                const nuevoItem = (catalogosCache[catKey] || []).find(item => item.nombre === nombre);
+                renderCatalogSelect(selectId, catKey, nuevoItem ? nuevoItem.id : undefined);
                 cerrarAgregarCatalogo();
             } catch (err) {
                 alert(MSG.ERROR_GUARDAR(err));
@@ -749,6 +758,7 @@
                 alert(MSG.ERROR_NO_BD_VALIDA);
                 return false;
             }
+            CACHE.catalogos = {};
             db = new SQL.Database(bytes);
             const integrity = db.exec("PRAGMA integrity_check");
             if (integrity[0]?.values[0]?.[0] !== 'ok') {
@@ -1006,7 +1016,7 @@
             a.click();
             URL.revokeObjectURL(url);
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
-            alert(MSG_EXTRA.BD_DESCARGADA);
+            toast(MSG_EXTRA.BD_DESCARGADA, 'info');
         }
 
         async function optimizarBD() {
@@ -1028,18 +1038,20 @@
 
         function exportarCSV() {
             if (!db) return;
-            const res = db.exec(SCHEMA_CONFIG.queries.reporteExcel);
-            const data = dbToObjects(res);
-            if (!data.length) { alert('No hay datos para exportar.'); return; }
-            const headers = Object.keys(data[0]);
-            const csv = headers.join(',') + '\n' + data.map(row =>
-                headers.map(h => {
-                    const v = row[h];
-                    if (v === null || v === undefined) return '';
-                    const s = String(v).replace(/"/g, '""');
-                    return /[,"\n]/.test(s) ? '"' + s + '"' : s;
-                }).join(',')
-            ).join('\n');
+            mostrarSpinner('Exportando CSV...');
+            try {
+                const res = db.exec(SCHEMA_CONFIG.queries.reporteExcel);
+                const data = dbToObjects(res);
+                if (!data.length) { toast('No hay datos para exportar.', 'warning'); ocultarSpinner(); return; }
+                const headers = Object.keys(data[0]);
+                const csv = headers.join(',') + '\n' + data.map(row =>
+                    headers.map(h => {
+                        const v = row[h];
+                        if (v === null || v === undefined) return '';
+                        const s = String(v).replace(/"/g, '""');
+                        return /[,"\n]/.test(s) ? '"' + s + '"' : s;
+                    }).join(',')
+                ).join('\n');
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1047,7 +1059,8 @@
             a.download = `reporte_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
             URL.revokeObjectURL(url);
-            alert(MSG_EXTRA.CSV_DESCARGADO);
+            ocultarSpinner();
+            toast(MSG_EXTRA.CSV_DESCARGADO, 'success');
         }
 
         function updateUIOnError() {
@@ -1101,29 +1114,6 @@
         // ================================================================
         // UTILIDADES BD
         // ================================================================
-        function execSafe(sql, params) {
-            if (!db) { alert(MSG.ERROR_NO_DB); return null; }
-            try {
-                if (params && params.length) {
-                    const escaped = sql.replace(/\?/g, () => {
-                        const v = params.shift();
-                        if (v === null || v === undefined) return 'NULL';
-                        if (typeof v === 'number') return String(v);
-                        return "'" + String(v).replace(/'/g, "''") + "'";
-                    });
-                    return db.exec(escaped);
-                }
-                return db.exec(sql);
-            } catch (err) {
-                alert(MSG.ERROR_CONSULTA(err));
-                if (DEBUG.isEnabled) {
-                    window.__sqlErrors = window.__sqlErrors || [];
-                    window.__sqlErrors.push({ sql, params: arguments[1], err: err.message, ts: Date.now() });
-                }
-                return null;
-            }
-        }
-
         function toInt(v) { const n = parseInt(v, 10); return isNaN(n) ? null : n; }
 
         function dbToObjects(res) {
@@ -1164,23 +1154,34 @@
             Object.values(SCHEMA_CONFIG.catalogoPorSelect).forEach(info => {
                 if (vistos.has(info.key)) return;
                 vistos.add(info.key);
+                if (CACHE.catalogos && CACHE.catalogos[info.key]) {
+                    catalogosCache[info.key] = CACHE.catalogos[info.key];
+                    return;
+                }
                 const res = db.exec(`SELECT ${info.cols} FROM ${info.tabla} ORDER BY nombre`);
                 catalogosCache[info.key] = dbToObjects(res);
+                CACHE.catalogos[info.key] = catalogosCache[info.key];
             });
             captureAndRestoreFormState(poblarSelectores);
         }
 
+        function renderCatalogSelect(selectId, catKey, selectValue) {
+            const sel = $(selectId);
+            if (!sel) return;
+            const valorAnterior = selectValue !== undefined ? selectValue : sel.value;
+            sel.innerHTML = '<option value=""></option>';
+            (catalogosCache[catKey] || []).forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = item.nombre;
+                sel.appendChild(opt);
+            });
+            sel.value = valorAnterior;
+        }
+
         function poblarSelectores() {
             Object.entries(SCHEMA_CONFIG.catalogoPorSelect).forEach(([selectId, info]) => {
-                const sel = $(selectId);
-                if (!sel) return;
-                sel.innerHTML = '<option value=""></option>';
-                (catalogosCache[info.key] || []).forEach(item => {
-                    const opt = document.createElement('option');
-                    opt.value = item.id;
-                    opt.textContent = item.nombre;
-                    sel.appendChild(opt);
-                });
+                renderCatalogSelect(selectId, info.key);
             });
             cargarSuperintendencias();
         }
@@ -1204,10 +1205,14 @@
         // ================================================================
         function cargarDatos() {
             if (!db) return;
-            const orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
+            const ORDENES_VALIDOS = ['id_expediente DESC', 'fecha_creacion DESC', 'fecha_actualizacion DESC'];
+            let orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
+            if (!ORDENES_VALIDOS.includes(orden)) orden = 'id_expediente DESC';
             const res = db.exec(SCHEMA_CONFIG.queries.expedientesSelect + ` ORDER BY ${orden}`);
             expedientesCache = dbToObjects(res);
-            renderizarTabla(expedientesCache);
+            filteredData = [...expedientesCache];
+            currentPage = 1;
+            aplicarPaginacion();
         }
         function cambiarOrden() {
             localStorage.setItem(STORAGE_KEYS.ORDEN_PREFERIDO, $(SELECTORS.SORT_ORDER).value);
@@ -1216,6 +1221,75 @@
             if (searchEl && searchEl.value) {
                 searchEl.dispatchEvent(new Event('input'));
             }
+            aplicarPaginacion();
+        }
+
+        function aplicarPaginacion() {
+            if (!filteredData.length) {
+                renderizarTabla([]);
+                renderPaginacion();
+                return;
+            }
+            totalPages = Math.ceil(filteredData.length / CONFIG.PAGE_SIZE) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            const start = (currentPage - 1) * CONFIG.PAGE_SIZE;
+            const end = start + CONFIG.PAGE_SIZE;
+            const pageData = filteredData.slice(start, end);
+            renderizarTabla(pageData);
+            renderPaginacion();
+        }
+
+        function irPagina(n) {
+            if (n < 1 || n > totalPages) return;
+            currentPage = n;
+            aplicarPaginacion();
+        }
+
+        function renderPaginacion() {
+            const cont = $('paginacion');
+            if (!cont) return;
+            if (!filteredData.length || totalPages <= 1) {
+                cont.classList.add('hidden');
+                return;
+            }
+            cont.classList.remove('hidden');
+
+            const buildBtn = (label, onclick, disabled, active) =>
+                `<button onclick="${onclick}" class="btn btn-sm ${active ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+            let html = '<div class="flex items-center justify-center gap-1.5 flex-wrap">';
+
+            html += buildBtn('<i class="fas fa-angle-double-left"></i>', 'irPagina(1)', currentPage === 1, false);
+            html += buildBtn('<i class="fas fa-chevron-left"></i>', `irPagina(${currentPage - 1})`, currentPage === 1, false);
+
+            const maxVisible = 7;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+
+            if (startPage > 1) {
+                html += buildBtn('1', 'irPagina(1)', false, false);
+                if (startPage > 2) html += '<span class="text-gray-500 px-1 text-xs">...</span>';
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += buildBtn(String(i), `irPagina(${i})`, false, i === currentPage);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += '<span class="text-gray-500 px-1 text-xs">...</span>';
+                html += buildBtn(String(totalPages), `irPagina(${totalPages})`, false, false);
+            }
+
+            html += buildBtn('<i class="fas fa-chevron-right"></i>', `irPagina(${currentPage + 1})`, currentPage === totalPages, false);
+            html += buildBtn('<i class="fas fa-angle-double-right"></i>', `irPagina(${totalPages})`, currentPage === totalPages, false);
+
+            html += `<span class="text-gray-500 text-xs ml-2">${currentPage} / ${totalPages}</span>`;
+            html += '</div>';
+
+            cont.innerHTML = html;
         }
 
         function renderizarTabla(lista) {
@@ -1223,7 +1297,7 @@
             cuerpo.innerHTML = '';
 
             if (lista.length === 0) {
-                cuerpo.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-gray-500">No se encontraron expedientes con esos criterios.</td></tr>`;
+                cuerpo.innerHTML = `<tr><td colspan="8" class="p-12 text-center text-gray-500"><i class="fas fa-search text-3xl mb-3 block opacity-40"></i>No se encontraron expedientes que coincidan con el filtro.</td></tr>`;
                 return;
             }
 
@@ -1238,14 +1312,14 @@
                     <td class="p-3 text-center">
                         <button onclick="event.stopPropagation(); mostrarFormulario(${exp.id_expediente})" class="btn-icon text-edit" title="Editar expediente"><i class="fas fa-edit pointer-events-none"></i></button>
                     </td>
-                    <td class="p-3 font-semibold text-gray-200">${exp.solped || 'SIN SOLPED'}</td>
-                    <td class="p-3 text-gray-300">${exp.gerencia || 'N/A'}</td>
-                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.documento}">${exp.documento || 'N/A'}</td>
-                    <td class="p-3 text-gray-400 max-w-xs truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
-                    <td class="p-3">
+                    <td class="p-3 font-semibold text-gray-200 truncate" title="${exp.solped || 'SIN SOLPED'}">${exp.solped || 'SIN SOLPED'}</td>
+                    <td class="p-3 text-gray-300 truncate" title="${exp.gerencia || 'N/A'}">${exp.gerencia || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 truncate" title="${exp.documento || 'N/A'}">${exp.documento || 'N/A'}</td>
+                    <td class="p-3 text-gray-400 truncate" title="${exp.descripcion_proceso || ''}">${exp.descripcion_proceso || ''}</td>
+                    <td class="p-3 truncate" title="${exp.estatus_detalle || 'PENDIENTE'}">
                         ${renderBadgeEstatus(exp.estatus_detalle)}
                     </td>
-                    <td class="p-3 text-gray-300 font-mono text-xs">${exp.nro_proceso || 'N/A'}</td>
+                    <td class="p-3 text-gray-300 font-mono text-xs truncate" title="${exp.nro_proceso || 'N/A'}">${exp.nro_proceso || 'N/A'}</td>
                 `;
                 
                 filaPrincipal.addEventListener('click', () => toggleDesplegable(exp.id_expediente));
@@ -1417,6 +1491,30 @@
             return true;
         }
 
+        function validarForma() {
+            const errores = [];
+            for (const [field, rules] of Object.entries(VALIDADORES)) {
+                const el = $('f-' + field);
+                if (!el) continue;
+                const val = el.value.trim();
+                if (rules.required && !val) {
+                    errores.push(rules.label + ' es obligatorio');
+                    continue;
+                }
+                if (!val) continue;
+                if (rules.type === 'number') {
+                    const n = parseFloat(val.replace(/\./g, '').replace(',', '.'));
+                    if (isNaN(n)) errores.push(rules.label + ' debe ser un número');
+                    else if (rules.min !== undefined && n < rules.min) errores.push(rules.label + ' debe ser ≥ ' + rules.min);
+                }
+                if (rules.type === 'date' && rules.after) {
+                    const refVal = $('f-' + rules.after)?.value;
+                    if (refVal && val < refVal) errores.push(rules.label + ' no puede ser anterior a ' + (VALIDADORES[rules.after]?.label || rules.after));
+                }
+            }
+            return errores;
+        }
+
         // ================================================================
         // DESPLEGABLE DE HISTORIAL
         // ================================================================
@@ -1480,7 +1578,7 @@
         function cargarExpediente(id) {
             const safeId = toInt(id);
             if (!safeId) { alert(MSG.ERROR_ID_INVALIDO); cancelarFormulario(); return; }
-            const res = db.exec(SCHEMA_CONFIG.queries.expedientePorId.replace('?', safeId));
+            const res = db.exec(SCHEMA_CONFIG.queries.expedientePorId, [safeId]);
             if (!res || res.length === 0) {
                 alert(MSG.ERROR_NO_EXPEDIENTE);
                 cancelarFormulario();
@@ -1619,6 +1717,11 @@
             };
 
             // Validar campos obligatorios
+            const validacion = validarForma();
+            if (validacion.length) {
+                alert(validacion.join('\n'));
+                return;
+            }
             if (!validarFechas()) {
                 alert(MSG.FECHA_DEVUELTO_INVALIDA);
                 $('f-fecha_devuelto').focus();
@@ -1632,11 +1735,11 @@
                 if (editandoId) {
                     const sql = `UPDATE expedientes SET ${COLS.map(c => c + ' = ?').join(', ')}, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`;
                     db.run(sql, [...valores, editandoId]);
-                    alert(MSG.EXITO_ACTUALIZADO);
+                    toast(MSG.EXITO_ACTUALIZADO, 'success');
                 } else {
                     const sql = `INSERT INTO expedientes (${COLS.join(', ')}) VALUES (${COLS.map(() => '?').join(', ')})`;
                     db.run(sql, valores);
-                    alert(MSG.EXITO_CREADO);
+                    toast(MSG.EXITO_CREADO, 'success');
                 }
 
                 cancelarFormulario();
@@ -1657,7 +1760,7 @@
             try {
                 db.run('DELETE FROM historial_movimientos WHERE id_expediente = ?', [editandoId]);
                 db.run('DELETE FROM expedientes WHERE id_expediente = ?', [editandoId]);
-                alert(MSG.EXITO_ELIMINADO);
+                toast(MSG.EXITO_ELIMINADO, 'success');
                 cancelarFormulario();
                 cargarDatos();
                 marcarModificado();
@@ -1672,7 +1775,7 @@
         // ================================================================
         $(SELECTORS.SEARCH).addEventListener('input', function(e) {
             const txt = e.target.value.toLowerCase();
-            const filtrados = expedientesCache.filter(exp => 
+            filteredData = expedientesCache.filter(exp => 
                 (exp.solped && exp.solped.toLowerCase().includes(txt)) ||
                 (exp.descripcion_proceso && exp.descripcion_proceso.toLowerCase().includes(txt)) ||
                 (exp.gerencia && exp.gerencia.toLowerCase().includes(txt)) ||
@@ -1680,7 +1783,8 @@
                 (exp.nro_contrato_sicac && exp.nro_contrato_sicac.toString().includes(txt)) ||
                 (exp.nro_proceso && exp.nro_proceso.toLowerCase().includes(txt))
             );
-            renderizarTabla(filtrados);
+            currentPage = 1;
+            aplicarPaginacion();
         });
 
         // ================================================================
@@ -1708,41 +1812,7 @@
             const cuerpo = $('historial-cuerpo');
             cuerpo.innerHTML = '<p class="text-gray-500 text-center py-8">Cargando...</p>';
 
-            const r = db.exec(`
-                SELECT
-                    h.id_movimiento,
-                    COALESCE(tc.nombre, '-')           AS tipo_contrato,
-                    COALESCE(g.nombre, '-')             AS gerencia,
-                    COALESCE(s.nombre, '-')             AS superintendencia,
-                    COALESCE(d.nombre, '-')             AS documento,
-                    COALESCE(em.nombre, '-')            AS emisor,
-                    COALESCE(rec.nombre, '-')           AS receptor,
-                    COALESCE(ed.nombre, '-')            AS estatus,
-                    COALESCE(h.fecha_recibido, '-')     AS fecha_recibido,
-                    COALESCE(h.fecha_devuelto, '-')     AS fecha_devuelto,
-                    COALESCE(h.nro_proceso, '-')        AS nro_proceso,
-                    h.presupuesto_base_usd,
-                    h.tipo_cambio,
-                    h.monto_adjudicado_usd,
-                    COALESCE(rp.nombre, '-')            AS resultado,
-                    COALESCE(emp.nombre, '-')           AS empresa,
-                    COALESCE(h.tiempo_ejecucion, '-')   AS tiempo_ejecucion,
-                    COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
-                    COALESCE(h.observaciones, '') AS observaciones,
-                    COALESCE(h.notas, '') AS notas
-                FROM historial_movimientos h
-                LEFT JOIN cat_tipo_contrato tc   ON h.id_tipo_contrato    = tc.id
-                LEFT JOIN cat_gerencia g         ON h.id_gerencia         = g.id
-                LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
-                LEFT JOIN cat_documento d        ON h.id_documento        = d.id
-                LEFT JOIN cat_responsables em    ON h.id_emisor           = em.id
-                LEFT JOIN cat_responsables rec   ON h.id_receptor         = rec.id
-                LEFT JOIN cat_estatus_detalle ed ON h.id_estatus          = ed.id
-                LEFT JOIN cat_resultado_proceso rp ON h.id_resultado      = rp.id
-                LEFT JOIN cat_empresas emp       ON h.id_empresa          = emp.id
-                WHERE h.id_expediente = ${safeId}
-                ORDER BY h.id_movimiento DESC
-            `);
+            const r = db.exec(SCHEMA_CONFIG.queries.historialPorId, [safeId]);
             const data = dbToObjects(r);
 
             if (!data.length) {
@@ -1805,7 +1875,8 @@
 
         function renderBadgeEstatus(estatus) {
             const cls = SCHEMA_CONFIG.estatusClass(estatus);
-            return `<span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium">${estatus || 'PENDIENTE'}</span>`;
+            const txt = estatus || 'PENDIENTE';
+            return `<span class="${cls} px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap truncate inline-block max-w-full" title="${txt}">${txt}</span>`;
         }
 
         function getEstatusClass(estatus) {
@@ -1992,6 +2063,13 @@
             document.body.style.overflow = '';
         }
     </script>
+<div id="spinner-overlay" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center">
+    <div class="bg-gray-800 rounded-xl p-6 flex flex-col items-center gap-4">
+        <i class="fas fa-spinner fa-spin text-3xl text-teal-400"></i>
+        <span class="text-gray-300 text-sm" id="spinner-text">Procesando...</span>
+    </div>
+</div>
+<div id="toast-container" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 pointer-events-none"></div>
 </body>
 </html>
 
@@ -2013,6 +2091,7 @@ const CONFIG = {
     AUTOSAVE_INTERVAL_MS: 30000,
     AUTOSAVE_ENABLED: true,
     MAX_RECIENTES: 8,
+    PAGE_SIZE: 10,
     EXPORT_CHUNK_SIZE: 8192,
     VACUUM_CONFIRM_THRESHOLD_MB: 50,
 };
@@ -2104,8 +2183,21 @@ const MSG_EXTRA = {
 };
 
 const BACKUP = {
-    MAX_COPIES: 5,
+    MAX_COPIES: 2,
     SUFFIX: '.bak.',
+};
+
+const VALIDADORES = {
+    solped: { required: true, label: 'SOLPED' },
+    id_gerencia: { required: true, label: 'Gerencia' },
+    id_documento: { required: true, label: 'Documento' },
+    fecha_recibido: { required: true, type: 'date', label: 'Fecha Recibido' },
+    fecha_devuelto: { type: 'date', after: 'fecha_recibido', label: 'Fecha Devuelto' },
+    presupuesto_base_usd: { type: 'number', min: 0, label: 'Presupuesto Base USD' },
+    monto_adjudicado_bs: { type: 'number', min: 0, label: 'Monto Adjudicado BS' },
+    monto_adjudicado_usd: { type: 'number', min: 0, label: 'Monto Adjudicado USD' },
+    tipo_cambio: { type: 'number', min: 0, label: 'Tipo de Cambio' },
+    cantidad_frentes: { type: 'number', min: 0, label: 'Cantidad Frentes' },
 };
 
 // ---- SCHEMA CONFIG ------------------------------------------------
@@ -2226,6 +2318,39 @@ const SCHEMA_CONFIG = {
             ORDER BY e.estatus_detalle, e.id_expediente DESC`,
         expedientesSelect: `SELECT * FROM vw_reporte_excel_contrataciones`,
         expedientePorId: `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`,
+        historialPorId: `SELECT
+            h.id_movimiento,
+            COALESCE(tc.nombre, '-') AS tipo_contrato,
+            COALESCE(g.nombre, '-') AS gerencia,
+            COALESCE(s.nombre, '-') AS superintendencia,
+            COALESCE(d.nombre, '-') AS documento,
+            COALESCE(em.nombre, '-') AS emisor,
+            COALESCE(rec.nombre, '-') AS receptor,
+            COALESCE(ed.nombre, '-') AS estatus,
+            COALESCE(h.fecha_recibido, '-') AS fecha_recibido,
+            COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto,
+            COALESCE(h.nro_proceso, '-') AS nro_proceso,
+            h.presupuesto_base_usd,
+            h.tipo_cambio,
+            h.monto_adjudicado_usd,
+            COALESCE(rp.nombre, '-') AS resultado,
+            COALESCE(emp.nombre, '-') AS empresa,
+            COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion,
+            COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
+            COALESCE(h.observaciones, '') AS observaciones,
+            COALESCE(h.notas, '') AS notas
+            FROM historial_movimientos h
+            LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id
+            LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+            LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
+            LEFT JOIN cat_documento d ON h.id_documento = d.id
+            LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+            LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+            LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+            LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id
+            LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id
+            WHERE h.id_expediente = ?
+            ORDER BY h.id_movimiento DESC`,
     }
 };
 
@@ -2637,7 +2762,7 @@ const DEBUG = { isEnabled: false }
 DEBUG.isEnabled && console.log('[MAIN] Iniciando proceso principal...')
 
 let currentDbPath = null
-let backupMaxCopies = 5
+let backupMaxCopies = 2
 
 function setBackupMaxCopies(n) {
   if (n > 0 && n <= 20) backupMaxCopies = n
@@ -2786,6 +2911,191 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctamente');
 
+=== tauri-preload.js ===
+(function() {
+    if (!window.__TAURI__) return;
+    const invoke = window.__TAURI__.core.invoke;
+
+    window.electronAPI = {
+        saveDb: (dataBase64) => invoke('save_db', { dataBase64 }),
+        saveDbAs: (dataBase64) => invoke('save_db_as', { dataBase64 }),
+        setDbPath: (filePath) => invoke('set_db_path', { filePath }),
+        getDbPath: () => invoke('get_db_path'),
+        openDbDialog: async () => {
+            const result = await invoke('open_db_dialog');
+            return result;
+        },
+        openDbFilePath: (filePath) => invoke('open_db_file', { filePath }),
+        setBackupCopies: (n) => invoke('set_backup_copies', { n }),
+        getBackupCopies: () => invoke('get_backup_copies'),
+    };
+})();
+
+=== lib.rs ===
+use base64::engine::general_purpose::STANDARD as BASE64;
+use base64::Engine;
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+use tauri::State;
+use tauri_plugin_dialog::{DialogExt, FilePath};
+
+struct AppState {
+    current_db_path: Mutex<Option<String>>,
+    backup_max_copies: Mutex<u32>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct FileResult {
+    path: String,
+    data: String,
+}
+
+fn crear_backup_rotativo(file_path: &str, max_copies: u32) {
+    let oldest = format!("{}.bak.{}", file_path, max_copies);
+    if std::path::Path::new(&oldest).exists() {
+        let _ = std::fs::remove_file(&oldest);
+    }
+    for i in (1..max_copies).rev() {
+        let src = format!("{}.bak.{}", file_path, i);
+        let dst = format!("{}.bak.{}", file_path, i + 1);
+        if std::path::Path::new(&src).exists() {
+            let _ = std::fs::rename(&src, &dst);
+        }
+    }
+    let bak1 = format!("{}.bak.{}", file_path, 1);
+    let _ = std::fs::copy(file_path, &bak1);
+}
+
+#[tauri::command]
+fn save_db(state: State<AppState>, data_base64: String) -> Result<(), String> {
+    let path = state
+        .current_db_path
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or_else(|| "No hay archivo abierto".to_string())?;
+
+    let max_copies = *state.backup_max_copies.lock().map_err(|e| e.to_string())?;
+    crear_backup_rotativo(&path, max_copies);
+
+    let data = BASE64.decode(&data_base64).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &data).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+async fn save_db_as(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+    data_base64: String,
+) -> Result<Option<String>, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("SQLite DB", &["db", "sqlite"])
+        .save_file(move |file_path| {
+            let _ = tx.send(file_path);
+        });
+    let file = rx.await.map_err(|e| e.to_string())?;
+
+    match file {
+        Some(FilePath::Path(path_buf)) => {
+            let path_str = path_buf.to_string_lossy().to_string();
+            let data = BASE64.decode(&data_base64).map_err(|e| e.to_string())?;
+            std::fs::write(&path_str, &data).map_err(|e| e.to_string())?;
+            *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(path_str.clone());
+            Ok(Some(path_str))
+        }
+        Some(FilePath::Url(_)) => Err("URL no soportada".to_string()),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn set_db_path(state: State<AppState>, file_path: String) -> Result<(), String> {
+    *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(file_path);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_db_path(state: State<AppState>) -> Result<Option<String>, String> {
+    Ok(state
+        .current_db_path
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone())
+}
+
+#[tauri::command]
+fn open_db_file(state: State<AppState>, file_path: String) -> Result<String, String> {
+    let data = std::fs::read(&file_path).map_err(|e| e.to_string())?;
+    *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(file_path);
+    Ok(BASE64.encode(&data))
+}
+
+#[tauri::command]
+async fn open_db_dialog(
+    app: tauri::AppHandle,
+    state: State<'_, AppState>,
+) -> Result<Option<FileResult>, String> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
+        .file()
+        .add_filter("SQLite DB", &["db", "sqlite"])
+        .pick_file(move |file_path| {
+            let _ = tx.send(file_path);
+        });
+    let file = rx.await.map_err(|e| e.to_string())?;
+
+    match file {
+        Some(FilePath::Path(path_buf)) => {
+            let path_str = path_buf.to_string_lossy().to_string();
+            let data = std::fs::read(&path_str).map_err(|e| e.to_string())?;
+            *state.current_db_path.lock().map_err(|e| e.to_string())? = Some(path_str.clone());
+            Ok(Some(FileResult {
+                path: path_str,
+                data: BASE64.encode(&data),
+            }))
+        }
+        Some(FilePath::Url(_)) => Err("URL no soportada".to_string()),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+fn set_backup_copies(state: State<AppState>, n: u32) -> Result<(), String> {
+    if n > 0 && n <= 20 {
+        *state.backup_max_copies.lock().map_err(|e| e.to_string())? = n;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn get_backup_copies(state: State<AppState>) -> Result<u32, String> {
+    Ok(*state.backup_max_copies.lock().map_err(|e| e.to_string())?)
+}
+
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .manage(AppState {
+            current_db_path: Mutex::new(None),
+            backup_max_copies: Mutex::new(2),
+        })
+        .invoke_handler(tauri::generate_handler![
+            save_db,
+            save_db_as,
+            set_db_path,
+            get_db_path,
+            open_db_file,
+            open_db_dialog,
+            set_backup_copies,
+            get_backup_copies,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error al ejecutar la aplicación Tauri");
+}
+
 === package.json ===
 {
   "name": "baseaccess",
@@ -2795,16 +3105,46 @@ DEBUG.isEnabled && console.log('[PRELOAD] contextBridge configurado correctament
     "name": "baseaccess",
     "email": "baseaccess@example.com"
   },
+  "main": "main.js",
   "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "build": "electron-builder build --win dir --x64",
+    "build:linux": "electron-builder build --linux",
     "tauri": "npx tauri",
     "tauri:dev": "npx tauri dev",
-    "tauri:build": "npx tauri build",
-    "start": "npx tauri dev",
-    "dev": "npx tauri dev",
-    "build": "npx tauri build"
+    "tauri:build": "npx tauri build"
   },
   "devDependencies": {
+    "electron": "^43.0.0",
+    "electron-builder": "^26.15.3",
     "@tauri-apps/cli": "^2"
+  },
+  "build": {
+    "appId": "com.baseaccess.expedientes",
+    "productName": "GestionExpedientes",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "vendor",
+        "to": "vendor"
+      }
+    ],
+    "win": {
+      "target": [
+        "dir"
+      ],
+      "icon": null
+    },
+    "linux": {
+      "target": [
+        "dir"
+      ],
+      "icon": null,
+      "category": "Office"
+    }
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.0"
@@ -2830,13 +3170,24 @@ Este proyecto se edita y construye desde **Termux** en Android. Si inicias una s
 | Descargas | `curl` viene preinstalado |
 
 **Comandos clave para build (solo en Termux/Android):**
-```bash
-npm install --save-dev --no-bin-links @tauri-apps/cli@latest
-npx tauri build --bundles nsis
-```
-El build se genera en `src-tauri/target/release/bundle/nsis/`. Copiar el `.exe` a Windows y ejecutar.
 
-> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `npx tauri build --bundles appimage` para generar el AppImage.
+**Electron:**
+```bash
+make electron-install          # npm install con --no-bin-links
+make electron-build-win-termux # node node_modules/electron-builder/cli.js --win dir --x64
+```
+El build se genera en `dist/win-unpacked/`. Copiar carpeta a Windows y ejecutar `GestionExpedientes.exe`.
+
+**Tauri:**
+```bash
+make tauri-install          # npm install con --no-bin-links
+make tauri-build-win        # npx tauri build --bundles nsis
+```
+El build se genera en `src-tauri/target/release/bundle/nsis/`. Copiar `.exe` a Windows y ejecutar.
+
+> **Nota:** En Linux de escritorio (Arch, Ubuntu, etc.) usar `make electron-build-linux` o `make tauri-build-linux`. Para ambos: `make build-all`.
+>
+> En Termux usar los targets `*-termux` porque no hay symlinks. `make build-all` no funciona en Termux (solo un build a la vez).
 
 **Importante:** `node_modules/` y `dist/` no se suben a git (`.gitignore`). Hay que reinstalar dependencias cada sesión nueva.
 
@@ -2846,17 +3197,18 @@ Al abrir `src/index.html` con doble click (`file://` protocol), los navegadores 
 - El botón "+ Nuevo Expediente" queda deshabilitado
 - Los registros de la BDD no se muestran en la tabla
 
-**Usar siempre Tauri AppImage/NSIS** para evitar este problema.
+**Usar siempre la app empaquetada** (Electron win-unpacked / Tauri AppImage/NSIS) para evitar este problema.
 
 ## Arquitectura
 
 App web 100% cliente-side. **HTML + Tailwind CSS = UI** | **sql.js (SQLite WASM) = Data Layer**.
 Sin backend, sin servidor, sin runtime externo. Un solo archivo HTML.
 
-Dos modos de ejecución:
+Tres modos de ejecución:
 
 1. **Navegador** — abrir `src/index.html` directo (dependencias locales en `src/vendor/`)
-2. **Electron WinUnpacked** — `GestionExpedientes.exe` con Chromium embebido (sin depender de Firefox/Chrome)
+2. **Electron** — `GestionExpedientes.exe` con Chromium embebido (`make electron-build-win`)
+3. **Tauri** — `GestionExpedientes.AppImage`/`.exe` con WebView nativo (`make tauri-build-win` o `make tauri-build-linux`)
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -2868,8 +3220,9 @@ Dos modos de ejecución:
 │  │   └── JavaScript — lógica CRUD                │
 │  └── Archivo .db / .sqlite (cargado por usuario) │
 ├─────────────────────────────────────────────────┤
-│  Modo Electron (win-unpacked, sin instalación)    │
-│  ├── GestionExpedientes.exe (Chromium + app)     │
+│  Modo Empaquetado (Electron / Tauri)              │
+│  ├── GestionExpedientes (.exe / .AppImage)       │
+│  ├── main.js / lib.rs (backend nativo IPC)       │
 │  └── resources/vendor/ (CSS, WASM, etc.)         │
 └─────────────────────────────────────────────────┘
 ```
@@ -2910,7 +3263,8 @@ baseaccess/
 ├── src/                  # Código fuente
 │   ├── index.html        # App completa (HTML + CSS + JS)
 │   ├── schema-config.js  # Config específica del schema (catálogos, columnas, formato observaciones, estatus)
-│   ├── preload.js        # contextBridge para IPC
+│   ├── preload.js        # contextBridge para IPC (Electron)
+│   ├── tauri-preload.js  # Puente invoke para Tauri
 │   └── vendor/           # Dependencias locales (sin CDN)
 │       ├── tailwind.min.css # Tailwind CSS build estático (16KB, tree-shaken)
 │       ├── sql-wasm.js      # sql.js loader
@@ -2928,13 +3282,19 @@ baseaccess/
 │   ├── decisiones.md     # ADR: Architecture Decision Records
 │   ├── ai-context.md     # Anchor file para IAs (stack, líneas rojas, estado actual)
 │   └── funciones.md      # Catálogo SPOT de funciones (DRY)
-├── main.js              # Electron main process (ventana 1400x900)
-├── package.json         # Electron + electron-builder config
+├── main.js              # Electron main process
+├── src/preload.js        # contextBridge para IPC (Electron)
+├── src/tauri-preload.js  # Puente invoke para Tauri (seguro en ambos runtimes)
+├── src-tauri/            # Backend Rust Tauri
+│   ├── src/lib.rs        # Comandos IPC (save_db, open_db, etc.)
+│   ├── Cargo.toml        # Dependencias Rust
+│   └── tauri.conf.json   # Config Tauri
+├── package.json         # Dependencias (Electron + Tauri combinados)
 ├── prompt               # Prompt para Qwen Coder (planificador)
 ├── .clinerules           # Skill de Opencode (protocolo de modificación)
 ├── combined.txt         # Consolidado para auditorías (make combine)
 ├── Makefile             # combine / clean / commit / push / github / serve
-├── .gitignore           # node_modules/, dist/, *.db
+├── .gitignore           # node_modules/, dist/, *.db, src-tauri/gen/
 ├── dist/                # Builds de Electron (AppImage, .deb, win-unpacked)
 └── node_modules/        # Dependencias (gitignored)
 ```
@@ -2978,7 +3338,7 @@ npx tailwindcss -i input.css -o src/vendor/tailwind.min.css --minify
 
 ## Electron WinUnpacked
 
-Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido.
+Para no depender de ningún navegador, se construye `dist/win-unpacked/` con Chromium embebido (`make electron-build-win`).
 
 ### Source files
 - `main.js` — Electron main process (ventana 1400x900, sin menú)
@@ -3009,14 +3369,14 @@ Carpeta `dist/win-unpacked/` (~360MB): copiar a Windows, ejecutar `GestionExpedi
 ## Makefile
 
 ```bash
-make combine          # Concatena src/index.html + src/schema-config.js + data/sql/Tablas8.sql + main.js + src/preload.js + package.json + docs/doc.md + docs/decisiones.md + docs/ai-context.md + docs/funciones.md + .clinerules → combined.txt
+make combine          # Concatena src/index.html + src/schema-config.js + data/sql/Tablas8.sql + main.js + src/preload.js + src/tauri-preload.js + src-tauri/src/lib.rs + package.json + docs/*.md + .clinerules → combined.txt
 make clean            # rm -f combined.txt
 make commit msg="x"   # git add -A + git commit
 make push             # git push
 make github msg="x"   # commit + push (shortcut)
 make serve            # python3 -m http.server 8000 (kills old server, sirve src/index.html por HTTP para evitar file://)
-make electron-build-win    # Build win-unpacked para Windows
-make electron-build-linux  # Build AppImage para Linux
+make electron-build-win    # Build win-unpacked para Windows (master)
+make electron-build-linux  # Build AppImage para Linux (master)
 ```
 
 El schema usado en `make combine` se configura con `SCHEMA=data/sql/Tablas8.sql make combine` (por defecto usa `data/sql/Tablas8.sql`). También concatena `src/schema-config.js`.
@@ -3218,7 +3578,9 @@ Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre.
 | 72 | `src/index.html`, `src/schema-config.js`, `src/vendor/styles.css`, `plan_modificaciones.md` | **Auditoría completa**: 7 hallazgos (AUD-001 a AUD-007) + 5 propuestas (PROP-001 a PROP-005) implementados | Ver plan_modificaciones.md para detalle |
 | 73 | `src/schema-config.js` | Nuevas constantes: `MAX_RECIENTES`, `EXPORT_CHUNK_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB`, `ERROR_BD_CORRUPTA`, `ORDEN_PREFERIDO`, `CSV_DESCARGADO`, `BTN_EXPORTAR_CSV` | SPOT: centralizar todos los valores en schema-config.js |
 | 74 | `src/index.html` | Fix: flexbox → CSS Grid (`grid-cols-[auto_1fr]`) para layout sidebar+contenido; tabla `w-full` → `min-w-full` para que expandir fila pueda ensanchar la tabla más allá del 100%; `w-full` restaurado en contenedores intermedios; `grow`/`pr-4` → `min-w-0` en contenido. Se eliminó `pr-4` porque con Grid ya no hay gap fantasma izquierdo | Fix: tabla y buscador angostos; expandir fila no adaptaba ancho; gaps asimétricos |
-| 75 | `src/index.html` | "Ordenar por" movido del header a la barra de búsqueda: `<select>` → `<i class="fa-search">` → `<input>`. X button de todos los modales unificado a `btn-icon` + `fas fa-times` (reemplazado `&times;` con `text-2xl leading-none`). Sticky removido de cabeceras de modales Ruta, Pendientes, Recientes (solo la barra de búsqueda principal conserva sticky). Recientes: divider `border-t` reemplazado por `flex flex-col gap-1` + items con `rounded-lg` | UX: ordenar junto a búsqueda; X centrado en eje Y como en Ruta/Pendientes; modales sin sticky header; recientes con gap entre items sin línea divisoria |
+| 75 | `src/index.html` | "Ordenar por" movido del header a la barra de búsqueda
+| 76 | `package.json`, `.gitignore`, `src/tauri-preload.js`, `Makefile`, `docs/*`, `prompt`, `.github/workflows/` | Rama `tauri` fusionada en `master`. Rama única con Electron + Tauri v2 | Unificar empaquetado |
+| 77 | `src/index.html`, `src/schema-config.js`, `src-tauri/src/lib.rs`, `src/vendor/styles.css`, `src-tauri/Cargo.toml` | Fix deadlock Tauri Linux (dialog async), overflow estatus badge, SQL bound params, `execSafe` eliminado, `renderCatalogSelect` (DRY), `VALIDADORES`+`validarForma()`, `.modal-body` unificado, `toast()`, `CACHE.catalogos`, spinner overlay, titles en botones | Auditoría de código: implementación completa de hallazgos BUG/AUD/UI/PROP |
 
 ---
 
@@ -3274,100 +3636,57 @@ El flujo de apertura usa **`<input type="file">` nativo del navegador** (no IPC)
 
 **Por qué no IPC para abrir:** El `<input type="file">` es un estándar web que funciona siempre, sin depender de preload/contextBridge. En la primera versión se intentó con IPC (`pickDbFile` → `dialog.showOpenDialog`) pero fallaba en ciertos entornos (Windows sin focus, problemas con `getWindow()`).
 
-### Rama `tauri` — Migración Electron → Tauri v2
+### Empaquetado Dual — Electron + Tauri v2
 
-La app migró de Electron a Tauri v2. Sigue siendo la misma SPA HTML/JS (sql.js WASM + Tailwind CSS + SQLite) pero Tauri hace de wrapper nativo (webview) en vez de Electron.
+La app se empaqueta con **Electron** o **Tauri v2** según el target. Ambos en la misma rama (`master`). El runtime se auto-detecta: si `window.__TAURI__` existe usa el puente Tauri, si no, usa el contextBridge de Electron.
 
-#### Ramas
+#### Makefile Targets
 
-| Rama | Versión |
-|------|---------|
-| `master` | Electron (intacto, `.db` limpiados del historial) |
-| `tauri` | Tauri v2 con backend Rust |
+| Target | Qué hace |
+|--------|----------|
+| `make electron-build-win` | Build Electron `win-unpacked` |
+| `make electron-build-linux` | Build Electron AppImage |
+| `make tauri-build-win` | Build Tauri NSIS (instalador Windows) |
+| `make tauri-build-linux` | Build Tauri AppImage (Linux) |
+| `make build-all` | Electron win + Tauri win (ambos) |
 
 #### Requisitos de Build
 
 **Linux**
-- **Target:** `appimage` (único archivo `.AppImage` portable)
-- **Dependencias sistema (Arch):** `webkit2gtk-4.1`, `gtk3`, `base-devel` (mínimo). En Debian/Ubuntu: `libgtk-3-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libjavascriptcoregtk-4.1-dev libsoup-3.0-dev`
-- **Comando:** `npm run tauri:build` (equivale a `npx tauri build`)
+- **Electron:** `make electron-build-linux` (AppImage)
+- **Tauri:** `make tauri-build-linux` (AppImage)
+  - Dependencias sistema: `webkit2gtk-4.1`, `gtk3`, `base-devel` (Arch) / `libgtk-3-dev libwebkit2gtk-4.1-dev ...` (Debian)
 
 **Windows**
-- **Target:** `nsis` con `installMode: "currentUser"` (NO requiere admin)
-- **WebView2:** Fixed Version Runtime 150.0.4078.65 (portable, sin descargas durante instalación)
-- **Comando:** `npm run tauri:build -- --bundles nsis`
+- **Electron:** `make electron-build-win` (`dist/win-unpacked/`)
+- **Tauri:** `make tauri-build-win` (`src-tauri/target/release/bundle/nsis/`)
+  - WebView2 Fixed Runtime 150.0.4078.65 incluido portable
 
-#### Estructura Tauri
+#### Backend Dual
 
-```
-src-tauri/
-├── Cargo.toml              # Dependencias Rust (tauri, tauri-plugin-dialog, base64, serde)
-├── build.rs                # tauri_build::build()
-├── tauri.conf.json          # Config: frontendDist=../src, ventana 1400x900, withGlobalTauri
-├── capabilities/default.json # Permisos core:default + dialog:default
-├── icons/                   # PNG 32/128/256 RGBA + icon.ico (generados con script Python)
-└── src/
-    ├── main.rs              # Entry point
-    └── lib.rs               # Backend Rust con comandos IPC
-src/tauri-preload.js          # Puente JS: window.electronAPI vía window.__TAURI__.core.invoke()
-.github/workflows/tauri-build.yml  # CI con caché (Rust + npm)
-```
-
-#### Backend Rust (src-tauri/src/lib.rs)
-
-Reemplaza el `main.js` de Electron. Comandos IPC implementados:
-
-| Comando Tauri | Equivalente Electron | Descripción |
-|--------------|----------------------|-------------|
-| `save_db` | `save-db` | Guardar BD en ruta actual con backup rotativo |
-| `save_db_as` | `save-db-as` | Diálogo "Guardar como" + escribe archivo |
-| `set_db_path` | `set-db-path` | Almacena ruta actual |
-| `get_db_path` | `get-db-path` | Recupera ruta actual |
-| `open_db_file` | `open-db-file` | Lee archivo y devuelve base64 |
-| `open_db_dialog` | `open-db-dialog` | Diálogo "Abrir" + lee archivo + devuelve {path, data} |
-| `set_backup_copies` | `set-backup-copies` | Configura número de backups (1-20) |
-| `get_backup_copies` | `get-backup-copies` | Obtiene número de backups |
-
-**Backup rotativo** (`crear_backup_rotativo`): idéntico al de Electron (`main.js`). Renombra `.bak.1`→`.bak.N` y copia el archivo actual como `.bak.1`.
-
-#### Frontend (src/)
-
-Sin cambios en la lógica de la app. `tauri-preload.js` expone `window.electronAPI` usando `window.__TAURI__.core.invoke()` con la misma interfaz que el preload de Electron, por lo que `index.html` no distingue entre ambos backends.
+| Electron (`main.js`) | Tauri (`src-tauri/src/lib.rs`) |
+|----------------------|--------------------------------|
+| IPC handler: `save-db`, `open-db-file`, etc. | Comando Rust: `save_db`, `open_db_file`, etc. |
+| Backup rotativo en JS | Backup rotativo en Rust (idéntica lógica) |
+| `src/preload.js` (contextBridge) | `src/tauri-preload.js` (invoke, seguro en ambos) |
 
 #### CI/CD (GitHub Actions)
 
-Workflow: `.github/workflows/tauri-build.yml` (se activa con push a `tauri`).
+Workflow: `.github/workflows/build.yml` (se activa con push a `master`). Builds **Electron + Tauri** en Linux y Windows simultáneamente.
 
-**Caché:** Cargo registry/git + `src-tauri/target/` (key: hash de `Cargo.lock`), npm (`~/.npm` + `node_modules`), Tauri tooling, NSIS/WebView2 (Windows), icons placeholder.
+**Tauri:** Caché Rust/Cargo + npm + Tauri tooling + WebView2 Fixed Runtime (Windows).  
+**Electron:** npm ci + electron-builder directo.
 
-**Windows:** descarga el WebView2 Fixed Runtime `.cab` desde Microsoft → extrae con `expand` → empaqueta en el NSIS installer con `webviewInstallMode: { type: "fixedRuntime", path: "./Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" }`. NSIS con `installMode: "currentUser"` (sin admin).
+#### Historial de Fixes (Tauri — migración histórica)
 
-**Linux:** instala dependencias GTK/WebKit via apt → genera icons placeholder (PNG RGBA) → build → `.AppImage`.
-
-Los scripts de `package.json` usan `npx tauri` (no `cargo tauri`) porque el CLI se instala via npm (`@tauri-apps/cli`) y no como cargo subcommand.
-
-#### Historial de Fixes (Tauri)
-
-1. `.gitignore`: cambiado `src-tauri/` (ignoraba todo) → `src-tauri/gen/` (solo ignorar generados)
-2. Rama renombrada `tauri-migration` → `tauri`
+1. `.gitignore`: `src-tauri/` → `src-tauri/gen/`
+2. Rama renombrada `tauri-migration` → `tauri` (luego unificada en master)
 3. `.db` eliminados del historial git con `git filter-branch`
-4. Actions fallidos eliminados con `gh run delete`
-5. Icons: PNG RGB no funcionaban, cambiados a RGBA (color type 6)
-6. `FilePath` enum de `tauri-plugin-dialog` v2: usa `FilePath::Path(path_buf)` en vez de `as_path()`
-7. `withGlobalTauri`: movido de `app.security` a `app` level
-8. `webviewFixedRuntimePath`: campo eliminado del schema (no existe en esta versión de Tauri v2). Reemplazado por `webviewInstallMode: { type: "fixedRuntime", path }`
-9. URL de descarga WebView2: `msedge.sf.dl.delivery.mp.microsoft.com/...` (la de Azure blob storage no resolvía en CI de GitHub)
-10. Icons Windows: `shell: bash` en vez de `pwsh` (Python multilínea + `python` no `python3`)
-11. `webviewInstallMode`: `"offline"` no existe en Tauri v2, el tipo correcto es `"fixedRuntime"`
-12. Scripts `package.json`: `cargo tauri` → `npx tauri` (el CLI se instala via npm, no como cargo subcommand)
-
-#### Archivos Electron (intactos en rama master)
-
-- `main.js` — proceso principal
-- `src/preload.js` — contextBridge
-- `package.json` con `electron` + `electron-builder` en devDependencies (solo en master)
-
-En rama `tauri`, `package.json` tiene solo `@tauri-apps/cli` en devDependencies.
+4. Icons: PNG RGB → RGBA (color type 6)
+5. `FilePath` enum de `tauri-plugin-dialog` v2: `FilePath::Path(path_buf)`
+6. `withGlobalTauri`: movido de `app.security` a `app` level
+7. `webviewInstallMode: { type: "fixedRuntime", path }` en vez de `{ type: "offline" }`
+8. Scripts: `cargo tauri` → `npx tauri`
 
 
 ### Análisis: Bug "Agregué un expediente y no se guardó"
@@ -3661,6 +3980,22 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 
 ---
 
+## DEC-024: Backup Reducido a 2 Copias + Paginación + Fix Ancho Tabla
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario solicitó tres cambios: (1) reducir backup rotativo de 5 a 2 copias para optimizar espacio en disco, (2) paginación en la tabla principal con 10 expedientes por página y navegación completa con números de página, (3) fix del bug donde la tabla ocupaba el ancho de la ventana pero el contenido de las celdas no se distribuía proporcionalmente.
+- **Alternativas evaluadas:**
+  - Paginación servidor-side (SQL LIMIT/OFFSET) — descartado: la app es 100% cliente-side con sql.js, y el filtrado por búsqueda requiere tener todos los datos en memoria.
+  - `table-layout: auto` con widths mínimos — descartado por no distribuir el espacio sobrante uniformemente.
+- **Impacto:**
+  - `main.js`/`lib.rs`: `backupMaxCopies` reducido de 5 a 2
+  - `src/schema-config.js`: `BACKUP.MAX_COPIES: 5` → `BACKUP.MAX_COPIES: 2`, agregado `CONFIG.PAGE_SIZE: 10`
+  - `src/index.html`: nuevo estado global `filteredData`, `currentPage`, `totalPages`; nuevas funciones `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`; modificados `cargarDatos()`, handler de búsqueda, `cambiarOrden()`; tabla con `table-layout: fixed` y anchos porcentuales en `<th>`; celdas con `truncate` y `title` para overflow.
+  - `plan_modificaciones.md`: eliminado por solicitud del usuario.
+  - `docs/funciones.md`: registradas `aplicarPaginacion()`, `irPagina()`, `renderPaginacion()`.
+
+---
+
 ## DEC-023: Auditoría de Código Julio 2026 — Implementación Completa (AUD-001 a AUD-007 + PROP-001 a PROP-005)
 
 - **Origen:** `[Instrucción Explícita del Usuario]`
@@ -3677,16 +4012,48 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `docs/doc.md`: changelog items 72-73.
   - `docs/ai-context.md`: estado actual actualizado.
 
+---
 
+## DEC-025: Rama Única — Electron + Tauri v2 Unificados
 
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El proyecto mantenía dos ramas (`master` con Electron, `tauri` con Tauri v2) con el mismo SPA pero distinto empaquetado. Esto duplicaba la documentación, el CI, y requería mantener sincronizados los cambios entre ramas. Se unificó todo en `master`.
+- **Alternativas evaluadas:**
+  - Mantener dos ramas — descartado: duplicación de esfuerzo, docs divergentes, CI duplicado.
+  - Submodulo o monorepo — sobreingeniería para un solo SPA.
+- **Impacto:**
+  - Rama `tauri` fusionada en `master` y eliminada.
+  - `package.json`: devDeps combinadas (`electron` + `electron-builder` + `@tauri-apps/cli`).
+  - `.gitignore`: `src-tauri/target/` + `src-tauri/gen/` en lugar de `src-tauri/` entero.
+  - `src/tauri-preload.js`: añadido `if (!window.__TAURI__) return;` para no romper en Electron.
+  - `src/index.html`: incluye `tauri-preload.js` (seguro en ambos runtimes).
+  - `.github/workflows/build.yml`: jobs `tauri` (Linux/Windows) + `electron` (Linux/Windows).
+  - `Makefile`: targets `electron-build-*`, `tauri-build-*`, `build-all`.
+  - Docs (`doc.md`, `ai-context.md`, `prompt`): actualizados a rama única.
 
+---
+
+## DEC-026: Auditoría de Código Julio 2026 — Implementación de Hallazgos (BUG, AUD, UI, PROP)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Se realizó una auditoría completa del código consolidado (`combined.txt`). Se identificaron 2 bugs críticos, 3 hallazgos de calidad de código, 3 mejoras de UI y 3 propuestas de mejora. El usuario autorizó implementar todo excepto PROP-003 (atajos teclado) y PROP-005 (exportación PDF).
+- **Alternativas evaluadas:**
+  - N/A — implementación directa de lo auditado.
+- **Impacto:**
+  - `src-tauri/src/lib.rs`: `blocking_pick_file()`/`blocking_save_file()` → `pick_file()`/`save_file()` async con oneshot channel. Fix deadlock Tauri Linux. Backup default 5→2.
+  - `src/index.html`: columna Estatus con `truncate`+`title`; SQL con bound params en vez de `.replace('?',...)`; whitelist `ORDENES_VALIDOS`; `guardarNuevoCatalogo` con `db.run(vals)`; `execSafe` eliminado (dead code); query historial movido a `SCHEMA_CONFIG.queries.historialPorId`; `renderCatalogSelect()` extraído (DRY); `validarForma()` + integración en `guardarExpediente`; `toast()` con estilos; `mostrarSpinner()`/`ocultarSpinner()`; `CACHE.catalogos` para catalogos; fallback visual tabla vacía con ícono; `title="Cerrar"` en botones X de modales; `.modal-body` unificado.
+  - `src/schema-config.js`: nuevo `VALIDADORES` con reglas de validación por campo; nuevo query `historialPorId`.
+  - `src/vendor/styles.css`: clases `.modal-body`, `.toast`.
+  - `src-tauri/Cargo.toml`: agregado `tokio = { version = "1", features = ["sync"] }`.
+  - `docs/funciones.md`: actualizado con nuevas funciones.
+  - `docs/doc.md`: changelog items 76+.
 
 === ai-context.md ===
 # AI Context — Gestión de Expedientes
 
 ## Stack (no negociable)
 - SPA 100% cliente-side: HTML + Tailwind CSS + sql.js (SQLite WASM)
-- Empaquetado: Tauri v2 (Rust) — AppImage (Linux) / NSIS (Windows)
+- Empaquetado: Electron / Tauri v2 — ambos en rama master, misma SPA
 - Sin backend, sin CDN, sin frameworks JS
 
 ## Líneas Rojas
@@ -3698,24 +4065,23 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha movido a la barra de búsqueda (select → lupa → input), ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía Tauri IPC (Rust) + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual) para uso programático. Botón toggle Orden Excel/Secciones sin borde visual. Layout sidebar+contenido con CSS Grid (`grid-cols-[auto_1fr]`), tabla `min-w-full` con `table-layout: auto` (se expande al desplegar fila). X button de modales unificado a `btn-icon`+`fas fa-times`. Sticky solo en barra de búsqueda principal (modales sin sticky). Recientes con `flex flex-col gap-1` sin divisores. Todos los modales se cierran al clickear fuera. Exportación CSV. Integridad de BD al cargar. Orden persistido en localStorage.
+App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha movido a la barra de búsqueda (select → lupa → input), ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía IPC nativo + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual) para uso programático. Botón toggle Orden Excel/Secciones sin borde visual. Layout sidebar+contenido con CSS Grid (`grid-cols-[auto_1fr]`), tabla `min-w-full` con `table-layout: auto` (se expande al desplegar fila). X button de modales unificado a `btn-icon`+`fas fa-times`. Sticky solo en barra de búsqueda principal (modales sin sticky). Recientes con `flex flex-col gap-1` sin divisores. Todos los modales se cierran al clickear fuera. Exportación CSV. Integridad de BD al cargar. Orden persistido en localStorage.
 
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|
 | `src/index.html` | App completa (HTML + CSS + JS) |
 | `src/schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
-| `src/index.html` | App completa (HTML + CSS + JS) |
-| `src/schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
-| `src/tauri-preload.js` | Puente JS: window.electronAPI vía Tauri invoke |
-| `src-tauri/src/lib.rs` | Backend Rust (comandos IPC: save_db, open_db_dialog, etc.) |
 | `data/sql/Tablas8.sql` | Schema SQLite v8 |
 | `docs/doc.md` | Documentación + pendientes + changelog |
 | `docs/decisiones.md` | ADR: historial de decisiones técnicas |
 | `docs/funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |
 | `.clinerules` | Skill de Opencode (protocolo de modificación) |
-| `Makefile` | combine / clean / commit / push / serve / tauri-build |
+| `Makefile` | combine / clean / commit / push / serve |
 | `combined.txt` | Consolidado (make combine) para sesiones |
+| `main.js` + `src/preload.js` | Electron main process + contextBridge |
+| `src-tauri/` + `src/tauri-preload.js` | Backend Rust Tauri + puente invoke |
+| `.github/workflows/build.yml` | CI: build Electron + Tauri (Linux y Windows) |
 
 ## Regla de Oro
 Antes de tocar código: leer `doc.md` (pendientes) + `decisiones.md` (ADR) + `funciones.md` (catálogo) + `ai-context.md` (esto) + `.clinerules` (skill).
@@ -3731,7 +4097,6 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `execSafe(sql, params?)` | `sql`: string SQL, `params[]`: valores opcionales para `?` | Ejecuta consulta SQL con escape manual. Retorna resultado de `db.exec()` o `null` si error |
 | `toInt(v)` | `v`: valor a parsear | `parseInt(v,10)` con null-safe. Retorna `null` si no es número válido |
 | `dbToObjects(res)` | `res`: resultado crudo de `db.exec()` | Convierte array de columnas+values a `[{col:val}]`. Retorna `[]` si vacío |
 | `sanitizeNull(val)` | `val`: valor de la UI | Retorna `null` si es `null/undefined/''`, si no `val` tal cual |
@@ -3751,6 +4116,9 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 |---------|-----------|-------------|
 | `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza la tabla de 8 columnas + fila desplegable por expediente. Incluye botón de estrella (frecuentes) |
 | `cambiarOrden()` | — | Lee el selector de orden (Reciente/Fecha creación/Fecha modificación) y recarga datos ordenados |
+| `aplicarPaginacion()` | — | Calcula `totalPages` desde `filteredData`, obtiene slice para `currentPage`, llama `renderizarTabla()` y `renderPaginacion()` |
+| `irPagina(n)` | `n`: número de página | Valida rango, actualiza `currentPage`, llama `aplicarPaginacion()` |
+| `renderPaginacion()` | — | Renderiza controles de paginación con números de página, botones Anterior/Siguiente/Extremos e indicador "X / Y" |
 | `toggleDesplegable(id)` | `id`: `expediente.id_expediente` | Expande/colapsa fila desplegable con detalle completo, historial y notas |
 | `toggleDetalle(prefix, id)` | `prefix`: string prefijo DOM, `id`: ID del expediente | Alterna visibilidad de detalle (reutilizable para distintos paneles) |
 | `formatNum(v)` | `v`: número | Formatea con `toLocaleString('es-VE')` + 2 decimales |
@@ -3860,13 +4228,19 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES`, `ORDEN_PREFERIDO` |
 | `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD`, `BTN_EXPORTAR_CSV` |
 | `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA`, `CSV_DESCARGADO` |
-| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 5`, `SUFFIX: '.bak.'` |
+| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 2`, `SUFFIX: '.bak.'` |
+| `VALIDADORES` | Reglas de validación por campo: `solped`, `id_gerencia`, `id_documento`, `fecha_recibido`, `fecha_devuelto`, `presupuesto_base_usd`, `monto_adjudicado_bs`, `monto_adjudicado_usd`, `tipo_cambio`, `cantidad_frentes` |
 
 ## Helper (index.html)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
+| `toast(mensaje, tipo)` | `mensaje`: string, `tipo`: 'info'\|'success'\|'error'\|'warning' | Muestra notificación flotante con auto-dismiss (3s) |
+| `mostrarSpinner(texto)` | `texto`: string opcional | Muestra overlay con spinner y texto |
+| `ocultarSpinner()` | — | Oculta overlay de spinner |
+| `validarForma()` | — | Recorre `VALIDADORES` y retorna array de errores de validación |
+| `renderCatalogSelect(selectId, catKey, selectValue)` | `selectId`: string ID, `catKey`: string key en cache, `selectValue`: opcional | Puebla un select con opciones del catálogo cacheado |
 | `cerrarModalSiOverlay(e, closeFn)` | `e`: event, `closeFn`: function | Cierra modal si se hizo clic fuera del contenido (e.target === e.currentTarget). Se usa como onclick del overlay del modal |
 
 ## SCHEMA_CONFIG (schema-config.js)
