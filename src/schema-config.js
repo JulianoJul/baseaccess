@@ -100,10 +100,14 @@ const MSG_EXTRA = {
     VACUUM_COMPLETADO: (antes, despues) =>
         `Base de datos optimizada: ${antes} → ${despues} MB (${((1 - despues/antes) * 100).toFixed(1)}% reducción)`,
     VACUUM_ERROR: err => 'Error al optimizar BD: ' + (err?.message || err),
+    VACUUM_CONFIRMAR: (antes) => `La BD pesa ${antes} MB. VACUUM puede tardar varios segundos. ¿Continuar?`,
     ERROR_CRITICO: 'Ocurrió un error inesperado. Puedes descargar la BD actual para rescatar tus datos antes de recargar.',
     PROMESA_RECHAZADA: 'Una operación asíncrona falló inesperadamente.',
     BD_DESCARGADA: 'BD descargada. Recarga la aplicación y continúa.',
     CSV_DESCARGADO: 'Reporte exportado como CSV.',
+    ELIMINAR_CONFIRMAR_1: (id) => `¿Estás seguro de eliminar el expediente #${id}?\nEsta acción también eliminará su historial de movimientos.`,
+    ELIMINAR_CONFIRMAR_2: (id) => `CONFIRMACIÓN FINAL:\nSe eliminarán todos los datos del expediente #${id} y su historial.\n¿Deseas continuar?`,
+    TOAST_DURATION_MS: 3000,
 };
 
 const BACKUP = {
@@ -242,6 +246,11 @@ const SCHEMA_CONFIG = {
             ORDER BY e.estatus_detalle, e.id_expediente DESC`,
         expedientesSelect: `SELECT * FROM vw_reporte_excel_contrataciones`,
         expedientePorId: `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`,
+        expedientesPorIdsGantt: `SELECT id_expediente, solped, estatus_detalle, receptor, fecha_recibido, fecha_devuelto FROM vw_reporte_excel_contrataciones WHERE id_expediente IN `,
+        vacuum: `VACUUM;`,
+        deleteHistorialPorId: `DELETE FROM historial_movimientos WHERE id_expediente = ?`,
+        deleteExpedientePorId: `DELETE FROM expedientes WHERE id_expediente = ?`,
+        integrityCheck: `PRAGMA integrity_check`,
         historialPorId: `SELECT
             h.id_movimiento,
             COALESCE(tc.nombre, '-') AS tipo_contrato,

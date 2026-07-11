@@ -477,7 +477,7 @@
             setTimeout(() => {
                 el.classList.remove('show');
                 setTimeout(() => el.remove(), 300);
-            }, 3000);
+            }, MSG_EXTRA.TOAST_DURATION_MS);
         }
 
         function cerrarModalSiOverlay(e, closeFn) {
@@ -760,7 +760,7 @@
             }
             CACHE.catalogos = {};
             db = new SQL.Database(bytes);
-            const integrity = db.exec("PRAGMA integrity_check");
+            const integrity = db.exec(SCHEMA_CONFIG.queries.integrityCheck);
             if (integrity[0]?.values[0]?.[0] !== 'ok') {
                 alert(MSG.ERROR_BD_CORRUPTA);
                 db = null;
@@ -1026,10 +1026,10 @@
             try {
                 const antes = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
                 if (antes > CONFIG.VACUUM_CONFIRM_THRESHOLD_MB) {
-                    if (!confirm(`La BD pesa ${antes} MB. VACUUM puede tardar varios segundos. ¿Continuar?`)) return;
+                    if (!confirm(MSG_EXTRA.VACUUM_CONFIRMAR(antes))) return;
                 }
                 DEBUG.log(MSG_EXTRA.VACUUM_INICIADO + ' (' + antes + ' MB)');
-                db.run('VACUUM;');
+                db.run(SCHEMA_CONFIG.queries.vacuum);
                 const despues = (db.export().length / CONFIG.BYTES_PER_MB).toFixed(2);
                 DEBUG.log(MSG_EXTRA.VACUUM_COMPLETADO(antes, despues));
             } catch (err) {
@@ -1151,6 +1151,19 @@
             if (!db) return [];
             const r = db.exec(SCHEMA_CONFIG.queries.documentosPendientes);
             return dbToObjects(r);
+        }
+
+        function obtenerExpedientesRuta(ids) {
+            if (!db || !ids || !ids.length) return [];
+            const placeholders = ids.map(() => '?').join(',');
+            const sql = `${SCHEMA_CONFIG.queries.expedientesPorIdsGantt}(${placeholders})`;
+            try {
+                const r = db.exec(sql, ids);
+                return dbToObjects(r);
+            } catch (err) {
+                DEBUG.error('[DB] Error en obtenerExpedientesRuta:', err);
+                return [];
+            }
         }
 
         // ================================================================
@@ -1762,12 +1775,12 @@
 
         function eliminarExpediente() {
             if (!editandoId) return;
-            if (!confirm(`¿Estás seguro de eliminar el expediente #${editandoId}?\nEsta acción también eliminará su historial de movimientos.`)) return;
-            if (!confirm(`CONFIRMACIÓN FINAL:\nSe eliminarán todos los datos del expediente #${editandoId} y su historial.\n¿Deseas continuar?`)) return;
+            if (!confirm(MSG_EXTRA.ELIMINAR_CONFIRMAR_1(editandoId))) return;
+            if (!confirm(MSG_EXTRA.ELIMINAR_CONFIRMAR_2(editandoId))) return;
 
             try {
-                db.run('DELETE FROM historial_movimientos WHERE id_expediente = ?', [editandoId]);
-                db.run('DELETE FROM expedientes WHERE id_expediente = ?', [editandoId]);
+                db.run(SCHEMA_CONFIG.queries.deleteHistorialPorId, [editandoId]);
+                db.run(SCHEMA_CONFIG.queries.deleteExpedientePorId, [editandoId]);
                 toast(MSG.EXITO_ELIMINADO, 'success');
                 cancelarFormulario();
                 cargarDatos();
@@ -1999,21 +2012,15 @@
                 return;
             }
 
+            const { legend, columns, processes } = window.RUTA_PROCESOS_DATA;
+            
             // Query dynamic DB info to enrich our timeline
-            let dbExpedientes = [];
-            try {
-                const r = db.exec("SELECT id_expediente, solped, estatus_detalle, receptor, fecha_recibido, fecha_devuelto FROM vw_reporte_excel_contrataciones WHERE id_expediente IN (32, 33, 34, 35, 36)");
-                dbExpedientes = dbToObjects(r);
-            } catch (err) {
-                console.error("Error querying db for processes", err);
-            }
+            const dbExpedientes = obtenerExpedientesRuta(processes.map(p => p.db_id));
 
             const dbExpMap = {};
             dbExpedientes.forEach(row => {
                 dbExpMap[row.id_expediente] = row;
             });
-
-            const { legend, columns, processes } = window.RUTA_PROCESOS_DATA;
 
             // 1. Process Cards List
             let procesosHtml = `
@@ -2021,29 +2028,30 @@
                     <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fas fa-list-ol"></i> Procesos con Aprobación de Junta Directiva
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                    <div class="procesos-grid">
             `;
             processes.forEach(p => {
                 const dbInfo = dbExpMap[p.db_id] || {};
                 const solpedText = dbInfo.solped || 'SIN SOLPED';
                 const estatusText = dbInfo.estatus_detalle || 'N/A';
                 const receptorText = dbInfo.receptor || 'N/A';
+                const isFirmado = estatusText === 'FIRMADO';
 
                 procesosHtml += `
-                    <div class="bg-gray-800/40 border border-gray-700/50 rounded-lg p-3 hover:border-teal-500/30 hover:bg-gray-850/20 transition-all flex flex-col justify-between">
+                    <div class="proceso-card">
                         <div class="flex items-start gap-2.5">
-                            <span class="bg-teal-500/20 text-teal-400 font-bold text-xs rounded-full w-5 h-5 flex items-center justify-center shrink-0 mt-0.5">${p.id}</span>
+                            <span class="proceso-card-num">${p.id}</span>
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs text-gray-200 font-semibold leading-relaxed break-words">${p.descripcion}</p>
-                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-[10px] text-gray-400">
+                                <p class="proceso-card-desc">${p.descripcion}</p>
+                                <div class="proceso-card-meta">
                                     <span>SOLPED: <strong class="text-teal-400">${solpedText}</strong></span>
-                                    <span>Estatus: <span class="px-1.5 py-0.5 rounded bg-gray-700 font-medium ${estatusText === 'FIRMADO' ? 'text-emerald-400' : 'text-amber-400'}">${estatusText}</span></span>
+                                    <span>Estatus: <span class="proceso-card-badge ${isFirmado ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente'}">${estatusText}</span></span>
                                     ${receptorText !== 'N/A' && receptorText !== '' ? `<span>Receptor: <strong class="text-gray-300">${receptorText}</strong></span>` : ''}
                                 </div>
                             </div>
                         </div>
-                        <div class="mt-2 pt-2 border-t border-gray-700/30 flex justify-end">
-                            <button onclick="event.stopPropagation(); cerrarRutaProcesos(); mostrarFormulario(${p.db_id})" class="text-[10px] text-teal-400 hover:text-teal-300 hover:underline flex items-center gap-1 font-bold">
+                        <div class="proceso-card-actions">
+                            <button onclick="event.stopPropagation(); cerrarRutaProcesos(); mostrarFormulario(${p.db_id})" class="proceso-card-edit-btn">
                                 <i class="fas fa-edit"></i> Ver/Editar Expediente #${p.db_id}
                             </button>
                         </div>
@@ -2061,36 +2069,36 @@
                     <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fas fa-calendar-alt"></i> Cronograma Diario (Línea de Tiempo)
                     </h3>
-                    <div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2 scrollbar-thin">
-                        <table class="min-w-full border-collapse border border-gray-700 text-left text-xs text-gray-300">
+                    <div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2">
+                        <table class="gantt-table text-left text-xs text-gray-300">
                             <thead>
-                                <tr class="bg-gray-800 text-gray-300 text-[10px] uppercase font-bold">
-                                    <th rowspan="4" class="p-2 border border-gray-700 text-center font-bold bg-gray-800/80 sticky left-0 z-20 shadow-[2px_0_5px_rgba(0,0,0,0.3)] w-8 min-w-[32px] max-w-[32px] overflow-hidden">Nº</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 01/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 05/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 15/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 22/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 30/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-bold text-[9px] text-teal-400 bg-gray-800/50">DEL 6/07/26</th>
+                                <tr class="bg-gray-800 text-gray-300 uppercase font-bold">
+                                    <th rowspan="4" class="gantt-col-num p-2">Nº</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 01/06/26</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 05/06/26</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 15/06/26</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 22/06/26</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 30/06/26</th>
+                                    <th colspan="5" class="gantt-week-header">DEL 6/07/26</th>
                                 </tr>
-                                <tr class="bg-gray-800 text-gray-300 text-[9px] uppercase font-bold">
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 05/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 12/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 19/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 26/06/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 03/07/26</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center font-semibold bg-gray-800/40">AL 10/07/26</th>
+                                <tr class="bg-gray-800 uppercase font-bold">
+                                    <th colspan="5" class="gantt-week-subheader">AL 05/06/26</th>
+                                    <th colspan="5" class="gantt-week-subheader">AL 12/06/26</th>
+                                    <th colspan="5" class="gantt-week-subheader">AL 19/06/26</th>
+                                    <th colspan="5" class="gantt-week-subheader">AL 26/06/26</th>
+                                    <th colspan="5" class="gantt-week-subheader">AL 03/07/26</th>
+                                    <th colspan="5" class="gantt-week-subheader">AL 10/07/26</th>
                                 </tr>
-                                <tr class="bg-gray-800 text-gray-300 text-[10px] uppercase font-bold">
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 1</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 2</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 3</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 4</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 5</th>
-                                    <th colspan="5" class="p-1 border border-gray-700 text-center text-teal-300">SEMANA 5</th>
+                                <tr class="bg-gray-800 uppercase font-bold">
+                                    <th colspan="5" class="gantt-week-label">SEMANA 1</th>
+                                    <th colspan="5" class="gantt-week-label">SEMANA 2</th>
+                                    <th colspan="5" class="gantt-week-label">SEMANA 3</th>
+                                    <th colspan="5" class="gantt-week-label">SEMANA 4</th>
+                                    <th colspan="5" class="gantt-week-label">SEMANA 5</th>
+                                    <th colspan="5" class="gantt-week-label">SEMANA 6</th>
                                 </tr>
-                                <tr class="bg-gray-700/80 text-gray-200 text-[10px] font-bold text-center">
-                                    ${columns.map(c => `<th class="p-1 border border-gray-700 w-[26px] min-w-[26px] max-w-[26px] text-center">${c.day_name}</th>`).join('')}
+                                <tr class="bg-gray-700/80 text-gray-200 font-bold">
+                                    ${columns.map(c => `<th class="gantt-col-day gantt-day-header">${c.day_name}</th>`).join('')}
                                 </tr>
                             </thead>
                             <tbody>
@@ -2099,7 +2107,7 @@
             processes.forEach(p => {
                 cronogramaHtml += `
                     <tr class="border-b border-gray-700/60 hover:bg-gray-700/10">
-                        <td class="p-2 border border-gray-700 text-center font-bold text-gray-400 bg-gray-800/80 sticky left-0 z-10 shadow-[2px_0_5px_rgba(0,0,0,0.2)] w-8 min-w-[32px] max-w-[32px] overflow-hidden">${p.id}</td>
+                        <td class="gantt-col-num p-2 text-gray-400">${p.id}</td>
                 `;
 
                 columns.forEach(col => {
@@ -2110,28 +2118,31 @@
                     const note = dayData.note || '';
 
                     if (color) {
+                        const titleColor = color === '#000000' ? '#ffffff' : color;
                         cronogramaHtml += `
-                            <td style="background-color: ${color};" class="border border-gray-700/60 p-0 text-center w-[26px] min-w-[26px] max-w-[26px] h-[40px] relative group cursor-pointer">
-                                <!-- Hover Card / Tooltip -->
-                                <div class="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2.5 bg-gray-900 border border-gray-700 text-white text-[10px] rounded-lg shadow-2xl z-50 pointer-events-none text-left leading-normal">
-                                    <div class="font-bold text-teal-400 border-b border-gray-700 pb-1 mb-1.5 flex items-center justify-between">
+                            <td style="background-color: ${color};" class="gantt-col-day gantt-cell-active">
+                                <div class="gantt-tooltip">
+                                    <div class="gantt-tooltip-title">
                                         <span>Proceso ${p.id} - ${col.week_label} - ${col.day_name}</span>
-                                        <span class="text-[9px] text-gray-400 font-mono">${dateStr}</span>
+                                        <span class="gantt-tooltip-date">${dateStr}</span>
                                     </div>
-                                    <div class="mb-1"><span class="font-semibold text-gray-400">Etapa:</span> <span class="font-bold" style="color: ${color === '#000000' ? '#ffffff' : color}">${statusName}</span></div>
-                                    ${note ? `<div><span class="font-semibold text-gray-400">Detalle:</span> <span class="text-gray-200">${note}</span></div>` : '<div class="text-gray-500 italic">Sin comentarios.</div>'}
+                                    <div class="gantt-tooltip-stage">
+                                        <span class="gantt-tooltip-stage-label">Etapa:</span>
+                                        <strong style="color: ${titleColor}">${statusName}</strong>
+                                    </div>
+                                    ${note ? `<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">${note}</span></div>` : '<div class="gantt-tooltip-empty">Sin comentarios.</div>'}
                                 </div>
                             </td>
                         `;
                     } else {
                         cronogramaHtml += `
-                            <td class="border border-gray-700/30 p-0 w-[26px] min-w-[26px] max-w-[26px] h-[40px] bg-gray-800/10 hover:bg-gray-700/20 relative group">
-                                <div class="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 p-2 bg-gray-900 border border-gray-700 text-white text-[10px] rounded-lg shadow-2xl z-50 pointer-events-none text-left leading-normal">
-                                    <div class="font-bold text-gray-400 border-b border-gray-700 pb-1 mb-1 flex items-center justify-between">
+                            <td class="gantt-col-day gantt-cell-empty">
+                                <div class="gantt-tooltip">
+                                    <div class="gantt-tooltip-title">
                                         <span>Proceso ${p.id} - ${col.week_label} - ${col.day_name}</span>
-                                        <span class="text-[9px] text-gray-500 font-mono">${dateStr}</span>
+                                        <span class="gantt-tooltip-date">${dateStr}</span>
                                     </div>
-                                    <div class="text-gray-500 italic text-center py-1">Sin actividad programada</div>
+                                    <div class="gantt-tooltip-empty">Sin actividad programada</div>
                                 </div>
                             </td>
                         `;
@@ -2148,20 +2159,20 @@
                 </div>
             `;
 
-            // 3. Legend Section with Rounded Circles
+            // 3. Legend Section
             let leyendaHtml = `
                 <div class="mt-6 border-t border-gray-700 pt-4">
                     <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
                         <i class="fas fa-info-circle"></i> Leyenda de Etapas
                     </h3>
-                    <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    <div class="gantt-legend-grid">
             `;
             legend.forEach(leg => {
                 if (leg.hex_color) {
                     leyendaHtml += `
-                        <div class="flex items-center gap-2.5 bg-gray-900/40 border border-gray-800 rounded p-2 hover:bg-gray-850/20 transition-all">
-                            <span class="w-4 h-4 rounded-full border border-black/25 shrink-0 shadow-sm" style="background-color: ${leg.hex_color};"></span>
-                            <span class="text-xs font-semibold text-gray-200 leading-tight break-words">${leg.status_name}</span>
+                        <div class="gantt-legend-item">
+                            <span class="gantt-legend-circle" style="background-color: ${leg.hex_color};"></span>
+                            <span class="gantt-legend-label">${leg.status_name}</span>
                         </div>
                     `;
                 }
