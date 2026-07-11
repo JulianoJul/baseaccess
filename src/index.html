@@ -80,7 +80,7 @@
 
             <div class="flex items-center gap-2 flex-wrap">
 
-                <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
+                <input type="file" id="dbfile" accept=".db,.sqlite" style="display: block; width: 0; height: 0; opacity: 0; position: absolute; pointer-events: none;">
 
                 <!-- Hamburguesa + Ordenar -->
                 <button onclick="toggleSidebar()" class="btn btn-primary text-sm px-2 py-2" title="Mostrar/ocultar sidebar">
@@ -726,7 +726,7 @@
             return m ? m[1] : v;
         }
 
-        var electronAPI = window.electronAPI;
+        // Usamos window.electronAPI directamente para soportar inicialización diferida en Tauri
         const config = { locateFile: filename => `vendor/${filename}` };
 
         initSqlJs(config).then(sqlLib => {
@@ -779,7 +779,7 @@
             //     return false;
             // }
             dbFilePath = filePath || fileName;
-            if (electronAPI && filePath) electronAPI.setDbPath(filePath);
+            if (window.electronAPI && filePath) window.electronAPI.setDbPath(filePath);
             $(SELECTORS.SEARCH).disabled = false;
             $(SELECTORS.SORT_ORDER).disabled = false;
             const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
@@ -791,9 +791,9 @@
             $('btn-exportar-csv').disabled = false;
             $('dbfile').value = '';
             $(SELECTORS.BODY).classList.remove('drag-over');
-            // Sincronizar configuración de backups con Electron
-            if (electronAPI && electronAPI.setBackupCopies) {
-                electronAPI.setBackupCopies(obtenerMaxBackups());
+            // Sincronizar configuración de backups con Electron/Tauri
+            if (window.electronAPI && window.electronAPI.setBackupCopies) {
+                window.electronAPI.setBackupCopies(obtenerMaxBackups());
             }
             actualizarEstadoBD(`<i class="fas fa-check"></i> ${fileName}`);
             // Contraer botón "Abrir BD" a solo ícono
@@ -848,8 +848,9 @@
 
         function abrirBaseDatosReciente(path) {
             if (!path) return;
-            if (electronAPI && electronAPI.openDbFilePath) {
-                electronAPI.openDbFilePath(path).then(dataBase64 => {
+            const api = window.electronAPI;
+            if (api && api.openDbFilePath) {
+                api.openDbFilePath(path).then(dataBase64 => {
                     if (!dataBase64) return;
                     const bytes = Uint8Array.from(atob(dataBase64), c => c.charCodeAt(0));
                     const name = path.split(/[\\/]/).pop();
@@ -904,10 +905,11 @@
 
         async function abrirBaseDatos() {
             DEBUG.log('[RENDERER] Función abrirBaseDatos llamada');
-            if (electronAPI && electronAPI.openDbDialog) {
-                DEBUG.log('[RENDERER] electronAPI disponible, intentando abrir diálogo...');
+            const api = window.electronAPI;
+            if (api && api.openDbDialog) {
+                DEBUG.log('[RENDERER] API disponible, intentando abrir diálogo...');
                 try {
-                    const result = await electronAPI.openDbDialog();
+                    const result = await api.openDbDialog();
                     DEBUG.log('[RENDERER] Resultado del diálogo:', result);
                     if (!result) {
                         DEBUG.log('[RENDERER] Diálogo cancelado o sin resultado');
@@ -921,7 +923,7 @@
                     $('dbfile').click();
                 }
             } else {
-                DEBUG.log('[RENDERER] electronAPI no disponible, usando file input nativo');
+                DEBUG.log('[RENDERER] API nativa no disponible, usando file input nativo');
                 $('dbfile').click();
             }
         }
@@ -951,8 +953,8 @@
                     binary += String.fromCharCode.apply(null, data.subarray(i, Math.min(i + chunkSize, data.length)));
                 }
                 const data_base64 = btoa(binary);
-                if (electronAPI && dbFilePath) {
-                    await electronAPI.saveDb(data_base64);
+                if (window.electronAPI && dbFilePath) {
+                    await window.electronAPI.saveDb(data_base64);
                 }
                 dbModificado = false;
                 actualizarEstadoBD('<i class="fas fa-check"></i> Guardado');
