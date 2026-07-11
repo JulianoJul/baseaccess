@@ -8,7 +8,6 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `execSafe(sql, params?)` | `sql`: string SQL, `params[]`: valores opcionales para `?` | Ejecuta consulta SQL con escape manual. Retorna resultado de `db.exec()` o `null` si error |
 | `toInt(v)` | `v`: valor a parsear | `parseInt(v,10)` con null-safe. Retorna `null` si no es número válido |
 | `dbToObjects(res)` | `res`: resultado crudo de `db.exec()` | Convierte array de columnas+values a `[{col:val}]`. Retorna `[]` si vacío |
 | `sanitizeNull(val)` | `val`: valor de la UI | Retorna `null` si es `null/undefined/''`, si no `val` tal cual |
@@ -140,13 +139,19 @@ Fuente única de verdad de la lógica existente en `index.html`, `schema-config.
 | `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES`, `ORDEN_PREFERIDO` |
 | `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD`, `BTN_EXPORTAR_CSV` |
 | `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA`, `CSV_DESCARGADO` |
-| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 5`, `SUFFIX: '.bak.'` |
+| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 2`, `SUFFIX: '.bak.'` |
+| `VALIDADORES` | Reglas de validación por campo: `solped`, `id_gerencia`, `id_documento`, `fecha_recibido`, `fecha_devuelto`, `presupuesto_base_usd`, `monto_adjudicado_bs`, `monto_adjudicado_usd`, `tipo_cambio`, `cantidad_frentes` |
 
 ## Helper (index.html)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
+| `toast(mensaje, tipo)` | `mensaje`: string, `tipo`: 'info'\|'success'\|'error'\|'warning' | Muestra notificación flotante con auto-dismiss (3s) |
+| `mostrarSpinner(texto)` | `texto`: string opcional | Muestra overlay con spinner y texto |
+| `ocultarSpinner()` | — | Oculta overlay de spinner |
+| `validarForma()` | — | Recorre `VALIDADORES` y retorna array de errores de validación |
+| `renderCatalogSelect(selectId, catKey, selectValue)` | `selectId`: string ID, `catKey`: string key en cache, `selectValue`: opcional | Puebla un select con opciones del catálogo cacheado |
 | `cerrarModalSiOverlay(e, closeFn)` | `e`: event, `closeFn`: function | Cierra modal si se hizo clic fuera del contenido (e.target === e.currentTarget). Se usa como onclick del overlay del modal |
 
 ## SCHEMA_CONFIG (schema-config.js)

@@ -326,4 +326,19 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `Makefile`: targets `electron-build-*`, `tauri-build-*`, `build-all`.
   - Docs (`doc.md`, `ai-context.md`, `prompt`): actualizados a rama única.
 
+---
 
+## DEC-026: Auditoría de Código Julio 2026 — Implementación de Hallazgos (BUG, AUD, UI, PROP)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Se realizó una auditoría completa del código consolidado (`combined.txt`). Se identificaron 2 bugs críticos, 3 hallazgos de calidad de código, 3 mejoras de UI y 3 propuestas de mejora. El usuario autorizó implementar todo excepto PROP-003 (atajos teclado) y PROP-005 (exportación PDF).
+- **Alternativas evaluadas:**
+  - N/A — implementación directa de lo auditado.
+- **Impacto:**
+  - `src-tauri/src/lib.rs`: `blocking_pick_file()`/`blocking_save_file()` → `pick_file()`/`save_file()` async con oneshot channel. Fix deadlock Tauri Linux. Backup default 5→2.
+  - `src/index.html`: columna Estatus con `truncate`+`title`; SQL con bound params en vez de `.replace('?',...)`; whitelist `ORDENES_VALIDOS`; `guardarNuevoCatalogo` con `db.run(vals)`; `execSafe` eliminado (dead code); query historial movido a `SCHEMA_CONFIG.queries.historialPorId`; `renderCatalogSelect()` extraído (DRY); `validarForma()` + integración en `guardarExpediente`; `toast()` con estilos; `mostrarSpinner()`/`ocultarSpinner()`; `CACHE.catalogos` para catalogos; fallback visual tabla vacía con ícono; `title="Cerrar"` en botones X de modales; `.modal-body` unificado.
+  - `src/schema-config.js`: nuevo `VALIDADORES` con reglas de validación por campo; nuevo query `historialPorId`.
+  - `src/vendor/styles.css`: clases `.modal-body`, `.toast`.
+  - `src-tauri/Cargo.toml`: agregado `tokio = { version = "1", features = ["sync"] }`.
+  - `docs/funciones.md`: actualizado con nuevas funciones.
+  - `docs/doc.md`: changelog items 76+.

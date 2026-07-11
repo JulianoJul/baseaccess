@@ -168,3 +168,26 @@ select.input {
   border: 1px solid #374151;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
 }
+
+.modal-body {
+  padding: 1rem;
+}
+
+.toast {
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  color: #f3f4f6;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  opacity: 0;
+  transform: translateX(100%);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+  max-width: 400px;
+}
+.toast.show { opacity: 1; transform: translateX(0); }
+.toast.info { background: #1e293b; border: 1px solid #475569; }
+.toast.success { background: #064e3b; border: 1px solid #10b981; }
+.toast.error { background: #7f1d1d; border: 1px solid #ef4444; }
+.toast.warning { background: #78350f; border: 1px solid #f59e0b; }

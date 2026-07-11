@@ -111,6 +111,19 @@ const BACKUP = {
     SUFFIX: '.bak.',
 };
 
+const VALIDADORES = {
+    solped: { required: true, label: 'SOLPED' },
+    id_gerencia: { required: true, label: 'Gerencia' },
+    id_documento: { required: true, label: 'Documento' },
+    fecha_recibido: { required: true, type: 'date', label: 'Fecha Recibido' },
+    fecha_devuelto: { type: 'date', after: 'fecha_recibido', label: 'Fecha Devuelto' },
+    presupuesto_base_usd: { type: 'number', min: 0, label: 'Presupuesto Base USD' },
+    monto_adjudicado_bs: { type: 'number', min: 0, label: 'Monto Adjudicado BS' },
+    monto_adjudicado_usd: { type: 'number', min: 0, label: 'Monto Adjudicado USD' },
+    tipo_cambio: { type: 'number', min: 0, label: 'Tipo de Cambio' },
+    cantidad_frentes: { type: 'number', min: 0, label: 'Cantidad Frentes' },
+};
+
 // ---- SCHEMA CONFIG ------------------------------------------------
 
 const SCHEMA_CONFIG = {
@@ -229,5 +242,38 @@ const SCHEMA_CONFIG = {
             ORDER BY e.estatus_detalle, e.id_expediente DESC`,
         expedientesSelect: `SELECT * FROM vw_reporte_excel_contrataciones`,
         expedientePorId: `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`,
+        historialPorId: `SELECT
+            h.id_movimiento,
+            COALESCE(tc.nombre, '-') AS tipo_contrato,
+            COALESCE(g.nombre, '-') AS gerencia,
+            COALESCE(s.nombre, '-') AS superintendencia,
+            COALESCE(d.nombre, '-') AS documento,
+            COALESCE(em.nombre, '-') AS emisor,
+            COALESCE(rec.nombre, '-') AS receptor,
+            COALESCE(ed.nombre, '-') AS estatus,
+            COALESCE(h.fecha_recibido, '-') AS fecha_recibido,
+            COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto,
+            COALESCE(h.nro_proceso, '-') AS nro_proceso,
+            h.presupuesto_base_usd,
+            h.tipo_cambio,
+            h.monto_adjudicado_usd,
+            COALESCE(rp.nombre, '-') AS resultado,
+            COALESCE(emp.nombre, '-') AS empresa,
+            COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion,
+            COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato,
+            COALESCE(h.observaciones, '') AS observaciones,
+            COALESCE(h.notas, '') AS notas
+            FROM historial_movimientos h
+            LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id
+            LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id
+            LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id
+            LEFT JOIN cat_documento d ON h.id_documento = d.id
+            LEFT JOIN cat_responsables em ON h.id_emisor = em.id
+            LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id
+            LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id
+            LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id
+            LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id
+            WHERE h.id_expediente = ?
+            ORDER BY h.id_movimiento DESC`,
     }
 };

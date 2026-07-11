@@ -3,7 +3,7 @@ use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
-use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_dialog::{DialogExt, FilePath};
 
 struct AppState {
     current_db_path: Mutex<Option<String>>,
@@ -15,8 +15,6 @@ struct FileResult {
     path: String,
     data: String,
 }
-
-use tauri_plugin_dialog::FilePath;
 
 fn crear_backup_rotativo(file_path: &str, max_copies: u32) {
     let oldest = format!("{}.bak.{}", file_path, max_copies);
@@ -52,16 +50,19 @@ fn save_db(state: State<AppState>, data_base64: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn save_db_as(
+async fn save_db_as(
     app: tauri::AppHandle,
-    state: State<AppState>,
+    state: State<'_, AppState>,
     data_base64: String,
 ) -> Result<Option<String>, String> {
-    let file = app
-        .dialog()
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
-        .blocking_save_file();
+        .save_file(move |file_path| {
+            let _ = tx.send(file_path);
+        });
+    let file = rx.await.map_err(|e| e.to_string())?;
 
     match file {
         Some(FilePath::Path(path_buf)) => {
@@ -99,15 +100,18 @@ fn open_db_file(state: State<AppState>, file_path: String) -> Result<String, Str
 }
 
 #[tauri::command]
-fn open_db_dialog(
+async fn open_db_dialog(
     app: tauri::AppHandle,
-    state: State<AppState>,
+    state: State<'_, AppState>,
 ) -> Result<Option<FileResult>, String> {
-    let file = app
-        .dialog()
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .add_filter("SQLite DB", &["db", "sqlite"])
-        .blocking_pick_file();
+        .pick_file(move |file_path| {
+            let _ = tx.send(file_path);
+        });
+    let file = rx.await.map_err(|e| e.to_string())?;
 
     match file {
         Some(FilePath::Path(path_buf)) => {
@@ -142,7 +146,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState {
             current_db_path: Mutex::new(None),
-            backup_max_copies: Mutex::new(5),
+            backup_max_copies: Mutex::new(2),
         })
         .invoke_handler(tauri::generate_handler![
             save_db,
