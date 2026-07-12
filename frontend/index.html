@@ -852,7 +852,8 @@
 
         async function abrirBaseDatos() {
             try {
-                const result = await WailsDialog.OpenFile({
+                const result = await window.runtime.OpenFileDialog({
+                    Title: 'Seleccionar base de datos',
                     Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
                 });
                 if (!result) return;
