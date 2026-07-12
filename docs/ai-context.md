@@ -1,36 +1,35 @@
-# AI Context — Gestión de Expedientes
+# AI Context — Gestión de Expedientes (Wails)
 
 ## Stack (no negociable)
-- SPA 100% cliente-side: HTML + Tailwind CSS + sql.js (SQLite WASM)
-- Empaquetado: Electron / Tauri v2 — ambos en rama master, misma SPA
-- Sin backend, sin CDN, sin frameworks JS
+- **Wails v2** (Go 1.21+): backend nativo, frontend web embebido
+- **Go** + **mattn/go-sqlite3**: acceso SQLite directo al archivo .db
+- **Frontend**: HTML + Tailwind CSS + Font Awesome (en `frontend/vendor/`)
+- **Sin CDN, sin frameworks JS, sin backend externo**
 
 ## Líneas Rojas
 - **Cero hardcodeo**: todo valor variable → constantes con nombre (`CONFIG.*`)
-- **SPOT**: schema-config.js es la única fuente de verdad del schema
-- **SoC**: separar SQL de UI. Las funciones de renderizado no construyen queries
+- **SPOT**: `frontend/schema-config.js` es la única fuente de verdad del schema
+- **SoC**: separar Go (backend/BD) de JS (UI). Las funciones JS solo llaman `window.go.main.App.*`
 - **KISS + YAGNI**: resolver solo lo pedido, sin features "por si acaso"
 - **Sin efectos secundarios ocultos**: las funciones deben ser predecibles (Least Astonishment)
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App web para gestionar expedientes de contrataciones con historial de movimientos. CRUD completo, observaciones auto-generadas, notas libres, sidebar de frecuentes oculta por defecto (hamburguesa ☰), orden por fecha movido a la barra de búsqueda (select → lupa → input), ruta de procesos, documentos pendientes, schema-config.js centralizado. BD SQLite en archivo .db, persistencia vía IPC nativo + autoguardado. VACUUM: función `optimizarBD()` preservada (sin botón visual) para uso programático. Botón toggle Orden Excel/Secciones sin borde visual. Layout sidebar+contenido con CSS Grid, tabla `min-w-full` con `table-layout: auto`. Sticky solo en barra de búsqueda principal. BD recientes con layout flexbox (fix tailwind purgado). Todos los modales se cierran al clickear fuera. Exportación CSV. Orden persistido en localStorage. `fecha_creacion` = `fecha_recibido` de Excel, `fecha_actualizacion` = `fecha_devuelto` de Excel en importar_datos.py. Vista detalle muestra "Fecha Creación" y "Última Modificación".
+App migrada de Electron/sql.js a **Wails v2**. Backend Go con 12 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, etc.) + backup rotativo antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*`. WebView2 Fixed Runtime incluido para portabilidad Windows. Rama `wails-migration`, `master` intacto con Electron/Tauri original.
 
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|
-| `src/index.html` | App completa (HTML + CSS + JS) |
-| `src/schema-config.js` | Config del schema (catálogos, columnas, formato obs, estatus) |
-| `data/sql/Tablas8.sql` | Schema SQLite v8 |
-| `docs/doc.md` | Documentación + pendientes + changelog |
+| `main.go` | Entry point Wails (embed frontend, bind App) |
+| `app.go` | Backend Go: App struct, 12 métodos CRUD SQLite |
+| `go.mod` | Dependencias Go (wails/v2 + go-sqlite3) |
+| `wails.json` | Config proyecto Wails |
+| `frontend/index.html` | App completa (HTML + CSS + JS) |
+| `frontend/schema-config.js` | Config del schema (catálogos, columnas, etc.) |
+| `docs/doc.md` | Documentación + changelog |
 | `docs/decisiones.md` | ADR: historial de decisiones técnicas |
-| `docs/funciones.md` | Catálogo SPOT de todas las funciones (leer antes de crear) |
-| `.clinerules` | Skill de Opencode (protocolo de modificación) |
-| `Makefile` | combine / clean / commit / push / serve |
-| `combined.txt` | Consolidado (make combine) para sesiones |
-| `main.js` + `src/preload.js` | Electron main process + contextBridge |
-| `src-tauri/` + `src/tauri-preload.js` | Backend Rust Tauri + puente invoke |
-| `.github/workflows/build.yml` | CI: build Electron + Tauri (Linux y Windows) |
+| `docs/funciones.md` | Catálogo SPOT de funciones |
+| `.github/workflows/build.yml` | CI: build Wails (Linux + Windows) |
 
 ## Regla de Oro
-Antes de tocar código: leer `doc.md` (pendientes) + `decisiones.md` (ADR) + `funciones.md` (catálogo) + `ai-context.md` (esto) + `.clinerules` (skill).
+Antes de tocar código: leer `doc.md` + `decisiones.md` + `funciones.md` + `ai-context.md`.

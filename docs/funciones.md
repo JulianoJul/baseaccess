@@ -1,221 +1,143 @@
 # Catálogo de Funciones (SPOT)
 
-Fuente única de verdad de la lógica existente en `index.html`, `schema-config.js`, `main.js` y `preload.js`. Antes de crear una nueva función, **revisar si ya existe** para evitar duplicación (DRY).
+Fuente única de verdad de la lógica existente. Antes de crear una nueva función, **revisar si ya existe** para evitar duplicación (DRY).
 
 ---
 
-## Data Layer — SQLite/Catalogos
+## Backend Go — Métodos exportados (app.go)
+
+| Método | Parámetros | Descripción |
+|--------|-----------|-------------|
+| `AbrirBaseDatos(filePath)` | `filePath`: ruta al .db | Abre BD SQLite con WAL + foreign_keys. Cierra la anterior si existe |
+| `CerrarBaseDatos()` | — | Cierra la BD actual |
+| `ObtenerExpedientes(orden)` | `orden`: columna DESC/ASC | SELECT con sanitización whitelist. Retorna `[]Row` |
+| `ObtenerExpedientePorId(id)` | `id`: int | Retorna `Row` única o error |
+| `ObtenerRutaProcesos()` | — | JOIN completo para ruta de procesos |
+| `ObtenerDocumentosPendientes()` | — | WHERE estatus <> FIRMADO |
+| `ObtenerHistorialCompleto(id)` | `id`: int | JOIN multi-tabla ordenado DESC |
+| `GuardarExpediente(data)` | `data`: map[string]interface{} | INSERT o UPDATE según presencia de id_expediente |
+| `EliminarExpediente(id)` | `id`: int64 | DELETE en transacción (historial + expediente) |
+| `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 tablas) |
+| `OptimizarBD()` | — | Ejecuta VACUUM |
+| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo |
+
+## Data Layer — Frontend JS (llama a Go)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `toInt(v)` | `v`: valor a parsear | `parseInt(v,10)` con null-safe. Retorna `null` si no es número válido |
-| `dbToObjects(res)` | `res`: resultado crudo de `db.exec()` | Convierte array de columnas+values a `[{col:val}]`. Retorna `[]` si vacío |
-| `sanitizeNull(val)` | `val`: valor de la UI | Retorna `null` si es `null/undefined/''`, si no `val` tal cual |
-| `validarArchivoBD(file)` | `file`: File object del input/drop | Valida extensión (.db/.sqlite) y tamaño (&lt;= CONFIG.MAX_FILE_SIZE_BYTES). Retorna `true/false` |
-| `obtenerRutaProcesos()` | — | Consulta `SCHEMA_CONFIG.viewName` con JOIN completo para ruta de procesos. Retorna `[{...}]` |
-| `obtenerDocumentosPendientes()` | — | Consulta expedientes donde estatus ≠ FIRMADO. Retorna `[{...}]` |
-| `cargarCatalogos()` | — | Carga todos los catálogos desde BD a `catalogosCache` según `SCHEMA_CONFIG.catalogoPorSelect`. Luego llama `poblarSelectores()` |
-| `poblarSelectores()` | — | Llena todos los `<select>` con opciones desde `catalogosCache`. Al final llama `cargarSuperintendencias()` |
-| `cargarSuperintendencias()` | — | Filtra superintendencias según gerencia seleccionada (FK dependiente) |
-| `cargarDatos()` | — | Ejecuta `SELECT` sobre la vista (`SCHEMA_CONFIG.viewName`), llama `renderizarTabla()` |
-
----
+| `_cargarBaseDatosComun(filePath)` | `filePath`: string | Llama `AbrirBaseDatos`, luego `cargarCatalogos()` y `cargarDatos()` |
+| `cargarCatalogos()` | — | Llama `ObtenerCatalogos()`, llena `catalogosCache`, repuebla selects |
+| `cargarDatos()` | — | Llama `ObtenerExpedientes()`, renderiza tabla |
+| `obtenerExpedientes(orden)` | `orden`: string | Wrapper async → `window.go.main.App.ObtenerExpedientes(orden)` |
+| `obtenerExpedientePorId(id)` | `id`: int | Wrapper async → `window.go.main.App.ObtenerExpedientePorId(id)` |
+| `obtenerHistorialPorId(id)` | `id`: int | Wrapper async → `window.go.main.App.ObtenerHistorialCompleto(id)` |
+| `obtenerDatosReporteExcel()` | — | Llama `obtenerExpedientes('id_expediente DESC')` |
+| `guardarExpedienteEnBd(id, data)` | `id`, `data` | Llama `GuardarExpediente(data)` |
+| `eliminarExpedienteDeBd(id)` | `id`: int64 | Llama `EliminarExpediente(id)` |
+| `guardarNuevoCatalogoEnBd(tabla, cols, vals)` | `tabla, cols[], vals[]` | Llama `GuardarNuevoCatalogo(...)` |
 
 ## UI Layer — Tabla Principal
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza la tabla de 8 columnas + fila desplegable por expediente. Incluye botón de estrella (frecuentes) |
-| `cambiarOrden()` | — | Lee el selector de orden (Reciente/Fecha creación/Fecha modificación) y recarga datos ordenados |
-| `aplicarPaginacion()` | — | Calcula `totalPages` desde `filteredData`, obtiene slice para `currentPage`, llama `renderizarTabla()` y `renderPaginacion()` |
-| `irPagina(n)` | `n`: número de página | Valida rango, actualiza `currentPage`, llama `aplicarPaginacion()` |
-| `renderPaginacion()` | — | Renderiza controles de paginación con números de página, botones Anterior/Siguiente/Extremos e indicador "X / Y" |
-| `toggleDesplegable(id)` | `id`: `expediente.id_expediente` | Expande/colapsa fila desplegable con detalle completo, historial y notas |
-| `toggleDetalle(prefix, id)` | `prefix`: string prefijo DOM, `id`: ID del expediente | Alterna visibilidad de detalle (reutilizable para distintos paneles) |
-| `formatNum(v)` | `v`: número | Formatea con `toLocaleString('es-VE')` + 2 decimales |
-| `parseNum(v)` | `v`: string de la UI | Convierte string numérico a `float` respetando separador `.` |
-| `limitDecimals(v)` | `v`: número | Limita a 2 decimales sin redondeo excesivo |
-| `validarFechas()` | — | Valida coherencia de fechas en el formulario (fecha_recibido vs fecha_devuelto). Retorna `true/false`. Usa `validarFechasEntre()` internamente |
-| `validarFechasEntre(recibido, devuelto)` | `recibido`: string fecha, `devuelto`: string fecha | Función pura: retorna `{valid: boolean, errorMsg: string|null}` sin tocar el DOM |
-
----
+| `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza tabla de 8 columnas + fila desplegable |
+| `cambiarOrden()` | — | Lee selector de orden, recarga datos ordenados |
+| `aplicarPaginacion()` | — | Calcula páginas, renderiza slice actual |
+| `irPagina(n)` | `n`: número de página | Cambia página, refresca tabla |
+| `renderPaginacion()` | — | Renderiza controles de paginación |
+| `toggleDesplegable(id)` | `id`: expediente.id_expediente | Expande/colapsa fila desplegable |
+| `toggleDetalle(prefix, id)` | `prefix`, `id` | Alterna visibilidad de detalle |
+| `formatNum(v)` | `v`: número | Formatea con toLocaleString('es-VE') |
+| `parseNum(v)` | `v`: string | Convierte a float |
+| `validarFechas()` | — | Valida fechas del formulario |
+| `validarFechasEntre(recibido, devuelto)` | fechas | Función pura, retorna `{valid, errorMsg}` |
 
 ## UI Layer — Formulario de Edición
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `mostrarFormulario(id?)` | `id`: opcional, si existe edita, si no crea nuevo | Abre modal de formulario, configura modo creación/edición |
-| `cancelarFormulario()` | — | Cierra modal y limpia el formulario |
-| `cargarExpediente(id)` | `id`: ID del expediente | Carga datos de un expediente existente en el formulario para edición |
-| `calcularBs(origen?)` | `origen?`: `'usd'` o `'bs'` | Conversión bidireccional USD↔Bs. Si cambia tipo_cambio, recalcula ambos |
-| `guardarExpediente()` | — | Valida campos, construye INSERT o UPDATE, ejecuta, actualiza BD y cierra modal |
-| `eliminarExpediente()` | — | Pide confirmación, ejecuta DELETE, recarga tabla |
-| `marcarCamposEdicionFrecuente()` | — | Marca con indicador amarillo los campos definidos en `SCHEMA_CONFIG.camposEdicionFrecuente` |
-| `generarObservacionAutomatica()` | — | Genera línea de observación automática delegando en `SCHEMA_CONFIG.generarObservacion()` |
-| `previewObservacion()` | — | Extrae texto libre, regenera observación combinando parte automática + texto libre del usuario |
-| `aplicarTriggerFirma()` | — | Cambia lógica de firma según estatus (fecha_firma, etc.) |
-| `formatTiempoEjecucion(v)` | `v`: número o string | Aplica sufijo "DÍAS" si es numérico |
-| `parseTiempoEjecucionParaEdicion(v)` | `v`: string | Quita sufijo "DÍAS" para edición |
-
----
+| `mostrarFormulario(id?)` | `id`: opcional | Abre modal formulario (crear/editar) |
+| `cancelarFormulario()` | — | Cierra modal, limpia formulario |
+| `cargarExpediente(id)` | `id`: ID | Carga datos en formulario para edición |
+| `calcularBs(origen?)` | `origen?`: 'usd' \| 'bs' | Conversión bidireccional USD↔Bs |
+| `guardarExpediente()` | — | Valida, llama `guardarExpedienteEnBd`, recarga |
+| `eliminarExpediente()` | — | Confirma, llama `eliminarExpedienteDeBd`, recarga |
+| `marcarCamposEdicionFrecuente()` | — | Marca campos frecuentes con indicador |
+| `generarObservacionAutomatica()` | — | Genera línea de observación automática |
+| `previewObservacion()` | — | Combina parte automática + texto libre |
+| `formatTiempoEjecucion(v)` | `v`: número/string | Aplica sufijo "DÍAS" |
+| `parseTiempoEjecucionParaEdicion(v)` | `v`: string | Quita sufijo "DÍAS" |
 
 ## UI Layer — Modales Secundarios
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `abrirRutaProcesos()` | — | Abre modal con vista Gantt-chart de la ruta de procesos, mostrando un cronograma diario por semanas con tooltips de detalles y acceso directo a formularios de edición |
-| `cerrarRutaProcesos()` | — | Cierra modal de ruta de procesos |
-| `abrirDocumentosPendientes()` | — | Abre modal con listado de expedientes donde estatus ≠ FIRMADO |
-| `cerrarPendientes()` | — | Cierra modal de documentos pendientes |
-| `abrirHistorialCompleto(id)` | `id`: ID del expediente | Abre modal con historial completo de snapshots |
-| `cerrarHistorialCompleto()` | — | Cierra modal de historial |
-| `cargarHistorialCompleto(id)` | `id`: ID del expediente | Consulta historial_movimientos y renderiza tabla de snapshots |
-| `campoHistorial(label, valor, color)` | `label`: string, `valor`: string, `color`: clase CSS | Renderiza un campo individual en el detalle del historial |
-| `getEstatusClass(estatus)` | `estatus`: string | Delega en `SCHEMA_CONFIG.estatusClass()` para obtener clase CSS del badge |
-
----
+| `abrirRutaProcesos()` | — | Modal Gantt-chart de ruta de procesos |
+| `cerrarRutaProcesos()` | — | Cierra modal ruta |
+| `abrirDocumentosPendientes()` | — | Modal con expedientes no FIRMADOS |
+| `cerrarPendientes()` | — | Cierra modal pendientes |
+| `abrirHistorialCompleto(id)` | `id`: ID | Modal historial de snapshots |
+| `cerrarHistorialCompleto()` | — | Cierra modal historial |
+| `cargarHistorialCompleto(id)` | `id`: ID | Consulta y renderiza historial |
+| `getEstatusClass(estatus)` | `estatus`: string | Clase CSS del badge según estatus |
 
 ## UI Layer — Sidebar (Frecuentes)
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `toggleFrecuente(id, solped)` | `id`: ID, `solped`: string | Marca/desmarca expediente como frecuente en localStorage. Actualiza estrella y sidebar |
-| `renderSidebar()` | — | Renderiza la lista de expedientes frecuentes desde localStorage |
-| `toggleSidebar()` | — | Colapsa/expande sidebar y persiste estado en localStorage |
-| `toggleModoOrdenForm()` | — | Alterna entre orden por secciones y orden Excel en el formulario de edición |
-| `aplicarOrdenExcel()` | — | Clona campos en grilla plana siguiendo `SCHEMA_CONFIG.ordenExcel` |
-| `restaurarOrdenSecciones()` | — | Restaura el orden agrupado por secciones en el formulario |
+| `toggleFrecuente(id, solped)` | `id`, `solped` | Marca/desmarca frecuente en localStorage |
+| `renderSidebar()` | — | Renderiza lista de frecuentes |
+| `toggleSidebar()` | — | Colapsa/expande sidebar |
+| `toggleModoOrdenForm()` | — | Alterna orden secciones/Excel en formulario |
+| `aplicarOrdenExcel()` | — | Clona campos en grilla plana |
+| `restaurarOrdenSecciones()` | — | Restaura orden agrupado |
 
----
-
-## UI Layer — Catálogos (Gestión de opciones)
+## UI Layer — Catálogos
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `inicializarBotonesCatalogo()` | — | Asigna eventos a botones "+" de cada selector de catálogo |
-| `abrirAgregarCatalogo(selectId)` | `selectId`: ID del `<select>` | Abre modal para agregar nuevo registro al catálogo correspondiente |
-| `cerrarAgregarCatalogo()` | — | Cierra modal de agregar catálogo |
-| `captureAndRestoreFormState(callback)` | `callback`: función a ejecutar tras restaurar | Captura valores de todos los inputs/selects, ejecuta callback, restaura valores |
-| `guardarNuevoCatalogo()` | — | Inserta nuevo registro en tabla catálogo y actualiza el selector |
+| `inicializarBotonesCatalogo()` | — | Asigna eventos a botones "+" |
+| `abrirAgregarCatalogo(selectId)` | `selectId`: ID del `<select>` | Abre modal para nuevo registro |
+| `cerrarAgregarCatalogo()` | — | Cierra modal agregar catálogo |
+| `captureAndRestoreFormState(callback)` | `callback` | Captura valores, ejecuta callback, restaura |
+| `guardarNuevoCatalogo()` | — | Inserta y actualiza selector |
 
----
-
-## BD Layer — Archivos y Persistencia (Electron + Navegador)
+## Utilidades y Mantenimiento
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `_cargarBaseDatosComun(bytes, fileName, filePath)` | `bytes`: Uint8Array, `fileName`: string, `filePath`: string | Inicializa BD desde buffer. Si Electron, sincroniza ruta vía IPC |
-| `registrarReciente(nombre, path)` | `nombre`: string, `path`: string | Guarda BD en lista de recientes (localStorage) |
-| `eliminarReciente(path)` | `path`: string | Elimina una BD de recientes por ruta |
-| `eliminarRecienteIndex(index)` | `index`: número | Elimina una BD de recientes por índice |
-| `escapeHtml(text)` | `text`: string | Escapa caracteres HTML para prevenir XSS en el DOM |
-| `abrirBaseDatosReciente(path)` | `path`: string | Abre BD desde la lista de recientes |
-| `mostrarMenuRecientes()` | — | Renderiza menú desplegable con BD recientes |
-| `abrirBaseDatos()` | — async | Dispara `<input type="file">`, lee archivo, llama `_cargarBaseDatosComun()` |
-| `guardarBD()` | — async | Exporta buffer sql.js y escribe a disco (Electron: IPC, navegador: download) |
-| `marcarModificado()` | — | Marca la BD como modificada (habilita botón guardar si aplica) |
-| `iniciarAutoguardado()` | — | Inicia intervalo de autoguardado cada 30s |
-| `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado de BD en la UI |
-| `optimizarBD()` | — async | Ejecuta `VACUUM` sobre la BD abierta. Confirma si BD > CONFIG.VACUUM_CONFIRM_THRESHOLD_MB. Reporta tamaño antes/después |
-| `exportarCSV()` | — | Exporta datos de `vw_reporte_excel_contrataciones` como archivo CSV descargable |
-| `descargarBDError()` | — | Exporta BD actual como archivo `.db` descargable (uso desde error boundary modal) |
-| `updateUIOnError()` | — | Deshabilita botones de modificación (nuevo, guardar) y añade badge de solo-lectura al ocurrir un error crítico |
+| `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado BD |
+| `optimizarBD()` | — | Ejecuta VACUUM vía Go, reporta resultado |
+| `exportarCSV()` | — | Exporta datos como CSV descargable |
+| `descargarBDError()` | — | Abre diálogo para guardar copia del .db actual |
+| `updateUIOnError()` | — | Deshabilita botones, añade badge solo-lectura |
+| `abrirBaseDatos()` | — | Dispara `<input type="file">`, carga BD |
+| `abrirBaseDatosReciente(path)` | `path`: string | Abre BD desde recientes |
+| `mostrarMenuRecientes()` | — | Renderiza menú BD recientes |
+| `registrarReciente(nombre, path)` | `nombre`, `path` | Guarda en localStorage |
+| `eliminarReciente(path)` o `eliminarRecienteIndex(index)` | — | Elimina de recientes |
+| `abrirRecientes()` | — | Modal con lista de BD recientes |
 
-## Electron (main.js) — Backup Rotativo
+## Helpers
 
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
-| `crearBackupRotativo(filePath)` | `filePath`: ruta del archivo .db actual | Rota hasta 5 backups (`.bak.1`..`.bak.5`), elimina el más antiguo, copia el actual como `.bak.1`. Llamado antes de cada `save-db` |
-
----
+| `$(id)` | `id`: string | `document.getElementById(id)` |
+| `toast(mensaje, tipo)` | `mensaje`, `tipo` | Notificación flotante auto-dismiss 3s |
+| `mostrarSpinner(texto)` | `texto`: opcional | Overlay con spinner |
+| `ocultarSpinner()` | — | Oculta overlay spinner |
+| `validarForma()` | — | Retorna array de errores de validación |
+| `renderCatalogSelect(selectId, catKey, selectValue)` | — | Puebla un select desde catálogo cacheado |
+| `cerrarModalSiOverlay(e, closeFn)` | `e`, `closeFn` | Cierra modal si click fuera del contenido |
+| `escapeHtml(text)` | `text`: string | Escapa HTML para prevenir XSS |
 
 ## Constantes Globales (schema-config.js)
 
 | Constante | Descripción |
 |-----------|-------------|
-| `CONFIG` | Config numérica: `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `BYTES_PER_MB`, `AUTOSAVE_INTERVAL_MS`, `AUTOSAVE_ENABLED`, `MAX_RECIENTES`, `EXPORT_CHUNK_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB` |
-| `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` (controlado por `DEBUG.isEnabled`) |
-| `MSG` | Mensajes de usuario centralizados: `ERROR_NO_DB`, `ERROR_TIPO_ARCHIVO`, `ERROR_TAMANO(sizeMB)`, `ERROR_LECTURA(err)`, `ERROR_CONSULTA(err)`, `ERROR_GUARDAR(err)`, `ERROR_ELIMINAR(err)`, `ERROR_NO_EXPEDIENTE`, `ERROR_ID_INVALIDO`, `ERROR_NO_BD_VALIDA`, `ERROR_NO_REABRIR(err)`, `ERROR_ABRIR_BD(err)`, `NOMBRE_OBLIGATORIO`, `EXITO_ACTUALIZADO`, `EXITO_CREADO`, `EXITO_ELIMINADO`, `FECHA_DEVUELTO_INVALIDA`, `ERROR_BD_CORRUPTA` |
-| `STORAGE_KEYS` | Keys de localStorage: `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES`, `ORDEN_PREFERIDO` |
-| `SELECTORS` | IDs de elementos DOM: `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD`, `BTN_EXPORTAR_CSV` |
-| `MSG_EXTRA` | Mensajes de mantenimiento: `VACUUM_INICIADO`, `VACUUM_COMPLETADO(antes, despues)`, `VACUUM_ERROR(err)`, `ERROR_CRITICO`, `PROMESA_RECHAZADA`, `BD_DESCARGADA`, `CSV_DESCARGADO` |
-| `BACKUP` | Config de backup rotativo: `MAX_COPIES: 2`, `SUFFIX: '.bak.'` |
-| `VALIDADORES` | Reglas de validación por campo: `solped`, `id_gerencia`, `id_documento`, `fecha_recibido`, `fecha_devuelto`, `presupuesto_base_usd`, `monto_adjudicado_bs`, `monto_adjudicado_usd`, `tipo_cambio`, `cantidad_frentes` |
-
-## Helper (index.html)
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `$(id)` | `id`: string ID del elemento | Atajo para `document.getElementById(id)` |
-| `toast(mensaje, tipo)` | `mensaje`: string, `tipo`: 'info'\|'success'\|'error'\|'warning' | Muestra notificación flotante con auto-dismiss (3s) |
-| `mostrarSpinner(texto)` | `texto`: string opcional | Muestra overlay con spinner y texto |
-| `ocultarSpinner()` | — | Oculta overlay de spinner |
-| `validarForma()` | — | Recorre `VALIDADORES` y retorna array de errores de validación |
-| `renderCatalogSelect(selectId, catKey, selectValue)` | `selectId`: string ID, `catKey`: string key en cache, `selectValue`: opcional | Puebla un select con opciones del catálogo cacheado |
-| `cerrarModalSiOverlay(e, closeFn)` | `e`: event, `closeFn`: function | Cierra modal si se hizo clic fuera del contenido (e.target === e.currentTarget). Se usa como onclick del overlay del modal |
-
-## SCHEMA_CONFIG (schema-config.js)
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `generarObservacion(estatus, documento, fechaRecibido, fechaDevuelto)` | `estatus`: string, `documento`: string, `fechaRecibido`: string, `fechaDevuelto`: string | Retorna string auto-generado: `[ESTATUS] - [Documento] - ...` |
-| `extraerTextoLibre(currentValue, autoLine)` | `currentValue`: texto completo del textarea, `autoLine`: línea automática | Resta `autoLine` de `currentValue` para aislar el texto libre del usuario |
-| `estatusClass(estatus)` | `estatus`: string | Retorna clase CSS según estatus (verde=firmado, amarillo=en_proceso, rojo=devuelto, gris=pendiente) |
-| `esEstatusFirmado(estatus)` | `estatus`: string | Retorna `true` si el estatus es FIRMADO o equivalente |
-
-## SCHEMA_CONFIG (schema-config.js) — Nuevos campos
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `VERSION` | number | `8` — version del schema SQLite, validado contra `PRAGMA user_version` al cargar BD |
-| `queries` | object | Queries SQL centralizadas: `rutaProcesos`, `documentosPendientes`, `reporteExcel`, `expedientesSelect`, `expedientePorId` |
-
----
-
-## UI Layer — Nuevas funciones
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `renderBadgeEstatus(estatus)` | `estatus`: string | Retorna HTML string de badge `<span>` con clase de color según estatus. SPOT único para badges |
-| `obtenerMaxBackups()` | — | Lee `localStorage[STORAGE_KEYS.BACKUP_MAX_COPIES]` con fallback a `BACKUP.MAX_COPIES`. Retorna número entre 1-20 |
-
-## Constantes Globales (schema-config.js) — Actualizado
-
-| Constante | Descripción |
-|-----------|-------------|
-| `CONFIG` | `MAX_FILE_SIZE_BYTES`, `MAX_FILE_SIZE_MB`, `BYTES_PER_MB`, `AUTOSAVE_INTERVAL_MS`, `AUTOSAVE_ENABLED` |
-| `STORAGE_KEYS` | `FRECUENTES`, `RECIENTES`, `SIDEBAR_VISIBLE`, `BACKUP_MAX_COPIES` |
-| `SELECTORS` | `TABLA_CUERPO`, `FORM_MODAL`, `SEARCH`, `SORT_ORDER`, `SIDEBAR`, `BODY`, `FILE_INPUT`, `MENU_RECIENTES`, `MODAL_RUTA`, `RUTA_CONTENIDO`, `MODAL_PENDIENTES`, `PENDIENTES_CONTENIDO`, `MODAL_HISTORIAL`, `HISTORIAL_CONTENIDO`, `MODAL_CATALOGO`, `AC_NOMBRE`, `F_OBSERVACIONES`, `GUARDAR_BD_BTN`, `BTN_VACUUM`, `MODAL_ERROR`, `ERROR_CONTENIDO`, `BTN_DESCARGAR_BD`, `ESTADO_BD` |
-
-## Electron IPC (main.js)
-
-| Handler | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `save-db` | `dataBase64`: string base64 del buffer | Escribe buffer a la ruta actual de BD |
-| `save-db-as` | `dataBase64`: string base64 | Abre diálogo "Guardar como" y escribe |
-| `set-db-path` | `filePath`: string | Guarda la ruta del archivo actual |
-| `get-db-path` | — | Retorna la ruta actual de BD |
-| `open-db-file` | `filePath`: string | Lee archivo y retorna buffer como base64 |
-| `open-db-dialog` | — | Abre diálogo nativo para seleccionar archivo .db |
-| `set-backup-copies` | `n`: número | Configura cantidad de backups rotativos (1-20) |
-| `get-backup-copies` | — | Retorna la cantidad actual de backups configurada |
-
-## Electron Interna (main.js)
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `crearBackupRotativo(filePath)` | `filePath`: string ruta de BD | Rota hasta `backupMaxCopies` backups (`.bak.1`..`.bak.N`), elimina más antiguo, copia el actual como `.bak.1`. Se llama antes de cada `save-db` |
-| `setBackupMaxCopies(n)` | `n`: número | Actualiza el límite de backups (1-20), llamado vía IPC `set-backup-copies` |
-
-## Electron Preload (preload.js)
-
-| Exposición | Parámetros | Descripción |
-|-----------|-----------|-------------|
-| `saveDb` | `(dataBase64)` → `ipcRenderer.invoke('save-db', ...)` | Guarda BD en ruta actual |
-| `saveDbAs` | `(dataBase64)` → `ipcRenderer.invoke('save-db-as', ...)` | Guarda BD con diálogo |
-| `setDbPath` | `(filePath)` → `ipcRenderer.invoke('set-db-path', ...)` | Sincroniza ruta de BD |
-| `getDbPath` | `()` → `ipcRenderer.invoke('get-db-path')` | Obtiene ruta actual |
-| `openDbDialog` | `()` → `ipcRenderer.invoke('open-db-dialog')` | Abre selector de archivo nativo |
-| `openDbFilePath` | `(filePath)` → `ipcRenderer.invoke('open-db-file', ...)` | Lee archivo por ruta |
-| `setBackupCopies` | `(n)` → `ipcRenderer.invoke('set-backup-copies', n)` | Configura cantidad de backups |
-| `getBackupCopies` | `()` → `ipcRenderer.invoke('get-backup-copies')` | Obtiene cantidad de backups |
+| `CONFIG` | `MAX_FILE_SIZE_BYTES`, `PAGE_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB`, etc. |
+| `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` |
+| `MSG` | Mensajes de usuario centralizados |
+| `STORAGE_KEYS` | Keys de localStorage |
+| `SELECTORS` | IDs de elementos DOM |
+| `MSG_EXTRA` | Mensajes de mantenimiento (VACUUM, errores, etc.) |

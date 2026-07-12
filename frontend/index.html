@@ -108,10 +108,6 @@
                     class="btn btn-primary" id="btn-exportar-csv">
                     <i class="fas fa-file-csv mr-1"></i> CSV
                 </button>
-                <button id="btn-guardar" onclick="guardarBD()" disabled
-                    class="btn btn-primary">
-                    <i class="fas fa-save mr-1"></i> Guardar BD
-                </button>
                 <button onclick="abrirRecientes()" class="btn btn-primary text-xs px-3 py-2"><i class="fas fa-history mr-1"></i> Recientes</button>
                 <span id="estado-bd" class="text-xs text-gray-500 italic"></span>
             </div>
@@ -753,7 +749,6 @@
             const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
             if (ordenGuardado) $(SELECTORS.SORT_ORDER).value = ordenGuardado;
             $('btn-nuevo').disabled = false;
-            $('btn-guardar').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
             $('btn-exportar-csv').disabled = false;
@@ -873,10 +868,6 @@
             _cargarBaseDatosComun(f.path || f.name);
         });
 
-        async function guardarBD() {
-            actualizarEstadoBD('<i class="fas fa-check"></i> Guardado');
-        }
-
         function actualizarEstadoBD(msg) {
             const el = $('estado-bd');
             if (el) el.innerHTML = msg || '';
@@ -885,9 +876,20 @@
         // ---- Utilidades de error y mantenimiento -----------------------
 
 
-        function descargarBDError() {
+        async function descargarBDError() {
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
-            toast(MSG_EXTRA.BD_DESCARGADA, 'info');
+            try {
+                const result = await window.runtime.SaveFileDialog({
+                    defaultFilename: 'backup-expedientes.db',
+                    filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                });
+                if (result) {
+                    await window.go.main.App.DescargarBD(result);
+                    toast('Copia de BD guardada en: ' + result, 'success');
+                }
+            } catch (err) {
+                toast('Error al guardar copia: ' + err, 'error');
+            }
         }
 
         async function optimizarBD() {
@@ -931,7 +933,7 @@
         }
 
         function updateUIOnError() {
-            ['btn-nuevo', 'btn-guardar', SELECTORS.GUARDAR_BD_BTN, SELECTORS.BTN_EXPORTAR_CSV].forEach(id => {
+            ['btn-nuevo', SELECTORS.BTN_EXPORTAR_CSV].forEach(id => {
                 $(id)?.setAttribute('disabled', 'true');
             });
             const estado = $(SELECTORS.ESTADO_BD);

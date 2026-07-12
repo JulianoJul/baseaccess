@@ -4,16 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const backupMaxCopies = 2
+
 type App struct {
-	ctx context.Context
-	db  *sql.DB
-	mu  sync.Mutex
+	ctx    context.Context
+	db     *sql.DB
+	dbPath string
+	mu     sync.Mutex
 }
 
 type Row map[string]interface{}
@@ -45,6 +51,7 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 	}
 
 	a.db = db
+	a.dbPath = filePath
 	return nil
 }
 
@@ -55,6 +62,44 @@ func (a *App) CerrarBaseDatos() {
 		a.db.Close()
 		a.db = nil
 	}
+	a.dbPath = ""
+}
+
+func (a *App) crearBackup() error {
+	if a.dbPath == "" {
+		return nil
+	}
+	dir := filepath.Dir(a.dbPath)
+	base := filepath.Base(a.dbPath)
+	oldest := dir + "/" + base + ".bak." + strconv.Itoa(backupMaxCopies)
+	os.Remove(oldest)
+	for i := backupMaxCopies - 1; i >= 1; i-- {
+		src := dir + "/" + base + ".bak." + strconv.Itoa(i)
+		dst := dir + "/" + base + ".bak." + strconv.Itoa(i+1)
+		if _, err := os.Stat(src); err == nil {
+			os.Rename(src, dst)
+		}
+	}
+	src := a.dbPath
+	dst := dir + "/" + base + ".bak.1"
+	input, err := os.ReadFile(src)
+	if err != nil {
+		return fmt.Errorf("error leyendo BD para backup: %w", err)
+	}
+	return os.WriteFile(dst, input, 0644)
+}
+
+func (a *App) DescargarBD(destPath string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.dbPath == "" {
+		return fmt.Errorf("no hay base de datos abierta")
+	}
+	input, err := os.ReadFile(a.dbPath)
+	if err != nil {
+		return fmt.Errorf("error leyendo BD: %w", err)
+	}
+	return os.WriteFile(destPath, input, 0644)
 }
 
 func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
@@ -233,6 +278,10 @@ func (a *App) GuardarExpediente(data map[string]interface{}) (int64, error) {
 		return 0, fmt.Errorf("no hay base de datos abierta")
 	}
 
+	if err := a.crearBackup(); err != nil {
+		fmt.Printf("Backup falló: %v\n", err)
+	}
+
 	id, _ := data["id_expediente"].(float64)
 	delete(data, "id_expediente")
 
@@ -278,6 +327,9 @@ func (a *App) EliminarExpediente(id int64) error {
 	defer a.mu.Unlock()
 	if a.db == nil {
 		return fmt.Errorf("no hay base de datos abierta")
+	}
+	if err := a.crearBackup(); err != nil {
+		fmt.Printf("Backup falló: %v\n", err)
 	}
 	tx, err := a.db.Begin()
 	if err != nil {
@@ -348,6 +400,9 @@ func (a *App) OptimizarBD() error {
 	if a.db == nil {
 		return fmt.Errorf("no hay base de datos abierta")
 	}
+	if err := a.crearBackup(); err != nil {
+		fmt.Printf("Backup falló: %v\n", err)
+	}
 	_, err := a.db.Exec("VACUUM")
 	return err
 }
@@ -355,6 +410,12 @@ func (a *App) OptimizarBD() error {
 func (a *App) GuardarNuevoCatalogo(tabla, nombre string, extra map[string]interface{}) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
+	if a.db != nil {
+		if err := a.crearBackup(); err != nil {
+			fmt.Printf("Backup falló: %v\n", err)
+		}
+	}
 
 	cols := "nombre"
 	vals := nombre
