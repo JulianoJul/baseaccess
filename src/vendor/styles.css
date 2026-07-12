@@ -22,6 +22,17 @@
   --purple: #a78bfa;
   --radius: 0.5rem;
   --radius-lg: 0.5rem;
+  --bg-surface-800: #1f2937;
+  --bg-surface-900: #111827;
+  --text-light: #e5e7eb;
+  --text-lighter: #d1d5db;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.5);
+  --shadow-xl: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --z-sticky: 10;
+  --z-tooltip: 50;
 }
 
 .btn {
@@ -79,9 +90,6 @@
   padding: 0;
   font-size: 1rem;
   line-height: 1;
-}
-.btn-icon:focus {
-  outline: none;
 }
 
 .input {
@@ -163,10 +171,10 @@ select.input {
 }
 
 .modal-content {
-  background: #1f2937;
+  background: var(--bg-surface-800);
   border-radius: 0.75rem;
-  border: 1px solid #374151;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-xl);
 }
 
 .modal-body {
@@ -176,13 +184,13 @@ select.input {
 .toast {
   padding: 0.75rem 1.25rem;
   border-radius: 0.5rem;
-  color: #f3f4f6;
+  color: var(--text-body);
   font-size: 0.875rem;
   font-weight: 500;
   box-shadow: 0 4px 12px rgba(0,0,0,0.4);
   opacity: 0;
   transform: translateX(100%);
-  transition: all 0.3s ease;
+  transition: all var(--transition-normal);
   pointer-events: auto;
   max-width: 400px;
 }
@@ -225,6 +233,35 @@ select.input {
   color: #f87171;
 }
 
+/* Scrollbars dark theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-hover) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: var(--bg-hover);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: var(--border-focus);
+}
+
+/* Focus visible accesible para botones de icono */
+.btn-icon:focus-visible,
+.proceso-card-edit-btn:focus-visible,
+.proceso-card-edit-btn:focus {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* === Ruta de Procesos — Gantt === */
 .gantt-table {
   table-layout: fixed;
@@ -233,7 +270,7 @@ select.input {
 }
 .gantt-table th,
 .gantt-table td {
-  border: 1px solid #374151;
+  border: 1px solid var(--border-default);
   text-align: center;
   vertical-align: middle;
   overflow: hidden;
@@ -244,7 +281,7 @@ select.input {
   max-width: 36px;
   position: sticky;
   left: 0;
-  z-index: 10;
+  z-index: var(--z-sticky);
   background-color: rgba(31, 41, 55, 0.9);
   font-weight: bold;
 }
@@ -255,32 +292,34 @@ select.input {
   height: 40px;
   padding: 0;
 }
-.gantt-week-header {
+.gantt-week-header,
+.gantt-week-subheader,
+.gantt-week-label {
   padding: 2px 4px;
-  font-size: 9px;
   font-weight: bold;
-  color: #2dd4bf;
+  text-align: center;
+}
+.gantt-week-header {
+  font-size: 9px;
+  color: var(--primary-text);
   background-color: rgba(31, 41, 55, 0.5);
 }
 .gantt-week-subheader {
-  padding: 2px 4px;
   font-size: 9px;
   font-weight: 600;
   background-color: rgba(31, 41, 55, 0.4);
-  color: #d1d5db;
+  color: var(--text-lighter);
 }
 .gantt-week-label {
-  padding: 2px 4px;
   font-size: 10px;
-  font-weight: bold;
-  color: #5eead4;
+  color: var(--primary-text);
   text-transform: uppercase;
 }
 .gantt-day-header {
   padding: 2px;
   font-size: 10px;
   font-weight: bold;
-  color: #e5e7eb;
+  color: var(--text-light);
 }
 .gantt-cell-active {
   position: relative;
@@ -301,13 +340,13 @@ select.input {
   margin-bottom: 8px;
   width: 220px;
   padding: 10px;
-  background-color: #111827;
-  border: 1px solid #374151;
-  color: #f3f4f6;
+  background-color: var(--bg-surface-900);
+  border: 1px solid var(--border-default);
+  color: var(--text-body);
   font-size: 10px;
   border-radius: 8px;
-  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
-  z-index: 50;
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-tooltip);
   pointer-events: none;
   text-align: left;
   line-height: 1.4;
@@ -318,8 +357,8 @@ select.input {
 }
 .gantt-tooltip-title {
   font-weight: bold;
-  color: #2dd4bf;
-  border-bottom: 1px solid #374151;
+  color: var(--primary-text);
+  border-bottom: 1px solid var(--border-default);
   padding-bottom: 4px;
   margin-bottom: 6px;
   display: flex;
@@ -328,7 +367,7 @@ select.input {
 }
 .gantt-tooltip-date {
   font-size: 9px;
-  color: #9ca3af;
+  color: var(--text-muted);
   font-family: monospace;
 }
 .gantt-tooltip-stage {
@@ -336,13 +375,13 @@ select.input {
 }
 .gantt-tooltip-stage-label {
   font-weight: 600;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 .gantt-tooltip-detail {
-  color: #e5e7eb;
+  color: var(--text-light);
 }
 .gantt-tooltip-empty {
-  color: #6b7280;
+  color: var(--text-dim);
   font-style: italic;
   text-align: center;
   padding: 4px 0;
@@ -363,14 +402,14 @@ select.input {
   display: flex;
   align-items: center;
   gap: 10px;
-  background-color: rgba(17, 24, 39, 0.4);
-  border: 1px solid #1f2937;
+  background-color: var(--bg-card);
+  border: 1px solid var(--bg-surface-800);
   border-radius: 6px;
   padding: 8px;
-  transition: background-color 0.15s ease;
+  transition: background-color var(--transition-fast);
 }
 .gantt-legend-item:hover {
-  background-color: rgba(31, 41, 55, 0.3);
+  background-color: rgba(55, 65, 81, 0.3);
 }
 .gantt-legend-circle {
   width: 24px;
@@ -380,12 +419,12 @@ select.input {
   border-radius: 50%;
   border: 1px solid rgba(0, 0, 0, 0.25);
   flex-shrink: 0;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: var(--shadow-sm);
 }
 .gantt-legend-label {
   font-size: 12px;
   font-weight: 600;
-  color: #e5e7eb;
+  color: var(--text-light);
   line-height: 1.25;
   word-break: break-word;
 }
@@ -399,14 +438,14 @@ select.input {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
 }
 .proceso-card:hover {
   border-color: rgba(20, 184, 166, 0.3);
 }
 .proceso-card-num {
   background-color: rgba(20, 184, 166, 0.2);
-  color: #2dd4bf;
+  color: var(--primary-text);
   font-weight: bold;
   font-size: 12px;
   border-radius: 50%;
@@ -420,7 +459,7 @@ select.input {
 }
 .proceso-card-desc {
   font-size: 12px;
-  color: #e5e7eb;
+  color: var(--text-light);
   font-weight: 600;
   line-height: 1.5;
   word-break: break-word;
@@ -432,19 +471,19 @@ select.input {
   gap: 6px 12px;
   margin-top: 8px;
   font-size: 10px;
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 .proceso-card-badge {
   padding: 1px 6px;
   border-radius: 4px;
-  background-color: #374151;
+  background-color: var(--bg-hover);
   font-weight: 500;
 }
 .proceso-card-badge-firmado {
-  color: #34d399;
+  color: var(--emerald);
 }
 .proceso-card-badge-pendiente {
-  color: #f59e0b;
+  color: var(--amber);
 }
 .proceso-card-actions {
   margin-top: 8px;
@@ -455,7 +494,7 @@ select.input {
 }
 .proceso-card-edit-btn {
   font-size: 10px;
-  color: #2dd4bf;
+  color: var(--primary-text);
   font-weight: bold;
   display: flex;
   align-items: center;
@@ -465,7 +504,7 @@ select.input {
   border: none;
 }
 .proceso-card-edit-btn:hover {
-  color: #5eead4;
+  color: var(--primary-hover);
   text-decoration: underline;
 }
 .procesos-grid {
