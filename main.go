@@ -6,10 +6,13 @@ import (
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
 //go:embed all:frontend
 var assets embed.FS
+
+const WebView2RuntimeDir = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
 
 func main() {
 	app := NewApp()
@@ -24,6 +27,9 @@ func main() {
 		OnStartup: app.Startup,
 		Bind: []interface{}{
 			app,
+		},
+		Windows: &windows.Options{
+			WebviewBrowserPath: WebView2RuntimeDir,
 		},
 	})
 	if err != nil {
