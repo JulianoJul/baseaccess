@@ -1,0 +1,13 @@
+{
+  "$schema": "https://wails.io/wails.json.schema.json",
+  "name": "baseaccess",
+  "outputfilename": "GestionExpedientes",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:serverUrl": "",
+  "author": {
+    "name": "baseaccess",
+    "email": "baseaccess@example.com"
+  }
+}

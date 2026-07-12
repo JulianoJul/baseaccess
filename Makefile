@@ -58,8 +58,23 @@ tauri-build-linux:
 
 tauri-build: tauri-build-win
 
+# --- Wails ---
+wails-install:
+	go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+wails-build-linux:
+	wails build -platform linux/amd64
+
+wails-build-win:
+	wails build -platform windows/amd64 -webview2 embed
+
+wails-build: wails-build-linux
+
+wails-dev:
+	wails dev
+
 # --- Ambos ---
-build-all: electron-build-win tauri-build-win
+build-all: electron-build-win tauri-build-win wails-build-win
 
 # --- Git ---
 commit:

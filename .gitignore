@@ -11,3 +11,5 @@ __pycache__/
 *.xls
 *.xlsx
 plan_modificaciones.md
+build/bin/
+build/*.app
