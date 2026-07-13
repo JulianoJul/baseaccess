@@ -129,14 +129,14 @@
                             <table class="w-full text-left border-collapse">
                                 <thead>
                                     <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
-                                        <th class="p-3 text-center whitespace-nowrap">Ver</th>
-                                        <th class="p-3 text-center whitespace-nowrap">Acción</th>
-                                        <th class="p-3 whitespace-nowrap">SOLPED</th>
-                                        <th class="p-3 whitespace-nowrap">Gerencia</th>
+                                        <th class="p-3 text-center whitespace-nowrap" style="width: 1%;">Ver</th>
+                                        <th class="p-3 text-center whitespace-nowrap" style="width: 1%;">Acción</th>
+                                        <th class="p-3 whitespace-nowrap" style="width: 1%;">SOLPED</th>
+                                        <th class="p-3 whitespace-nowrap" style="width: 1%;">Gerencia</th>
                                         <th class="p-3 whitespace-nowrap" style="width: 50%;">Documento</th>
                                         <th class="p-3 whitespace-nowrap" style="width: 50%;">Descripción</th>
-                                        <th class="p-3 whitespace-nowrap">Estatus Detalle</th>
-                                        <th class="p-3 whitespace-nowrap">Nro Proceso</th>
+                                        <th class="p-3 whitespace-nowrap" style="width: 1%;">Estatus Detalle</th>
+                                        <th class="p-3 whitespace-nowrap" style="width: 1%;">Nro Proceso</th>
                                     </tr>
                                 </thead>
                             <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
@@ -444,15 +444,15 @@
         function toggleFrecuente(id, solped) {
             let list = [];
             try {
-                list = JSON.parse(localStorage.getItem('baseaccess_frecuentes') || '[]');
+                list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             } catch(e) { list = []; }
-            const idx = list.findIndex(i => i.id === id);
+            const idx = list.findIndex(i => Number(i.id) === Number(id));
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
-                list.push({ id, solped });
+                list.push({ id: Number(id), solped });
             }
-            localStorage.setItem('baseaccess_frecuentes', JSON.stringify(list));
+            localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
             
             // Si el modal de fijados está abierto, refrescarlo
             if (!$('modal-frecuentes').classList.contains('hidden')) {
@@ -479,7 +479,7 @@
             
             let list = [];
             try {
-                list = JSON.parse(localStorage.getItem('baseaccess_frecuentes') || '[]');
+                list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             } catch(e) { list = []; }
             
             if (list.length === 0) {
@@ -514,7 +514,7 @@
         function inicializarPines() {
             let list = [];
             try {
-                list = JSON.parse(localStorage.getItem('baseaccess_frecuentes') || '[]');
+                list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
             } catch(e) { list = []; }
             
             // Restablecer todos los botones de pin visibles a azul
