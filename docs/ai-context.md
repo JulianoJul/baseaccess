@@ -16,7 +16,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + rutas API REST**. El HTML no es estático: lo renderiza `TemplateHandler` desde `templates/index.html` con datos inyectados (catálogos, expedientes). El handler expone 10 rutas `/api/*` (JSON) que el frontend consume con `fetch()`. JS reducido al mínimo: `fetch()`, toggle de modales, apertura de BD (único binding Wails: `AbrirDialogoBD`). Backend Go con 16 métodos + backup rotativo. WebView2 Fixed Runtime para Windows. Rama `wails-migration`, `master` intacto.
+App con **Wails v2 + Go html/template + HTMX**. El HTML y los fragmentos de la interfaz (tablas, modales, formularios) se renderizan en el backend de Go mediante `TemplateHandler` y plantillas HTML parciales en `templates/`. La comunicación es gestionada de manera declarativa con **htmx**, eliminando el gluecode JavaScript tradicional de `fetch()` y manipulación de DOM. Únicos scripts JavaScript restantes: helpers de modales, autocompletado y el binding `AbrirDialogoBD` de Wails. Rama `wails-migration` activa.
 
 ## Archivos Clave
 | Archivo | Para qué |

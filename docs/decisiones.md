@@ -154,3 +154,19 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `templates/index.html`: Reescrito — tabla con `{{range}}`, `<select>` con catálogos Go, JS reducido a `fetch()` + modales + apertura BD
   - `app.go`: `CatalogoItem` con `IDGerencia` para filtrar superintendencias por gerencia
   - Único binding Wails restante: `AbrirDialogoBD` (diálogo nativo de archivos del SO)
+
+---
+
+## DEC-013: Migración completa de interactividad a HTMX y eliminación de gluecode JS
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Tras la introducción del `TemplateHandler` y las APIs REST, el frontend aún dependía de un bloque de JavaScript para realizar peticiones `fetch()`, procesar las respuestas en formato JSON, y realizar inyecciones y formateos manuales en el DOM para actualizar modales (Historial, Pendientes, Ruta de procesos) y el formulario. Para reducir drásticamente el código JS ("gluecode"), se adoptó **htmx** para manejar la interactividad de forma puramente declarativa mediante atributos HTML y se reescribieron los endpoints para retornar fragmentos de plantillas HTML en lugar de JSON.
+- **Alternativas evaluadas:**
+  - Seguir utilizando `fetch()` de JavaScript — descartado: seguía generando gluecode redundante para inyección y formateo.
+  - Migración a HTMX — elegido: HTMX permite actualizar zonas del DOM (como tablas y modales) de manera reactiva usando atributos directamente en las etiquetas HTML, moviendo la responsabilidad de renderizado al backend de Go.
+- **Impacto:**
+  - Descargado `htmx.min.js` a `frontend/vendor/htmx.min.js` e incorporado en `templates/index.html`.
+  - Creadas plantillas fragmentadas en `templates/`: `tabla_filas.html`, `historial.html`, `ruta_procesos.html`, `pendientes.html` y `formulario.html`.
+  - Modificado `handler.go`: endpoints `/api/cargar-expediente`, `/api/historial`, `/api/ruta-procesos`, `/api/pendientes` y el nuevo `/api/filtrar-expedientes` retornan ahora fragmentos HTML usando `tmpl.ExecuteTemplate()`.
+  - Simplificación drástica de `templates/index.html`: Eliminación de más de 200 líneas de código JavaScript. El spinner y los modales son controlados directamente mediante disparadores y eventos de HTMX.
+  - Los endpoints de escritura (`/api/guardar-expediente` y `/api/eliminar-expediente`) siguen retornando JSON, pero el frontend los procesa eficientemente con el evento `hx-on::after-request` para disparar notificaciones Toast y recargar el listado tras el éxito.

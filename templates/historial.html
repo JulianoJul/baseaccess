@@ -1,0 +1,28 @@
+{{if eq (len .) 0}}
+    <p class="text-gray-500 italic">Sin movimientos registrados.</p>
+{{else}}
+    <table class="w-full text-left text-xs border-collapse">
+        <thead>
+            <tr class="bg-gray-700/60 text-teal-400 uppercase">
+                <th class="p-2">Fecha Recibido</th>
+                <th class="p-2">Estatus</th>
+                <th class="p-2">Documento</th>
+                <th class="p-2">Emisor</th>
+                <th class="p-2">Receptor</th>
+                <th class="p-2">Observaciones</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-700">
+            {{range .}}
+            <tr class="hover:bg-gray-700/20">
+                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr . "receptor") "-"}}</td>
+                <td class="p-2 text-gray-400">{{rowGetStr . "observaciones"}}</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+{{end}}

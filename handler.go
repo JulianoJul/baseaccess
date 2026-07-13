@@ -276,6 +276,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/cargar-expediente" && r.Method == http.MethodGet:
 		h.handleCargarExpediente(w, r)
 		return
+	case p == "/api/filtrar-expedientes" && r.Method == http.MethodGet:
+		h.handleFiltrarExpedientes(w, r)
+		return
 	case p == "/api/historial" && r.Method == http.MethodGet:
 		h.handleHistorial(w, r)
 		return
@@ -379,36 +382,97 @@ func (h *TemplateHandler) handleEliminarExpediente(w http.ResponseWriter, r *htt
 
 func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
-	id, err := strconv.Atoi(idStr)
+	var row Row
+	var err error
+	if idStr != "" && idStr != "null" {
+		id, err2 := strconv.Atoi(idStr)
+		if err2 == nil && id > 0 {
+			row, err = h.app.ObtenerExpedientePorId(id)
+			if err != nil {
+				log.Printf("handleCargarExpediente: error finding expediente %d: %v", id, err)
+			}
+		}
+	}
+
+	catalogs, err2 := h.app.ObtenerCatalogos()
+	if err2 != nil {
+		log.Printf("handleCargarExpediente: error catalogs: %v", err2)
+		catalogs = make(map[string][]CatalogoItem)
+	}
+
+	data := map[string]interface{}{
+		"Catalogs":   catalogs,
+		"Expediente": row,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.tmpl.ExecuteTemplate(w, "templates/formulario.html", data); err != nil {
+		log.Printf("render error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
+func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *http.Request) {
+	q := strings.ToLower(r.URL.Query().Get("q"))
+	expedientes, err := h.app.ObtenerExpedientes("id_expediente DESC")
 	if err != nil {
-		writeJSONError(w, "ID inválido", http.StatusBadRequest)
+		log.Printf("handleFiltrarExpedientes: error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	row, err := h.app.ObtenerExpedientePorId(id)
-	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusNotFound)
-		return
+	var filtered []Row
+	if q == "" {
+		filtered = expedientes
+	} else {
+		for _, e := range expedientes {
+			solped := strings.ToLower(rowGetStr(e, "solped"))
+			descripcion := strings.ToLower(rowGetStr(e, "descripcion_proceso"))
+			gerencia := strings.ToLower(rowGetStr(e, "gerencia"))
+			documento := strings.ToLower(rowGetStr(e, "documento"))
+			empresa := strings.ToLower(rowGetStr(e, "empresa_adjudicada"))
+			nroProceso := strings.ToLower(rowGetStr(e, "nro_proceso"))
+
+			if strings.Contains(solped, q) ||
+				strings.Contains(descripcion, q) ||
+				strings.Contains(gerencia, q) ||
+				strings.Contains(documento, q) ||
+				strings.Contains(empresa, q) ||
+				strings.Contains(nroProceso, q) {
+				filtered = append(filtered, e)
+			}
+		}
 	}
 
-	writeJSON(w, row)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	data := map[string]interface{}{
+		"Expedientes": filtered,
+	}
+	if err := h.tmpl.ExecuteTemplate(w, "templates/tabla_filas.html", data); err != nil {
+		log.Printf("render error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request) {
 	idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		writeJSONError(w, "ID inválido", http.StatusBadRequest)
+		http.Error(w, "ID inválido", http.StatusBadRequest)
 		return
 	}
 
 	rows, err := h.app.ObtenerHistorialCompleto(id)
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	writeJSON(w, rows)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.tmpl.ExecuteTemplate(w, "templates/historial.html", rows); err != nil {
+		log.Printf("render error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) {
@@ -433,19 +497,29 @@ func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) 
 func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.app.ObtenerRutaProcesos()
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, rows)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.tmpl.ExecuteTemplate(w, "templates/ruta_procesos.html", rows); err != nil {
+		log.Printf("render error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.app.ObtenerDocumentosPendientes()
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, rows)
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.tmpl.ExecuteTemplate(w, "templates/pendientes.html", rows); err != nil {
+		log.Printf("render error: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (h *TemplateHandler) handleGuardarCatalogo(w http.ResponseWriter, r *http.Request) {

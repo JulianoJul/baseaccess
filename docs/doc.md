@@ -10,7 +10,7 @@
 |------|-----------|
 | Backend | Go 1.21+, Wails v2 |
 | SQLite | mattn/go-sqlite3 (driver nativo) |
-| Frontend | Go `html/template` + Tailwind CSS + Font Awesome |
+| Frontend | Go `html/template` + HTMX + Tailwind CSS + Font Awesome |
 | Renderizado | `TemplateHandler` (http.Handler) intercepta AssetServer |
 | Empaquetado | Wails CLI (`wails build`) |
 | Windows | WebView2 Fixed Version Runtime incluido (portable) |
@@ -30,11 +30,17 @@
 │  ├── go:embed templates/* → Go html/template      │
 │  ├── ServeHTTP()                                   │
 │  │   ├── "/" → renderiza template Go con datos     │
+│  │   ├── "/api/*" → renderiza fragmentos HTML      │
 │  │   └── otro → sirve archivo estático             │
 │  └── PageData struct (datos inyectados al template)│
 ├──────────────────────────────────────────────────┤
 │  templates/ (Go html/template)                    │
-│  └── index.html (estructura HTML renderizada Go)  │
+│  ├── index.html          # Template principal      │
+│  ├── tabla_filas.html    # Listado de expedientes  │
+│  ├── historial.html      # Historial de expediente │
+│  ├── ruta_procesos.html  # Ruta de procesos Gantt  │
+│  ├── pendientes.html     # Docs pendientes         │
+│  └── formulario.html     # Formulario CRUD         │
 ├──────────────────────────────────────────────────┤
 │  app.go (backend Go nativo)                       │
 │  ├── App struct { db *sql.DB, mu sync.Mutex }     │
@@ -47,7 +53,7 @@
 │  frontend/ (estáticos embebidos)                  │
 │  ├── schema-config.js (config del schema)         │
 │  ├── ruta-procesos-data.js (datos Gantt)          │
-│  └── vendor/ (Tailwind, FontAwesome, styles)      │
+│  └── vendor/ (Tailwind, FontAwesome, HTMX, styles)│
 └──────────────────────────────────────────────────┘
 ```
 
@@ -64,15 +70,15 @@ Wails webview → GET / → TemplateHandler.ServeHTTP()
                     Navegador carga CSS/JS desde estáticos
 ```
 
-**Flujo de datos (interacción):**
+**Flujo de datos (interacción y actualización reactiva):**
 ```
-Usuario → Click → JS llama window.go.main.App.*
-                          ↓
-                  app.go (Go)
-                    ↓
-              database/sql + go-sqlite3
-                    ↓
-              Archivo .db (escritura directa)
+Usuario → Click → HTMX realiza petición HTTP (hx-get / hx-post)
+                             ↓
+                     handler.go (Go)
+                             ↓
+                 Retorna fragmento HTML parcial
+                             ↓
+                 HTMX actualiza el DOM de forma reactiva
 ```
 
 ## Estructura del Proyecto
@@ -228,20 +234,22 @@ Workflow: `.github/workflows/build.yml`
 | 14 | `frontend/vendor/styles.css` | `color-scheme: dark` (WebKitGTK controles nativos oscuros). `select.input option` bg/color. ~20 utilidades Tailwind faltantes (`bg-gray-700/10`, `border-gray-800`, etc.) emuladas con `rgba()` — fix bordes blancos visibles | Bugfix Tailwind purgado |
 | 15 | `data/importar_datos.py` | `DROP TRIGGER trg_exp_auditoria` durante migración. Tracking por solped: `fecha_creacion=MIN(fecha_recibido)`, `fecha_actualizacion=MAX(fecha_devuelto or fecha_recibido)`. Trigger recreado al final | Fix fechas migración Excel |
 | 16 | `handler.go` | **Creado**: TemplateHandler con `http.Handler`, embebe `frontend/` y `templates/`, sirve templates Go para `/` y estáticos para el resto | Migración a Go html/template (DEC-011) |
-| 17 | `templates/index.html` | **Creado**: Go template con estructura HTML de la app (332 líneas), renderizado desde `html/template` con datos Go | Migración a Go html/template (DEC-011) |
+| 17 | `templates/index.html` | **Creado**: Go template con estructura HTML de la app, renderizado desde `html/template` con datos Go | Migración a Go html/template (DEC-011) |
 | 18 | `main.go` | `Assets: assets` → `Handler: handler`. Eliminado `//go:embed all:frontend` (ahora en handler.go). Nuevo `NewTemplateHandler(app)` | AssetServer ahora usa Handler personalizado |
-| 19 | `handler.go` | `PageData` con `Catalogs` + `Expedientes` precargados. 10 rutas `/api/*` (JSON) para CRUD, BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. Funciones template: `default`, `rowGet`, `rowGetStr`, `rowGetNum`, `estatusClass`, `formatNum`, `jsonEncode`, `truncate`, `isSelected` | Pasos 1-2 del roadmap completados |
-| 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Expedientes}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` a `/api/*` + toggle modales + apertura BD (único binding Wails restante). Eliminados: pagination JS, orden JS, cache JS, bindings Go directos | Paso 3 del roadmap completado |
-| 21 | `app.go` | `CatalogoItem` struct: añadido `IDGerencia int` para filtrar superintendencias por gerencia. `ObtenerCatalogos` ahora popula `IDGerencia` | Soporte template superintendencias |
+| 19 | `handler.go` | `PageData` con `Catalogs` + `Expedientes` precargados. 10 rutas `/api/*` (JSON) para CRUD, BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM | Pasos 1-2 del roadmap completados |
+| 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Expedientes}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` / `htmx` | Paso 3 del roadmap completado |
+| 21 | `app.go` | `CatalogoItem` struct: añadido `IDGerencia int` para filtrar superintendencias por gerencia | Soporte template superintendencias |
+| 22 | `templates/*`, `handler.go`, `index.html` | Migración completa a HTMX y plantillas fragmentadas | Remoción de gluecode JS para buscador, modales y formularios |
+
 
 ## Migración a Go html/template — Estado
 
 | # | Paso | Estado | Detalle |
 |---|------|--------|---------|
 | 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y expedientes. El template renderiza la tabla con `{{range}}`. |
-| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 10 rutas `/api/*` (JSON) para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
-| 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` a `/api/*` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD` (diálogo nativo de archivos). |
-| 4 | **HTMX** | ⏸ Postergado | Se evaluó pero `fetch()` + JS mínimo es suficiente para el alcance actual. |
+| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 10 rutas `/api/*` para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
+| 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` y luego `htmx` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD`. |
+| 4 | **HTMX** | ✅ Hecho | Integrado en plantillas y handler. Las vistas parciales renderizan HTML fragmentado reactivamente sin gluecode JS. |
 
 ### Rutas API del handler
 
