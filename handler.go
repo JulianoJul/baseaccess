@@ -820,7 +820,6 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
 	fechaDesde := r.URL.Query().Get("fecha_desde")
 	fechaHasta := r.URL.Query().Get("fecha_hasta")
 
@@ -830,29 +829,82 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		columnasSel = strings.Split(columnasParam, ",")
 	}
 
+	// Capture all id_ filters
+	filters := make(map[string]string)
+	for k, v := range r.URL.Query() {
+		if strings.HasPrefix(k, "id_") && len(v) > 0 && v[0] != "" {
+			filters[k] = v[0]
+		}
+	}
+
 	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var filtered []Row
-	for _, row := range filas {
-		if q != "" {
-			matches := false
-			for _, val := range row {
-				if val != nil {
-					sVal := strings.ToLower(fmt.Sprintf("%v", val))
-					if strings.Contains(sVal, q) {
-						matches = true
-						break
-					}
-				}
-			}
-			if !matches {
-				continue
+	var paramToRowKey = map[string]string{
+		"id_gerencia":         "gerencia",
+		"id_superintendencia": "superintendencia",
+		"id_documento":        "documento",
+		"id_plan":             "plan_contrataciones",
+		"id_modalidad":        "modalidad_contratacion",
+		"id_art":              "art",
+		"id_tipo_contrato":    "tipo_contrato",
+		"id_estatus":          "estatus_detalle",
+		"id_resultado":        "resultados_proceso",
+		"id_empresa":          "empresa_adjudicada",
+		"id_emisor":           "emisor",
+		"id_receptor":         "receptor",
+	}
+
+	var paramToCatalogKey = map[string]string{
+		"id_gerencia":         "gerencia",
+		"id_superintendencia": "superintendencia",
+		"id_documento":        "documento",
+		"id_plan":             "plan_contratacion",
+		"id_modalidad":        "modalidad",
+		"id_art":              "art",
+		"id_tipo_contrato":    "tipo_contrato",
+		"id_estatus":          "estatus_detalle",
+		"id_resultado":        "resultado_proceso",
+		"id_empresa":          "empresas",
+		"id_emisor":           "responsables",
+		"id_receptor":         "responsables",
+	}
+
+	// Load catalogs to translate IDs to names
+	catalogs, err := h.app.ObtenerCatalogos()
+	catMaps := make(map[string]map[string]string)
+	if err == nil {
+		for catKey, items := range catalogs {
+			catMaps[catKey] = make(map[string]string)
+			for _, item := range items {
+				catMaps[catKey][strconv.Itoa(item.ID)] = item.Nombre
 			}
 		}
+	}
+
+	if cfg.GerenciasIDs != nil && len(cfg.GerenciasIDs) > 0 {
+		catGer := catMaps["gerencia"]
+		permitidasNames := map[string]bool{}
+		for _, id := range cfg.GerenciasIDs {
+			if name, ok := catGer[strconv.Itoa(id)]; ok {
+				permitidasNames[name] = true
+			}
+		}
+		filteredByGer := make([]Row, 0, len(filas))
+		for _, row := range filas {
+			gerName, _ := row["gerencia"].(string)
+			if permitidasNames[gerName] {
+				filteredByGer = append(filteredByGer, row)
+			}
+		}
+		filas = filteredByGer
+	}
+
+	var filtered []Row
+	for _, row := range filas {
 		fr, _ := row["fecha_recibido"].(string)
 		if fechaDesde != "" && fr < fechaDesde {
 			continue
@@ -860,6 +912,24 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		if fechaHasta != "" && fr > fechaHasta {
 			continue
 		}
+
+		match := true
+		for paramKey, paramVal := range filters {
+			rowKey := paramToRowKey[paramKey]
+			catKey := paramToCatalogKey[paramKey]
+			if rowKey != "" && catKey != "" {
+				expectedName := catMaps[catKey][paramVal]
+				rowValStr, _ := row[rowKey].(string)
+				if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
+					match = false
+					break
+				}
+			}
+		}
+		if !match {
+			continue
+		}
+
 		filtered = append(filtered, row)
 	}
 
@@ -977,12 +1047,15 @@ func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Re
 		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
 		return
 	}
-	cols, err := h.app.ObtenerColumnasVista(cfg.Vista)
+	viewCols, err := h.app.ObtenerColumnasVista(cfg.Vista)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, cols)
+	writeJSON(w, map[string]interface{}{
+		"view_cols":  viewCols,
+		"table_cols": cfg.Columnas,
+	})
 }
 
 // --- JSON helpers ---

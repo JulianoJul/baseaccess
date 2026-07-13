@@ -10,6 +10,10 @@ export function AbrirDialogoBD() {
   return window['go']['main']['App']['AbrirDialogoBD']();
 }
 
+export function AgregarRutaProceso(arg1, arg2) {
+  return window['go']['main']['App']['AgregarRutaProceso'](arg1, arg2);
+}
+
 export function CerrarBaseDatos() {
   return window['go']['main']['App']['CerrarBaseDatos']();
 }
@@ -20,6 +24,10 @@ export function DescargarBD(arg1) {
 
 export function EliminarFila(arg1, arg2) {
   return window['go']['main']['App']['EliminarFila'](arg1, arg2);
+}
+
+export function EliminarRutaProceso(arg1) {
+  return window['go']['main']['App']['EliminarRutaProceso'](arg1);
 }
 
 export function GetBackupMaxCopies() {
@@ -42,6 +50,10 @@ export function ObtenerCatalogos() {
   return window['go']['main']['App']['ObtenerCatalogos']();
 }
 
+export function ObtenerColumnasVista(arg1) {
+  return window['go']['main']['App']['ObtenerColumnasVista'](arg1);
+}
+
 export function ObtenerDocumentosPendientes() {
   return window['go']['main']['App']['ObtenerDocumentosPendientes']();
 }
@@ -62,10 +74,18 @@ export function ObtenerRutaProcesos() {
   return window['go']['main']['App']['ObtenerRutaProcesos']();
 }
 
+export function ObtenerRutaProcesosData() {
+  return window['go']['main']['App']['ObtenerRutaProcesosData']();
+}
+
 export function OptimizarBD() {
   return window['go']['main']['App']['OptimizarBD']();
 }
 
 export function SetBackupMaxCopies(arg1) {
   return window['go']['main']['App']['SetBackupMaxCopies'](arg1);
+}
+
+export function ToggleRutaProceso(arg1, arg2) {
+  return window['go']['main']['App']['ToggleRutaProceso'](arg1, arg2);
 }

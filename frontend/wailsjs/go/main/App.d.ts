@@ -6,11 +6,15 @@ export function AbrirBaseDatos(arg1:string):Promise<void>;
 
 export function AbrirDialogoBD():Promise<string>;
 
+export function AgregarRutaProceso(arg1:string,arg2:number):Promise<number>;
+
 export function CerrarBaseDatos():Promise<void>;
 
 export function DescargarBD(arg1:string):Promise<void>;
 
 export function EliminarFila(arg1:string,arg2:number):Promise<void>;
+
+export function EliminarRutaProceso(arg1:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
 
@@ -22,6 +26,8 @@ export function GuardarNuevoCatalogo(arg1:string,arg2:string,arg3:Record<string,
 
 export function ObtenerCatalogos():Promise<Record<string, Array<main.CatalogoItem>>>;
 
+export function ObtenerColumnasVista(arg1:string):Promise<Array<string>>;
+
 export function ObtenerDocumentosPendientes():Promise<Array<main.Row>>;
 
 export function ObtenerFilaPorId(arg1:string,arg2:number):Promise<main.Row>;
@@ -32,6 +38,10 @@ export function ObtenerHistorialFila(arg1:string,arg2:number):Promise<Array<main
 
 export function ObtenerRutaProcesos():Promise<Array<main.Row>>;
 
+export function ObtenerRutaProcesosData():Promise<main.RutaProcesosGanttData>;
+
 export function OptimizarBD():Promise<void>;
 
 export function SetBackupMaxCopies(arg1:number):Promise<void>;
+
+export function ToggleRutaProceso(arg1:number,arg2:boolean):Promise<void>;

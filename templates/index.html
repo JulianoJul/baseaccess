@@ -258,10 +258,7 @@
                         {{end}}
                     </select>
                 </div>
-                <div>
-                    <label class="label">Filtro de busqueda (opcional)</label>
-                    <input type="text" id="exp-q" class="input" placeholder="Filtrar filas que contengan...">
-                </div>
+                <div id="exp-filtros-dinamicos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 <div class="grid grid-cols-2 gap-4">
                     <div><label class="label">Fecha Desde (recibido)</label><input type="date" id="exp-fecha-desde" class="input"></div>
                     <div><label class="label">Fecha Hasta (recibido)</label><input type="date" id="exp-fecha-hasta" class="input"></div>
@@ -333,6 +330,11 @@
             requestAnimationFrame(() => el.classList.add('show'));
             setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
         }
+
+        // Sobrescribir alert globalmente para redirigir a toast
+        window.alert = function(msg) {
+            toast(msg, 'error');
+        };
 
         // --- Abrir BD (único punto que necesita Wails binding) ---
         async function abrirBaseDatos() {
@@ -441,20 +443,28 @@
                 : 'Registro';
             $('form-titulo').textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
             pushModal('form-modal');
+            setTimeout(cargarSuperintendencias, 50);
         }
 
         function cerrarFormulario() { cerrarModal('form-modal'); }
 
         // --- Superintendencias (filtra por gerencia) ---
         function cargarSuperintendencias() {
-            const gerId = $('f-id_gerencia').value;
+            const gerId = $('f-id_gerencia')?.value;
             const sel = $('f-id_superintendencia');
+            if (!sel) return;
             const opts = sel.querySelectorAll('option');
             opts.forEach(o => {
                 if (!o.value) return;
                 const dataGer = o.getAttribute('data-id-gerencia');
                 o.style.display = (!gerId || String(dataGer) === String(gerId)) ? '' : 'none';
             });
+            if (gerId) {
+                const selectedOpt = sel.options[sel.selectedIndex];
+                if (selectedOpt && selectedOpt.style.display === 'none') {
+                    sel.value = '';
+                }
+            }
         }
 
         function cerrarHistorial() { cerrarModal('historial-modal'); }
@@ -764,36 +774,163 @@
         }
         async function cargarColumnasExportar() {
             const modulo = $('exp-modulo').value;
-            const cont = $('exp-columnas');
-            cont.innerHTML = '<p class="text-gray-500 text-xs col-span-full">Cargando columnas...</p>';
+            const contCols = $('exp-columnas');
+            const contFiltros = $('exp-filtros-dinamicos');
+            contCols.innerHTML = '<p class="text-gray-500 text-xs col-span-full">Cargando...</p>';
+            contFiltros.innerHTML = '';
+            
             const res = await fetch('/api/columnas-modulo?modulo=' + encodeURIComponent(modulo));
-            if (!res.ok) { cont.innerHTML = '<p class="text-red-400 text-xs col-span-full">Error al cargar columnas</p>'; return; }
-            const cols = await res.json();
-            cont.innerHTML = '';
-            cols.forEach(c => {
+            if (!res.ok) { 
+                contCols.innerHTML = '<p class="text-red-400 text-xs col-span-full">Error al cargar</p>'; 
+                return; 
+            }
+            const data = await res.json();
+            const viewCols = data.view_cols;
+            const tableCols = data.table_cols;
+            
+            // Render columns checkboxes
+            contCols.innerHTML = '';
+            viewCols.forEach(c => {
                 const lbl = document.createElement('label');
                 lbl.className = 'flex items-center gap-2 text-xs text-gray-300 cursor-pointer';
                 lbl.innerHTML = '<input type="checkbox" value="' + c + '" class="exp-col"> ' + c.replace(/_/g, ' ');
-                cont.appendChild(lbl);
+                contCols.appendChild(lbl);
+            });
+            
+            // Render dynamic filters
+            const catalogKeys = {
+                'id_gerencia': { label: 'Gerencia', key: 'gerencia' },
+                'id_superintendencia': { label: 'Superintendencia', key: 'superintendencia' },
+                'id_emisor': { label: 'Emisor / Remitente', key: 'responsables' },
+                'id_receptor': { label: 'Receptor', key: 'responsables' },
+                'id_documento': { label: 'Documento', key: 'documento' },
+                'id_estatus': { label: 'Estatus Detalle', key: 'estatus_detalle' },
+                'id_plan': { label: 'Plan Contratación', key: 'plan_contratacion' },
+                'id_modalidad': { label: 'Modalidad', key: 'modalidad' },
+                'id_art': { label: 'Art. Normativa', key: 'art' },
+                'id_tipo_contrato': { label: 'Tipo Contrato', key: 'tipo_contrato' },
+                'id_resultado': { label: 'Resultado Proceso', key: 'resultado_proceso' },
+                'id_empresa': { label: 'Empresa', key: 'empresas' }
+            };
+            
+            tableCols.forEach(col => {
+                const catInfo = catalogKeys[col];
+                if (catInfo && window.PAGE_DATA && window.PAGE_DATA.catalogs) {
+                    const items = window.PAGE_DATA.catalogs[catInfo.key] || [];
+                    if (items.length > 0) {
+                        const div = document.createElement('div');
+                        div.className = 'flex flex-col';
+                        
+                        let optionsHtml = '<option value="">Todos</option>';
+                        items.forEach(item => {
+                            let dataGerAttr = '';
+                            if (col === 'id_superintendencia' && item.id_gerencia) {
+                                dataGerAttr = ` data-id-gerencia="${item.id_gerencia}"`;
+                            }
+                            optionsHtml += `<option value="${item.id}"${dataGerAttr}>${item.nombre}</option>`;
+                        });
+                        
+                        let onchangeHtml = '';
+                        if (col === 'id_gerencia') {
+                            onchangeHtml = ' onchange="filtrarSuperintendenciasExportar()"';
+                        }
+                        
+                        div.innerHTML = `
+                            <label class="label">${catInfo.label}</label>
+                            <select id="exp-filt-${col}" name="${col}" class="input exp-filter-input"${onchangeHtml}>
+                                ${optionsHtml}
+                            </select>
+                        `;
+                        contFiltros.appendChild(div);
+                    }
+                }
             });
         }
+        
+        function filtrarSuperintendenciasExportar() {
+            const gerId = $('exp-filt-id_gerencia')?.value;
+            const sel = $('exp-filt-id_superintendencia');
+            if (!sel) return;
+            const opts = sel.querySelectorAll('option');
+            opts.forEach(o => {
+                if (!o.value) return;
+                const dataGer = o.getAttribute('data-id-gerencia');
+                o.style.display = (!gerId || String(dataGer) === String(gerId)) ? '' : 'none';
+            });
+            if (gerId) {
+                const selectedOpt = sel.options[sel.selectedIndex];
+                if (selectedOpt && selectedOpt.style.display === 'none') {
+                    sel.value = '';
+                }
+            }
+        }
+
         function toggleTodasColumnas(sel) {
             document.querySelectorAll('.exp-col').forEach(cb => cb.checked = sel);
         }
-        function ejecutarExportar() {
+        async function ejecutarExportar() {
             const modulo = $('exp-modulo').value;
-            const q = $('exp-q').value;
             const fd = $('exp-fecha-desde').value;
             const fh = $('exp-fecha-hasta').value;
             const cols = Array.from(document.querySelectorAll('.exp-col:checked')).map(cb => cb.value);
             const params = new URLSearchParams();
             params.set('modulo', modulo);
-            if (q) params.set('q', q);
             if (fd) params.set('fecha_desde', fd);
             if (fh) params.set('fecha_hasta', fh);
             if (cols.length) params.set('columnas', cols.join(','));
-            window.location.href = '/api/exportar-excel?' + params.toString();
-            cerrarModalExportar();
+            
+            document.querySelectorAll('.exp-filter-input').forEach(sel => {
+                if (sel.value) {
+                    params.set(sel.name, sel.value);
+                }
+            });
+            
+            const url = '/api/exportar-excel?' + params.toString();
+            
+            // Show spinner
+            const spinner = $('spinner-overlay');
+            if (spinner) {
+                $('spinner-text').textContent = 'Generando Excel...';
+                spinner.classList.remove('hidden');
+            }
+            
+            try {
+                const res = await fetch(url);
+                if (!res.ok) {
+                    const text = await res.text();
+                    toast(text || 'Error al exportar los datos', 'error');
+                    return;
+                }
+                
+                // Get filename from header
+                const disposition = res.headers.get('Content-Disposition');
+                let filename = 'reporte.xlsx';
+                if (disposition && disposition.indexOf('attachment') !== -1) {
+                    const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+                    const matches = filenameRegex.exec(disposition);
+                    if (matches != null && matches[1]) { 
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+                
+                const blob = await res.blob();
+                const downloadUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(downloadUrl);
+                toast('Excel descargado con éxito', 'success');
+                cerrarModalExportar();
+            } catch (err) {
+                toast('Error de conexión al exportar', 'error');
+            } finally {
+                if (spinner) {
+                    spinner.classList.add('hidden');
+                }
+            }
         }
 
         // --- Sumas (calculadora con 2 decimales) ---
@@ -805,8 +942,8 @@
         function cerrarSumas() { cerrarModal('sumas-modal'); }
         function anyadirFilaSuma() {
             const div = document.createElement('div');
-            div.className = 'suma-fila flex gap-2';
-            div.innerHTML = '<input type="number" step="0.01" placeholder="0.00" class="input flex-1 suma-input" oninput="calcularSumas()"><button onclick="this.parentElement.remove(); calcularSumas();" class="btn-icon text-red-400 hover:text-red-300" title="Quitar"><i class="fas fa-times"></i></button>';
+            div.className = 'suma-fila flex items-center gap-3 w-full pr-1';
+            div.innerHTML = '<input type="number" step="0.01" placeholder="0.00" class="input flex-1 suma-input" oninput="calcularSumas()"><button onclick="this.parentElement.remove(); calcularSumas();" class="w-8 h-8 shrink-0 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg transition-colors" title="Quitar"><i class="fas fa-times text-sm"></i></button>';
             $('sumas-filas').appendChild(div);
             div.querySelector('input').focus();
         }
