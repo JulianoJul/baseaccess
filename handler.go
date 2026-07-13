@@ -457,6 +457,28 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 		catalogs = make(map[string][]CatalogoItem)
 	}
 
+	cfg, _ := Modulos[modulo]
+	if cfg.GerenciasIDs != nil {
+		permitidas := map[int]bool{}
+		for _, id := range cfg.GerenciasIDs {
+			permitidas[id] = true
+		}
+		filtradasG := make([]CatalogoItem, 0, len(cfg.GerenciasIDs))
+		for _, g := range catalogs["gerencia"] {
+			if permitidas[g.ID] {
+				filtradasG = append(filtradasG, g)
+			}
+		}
+		catalogs["gerencia"] = filtradasG
+		filtradasS := make([]CatalogoItem, 0)
+		for _, s := range catalogs["superintendencia"] {
+			if permitidas[s.IDGerencia] {
+				filtradasS = append(filtradasS, s)
+			}
+		}
+		catalogs["superintendencia"] = filtradasS
+	}
+
 	data := map[string]interface{}{
 		"Catalogs":     catalogs,
 		"Registro":     registro,

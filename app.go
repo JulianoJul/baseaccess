@@ -29,6 +29,7 @@ type ModuloConfig struct {
 	HistorialTabla string
 	Columnas       []string
 	QueryHistorial string
+	GerenciasIDs   []int
 }
 
 var Modulos = map[string]ModuloConfig{
@@ -49,7 +50,8 @@ var Modulos = map[string]ModuloConfig{
 			"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
 			"fecha_firma_contrato", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(tc.nombre, '-') AS tipo_contrato, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(d.nombre, '-') AS documento, COALESCE(em.nombre, '-') AS emisor, COALESCE(rec.nombre, '-') AS receptor, COALESCE(ed.nombre, '-') AS estatus, COALESCE(h.fecha_recibido, '-') AS fecha_recibido, COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto, COALESCE(h.nro_proceso, '-') AS nro_proceso, h.presupuesto_base_usd, h.tipo_cambio, h.monto_adjudicado_usd, COALESCE(rp.nombre, '-') AS resultado, COALESCE(emp.nombre, '-') AS empresa, COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion, COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato, COALESCE(h.observaciones, '') AS observaciones, COALESCE(h.notas, '') AS notas FROM historial_movimientos h LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id WHERE h.id_expediente = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(tc.nombre, '-') AS tipo_contrato, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(d.nombre, '-') AS documento, COALESCE(em.nombre, '-') AS emisor, COALESCE(rec.nombre, '-') AS receptor, COALESCE(ed.nombre, '-') AS estatus, COALESCE(h.fecha_recibido, '-') AS fecha_recibido, COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto, COALESCE(h.nro_proceso, '-') AS nro_proceso, h.presupuesto_base_usd, h.tipo_cambio, h.monto_adjudicado_usd, COALESCE(rp.nombre, '-') AS resultado, COALESCE(emp.nombre, '-') AS empresa, COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion, COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato, COALESCE(h.observaciones, '') AS observaciones, COALESCE(h.notas, '') AS notas FROM historial_movimientos h LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id 		WHERE h.id_expediente = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 	},
 	"requisiciones": {
 		Nombre:         "Requisición de Materiales",
@@ -63,7 +65,8 @@ var Modulos = map[string]ModuloConfig{
 			"observaciones_entrega", "fecha_recibido", "fecha_devuelto", "id_receptor",
 			"observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.descripcion_materiales, h.serial_equipo, h.pase_sicesma, COALESCE(ed.nombre, '-') AS estatus, h.observaciones_entrega, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_req_materiales h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_requisicion = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.descripcion_materiales, h.serial_equipo, h.pase_sicesma, COALESCE(ed.nombre, '-') AS estatus, h.observaciones_entrega, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_req_materiales h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_requisicion = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 8, 11},
 	},
 	"memorandums": {
 		Nombre:         "Memorándums",
@@ -76,7 +79,8 @@ var Modulos = map[string]ModuloConfig{
 			"asunto", "id_estatus", "fecha_recibido", "fecha_devuelto",
 			"id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_memorandums h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_memorandum = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_memorandums h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_memorandum = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 	},
 	"recobros": {
 		Nombre:         "Recobros",
@@ -90,7 +94,8 @@ var Modulos = map[string]ModuloConfig{
 			"nota_debito_reverso", "costo_servicio_usd", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, h.fecha_inicio, h.fecha_final, h.servicios, h.beneficios, h.nota_debito_reverso, h.costo_servicio_usd, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_recobros h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_recobro = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, h.fecha_inicio, h.fecha_final, h.servicios, h.beneficios, h.nota_debito_reverso, h.costo_servicio_usd, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_recobros h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_recobro = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"valuaciones": {
 		Nombre:         "Valuaciones",
@@ -106,7 +111,8 @@ var Modulos = map[string]ModuloConfig{
 			"monto_adjudicado_bs", "monto_adjudicado_usd", "periodo_valuacion_desde",
 			"periodo_valuacion_hasta", "monto_valuacion", "nro_proforma", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.solped, h.presupuesto_base_bs, h.presupuesto_base_usd, h.descripcion_proceso, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.nro_proceso, h.nro_contrato_sicac, h.nro_contrato_sap, COALESCE(emp.nombre, '-') AS empresa, h.tiempo_ejecucion, h.monto_adjudicado_bs, h.monto_adjudicado_usd, h.periodo_valuacion_desde, h.periodo_valuacion_hasta, h.monto_valuacion, h.nro_proforma, h.observaciones, h.notas FROM hist_valuaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id WHERE h.id_valuacion = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.solped, h.presupuesto_base_bs, h.presupuesto_base_usd, h.descripcion_proceso, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.nro_proceso, h.nro_contrato_sicac, h.nro_contrato_sap, COALESCE(emp.nombre, '-') AS empresa, h.tiempo_ejecucion, h.monto_adjudicado_bs, h.monto_adjudicado_usd, h.periodo_valuacion_desde, h.periodo_valuacion_hasta, h.monto_valuacion, h.nro_proforma, h.observaciones, h.notas FROM hist_valuaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id 		WHERE h.id_valuacion = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"aprobacion_jd": {
 		Nombre:         "Aprobación JD",
@@ -121,7 +127,8 @@ var Modulos = map[string]ModuloConfig{
 			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "tiempo_ejecucion",
 			"observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.solped, h.fecha_presupuesto_base, h.presupuesto_base_bs, h.tipo_cambio, h.presupuesto_base_usd, COALESCE(p.nombre, '-') AS plan_contrataciones, h.descripcion_proceso, h.cantidad_frentes, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.tiempo_ejecucion, h.observaciones, h.notas FROM hist_aprobacion_jd h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_plan_contratacion p ON h.id_plan = p.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_aprobacion_jd = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.solped, h.fecha_presupuesto_base, h.presupuesto_base_bs, h.tipo_cambio, h.presupuesto_base_usd, COALESCE(p.nombre, '-') AS plan_contrataciones, h.descripcion_proceso, h.cantidad_frentes, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.tiempo_ejecucion, h.observaciones, h.notas FROM hist_aprobacion_jd h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_plan_contratacion p ON h.id_plan = p.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_aprobacion_jd = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 7, 8},
 	},
 	"certificacion_bdu": {
 		Nombre:         "Certificación BDU",
@@ -135,7 +142,8 @@ var Modulos = map[string]ModuloConfig{
 			"monto_ejecutado", "monto_pagado", "id_estatus", "fecha_recibido",
 			"fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.presupuesto_base_total_usd, h.monto_adjudicado_total_usd, h.monto_contrato, h.monto_ejecutado, h.monto_pagado, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_certificacion_bdu h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_certificacion_bdu = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.presupuesto_base_total_usd, h.monto_adjudicado_total_usd, h.monto_contrato, h.monto_ejecutado, h.monto_pagado, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_certificacion_bdu h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_certificacion_bdu = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{7},
 	},
 	"vacaciones": {
 		Nombre:         "Vacaciones",
@@ -148,7 +156,8 @@ var Modulos = map[string]ModuloConfig{
 			"anio", "cantidad_dias", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.anio, h.cantidad_dias, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_vacaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_vacacion = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.anio, h.cantidad_dias, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_vacaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_vacacion = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12},
 	},
 	"reposos_medicos": {
 		Nombre:         "Reposos Médicos",
@@ -161,7 +170,8 @@ var Modulos = map[string]ModuloConfig{
 			"dias_periodo", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.dias_periodo, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.observaciones, h.notas FROM hist_reposos_medicos h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id WHERE h.id_reposo_medico = ? ORDER BY h.id_movimiento DESC`,
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.dias_periodo, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.observaciones, h.notas FROM hist_reposos_medicos h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id 		WHERE h.id_reposo_medico = ? ORDER BY h.id_movimiento DESC`,
+		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13},
 	},
 }
 
