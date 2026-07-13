@@ -322,6 +322,12 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-toggle" && r.Method == http.MethodPost:
 		h.handleToggleRutaProceso(w, r)
 		return
+	case p == "/api/ruta-procesos-agregar" && r.Method == http.MethodPost:
+		h.handleAgregarRutaProceso(w, r)
+		return
+	case p == "/api/ruta-procesos-eliminar" && r.Method == http.MethodPost:
+		h.handleEliminarRutaProceso(w, r)
+		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
 		return
@@ -672,6 +678,39 @@ func (h *TemplateHandler) handleToggleRutaProceso(w http.ResponseWriter, r *http
 	}
 	activo := activoStr == "1" || activoStr == "true"
 	if err := h.app.ToggleRutaProceso(id, activo); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *http.Request) {
+	descripcion := r.FormValue("descripcion")
+	if strings.TrimSpace(descripcion) == "" {
+		writeJSONError(w, "descripcion requerida", http.StatusBadRequest)
+		return
+	}
+	dbIDStr := r.FormValue("db_id")
+	dbID := 0
+	if dbIDStr != "" {
+		dbID, _ = strconv.Atoi(dbIDStr)
+	}
+	id, err := h.app.AgregarRutaProceso(strings.TrimSpace(descripcion), dbID)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true, "id": id})
+}
+
+func (h *TemplateHandler) handleEliminarRutaProceso(w http.ResponseWriter, r *http.Request) {
+	idStr := r.FormValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSONError(w, "id invalido", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.EliminarRutaProceso(id); err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -88,10 +88,10 @@
                 <button onclick="abrirRecientes()" class="btn btn-primary" id="btn-recientes">
                     <i class="fas fa-history mr-1"></i> Recientes
                 </button>
-                <button onclick="abrirFrecuentes()" class="btn btn-primary" id="btn-frecuentes">
+                <button onclick="abrirFrecuentes()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-frecuentes">
                     <i class="fas fa-thumbtack rotate-45 mr-1"></i> Fijados
                 </button>
-                <button onclick="abrirSumas()" class="btn btn-primary" id="btn-sumas">
+                <button onclick="abrirSumas()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-sumas">
                     <i class="fas fa-calculator mr-1"></i> Sumas
                 </button>
                 <span id="estado-bd" class="text-xs text-gray-500 italic">
@@ -291,7 +291,7 @@
             </div>
             <div class="p-6 space-y-3">
                 <div id="sumas-filas" class="space-y-2"></div>
-                <button onclick="anyadirFilaSuma()" class="btn btn-secondary w-full"><i class="fas fa-plus mr-1"></i> Aniadir numero</button>
+                <button onclick="anyadirFilaSuma()" class="btn btn-secondary w-full"><i class="fas fa-plus mr-1"></i> Añadir número</button>
                 <div class="border-t border-gray-700 pt-4 mt-4">
                     <div class="flex justify-between items-center text-lg font-bold">
                         <span class="text-gray-300">Resultado:</span>
@@ -728,7 +728,7 @@
             }
             currentPage = 1;
             aplicarPaginacionDOM();
-            inicializarPines();
+            if (window.PAGE_DATA && window.PAGE_DATA.hasDB) inicializarPines();
         })();
 
         function toggleSortDir() {

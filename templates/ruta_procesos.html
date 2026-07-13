@@ -1,8 +1,29 @@
 <div id="gantt-chart-container">
-    <div class="mb-5 bg-gray-900/30 border border-gray-800 rounded-lg p-4">
-        <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-            <i class="fas fa-cog"></i> Gestion de Procesos
-        </h3>
+    <div class="mb-4 bg-gray-900/30 border border-gray-800 rounded-lg p-4">
+        <div class="flex items-center justify-between mb-3">
+            <h3 class="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fas fa-cog"></i> Gestion de Procesos
+            </h3>
+            <button onclick="toggleFormProceso()" class="btn btn-primary text-xs">
+                <i class="fas fa-plus mr-1"></i> Añadir Proceso
+            </button>
+        </div>
+        <div id="form-agregar-proceso" class="hidden bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-3 space-y-3">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="label">Descripcion</label>
+                    <input type="text" id="proc-descripcion" class="input" placeholder="Ej: Contratacion de servicios...">
+                </div>
+                <div>
+                    <label class="label">Expediente ID (opcional)</label>
+                    <input type="number" id="proc-db-id" class="input" placeholder="ID del expediente...">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button onclick="toggleFormProceso()" class="btn btn-secondary text-xs">Cancelar</button>
+                <button onclick="agregarProceso()" class="btn btn-primary text-xs"><i class="fas fa-check mr-1"></i> Agregar</button>
+            </div>
+        </div>
         <div class="procesos-grid" id="procesos-checkboxes"></div>
     </div>
     <div id="gantt-process-content"></div>
@@ -11,44 +32,110 @@
 (function() {
     const data = {{jsonEncode .}};
     const { Legend: legend, Columns: ganttColumns, Processes: processes } = data;
+    var formVisible = false;
+
+    window.toggleFormProceso = function() {
+        formVisible = !formVisible;
+        document.getElementById('form-agregar-proceso').classList.toggle('hidden', !formVisible);
+        if (formVisible) document.getElementById('proc-descripcion').focus();
+    };
+
+    window.agregarProceso = function() {
+        const desc = document.getElementById('proc-descripcion').value.trim();
+        const dbId = document.getElementById('proc-db-id').value;
+        if (!desc) { alert('La descripcion es requerida'); return; }
+        fetch('/api/ruta-procesos-agregar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'descripcion=' + encodeURIComponent(desc) + '&db_id=' + (dbId || '0')
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                processes.push({ id: json.id, descripcion: desc, db_id: parseInt(dbId)||0, activo: true, solped: 'SIN SOLPED', estatus_detalle: 'N/A', receptor: 'N/A', timeline: {} });
+                renderAll();
+                toggleFormProceso();
+                document.getElementById('proc-descripcion').value = '';
+                document.getElementById('proc-db-id').value = '';
+            } else {
+                alert('Error al agregar proceso');
+            }
+        })
+        .catch(() => alert('Error de conexion'));
+    };
+
+    window.toggleProceso = function(id, checked) {
+        fetch('/api/ruta-procesos-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id + '&activo=' + (checked ? '1' : '0')
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                const p = processes.find(pr => pr.id === id);
+                if (p) p.activo = checked;
+                renderAll();
+            }
+        });
+    };
+
+    window.eliminarProceso = function(id) {
+        if (!confirm('Eliminar proceso ' + id + '?')) return;
+        fetch('/api/ruta-procesos-eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                var idx = processes.findIndex(p => p.id === id);
+                if (idx !== -1) processes.splice(idx, 1);
+                renderAll();
+            }
+        });
+    };
 
     function renderAll() {
-        renderProcesosCheckboxes();
-        renderGantt();
-    }
-
-    function renderProcesosCheckboxes() {
-        let html = '';
-        processes.forEach(p => {
-            html += `<div class="proceso-card">
-                <div class="flex items-start gap-2.5">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" ${p.activo ? 'checked' : ''} onchange="toggleProceso(${p.id}, this.checked)"><span class="proceso-card-num">${p.id}</span></label>
-                    <div class="flex-1 min-w-0"><p class="proceso-card-desc">${p.descripcion}</p>
-                    <div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">${p.solped || 'SIN SOLPED'}</strong></span><span>Estatus: <span class="proceso-card-badge ${(p.estatus_detalle||'') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente'}">${p.estatus_detalle || 'N/A'}</span></span></div></div>
-                </div></div>`;
+        var html = '';
+        if (!processes.length) html = '<p class="text-gray-500 text-sm italic py-2">Sin procesos. Usa el boton para agregar.</p>';
+        else processes.forEach(p => {
+            html += '<div class="proceso-card flex items-center justify-between">' +
+                '<div class="flex items-start gap-2.5">' +
+                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
+                '<span class="proceso-card-num">' + p.id + '</span></label>' +
+                '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + p.descripcion + '</p>' +
+                '<div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">' + (p.solped || 'SIN SOLPED') + '</strong></span>' +
+                '<span>Estatus: <span class="proceso-card-badge ' + ((p.estatus_detalle || '') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente') + '">' + (p.estatus_detalle || 'N/A') + '</span></span></div></div></div>' +
+                '<button onclick="event.stopPropagation(); eliminarProceso(' + p.id + ')" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar"><i class="fas fa-trash"></i></button>' +
+                '</div>';
         });
-        if (!processes.length) html = '<p class="text-gray-500 text-sm italic col-span-full">Sin procesos registrados.</p>';
         document.getElementById('procesos-checkboxes').innerHTML = html;
+        renderGantt();
     }
 
     function renderGantt() {
         const active = processes.filter(p => p.activo);
-        let html = `<div class="mb-5"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>
-            <tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th><th colspan="5" class="gantt-week-header">DEL 01/06/26</th><th colspan="5" class="gantt-week-header">DEL 05/06/26</th><th colspan="5" class="gantt-week-header">DEL 15/06/26</th><th colspan="5" class="gantt-week-header">DEL 22/06/26</th><th colspan="5" class="gantt-week-header">DEL 30/06/26</th><th colspan="5" class="gantt-week-header">DEL 6/07/26</th></tr>
-            <tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-subheader">AL 05/06/26</th><th colspan="5" class="gantt-week-subheader">AL 12/06/26</th><th colspan="5" class="gantt-week-subheader">AL 19/06/26</th><th colspan="5" class="gantt-week-subheader">AL 26/06/26</th><th colspan="5" class="gantt-week-subheader">AL 03/07/26</th><th colspan="5" class="gantt-week-subheader">AL 10/07/26</th></tr>
-            <tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-label">SEMANA 1</th><th colspan="5" class="gantt-week-label">SEMANA 2</th><th colspan="5" class="gantt-week-label">SEMANA 3</th><th colspan="5" class="gantt-week-label">SEMANA 4</th><th colspan="5" class="gantt-week-label">SEMANA 5</th><th colspan="5" class="gantt-week-label">SEMANA 6</th></tr>
-            <tr class="bg-gray-700/80 text-gray-200 font-bold">${ganttColumns.map(c => '<th class="gantt-col-day gantt-day-header">' + c.day_name + '</th>').join('')}</tr></thead><tbody>`;
+        if (!active.length) {
+            document.getElementById('gantt-process-content').innerHTML = '<p class="text-gray-500 text-sm italic text-center py-4">Selecciona procesos arriba para ver el cronograma.</p>';
+            return;
+        }
+        var html = '<div class="mb-5"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
+            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th><th colspan="5" class="gantt-week-header">DEL 01/06/26</th><th colspan="5" class="gantt-week-header">DEL 05/06/26</th><th colspan="5" class="gantt-week-header">DEL 15/06/26</th><th colspan="5" class="gantt-week-header">DEL 22/06/26</th><th colspan="5" class="gantt-week-header">DEL 30/06/26</th><th colspan="5" class="gantt-week-header">DEL 6/07/26</th></tr>' +
+            '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-subheader">AL 05/06/26</th><th colspan="5" class="gantt-week-subheader">AL 12/06/26</th><th colspan="5" class="gantt-week-subheader">AL 19/06/26</th><th colspan="5" class="gantt-week-subheader">AL 26/06/26</th><th colspan="5" class="gantt-week-subheader">AL 03/07/26</th><th colspan="5" class="gantt-week-subheader">AL 10/07/26</th></tr>' +
+            '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-label">SEMANA 1</th><th colspan="5" class="gantt-week-label">SEMANA 2</th><th colspan="5" class="gantt-week-label">SEMANA 3</th><th colspan="5" class="gantt-week-label">SEMANA 4</th><th colspan="5" class="gantt-week-label">SEMANA 5</th><th colspan="5" class="gantt-week-label">SEMANA 6</th></tr>' +
+            '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + c.day_name + '</th>'; }).join('') + '</tr></thead><tbody>';
 
-        active.forEach(p => {
+        active.forEach(function(p) {
             html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10"><td class="gantt-col-num p-2 text-gray-400">' + p.id + '</td>';
-            ganttColumns.forEach(col => {
-                const dayData = p.timeline[col.date_str] || {};
-                const color = dayData.hex_color;
-                const statusName = dayData.status_name || '';
-                const note = dayData.note || '';
+            ganttColumns.forEach(function(col) {
+                var dayData = p.timeline[col.date_str] || {};
+                var color = dayData.hex_color;
+                var statusName = dayData.status_name || '';
+                var note = dayData.note || '';
                 if (color) {
-                    const titleColor = color === '#000000' ? '#ffffff' : color;
+                    var titleColor = color === '#000000' ? '#ffffff' : color;
                     html += '<td style="background-color: ' + color + '" class="gantt-col-day gantt-cell-active"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + titleColor + '">' + statusName + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + note + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
                 } else {
                     html += '<td class="gantt-col-day gantt-cell-empty"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada</div></div></td>';
@@ -56,28 +143,14 @@
             });
             html += '</tr>';
         });
-
         html += '</tbody></table></div></div>';
 
-        let leyendaHtml = '<div class="mt-6 border-t border-gray-700 pt-4"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
-        legend.forEach(leg => { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + leg.hex_color + '"></span><span class="gantt-legend-label">' + leg.status_name + '</span></div>'; });
+        var leyendaHtml = '<div class="mt-6 border-t border-gray-700 pt-4"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
+        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + leg.hex_color + '"></span><span class="gantt-legend-label">' + leg.status_name + '</span></div>'; });
         leyendaHtml += '</div></div>';
         html += leyendaHtml;
         document.getElementById('gantt-process-content').innerHTML = html;
     }
-
-    window.toggleProceso = function(id, checked) {
-        fetch('/api/ruta-procesos-toggle', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=' + id + '&activo=' + (checked ? '1' : '0') })
-        .then(r => r.json())
-        .then(json => {
-            if (json.success) {
-                const p = processes.find(pr => pr.id === id);
-                if (p) p.activo = checked;
-                renderProcesosCheckboxes();
-                renderGantt();
-            }
-        });
-    };
 
     renderAll();
 })();

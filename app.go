@@ -779,6 +779,32 @@ func (a *App) ToggleRutaProceso(id int, activo bool) error {
 	return err
 }
 
+func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return 0, fmt.Errorf("no hay BD abierta")
+	}
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbID)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (a *App) EliminarRutaProceso(id int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	_, err := a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id)
+	if err != nil {
+		return err
+	}
+	_, err = a.db.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id)
+	return err
+}
 
 type CatalogoItem struct {
 	ID         int    `json:"id"`
