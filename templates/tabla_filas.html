@@ -73,7 +73,7 @@
                         <button onclick="event.stopPropagation();"
                                 hx-get="/api/historial?id={{rowGetStr $exp "id_expediente"}}"
                                 hx-target="#historial-cuerpo"
-                                hx-on::before-request="$('historial-modal').classList.remove('hidden'); document.body.style.overflow = 'hidden'; $('historial-titulo').innerHTML = '<i class=\'fas fa-hourglass-half mr-1\'></i> Historial #{{rowGetStr $exp "id_expediente"}}';"
+                                hx-on::before-request="pushModal('historial-modal'); $('historial-titulo').innerHTML = '<i class=\'fas fa-hourglass-half mr-1\'></i> Historial #{{rowGetStr $exp "id_expediente"}}';"
                                 class="text-xs text-teal-400 hover:text-teal-300 font-semibold">
                             <i class="fas fa-clipboard-list mr-1"></i> Ver Historial
                         </button>

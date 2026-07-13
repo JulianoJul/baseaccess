@@ -1,0 +1,99 @@
+<div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 w-full">
+    <input type="hidden" id="active-module-val" name="modulo" value="requisiciones">
+    
+    <div class="overflow-x-auto w-full">
+        <table class="w-full text-left border-collapse" style="table-layout: fixed;">
+            <thead>
+                <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                    <th class="p-3 text-center whitespace-nowrap" style="width: 55px;">Ver</th>
+                    <th class="p-3 text-center whitespace-nowrap" style="width: 85px;">Acción</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 180px;">Superintendencia</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 140px;">Emisor</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Descripción Materiales</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Serial Equipo</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Pase SICESMA</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus Detalle</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+            {{if eq (len .Filas) 0}}
+                <tr><td colspan="10" class="p-12 text-center text-gray-500">No hay registros en la base de datos o que coincidan con la búsqueda.</td></tr>
+            {{else}}
+                {{range $i, $r := .Filas}}
+                <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $r "id_requisicion"}})">
+                    <td class="p-3 text-center">
+                        <button class="btn-icon text-link" id="btn-{{rowGetStr $r "id_requisicion"}}"><i class="fas fa-plus"></i></button>
+                    </td>
+                    <td class="p-3 text-center space-x-1.5 whitespace-nowrap">
+                        <button onclick="event.stopPropagation();"
+                                hx-get="/api/cargar-expediente?modulo=requisiciones&id={{rowGetStr $r "id_requisicion"}}"
+                                hx-target="#form-expediente"
+                                hx-on::after-request="mostrarFormulario({{rowGetStr $r "id_requisicion"}})"
+                                class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
+                    </td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "gerencia"}}">{{default (rowGetStr $r "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "superintendencia"}}">{{default (rowGetStr $r "superintendencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "emisor"}}">{{default (rowGetStr $r "emisor") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $r "documento"}}">{{default (rowGetStr $r "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $r "descripcion_materiales"}}">{{rowGetStr $r "descripcion_materiales"}}</td>
+                    <td class="p-3 text-gray-300 truncate font-mono text-xs" title="{{rowGetStr $r "serial_equipo"}}">{{default (rowGetStr $r "serial_equipo") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 truncate font-mono text-xs" title="{{rowGetStr $r "pase_sicesma"}}">{{default (rowGetStr $r "pase_sicesma") "N/A"}}</td>
+                    <td class="p-3 truncate" title="{{rowGetStr $r "estatus_detalle"}}">
+                        <span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $r "estatus_detalle")}}">{{default (rowGetStr $r "estatus_detalle") "PENDIENTE"}}</span>
+                    </td>
+                </tr>
+                <tr id="subfila-{{rowGetStr $r "id_requisicion"}}" class="hidden bg-gray-950/40 border-l-4 border-teal-500">
+                    <td colspan="10" class="p-5">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-clipboard-list mr-1"></i> Detalles de la Requisición</h4>
+                                <p><span class="text-gray-400 font-medium">Descripción de Materiales:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">{{default (rowGetStr $r "descripcion_materiales") "Sin descripción."}}</span></p>
+                                <p><span class="text-gray-400 font-medium">Observaciones de Entrega:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">{{default (rowGetStr $r "observaciones_entrega") "Sin observaciones."}}</span></p>
+                            </div>
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-info-circle mr-1"></i> Trazabilidad y Fechas</h4>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <div><span class="text-gray-400">Receptor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $r "receptor") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Estatus:</span> <span class="text-teal-300 block">{{default (rowGetStr $r "estatus_detalle") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_recibido") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_devuelto") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Fecha Creación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_creacion") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Última Modificación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_actualizacion") "N/A"}}</span></div>
+                                </div>
+                                <div class="pt-2 border-t border-gray-700/40 mt-2">
+                                    <button onclick="event.stopPropagation();"
+                                            hx-get="/api/historial?modulo=requisiciones&id={{rowGetStr $r "id_requisicion"}}"
+                                            hx-target="#historial-cuerpo"
+                                            hx-on::before-request="pushModal('historial-modal'); $('historial-titulo').innerHTML = '<i class=\'fas fa-hourglass-half mr-1\'></i> Historial #{{rowGetStr $r "id_requisicion"}}';"
+                                            class="text-xs text-teal-400 hover:text-teal-300 font-semibold">
+                                        <i class="fas fa-clipboard-list mr-1"></i> Ver Historial
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        {{if rowGetStr $r "observaciones"}}
+                        <div class="mt-4 border-t border-gray-700/50 pt-4">
+                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
+                                <div class="text-gray-300 italic whitespace-pre-wrap">{{rowGetStr $r "observaciones"}}</div>
+                            </div>
+                        </div>
+                        {{end}}
+                        {{if rowGetStr $r "notas"}}
+                        <div class="mt-4 border-t border-gray-700/50 pt-4">
+                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
+                                <p class="text-gray-300 whitespace-pre-wrap">{{rowGetStr $r "notas"}}</p>
+                            </div>
+                        </div>
+                        {{end}}
+                    </td>
+                </tr>
+                {{end}}
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -68,13 +68,13 @@
                 </button>
                 <button hx-get="/api/ruta-procesos"
                         hx-target="#ruta-contenido"
-                        hx-on::after-request="$('modal-ruta').classList.remove('hidden'); document.body.style.overflow = 'hidden';"
+                        hx-on::after-request="pushModal('modal-ruta');"
                         {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-ruta">
                     <i class="fas fa-route mr-1"></i> Ruta Procesos
                 </button>
                 <button hx-get="/api/pendientes"
                         hx-target="#pendientes-contenido"
-                        hx-on::after-request="$('modal-pendientes').classList.remove('hidden'); document.body.style.overflow = 'hidden';"
+                        hx-on::after-request="pushModal('modal-pendientes');"
                         {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes">
                     <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
@@ -380,9 +380,31 @@
             if (star) star.classList.toggle('text-amber-300');
         }
 
+        // --- Stack de modales (cierre al clickear afuera con jerarquia) ---
+        const MODAL_STACK = [];
+        function pushModal(id) {
+            const el = $(id);
+            if (!el || !el.classList.contains('hidden')) return;
+            el.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            MODAL_STACK.push(id);
+            el.addEventListener('click', function(e) {
+                if (e.target === el) {
+                    if (MODAL_STACK.length && MODAL_STACK[MODAL_STACK.length - 1] === id) cerrarModal(id);
+                }
+            });
+        }
+        function cerrarModal(id) {
+            const el = $(id);
+            if (!el) return;
+            el.classList.add('hidden');
+            const idx = MODAL_STACK.lastIndexOf(id);
+            if (idx !== -1) MODAL_STACK.splice(idx, 1);
+            if (MODAL_STACK.length === 0) document.body.style.overflow = '';
+        }
+
         // --- Formulario ---
         function mostrarFormulario(id) {
-            const modal = $('form-modal');
             const moduloKey = (window.PAGE_DATA && window.PAGE_DATA.modulos && $('active-module-val'))
                 ? $('active-module-val').value
                 : 'expedientes';
@@ -390,14 +412,10 @@
                 ? window.PAGE_DATA.modulos[moduloKey].Nombre
                 : 'Registro';
             $('form-titulo').textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            pushModal('form-modal');
         }
 
-        function cerrarFormulario() {
-            $('form-modal').classList.add('hidden');
-            document.body.style.overflow = '';
-        }
+        function cerrarFormulario() { cerrarModal('form-modal'); }
 
         // --- Superintendencias (filtra por gerencia) ---
         function cargarSuperintendencias() {
@@ -411,9 +429,9 @@
             });
         }
 
-        function cerrarHistorial() { $('historial-modal').classList.add('hidden'); document.body.style.overflow = ''; }
-        function cerrarRuta() { $('modal-ruta').classList.add('hidden'); document.body.style.overflow = ''; }
-        function cerrarPendientes() { $('modal-pendientes').classList.add('hidden'); document.body.style.overflow = ''; }
+        function cerrarHistorial() { cerrarModal('historial-modal'); }
+        function cerrarRuta() { cerrarModal('modal-ruta'); }
+        function cerrarPendientes() { cerrarModal('modal-pendientes'); }
 
         // --- BD Recientes ---
         function registrarReciente(nombre, path) {
@@ -473,8 +491,7 @@
             const modal = $('modal-recientes');
             const cont = $('recientes-contenido');
             if (!modal || !cont) return;
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            pushModal('modal-recientes');
             let recientes = [];
             try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (recientes.length === 0) {
@@ -493,10 +510,7 @@
             }
         }
 
-        function cerrarRecientes() {
-            $('modal-recientes')?.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
+        function cerrarRecientes() { cerrarModal('modal-recientes'); }
 
         // --- Acceso Rápido / Pinned items ---
         function toggleFrecuente(id, solped) {
@@ -532,8 +546,7 @@
             const modal = $('modal-frecuentes');
             const cont = $('frecuentes-contenido');
             if (!modal || !cont) return;
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
+            pushModal('modal-frecuentes');
             
             let list = [];
             try {
@@ -564,10 +577,7 @@
             `).join('') + '</div>';
         }
 
-        function cerrarFrecuentes() {
-            $('modal-frecuentes')?.classList.add('hidden');
-            document.body.style.overflow = '';
-        }
+        function cerrarFrecuentes() { cerrarModal('modal-frecuentes'); }
 
         function inicializarPines() {
             let list = [];
