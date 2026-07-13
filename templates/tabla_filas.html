@@ -2,17 +2,20 @@
     <tr><td colspan="8" class="p-12 text-center text-gray-500">No hay expedientes en la base de datos o que coincidan con la búsqueda.</td></tr>
 {{else}}
     {{range $i, $exp := .Expedientes}}
-    <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $exp "id_expediente"}})">
+     <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $exp "id_expediente"}})">
         <td class="p-3 text-center">
             <button class="btn-icon text-link" id="btn-{{rowGetStr $exp "id_expediente"}}"><i class="fas fa-plus"></i></button>
-            <button onclick="event.stopPropagation(); toggleFrecuente({{rowGetStr $exp "id_expediente"}}, '{{rowGetStr $exp "solped"}}')" class="btn-icon text-amber-400 hover:text-amber-300 ml-1" title="Frecuente"><i class="fas fa-star" id="star-{{rowGetStr $exp "id_expediente"}}"></i></button>
         </td>
-        <td class="p-3 text-center">
+        <td class="p-3 text-center space-x-1.5 whitespace-nowrap">
             <button onclick="event.stopPropagation();"
                     hx-get="/api/cargar-expediente?id={{rowGetStr $exp "id_expediente"}}"
                     hx-target="#form-expediente"
                     hx-on::after-request="mostrarFormulario({{rowGetStr $exp "id_expediente"}})"
                     class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
+            <button onclick="event.stopPropagation(); toggleFrecuente({{rowGetStr $exp "id_expediente"}}, '{{rowGetStr $exp "solped"}}')"
+                    class="btn-icon text-blue-500 hover:text-blue-400" title="Anclar" id="pin-btn-{{rowGetStr $exp "id_expediente"}}">
+                <i class="fas fa-thumbtack rotate-45 text-xs"></i>
+            </button>
         </td>
         <td class="p-3 font-semibold text-gray-200 truncate" title="{{rowGetStr $exp "solped"}}">{{default (rowGetStr $exp "solped") "SIN SOLPED"}}</td>
         <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $exp "gerencia"}}">{{default (rowGetStr $exp "gerencia") "N/A"}}</td>
