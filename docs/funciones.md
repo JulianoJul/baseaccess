@@ -10,52 +10,36 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 |--------|-----------|-------------|
 | `AbrirBaseDatos(filePath)` | `filePath`: ruta al .db | Abre BD SQLite con WAL + foreign_keys. Cierra la anterior si existe |
 | `CerrarBaseDatos()` | — | Cierra la BD actual |
-| `ObtenerExpedientes(orden)` | `orden`: columna DESC/ASC | SELECT con sanitización whitelist. Retorna `[]Row` |
-| `ObtenerExpedientePorId(id)` | `id`: int | Retorna `Row` única o error |
-| `ObtenerRutaProcesos()` | — | JOIN completo para ruta de procesos |
-| `ObtenerDocumentosPendientes()` | — | WHERE estatus <> FIRMADO |
-| `ObtenerHistorialCompleto(id)` | `id`: int | JOIN multi-tabla ordenado DESC |
-| `GuardarExpediente(data)` | `data`: map[string]interface{} | INSERT o UPDATE según presencia de id_expediente |
-| `EliminarExpediente(id)` | `id`: int64 | DELETE en transacción (historial + expediente) |
-| `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 tablas) |
+| `ObtenerFilas(moduloKey, orden)` | `moduloKey`: key de Modulos map; `orden`: columna DESC/ASC | SELECT * FROM cfg.Vista con sanitizacion whitelist. Soporta 9 modulos. |
+| `ObtenerFilaPorId(moduloKey, id)` | `moduloKey`, `id`: int | Retorna `Row` unica o error |
+| `ObtenerRutaProcesos()` | — | JOIN completo para ruta de procesos (especifico de expedientes) |
+| `ObtenerDocumentosPendientes()` | — | WHERE estatus <> FIRMADO (especifico de expedientes) |
+| `ObtenerHistorialFila(moduloKey, id)` | `moduloKey`, `id`: int | SELECT cfg.QueryHistorial (JOIN multi-tabla segun modulo) |
+| `GuardarFila(moduloKey, data)` | `moduloKey`, `data`: map[string]interface{} | INSERT o UPDATE segun presencia de cfg.IDColumna |
+| `EliminarFila(moduloKey, id)` | `moduloKey`, `id`: int64 | DELETE en transaccion (historial + modulo) |
+| `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 catalogos) |
 | `OptimizarBD()` | — | Ejecuta VACUUM |
-| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo (whitelist tabla/columna) |
-| `AbrirDialogoBD()` | — | Abre diálogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
-| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre diálogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
-| `SetBackupMaxCopies(n)` | `n`: int | Configura número de backups rotativos (1-20) |
-| `GetBackupMaxCopies()` | — | Retorna número actual de backups |
+| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catalogo (whitelist tabla/columna) |
+| `AbrirDialogoBD()` | — | Abre dialogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
+| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre dialogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
+| `SetBackupMaxCopies(n)` | `n`: int | Configura numero de backups rotativos (1-20) |
+| `GetBackupMaxCopies()` | — | Retorna numero actual de backups |
+| `DescargarBD(destPath)` | `destPath`: string | Copia el .db actual a otra ruta |
 
-## Data Layer — Frontend JS (llama a Go)
+## Data Layer — Frontend (HTMX + JS minimo)
 
-| Función | Parámetros | Descripción |
+La mayoria de las funciones JS previas (cargarCatalogos, obtenerExpedientes, guardarExpedienteEnBd, etc.) fueron reemplazadas por HTMX declarativo. JS actual minimo: helpers de modales (`mostrarFormulario`, `cerrarFormulario`), paginacion DOM del lado del cliente, localStorage (recientes/fijados), y `abrirBaseDatos()` (unica funcion que invoca el binding Wails `AbrirDialogoBD`).
+
+## UI Layer — Tabla Principal (renderizada en Go, actualizada via HTMX)
+
+| Funcion | Parametros | Descripcion |
 |---------|-----------|-------------|
-| `_cargarBaseDatosComun(filePath)` | `filePath`: string | Llama `AbrirBaseDatos`, luego `cargarCatalogos()` y `cargarDatos()` |
-| `cargarCatalogos()` | — | Llama `ObtenerCatalogos()`, llena `catalogosCache`, repuebla selects |
-| `cargarDatos()` | — | Llama `ObtenerExpedientes()`, renderiza tabla |
-| `obtenerExpedientes(orden)` | `orden`: string | Wrapper async → `window.go.main.App.ObtenerExpedientes(orden)` |
-| `obtenerExpedientePorId(id)` | `id`: int | Wrapper async → `window.go.main.App.ObtenerExpedientePorId(id)` |
-| `obtenerHistorialPorId(id)` | `id`: int | Wrapper async → `window.go.main.App.ObtenerHistorialCompleto(id)` |
-| `obtenerDatosReporteExcel()` | — | Llama `obtenerExpedientes('id_expediente DESC')` |
-| `guardarExpedienteEnBd(id, data)` | `id`, `data` | Llama `GuardarExpediente(data)` |
-| `eliminarExpedienteDeBd(id)` | `id`: int64 | Llama `EliminarExpediente(id)` |
-| `guardarNuevoCatalogoEnBd(tabla, cols, vals)` | `tabla, cols[], vals[]` | Llama `GuardarNuevoCatalogo(...)` |
-
-## UI Layer — Tabla Principal
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza tabla de 8 columnas + fila desplegable |
-| `cambiarOrden()` | — | Lee selector de orden + dirección, recarga datos ordenados |
-| `toggleSortDir()` | — | Alterna ASC/DESC, persiste en localStorage |
-| `aplicarPaginacion()` | — | Calcula páginas, renderiza slice actual |
-| `irPagina(n)` | `n`: número de página | Cambia página, refresca tabla |
-| `renderPaginacion()` | — | Renderiza controles de paginación |
-| `toggleDesplegable(id)` | `id`: expediente.id_expediente | Expande/colapsa fila desplegable |
-| `toggleDetalle(prefix, id)` | `prefix`, `id` | Alterna visibilidad de detalle |
-| `formatNum(v)` | `v`: número | Formatea con toLocaleString('es-VE') |
-| `parseNum(v)` | `v`: string | Convierte a float |
-| `validarFechas()` | — | Valida fechas del formulario |
-| `validarFechasEntre(recibido, devuelto)` | fechas | Función pura, retorna `{valid, errorMsg}` |
+| `mostrarFormulario(id)` | `id`: opcional | Abre modal formulario (crear/editar) con titulo dinamico segun modulo |
+| `cerrarFormulario()` | — | Cierra modal, limpia formulario |
+| `toggleDesplegable(id)` | `id`: registro.id | Expande/colapsa fila desplegable |
+| `renderPaginacion()` | — | Renderiza controles de paginacion |
+| `irPagina(n)` | `n`: numero de pagina | Cambia pagina, refresca tabla |
+| `aplicarPaginacion()` / `aplicarPaginacionDOM()` | — | Calcula paginas, renderiza slice actual |
 
 ## UI Layer — Formulario de Edición
 

@@ -170,3 +170,20 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - Modificado `handler.go`: endpoints `/api/cargar-expediente`, `/api/historial`, `/api/ruta-procesos`, `/api/pendientes` y el nuevo `/api/filtrar-expedientes` retornan ahora fragmentos HTML usando `tmpl.ExecuteTemplate()`.
   - Simplificación drástica de `templates/index.html`: Eliminación de más de 200 líneas de código JavaScript. El spinner y los modales son controlados directamente mediante disparadores y eventos de HTMX.
   - Los endpoints de escritura (`/api/guardar-expediente` y `/api/eliminar-expediente`) siguen retornando JSON, pero el frontend los procesa eficientemente con el evento `hx-on::after-request` para disparar notificaciones Toast y recargar el listado tras el éxito.
+
+---
+
+## DEC-014: Multi-modulo con schema separado y Modulos map
+
+- **Origen:** `[Instruccion Explicita del Usuario]`
+- **Contexto y Causa:** La app gestionaba originalmente un solo tipo de documento (expedientes de contrataciones). El usuario extendio el control a 9 tipos: expedientes, requisiciones, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos. Cada tipo tiene su propia tabla principal, tabla de historial, vista de reporte y trigger de auditoria. Se dividio el schema en dos archivos SQL limpios: `01_master_control_docs_presidencia.sql` (catalogos + expedientes) y `02_modulos_adicionales.sql` (8 modulos restantes). En codigo Go, se unifico la API con `var Modulos map[string]ModuloConfig` (app.go), cada entrada define `Tabla`, `Vista`, `IDColumna`, `HistorialTabla`, `Columnas`, `QueryHistorial`. Los handlers y templates se fragmentan en `tabla_<key>.html`/`form_<key>.html` y se despachan via `{{if eq .ActiveModule "<key>"}}`. Se anyadio botonera inferior en index.html para cambiar de modulo sin recargar la pagina (HTMX swap de `#vista-tabla`).
+- **Alternativas evaluadas:**
+  - Una sola tabla polimorfica con `tipo_documento` — descartado: perdia integridad referencial y tipado de columnas.
+  - 9 esquemas SQLite separados — descartado: backup rotativo y apertura de BD por usuario no lo justifican.
+  - Multi-modulo con `Modulos` map + schema separado — elegido: DRY en la API Go, schemas limpios e independientes, UI unificada.
+- **Impacto:**
+  - `data/sql/01_master_control_docs_presidencia.sql` + `02_modulos_adicionales.sql` creados (Tablas8.sql queda obsoleto, conservado por historico). `cat_gerencia` ampliada con 3 gerencias (IDs 11-13: PROCURA, CONTROL DE DOCUMENTOS, ASUNTOS PUBLICOS).
+  - `app.go`: `Modulos map[string]ModuloConfig` (9 entradas). API primaria renombrada: `ObtenerFilas/FilaPorId/GuardarFila/EliminarFila/ObtenerHistorialFila` con `moduloKey` como primer arg. Wrappers legacy `*Expediente*` eliminados.
+  - `handler.go`: ruta nueva `/api/cambiar-modulo`. `handleCSV` migrado. `handleHistorial` pasa `ActiveModule` al template.
+  - `templates/`: 18 nuevos templates (9 `tabla_<key>.html` + 9 `form_<key>.html`). `historial.html` condicional (`{{if ne .ActiveModule "reposos_medicos"}}` para columna Receptor) y muestra columna Notas. `index.html`: botonera inferior `{{range $key, $cfg := .Modulos}}`, titulo de modal dinamico via `window.PAGE_DATA.modulos`.
+  - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso (referencia a `formulario.html` en index.html removida).

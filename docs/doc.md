@@ -36,19 +36,19 @@
 ├──────────────────────────────────────────────────┤
 │  templates/ (Go html/template)                    │
 │  ├── index.html          # Template principal      │
-│  ├── tabla_filas.html    # Listado de expedientes  │
-│  ├── historial.html      # Historial de expediente │
+│  ├── tabla_<key>.html (9)# Listado por modulo      │
+│  ├── form_<key>.html (9) # Formulario por modulo   │
+│  ├── historial.html      # Historial (multi-modulo)│
 │  ├── ruta_procesos.html  # Ruta de procesos Gantt  │
-│  ├── pendientes.html     # Docs pendientes         │
-│  └── formulario.html     # Formulario CRUD         │
+│  └── pendientes.html     # Docs pendientes         │
 ├──────────────────────────────────────────────────┤
 │  app.go (backend Go nativo)                       │
 │  ├── App struct { db *sql.DB, mu sync.Mutex }     │
 │  ├── AbrirBaseDatos(filePath) → sql.Open          │
-│  ├── ObtenerExpedientes(orden) → SELECT vista     │
-│  ├── GuardarExpediente(data) → INSERT/UPDATE      │
-│  ├── EliminarExpediente(id) → DELETE transacción  │
-│  └── ...otros 8 métodos                           │
+│  ├── ObtenerFilas(moduloKey, orden) → SELECT vista│
+│  ├── GuardarFila(moduloKey, data) → INSERT/UPDATE │
+│  ├── EliminarFila(moduloKey, id) → DELETE transacc│
+│  └── ... Modulos map (9 modulos)                  │
 ├──────────────────────────────────────────────────┤
 │  frontend/ (estáticos embebidos)                  │
 │  ├── ruta-procesos-data.js (datos Gantt)          │
@@ -119,20 +119,30 @@ baseaccess/
 
 | Tabla | Propósito |
 |-------|-----------|
-| `cat_gerencia` | Catálogo de gerencias |
-| `cat_superintendencia` | Catálogo de superintendencias (FK → gerencia) |
+| `cat_gerencia` | Catálogo de gerencias (13 registros, IDs 1-13) |
+| `cat_superintendencia` | Catálogo de superintendencias (FK → gerencia, 17 registros) |
 | `cat_documento` | Tipos de documento (28 registros) |
 | `cat_plan_contratacion` | Planes de contratación |
 | `cat_modalidad` | Modalidades de contratación |
 | `cat_art` | Artículos de normativa interna |
 | `cat_tipo_contrato` | Tipos de contrato (PU, SG, MIXTO) |
-| `cat_estatus_detalle` | Estatus (Pendiente, Firmado, Devuelto...) |
+| `cat_estatus_detalle` | Estatus (10 valores) |
 | `cat_resultado_proceso` | Resultados (Adjudicado, Desierto...) |
 | `cat_empresas` | Empresas adjudicadas |
 | `cat_responsables` | Emisores/Receptores |
-| `expedientes` | **Tabla principal**: ~30 columnas con fechas, montos, FK |
+| `expedientes` | **Contrataciones**: ~30 columnas con fechas, montos, FK |
 | `historial_movimientos` | Traza de cambios vía trigger |
-| `vw_reporte_excel_contrataciones` | Vista JOIN completo para reportes |
+| `vw_reporte_excel_contrataciones` | Vista JOIN completo para contrataciones |
+| --- | **Módulos adicionales (02_modulos_adicionales.sql)** |
+| `req_materiales` + `hist_req_materiales` | Requisición de Materiales |
+| `memorandums` + `hist_memorandums` | Memorándums / Decisión de Gerencia |
+| `recobros` + `hist_recobros` | Recobros |
+| `valuaciones` + `hist_valuaciones` | Valuaciones |
+| `aprobacion_jd` + `hist_aprobacion_jd` | Para Aprobación JD |
+| `certificacion_bdu` + `hist_certificacion_bdu` | Certificación BDU |
+| `vacaciones` + `hist_vacaciones` | Vacaciones |
+| `reposos_medicos` + `hist_reposos_medicos` | Reposo Médico |
+| `vw_reporte_req_materiales` … `vw_reporte_reposos_medicos` | 8 vistas JOIN por módulo |
 
 ## Esquema de Colores
 
@@ -181,7 +191,7 @@ El binario es 100% portable: copiar `build/bin/` a cualquier máquina y ejecutar
 
 **Riesgo:** Cortes de energía frecuentes pueden corromper el .db si ocurren durante una escritura física.
 
-**Norma:** Antes de cada `GuardarExpediente()`, `EliminarExpediente()`, `GuardarNuevoCatalogo()` y `OptimizarBD()`, Go crea una copia de seguridad del .db actual con rotación de N backups (`.bak.1` más reciente, `.bak.N` más antiguo). Implementado en `app.go`.
+**Norma:** Antes de cada `GuardarFila()`, `EliminarFila()`, `GuardarNuevoCatalogo()` y `OptimizarBD()`, Go crea una copia de seguridad del .db actual con rotación de N backups (`.bak.1` más reciente, `.bak.N` más antiguo). Implementado en `app.go`.
 
 ### 2. SoC — Separation of Concerns
 
@@ -234,8 +244,8 @@ Workflow: `.github/workflows/build.yml`
 | 16 | `handler.go` | **Creado**: TemplateHandler con `http.Handler`, embebe `frontend/` y `templates/`, sirve templates Go para `/` y estáticos para el resto | Migración a Go html/template (DEC-011) |
 | 17 | `templates/index.html` | **Creado**: Go template con estructura HTML de la app, renderizado desde `html/template` con datos Go | Migración a Go html/template (DEC-011) |
 | 18 | `main.go` | `Assets: assets` → `Handler: handler`. Eliminado `//go:embed all:frontend` (ahora en handler.go). Nuevo `NewTemplateHandler(app)` | AssetServer ahora usa Handler personalizado |
-| 19 | `handler.go` | `PageData` con `Catalogs` + `Expedientes` precargados. 10 rutas `/api/*` (JSON) para CRUD, BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM | Pasos 1-2 del roadmap completados |
-| 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Expedientes}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` / `htmx` | Paso 3 del roadmap completado |
+| 19 | `handler.go` | `PageData` con `Catalogs` + `Filas` precargados (multi-módulo). 12 rutas `/api/*` para CRUD, BD, historial, cambio de módulo, ruta procesos, pendientes, CSV, catálogos, VACUUM | Pasos 1-2 del roadmap completados |
+| 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Filas}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` / `htmx`. Botonera inferior para cambiar de módulo. Título dinámico del modal. | Paso 3 del roadmap completado |
 | 21 | `app.go` | `CatalogoItem` struct: añadido `IDGerencia int` para filtrar superintendencias por gerencia | Soporte template superintendencias |
 | 22 | `templates/*`, `handler.go`, `index.html` | Migración completa a HTMX y plantillas fragmentadas | Remoción de gluecode JS para buscador, modales y formularios |
 | 23 | `templates/ruta_procesos.html` | Gantt timeline restaurado utilizando `window.RUTA_PROCESOS_DATA` estático | Visualización correcta de Gantt en HTMX |
@@ -243,13 +253,15 @@ Workflow: `.github/workflows/build.yml`
 | 25 | `templates/index.html`, `templates/pendientes.html` | Tabla configurada con `table-layout: fixed` y anchos proporcionales con reparto 50/50 para Documento/Descripción; badges con `whitespace-nowrap` | UX y diseño responsivo sin desbordamientos |
 | 26 | `templates/index.html` | Paginación por bloques del lado del cliente acoplada con eventos de HTMX | Navegación de registros optimizada |
 | 27 | `templates/index.html` | `schema-config.js` eliminado de imports; `STORAGE_KEYS` inlineado directamente en el template. Todas las references a `'baseaccess_recientes'` migradas a `STORAGE_KEYS.RECIENTES` | Eliminación total de dependencia externa de schema-config.js |
+| 28 | `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql` | **Creados**: schema multi-módulo (master + 8 módulos adicionales con sus tablas hist_, vistas vw_reporte_*, y triggers de auditoría). `cat_gerencia` ampliada de 10 a 13 gerencias. | Soporte a 9 tipos de documentos en una sola BD |
+| 29 | `app.go`, `handler.go`, `templates/*` | **Multi-módulo**: `Modulos` map (9 módulos), botonera inferior en index.html, `tabla_<key>.html`/`form_<key>.html` fragmentados, título dinámico del modal (`PAGE_DATA.modulos`), `historial.html` parametrizable (Receptor omitido en reposos_medicos, columna Notas añadida). API renombrada: `ObtenerFilas/GuardarFila/EliminarFila` con `moduloKey`. Wrappers legacy `*Expediente*` eliminados. | UI y API unificada multi-módulo |
 
 
 ## Migración a Go html/template — Estado
 
 | # | Paso | Estado | Detalle |
 |---|------|--------|---------|
-| 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y expedientes. El template renderiza la tabla con `{{range}}`. |
+| 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y filas (multi-módulo). El template renderiza la tabla con `{{range}}`. |
 | 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 11 rutas `/api/*` para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
 | 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` y luego `htmx` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD`. |
 | 4 | **HTMX** | ✅ Hecho | Integrado en plantillas y handler. Las vistas parciales renderizan HTML fragmentado reactivamente sin gluecode JS. |
@@ -262,7 +274,8 @@ Workflow: `.github/workflows/build.yml`
 | `/api/eliminar-expediente` | POST | Elimina expediente + historial por ID |
 | `/api/cargar-expediente` | GET | Devuelve fragmento HTML del formulario de edición |
 | `/api/filtrar-expedientes` | GET | Filtra, ordena y devuelve fragmento HTML de las filas de la tabla |
-| `/api/historial` | GET | Devuelve fragmento HTML del historial de un expediente |
+| `/api/cambiar-modulo` | GET | Cambia de módulo y devuelve fragmento HTML de la tabla correspondiente |
+| `/api/historial` | GET | Devuelve fragmento HTML del historial de un registro (multi-módulo) |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
 | `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos |
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
