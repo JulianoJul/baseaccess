@@ -9,14 +9,14 @@
 
 ## Líneas Rojas
 - **Cero hardcodeo**: todo valor variable → constantes con nombre (`CONFIG.*`)
-- **SPOT**: `frontend/schema-config.js` es la única fuente de verdad del schema
-- **SoC**: separar Go (backend/BD) de JS (UI). Las funciones JS solo llaman `window.go.main.App.*`
+- **SPOT**: `app.go` + `handler.go` son la fuente de verdad del schema
+- **SoC**: separar Go (backend/BD) de JS (UI mínimo). JS solo controla modales y localStorage
 - **KISS + YAGNI**: resolver solo lo pedido, sin features "por si acaso"
 - **Sin efectos secundarios ocultos**: las funciones deben ser predecibles (Least Astonishment)
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + HTMX**. El HTML y los fragmentos de la interfaz (tablas, modales, formularios) se renderizan en el backend de Go mediante `TemplateHandler` y plantillas HTML parciales en `templates/`. La comunicación es gestionada de manera declarativa con **htmx**, eliminando el gluecode JavaScript tradicional de `fetch()` y manipulación de DOM. Únicos scripts JavaScript restantes: helpers de modales, autocompletado y el binding `AbrirDialogoBD` de Wails. Rama `wails-migration` activa.
+App con **Wails v2 + Go html/template + HTMX**. El HTML y los fragmentos de la interfaz se renderizan en el backend de Go mediante `TemplateHandler` y plantillas HTML parciales en `templates/`. La comunicación es gestionada de manera declarativa con **htmx**. `schema-config.js` ya no se carga; sus constantes fueron inlineadas o migradas al backend. Únicos scripts JS restantes: helpers de modales, paginación DOM, localStorage (recientes/fijados) y el binding `AbrirDialogoBD` de Wails. Rama `wails-migration` activa.
 
 ## Archivos Clave
 | Archivo | Para qué |
@@ -27,8 +27,8 @@ App con **Wails v2 + Go html/template + HTMX**. El HTML y los fragmentos de la i
 | `app.go` | Backend Go: App struct, 12 métodos CRUD SQLite |
 | `go.mod` | Dependencias Go (wails/v2 + go-sqlite3) |
 | `wails.json` | Config proyecto Wails |
-| `frontend/schema-config.js` | Config del schema (catálogos, columnas, etc.) |
-| `frontend/ruta-procesos-data.js` | Datos Gantt para Ruta Procesos |
+| `frontend/schema-config.js` | Legacy — ya no se carga en templates (constantes inlineadas) |
+| `frontend/ruta-procesos-data.js` | Datos Gantt para Ruta Procesos (único JS externo restante) |
 | `docs/doc.md` | Documentación + changelog |
 | `docs/decisiones.md` | ADR: historial de decisiones técnicas |
 | `docs/funciones.md` | Catálogo SPOT de funciones |

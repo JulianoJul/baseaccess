@@ -51,7 +51,6 @@
 │  └── ...otros 8 métodos                           │
 ├──────────────────────────────────────────────────┤
 │  frontend/ (estáticos embebidos)                  │
-│  ├── schema-config.js (config del schema)         │
 │  ├── ruta-procesos-data.js (datos Gantt)          │
 │  └── vendor/ (Tailwind, FontAwesome, HTMX, styles)│
 └──────────────────────────────────────────────────┘
@@ -95,7 +94,7 @@ baseaccess/
 │   └── index.html          # Template principal (estructura HTML)
 ├── frontend/               # Estáticos embebidos (CSS, JS, fuentes)
 │   ├── index.html          # Obsoleto (mantenido como fallback estático)
-│   ├── schema-config.js    # Config del schema (catálogos, columnas, etc.)
+│   ├── schema-config.js    # Legacy (ya no se carga en templates)
 │   ├── ruta-procesos-data.js  # Datos Gantt para Ruta Procesos
 │   └── vendor/             # Dependencias locales (sin CDN)
 │       ├── tailwind.min.css    # Tailwind CSS build estático
@@ -188,12 +187,11 @@ El binario es 100% portable: copiar `build/bin/` a cualquier máquina y ejecutar
 
 Separar estrictamente:
 - **Go (app.go)**: acceso a datos SQLite, lógica de negocios
-- **JS (frontend/index.html)**: UI, eventos, renderizado
-- JS **nunca** construye queries SQL. Solo llama `window.go.main.App.*`
+- **SPOT**: `app.go` + `handler.go` son la fuente de verdad del schema y datos
+- **SoC**: separar Go (backend/BD) de JS (UI mínimo). JS solo controla modales y localStorage
 
 ### 3. SPOT — Single Point of Truth
 
-- `frontend/schema-config.js` es el SPOT para todo lo específico del schema
 - `app.go` es el SPOT para toda la lógica de BD
 - `funciones.md` es el SPOT del catálogo de funciones
 
@@ -244,6 +242,7 @@ Workflow: `.github/workflows/build.yml`
 | 24 | `templates/index.html`, `templates/tabla_filas.html` | Panel de Fijados en modal superior, pins reactivos de color azul/verde en Acciones y bug de duplicados corregido | Acceso rápido premium |
 | 25 | `templates/index.html`, `templates/pendientes.html` | Tabla configurada con `table-layout: fixed` y anchos proporcionales con reparto 50/50 para Documento/Descripción; badges con `whitespace-nowrap` | UX y diseño responsivo sin desbordamientos |
 | 26 | `templates/index.html` | Paginación por bloques del lado del cliente acoplada con eventos de HTMX | Navegación de registros optimizada |
+| 27 | `templates/index.html` | `schema-config.js` eliminado de imports; `STORAGE_KEYS` inlineado directamente en el template. Todas las references a `'baseaccess_recientes'` migradas a `STORAGE_KEYS.RECIENTES` | Eliminación total de dependencia externa de schema-config.js |
 
 
 ## Migración a Go html/template — Estado

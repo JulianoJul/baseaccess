@@ -33,7 +33,6 @@
         }
     </style>
     <script src="vendor/htmx.min.js"></script>
-    <script src="schema-config.js"></script>
     <script src="ruta-procesos-data.js"></script>
 </head>
 <body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
@@ -244,6 +243,9 @@
     <script>
         const $ = id => document.getElementById(id);
 
+        // Claves de localStorage (migrado de schema-config.js)
+        const STORAGE_KEYS = { FRECUENTES: 'sidebarFrecuentes', RECIENTES: 'baseaccess_recientes' };
+
         // --- Toast ---
         function toast(msg, tipo = 'info') {
             const el = document.createElement('div');
@@ -362,30 +364,30 @@
             if (!nombre || !path) return;
             let recientes = [];
             try {
-                recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]');
+                recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]');
             } catch(e) { recientes = []; }
             const idx = recientes.findIndex(r => r.path === path);
             if (idx !== -1) recientes.splice(idx, 1);
             recientes.unshift({ nombre, path, timestamp: Date.now() });
             if (recientes.length > 5) recientes = recientes.slice(0, 5);
-            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
         }
 
         function eliminarReciente(path) {
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             recientes = recientes.filter(r => r.path !== path);
-            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
             abrirRecientes();
         }
 
         function eliminarRecienteIndex(index) {
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (index >= 0 && index < recientes.length) {
                 recientes.splice(index, 1);
             }
-            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+            localStorage.setItem(STORAGE_KEYS.RECIENTES, JSON.stringify(recientes));
             abrirRecientes();
         }
 
@@ -418,7 +420,7 @@
             modal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             let recientes = [];
-            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
             if (recientes.length === 0) {
                 cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>';
             } else {
