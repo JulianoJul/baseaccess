@@ -1,403 +1,419 @@
-# PLAN — wails-migration: integración multi-módulo, fixes de Gemini, docs y push
+# PLAN — wails-migration: exportar Excel inteligente + mejoras Ruta Procesos (Gantt)
 
-> Cambio de modelo: este plan es **auto-contenido** y reproducible por cualquier ORM/agente sin contexto previo. Todas las decisiones ya están tomadas. Solo queda ejecutar.
+> Cambio de modelo: este plan es **auto-contenido** y reproducible por cualquier agente sin contexto previo. Todas las decisiones ya están tomadas. Solo queda ejecutar.
 
 ---
 
 ## 0. CONTEXTO DEL PROYECTO
 
 - **Repo**: `/home/user/Documentos/proyecto/baseaccess`, rama **`wails-migration`** (rama paralela a `master`/`tauri-migration`).
-- **App**: "Gestión de Expedientes con Historial" — desktop app Wails v2 (Go + WebView) para registrar documentos con historial de movimientos.
+- **App**: "Control de Documentos Presidencia" — desktop app Wails v2 (Go + WebView) para registrar documentos con historial de movimientos.
 - **Stack**: Wails v2 + Go 1.25 + `mattn/go-sqlite3` + Go `html/template` + HTMX + Tailwind CSS (sin frameworks JS).
-- **Importante**: `master` queda intacto; esta rama es un rewrite. `src/`, `src-tauri/`, `main.js`, `package.json` son **legacy** (Electron/Tauri) y NO se tocan.
+- **Multi-módulo (9)**: `expedientes`, `requisiciones`, `memorandums`, `recobros`, `valuaciones`, `aprobacion_jd`, `certificacion_bdu`, `vacaciones`, `reposos_medicos`. Cada módulo tiene su propia tabla, vista (`vw_reporte_*`), tabla de historial (`hist_*`) y triggers. Definidos en `var Modulos map[string]ModuloConfig` en `app.go`.
+- **BD**: `data/expedientes.db` (gitignored). Ya tiene el schema completo (01_master + 02_modulos aplicados, 13 gerencias, 17 superintendencias). 36 registros en `expedientes`, 0 en módulos nuevos.
 
 ### Estado actual de la rama (antes de ejecutar este plan)
 
-`git status` muestra cambios sin commitear por "Gemini":
-- **Modificados**: `app.go`, `handler.go`, `templates/index.html`, `frontend/wailsjs/go/main/App.d.ts`, `frontend/wailsjs/go/main/App.js`.
-- **Sin seguimiento (nuevos)**: 18 templates — 9 `tabla_<key>.html` + 9 `form_<key>.html` (uno por módulo declarado en `Modulos` map de `app.go`).
-- **SQL nuevos committed**: `data/sql/01_master_control_docs_presidencia.sql` y `data/sql/02_modulos_adicionales.sql` (commit `5ad809d`).
-- **Sin commitear**: ningún archivo SQL nuevo.
-
-El commit `5ad809d` tiene el mensaje "feat(sql): add master and separated modules for presidencia docs, include new gerencias and bind docs to cat_documento". La integración en código Go y el front quedó SIN commitear pero en el dir de trabajo.
+- **HEAD**: commit `cb05e50` "refactor: rename Contrataciones to Control Docs. Presidencia".
+- **git status**: limpio (todo commiteado y pusheado a `origin/wails-migration`).
+- **Tablas en BD**: `expedientes`, `req_materiales`, `memorandums`, `recobros`, `valuaciones`, `aprobacion_jd`, `certificacion_bdu`, `vacaciones`, `reposos_medicos` + sus `hist_*` + vistas `vw_reporte_*`.
+- **Vistas `vw_reporte_*`**: devuelven columnas ya resueltas (JOIN con catálogos: gerencia, superintendencia, emisor, receptor, estatus, documento, empresa, resultado, etc.). Son la fuente de datos tanto para la UI como para el export.
 
 ---
 
-## 1. MAPEO EXCEL → BDD (verificado leyendo `data/CONTROL DE DOCUMENTOS JUNIO 2026.xlsx`)
+## 1. OBJETIVOS (prioridades del user)
 
-| Columnas Excel (por hoja) | BDD destino | Notas |
-|---|---|---|
-| `OBSERVACIONES HISTORIAL` (col 20) | `historial_movimientos.observaciones` (snapshot) | Una línea resumen del último movimiento |
-| `HISTORIAL COMPLETO` (col 21) | (se concatena en el snapshot de `historial_movimientos.observaciones`) | Texto multi-línea con todos los movimientos |
-| `OBSERVACIONES` (col 34, última) | `expedientes.notas` | Observación libre del expediente actual |
-| Hojas de módulos (req, mem, rec, val, jd, bdu, vac, rep) | `<tabla>.notas` + `hist_<tabla>.observaciones` | Mismo patrón |
-
-**Bug conocido en `data/importar_datos.py:119-136`**: llena `expedientes.observaciones` (columna central del expediente, no del historial) con el `OBSERVACIONES HISTORIAL` del Excel — eso es conceptualmente mezcla. Pero es **fuera de scope de este plan** (script de migración se actualizará aparte según el usuario: "luego se actualiza para poder ejecutarlo sobre el schema limpio").
-
-### Conclusión para el front
-
-- **`templates/historial.html`** ya muestra `observaciones` (snapshot del movimiento, columna OK). **ADEMÁS debe mostrar `notas`**, porque cada snapshot en `hist_<tabla>` captura ambos campos (`NEW.observaciones, NEW.notas` copiados por los triggers en INSERT y en UPDATE). Si el usuario escribió una nota libre en alguno de los N movimientos del expediente, esa nota se conserva en ese snapshot histórico y la UI debe reflejarla. Ver justificación extendida en §2.2.1 + bug #4(b).
-- Por tanto, el bug "notas nunca se muestra en el historial" **SÍ es real** y se resuelve añadiendo una columna "Notas" al `historial.html` (ver §B.3).
-
----
-
-## 2. HALLAZGOS (auditoría completada)
-
-### 2.1 Bug funcional REAL — bloquea ejecución
-
-| # | Archivo:line | Bug | Fix |
+| # | Feature | Prioridad | Estado |
 |---|---|---|---|
-| 1 | `data/sql/02_modulos_adicionales.sql:71` | `trg_req_mat_auditoria` referencia `NEW.documento`, columna que NO existe en `req_materiales` (el campo correcto es `id_documento` FK + `descripcion_materiales`). Trigger `_inicial` (línea 65) está correcto; el `_auditoria` fue copy-paste mal hecho de `trg_mem_auditoria` (que sí usa `NEW.documento` porque `memorandums` sí tiene `documento TEXT`). **Todo UPDATE a `req_materiales` fallará con `no such column: documento`**. | Reemplazar en línea 71: `NEW.documento` → `NEW.descripcion_materiales`. Réplica exacta del patrón del trigger `_inicial` (línea 65). |
+| 1 | **Exportar Excel (XLSX) inteligente** — módulo/hoja, filtro filas, columnas, rango fechas | **ALTA** (la más importante según el user) | Pendiente |
+| 2 | **Ruta Procesos: elegir/eliminar procesos** + Gantt auto-update | MEDIA | Pendiente |
+| 3 | **Ruta Procesos: añadir leyendas con colores** al Gantt | BAJA (dejada pendiente — "hay una más importante") | Posponerse |
+| 4 | **Modales se cierran al clickear afuera** (con jerarquía: si A abre B, al cerrar B no se cierra A) | MEDIA | Pendiente |
+| 5 | **Gerencias permitidas por módulo** en formularios (cada módulo solo muestra las gerencias que le corresponden) | ALTA | Pendiente |
+| 6 | **Botonera inferior alineada al fondo** real de la ventana (no justo debajo de la tabla) | MEDIA | Pendiente |
+| 7 | **Botón "Sumas"** — calculadora que sume varios números (solo 2 decimales) y muestre el resultado | MEDIA | Pendiente |
 
-### 2.2 Bugs de integración front
+El user dijo: "ahora hagamos algunas nuevas funciones... pero esa [leyendas] dejala pendiente porque hay una mas importante, que al darle csv... que el excel final sea mas inteligente". Después: "que los menu flotante se cierren al clickear afuera, pero que por ejemplo si es un menu flotante que viene de otro menu flotante, que si cierro el mas nuevo el de antes siga abierto". Y después:dió las gerencias permitidas por módulo + alineación de la botonera inferior + botón "Sumas" con 2 decimales.
 
-| # | Archivo:line | Bug | Fix |
-|---|---|---|---|
-| 2 | `templates/index.html:176` | `{{template "formulario.html" .}}` legacy embebido estáticamente en `#form-expediente`. htmx lo reemplaza al abrir el modal, pero si la primera petición htmx falla el usuario ve un form de expedientes vacío en lugar de un error. `formulario.html` ya no es referenciado por handler.go (solo por esta línea). | Eliminar `{{template "formulario.html" .}}` de index.html. Dejar `<form id="form-expediente" class="space-y-6" onsubmit="return false;"></form>` vacío. |
-| 3 | `templates/index.html:172` y `:345-350` | `mostrarFormulario()` siempre dice "Nuevo Expediente"/"Editar Expediente #N" sin importar el módulo activo. Todo el resto de la app respeta `#active-module-val`. | En `mostrarFormulario()`, leer `$('active-module-val').value` y traducirlo a `Modulos[key].Nombre` (ya expuesto vía `window.PAGE_DATA.modulos`). Build string: `id ? 'Editar ' + nombre + ' #' + id : 'Nuevo ' + nombre`. |
-| 4 | `templates/historial.html` (template único) | Plantilla rígida de 6 columnas. **(a)** Columna "Receptor" aparece como "-" en `reposos_medicos` (su `QueryHistorial` no hace JOIN porque la tabla base no tiene `id_receptor`). **(b)** NO muestra `notas` — pese a que todos los `QueryHistorial` en `app.go` (líneas 52, 66, 79, 93, 109, 124, 138, 151, 164) proyectan `h.notas`, y todos los triggers SQL copian `NEW.notas` al snapshot histórico en cada INSERT/UPDATE. Esto significa que cuando un expediente pasa por varios cambios y en alguno el usuario escribió una nota libre, esa nota se conserva en el snapshot del historial pero la UI nunca la muestra. | **(a)** En `historial.html`, envolver la columna "Receptor" con `{{if ne .ActiveModule "reposos_medicos"}}…{{end}}`. **(b)** Añadir una columna "Notas" al template (entre "Observaciones" y el cierre). handler.go debe pasar `ActiveModule` al template (ver §B.3). |
-
-#### 2.2.1 Justificación funcional de mostrar `notas` en el historial
-
-Cada expediente/registro nace con un primer snapshot en `hist_<tabla>` (vía trigger `*_inicial` en INSERT) y acumula un snapshot nuevo en cada UPDATE (vía trigger `*_auditoria`). El usuario explicó el flujo así:
-
-> "hay un expediente, el nace con ciertos datos, ese es su primer registro o entrada en el historial, luego cambiamos unas cosas y ese seria su segundo registro, y asi sucesivamente, en caso de que en uno de esos pasos se le ponga nota es importante que salga en el historial tambien"
-
-Por tanto, el snapshot de cada movimiento histórico captura tanto `observaciones` (línea resumen del movimiento) como `notas` (observación libre del expediente en ese punto). Ambas columnas existen en `hist_<tabla>` porque los triggers las copian fielmente (`NEW.observaciones, NEW.notas` — verificado en `02_modulos_adicionales.sql:65, 71, 156, 162, 255, 261, 378, 384, 501, 507, 608, 614, 706, 712, 794, 800` y en `01_master_control_docs_presidencia.sql:184-185, 216-217`). La UI debe reflejar ambas columnas para que el historial sea fiel a la BDD.
-
-### 2.3 Bugs cosméticos (FUERA DE SCOPE — se omite en este pase per user)
-
-- `templates/form_recobros.html:27` — label "Asunto del Memorándum" copiado.
-- `templates/form_vacaciones.html:26` — `anio` sin `min`/`max`.
-- `templates/form_expedientes.html` — usa `.Expediente` (el resto usa `.Registro`).
-- `templates/form_expedientes.html:150` — placeholder `ej: 120` en `tiempo_ejecucion` (TEXT).
-- `templates/tabla_filas.html` y `templates/formulario.html` — legados huérfanos (solo `formulario.html` se referencia aún en `index.html:176`; ver bug #2).
-
-**Decisión del user**: "Ninguno, solo bug crítico SQL + bugs 2-5 front + docs". Los cosméticos y la eliminación de `tabla_filas.html`+`formulario.html` (más allá del fix #2 que retira la referencia) se dejan para otro PR.
-
-### 2.4 Bindings wailsjs (auto-generados)
-
-`frontend/wailsjs/go/main/App.d.ts` y `App.js` ya fueron regenerados por `wails dev`/`wails build` e incluyen:
-- Métodos nuevos: `EliminarFila`, `GuardarFila`, `ObtenerFilaPorId`, `ObtenerFilas`, `ObtenerHistorialFila`.
-- Métodos legacy (`ObtenerExpedientes`, `GuardarExpediente`, etc.) siguen presentes como wrappers de `app.go:589-607`.
-
-**Decisión del user**: "lo que sea más robusto y limpio para un futuro" → **eliminar los wrappers legacy de app.go y migrar `handler.go:675` (`handleCSV`) a `ObtenerFilas`**, así el catálogo de bindings se simplifica (aunque los archivos `.d.ts`/`.js` se regenerarán en el próximo `wails dev`).
-
-### 2.5 Scripts SQL — idempotencia
-
-**Decisión del user**: "pues yo tengo un script de migración, será que luego se actualiza para poder ejecutarlo sobre el schema limpio" → **NO se tocan los `.sql` más allá del bug #1.** El usuario actualizará `data/importar_datos.py` después para correrlo sobre schema limpio.
-
-### 2.6 Docs desactualizados
-
-| # | Archivo | ¿Qué corregir? |
-|---|---|---|
-| 5 | `docs/doc.md:39-50` (diagrama arquitectura) | Lista `tabla_filas.html` y `formulario.html` como vivos (ya no). Lista métodos `ObtenerExpedientes`/`GuardarExpediente`/`EliminarExpediente` como primarios (renombrados). |
-| 6 | `docs/doc.md:121-135` (tabla del schema) | Solo lista `expedientes`+`historial_movimientos`+1 vista. Faltan 8 tablas + 8 vistas + 16 triggers de los módulos nuevos (requisiciones, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos). |
-| 7 | `docs/doc.md:237-243` (changelog) | Cita `tabla_filas.html` y `formulario.html` como vivos. Añadir entradas #28+ para multi-módulo. |
-| 8 | `docs/doc.md:248-255` (roadmap) | "PageData inyecta_expedientes" → cambiar a "Filas" / multi-módulo. |
-| 9 | `docs/doc.md:261-271` (tabla rutas API) | Faltan: `/api/cambiar-modulo` (nueva ruta). |
-| 10 | `docs/funciones.md:7-26` (catálogo Go) | Enumerar `ObtenerFilas`, `ObtenerFilaPorId`, `GuardarFila`, `EliminarFila`, `ObtenerHistorialFila` como primarios. Marcar `*Expediente*` como eliminados/legacy. |
-| 11 | `docs/funciones.md:32-43` (capa JS) | Las funciones JS ahora en su mayor parte reemplazadas por HTMX. Se simplifica la tabla. |
-| 12 | `docs/decisiones.md` | Añadir **DEC-014**: "Multi-módulo" — schema separado (`01_master` + `02_modulos`), `Modulos` map en `app.go`, botonera inferior, templates fragmentados `tabla_<key>.html`/`form_<key>.html`, migración del título dinámico del modal. |
-| 13 | `docs/ai-context.md:18-19` | "Estado Actual Julio 2026" actualizado para mencionar multi-módulo. |
-| 14 | `docs/ai-context.md:21-35` (tabla "Archivos Clave") | Añadir entradas: `data/sql/01_master_*.sql`, `data/sql/02_modulos_*.sql`, `templates/tabla_<key>.html`, `templates/form_<key>.html`. |
-| 15 | `docs/doc.md` (sección schemas) | Mencionar `cat_gerencia` con 13 gerencias (IDs 11-13 nuevas: PROCURA, CONTROL DE DOCUMENTOS, ASUNTOS PÚBLICOS). |
+**Orden de ejecución** (revisado): Feature #1 (Excel) → Feature #4 (Modales) → Feature #5+#6+#7 (un commit, toca formularios y CSS) → Feature #2 (Ruta Procesos). Feature #3 queda documentado al final como "próximo PR".
 
 ---
 
-## 3. ESTRUCTURA DE COMMITS (decisión del user: **tres commits separados**)
+## 2. FEATURE #1 — EXPORTAR EXCEL (XLSX) INTELIGENTE
 
-1. `fix(sql): corrige trg_req_mat_auditoria en 02_modulos_adicionales (NEW.documento → NEW.descripcion_materiales)`
-2. `feat: integra multi-modulo — modal dinamico, historial sin receptor en reposos, elimina wrappers legacy de app.go/handler.go`
-3. `docs: actualiza doc/funciones/decisiones/ai-context para multi-modulo`
+### 2.1 Reemplazo del CSV actual por XLSX configurable
 
-Push final: `git push origin wails-migration` con **`[skip ci]`** en el cuerpo del mensaje de commit (el usuario compilará localmente desde Linux).
+**Estado actual** (`handler.go:682-720`, `templates/index.html:81-82,677-678`):
+- Ruta `/api/csv` (GET) que descarga SIEMPRE el módulo `expedientes` con TODAS las columnas y TODAS las filas, sin filtros. Devuelve `text/csv`.
+- Botón "CSV" en `index.html` que llama `exportarCSV()` → `window.location.href = '/api/csv'`.
 
----
+**Problemas**:
+1. Solo exporta `expedientes`. El user quiere elegir la hoja/módulo (9 opciones).
+2. No filtra filas (search, rango fechas).
+3. No selecciona columnas (exporta todas, incluyendo IDs internos tipo `id_gerencia` que en la vista ya están resueltos como `gerencia` con nombre legible).
+4. Formato CSV (no es .xls/.xlsx que el user pidió explícitamente).
 
-## 4. EJECUCIÓN PASO A PASO
+**Objetivo**: reemplazar `/api/csv` por `/api/exportar-excel` (GET) que genere un `.xlsx` con:
+- Una hoja por módulo seleccionado, O una sola hoja con el módulo activo.
+- Filas filtradas por: texto de búsqueda (`q`), rango de fechas (`fecha_desde`/`fecha_hasta` aplicado a `fecha_recibido`).
+- Columnas seleccionadas por el user (checkboxes en un modal de configuración).
+- Cabecera con nombres legibles (los alias de las vistas `vw_reporte_*`, ej: `Gerencia` en vez de `id_gerencia`).
 
-### FASE A — Commit 1 (fix SQL)
+### 2.2 Librería Go para XLSX
 
-#### A.1 Corregir `data/sql/02_modulos_adicionales.sql:71`
+**Decisión**: usar `github.com/xuri/excelize/v2` — la librería Go más popular y mantenida para XLSX. Soporta múltiples hojas, estilos, anchos de columna, freeze panes, filtros automáticos.
 
-Edit en `trg_req_mat_auditoria` (línea 71). Palabra exacta a buscar y reemplazar:
+**Acción**: añadir a `go.mod` con `go get github.com/xuri/excelize/v2`. Es una dependencia directa (no indirecta).
 
-```diff
--    VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.documento, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-+    VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-```
+### 2.3 Backend — nuevo endpoint `/api/exportar-excel`
 
-**Verificación visual**: comparar contra trigger `_inicial` (línea 65) — deben ser idénticos salvo el `WHERE`/`SET fecha_actualizacion` final.
+**Archivo nuevo**: NO se crea un archivo nuevo. Se añade la función a `handler.go` (siguiendo el patrón de los handlers existentes).
 
-#### A.2 Commit 1
-
-```bash
-git add data/sql/02_modulos_adicionales.sql
-git commit -m "$(cat <<'EOF'
-fix(sql): corrige trg_req_mat_auditoria en 02_modulos_adicionales
-
-El trigger trg_req_mat_auditoria (línea 71) referenciaba NEW.documento,
-columna inexistente en req_materiales (copia-pestana de trg_mem_auditoria).
-Causaba fallo "no such column: documento" en todo UPDATE a req_materiales.
-
-Reemplazado por NEW.descripcion_materiales, replicando el patrón correcto
-del trigger trg_req_mat_inicial (línea 65).
-
-[skip ci]
-EOF
-)"
-```
-
----
-
-### FASE B — Commit 2 (front + app.go/handler.go)
-
-#### B.1 Quitar referencia a `formulario.html` en `templates/index.html`
-
-Buscar:
-```
-<form id="form-expediente" class="space-y-6" onsubmit="return false;">
-    {{template "formulario.html" .}}
-</form>
-```
-Reemplazar por:
-```
-<form id="form-expediente" class="space-y-6" onsubmit="return false;"></form>
-```
-(Location: aproximadamente línea 176; verificar que el `<form id="form-expediente">` quede vacío.)
-
-**No se elimina `templates/formulario.html`** (cosmético fuera de scope).
-
-#### B.2 Título dinámico del modal en `templates/index.html`
-
-Encontrar el bloque `function mostrarFormulario(id)` (alrededor de línea 345-350):
-```js
-function mostrarFormulario(id) {
-    const modal = $('form-modal');
-    $('form-titulo').textContent = id ? 'Editar Expediente #' + id : 'Nuevo Expediente';
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-```
-
-Reemplazar por:
-```js
-function mostrarFormulario(id) {
-    const modal = $('form-modal');
-    const moduloKey = (window.PAGE_DATA && window.PAGE_DATA.modulos && $('active-module-val'))
-        ? $('active-module-val').value
-        : 'expedientes';
-    const nombreModulo = (window.PAGE_DATA && window.PAGE_DATA.modulos && window.PAGE_DATA.modulos[moduloKey])
-        ? window.PAGE_DATA.modulos[moduloKey].Nombre
-        : 'Registro';
-    $('form-titulo').textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
-    modal.classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-}
-```
-
-**Verificación**: `window.PAGE_DATA.modulos` debe existir — revisar `templates/index.html:42-50` (el bloque `<script>window.PAGE_DATA = {...}</script>`). Actualmente inyecta `hasDB`, `dbPath`, `catalogs`, `expedientes`, `totalPages`, `currentPage`, `pageSize`. **Falta `modulos`** — hay que añadirlo al script.
-
-Inyectar `modulos: {{jsonEncode .Modulos}}` al objeto `window.PAGE_DATA` en `templates/index.html:42-50`. Usar el helper `jsonEncode` ya existente en `handler.go:42,49,182`.
-
-**Resultado:**
-```js
-window.PAGE_DATA = {
-    hasDB: {{.HasDB}},
-    dbPath: "{{.DBPath}}",
-    catalogs: {{jsonEncode .Catalogs}},
-    modulos: {{jsonEncode .Modulos}},
-    expedientes: {{jsonEncode .Expedientes}},   // (legacy — cambiar nombre opcional, pero no break)
-    totalPages: {{.TotalPages}},
-    currentPage: {{.CurrentPage}},
-    pageSize: {{.PageSize}}
-};
-```
-
-(`Expedientes` sigue siendo una key válida si PageData la tiene — verificar handler.go:212-225 que `PageData` define `Filas []Row` ya, no `Expedientes`. Si el index.html referencía `.Expedientes` ahora, eso ya está roto. Confirmar leyendo el diff — según el diff de handler.go, el struct fue renombrado `Expedientes` → `Filas`. El template viejo tenía `.Expedientes` y se dump-aba a JSON; ahora debe ser `.Filas`. Actualmente index.html:`expedientes: {{jsonEncode .Expedientes}}` está referenciando un campo inexistente ¿rompe Go? — NO, Go html/template solo deja vacío, no error. Pero para limpiar, debería ser `.Filas`. **Acción incluida más abajo**.)
-
-##### B.2b Sincronizar `index.html:42-50` con PageData renombrada
-
-`handler.go:212-225` define PageData con: `Title, HasDB, Catalogs, ActiveModule, Modulos, Filas, PageSize, TotalPages, CurrentPage, SortColumn, SortDir, DBPath, Registro`. NO tiene `Expedientes` ni `Expediente`.
-
-Acción: en index.html:46-50, reescribir el script:
-```js
-window.PAGE_DATA = {
-    hasDB: {{.HasDB}},
-    dbPath: "{{.DBPath}}",
-    catalogs: {{jsonEncode .Catalogs}},
-    modulos: {{jsonEncode .Modulos}},
-    filas: {{jsonEncode .Filas}},
-    totalPages: {{.TotalPages}},
-    currentPage: {{.CurrentPage}},
-    pageSize: {{.PageSize}}
-};
-```
-
-Si en cualquier parte del JS de index.html se referencia `window.PAGE_DATA.expedientes`, reemplazar por `window.PAGE_DATA.filas`. (Buscar antes de ejecutar.)
-
-#### B.3 Hacer `historial.html` condicional para `reposos_medicos`
-
-`handler.go:562-587` (`handleHistorial`) actualmente pasa solo `rows` al template. Necesitamos pasar `ActiveModule` también. Re-escribir el handler:
-
+**Ruta** (en `handler.go:287-324`, dentro del switch de `ServeHTTP`):
 ```go
-func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
+case p == "/api/exportar-excel" && r.Method == http.MethodGet:
+    h.handleExportarExcel(w, r)
+    return
+```
 
-	idStr := r.URL.Query().Get("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		http.Error(w, "ID inválido", http.StatusBadRequest)
-		return
-	}
+**Handler `handleExportarExcel`** (añadir al final de `handler.go`, antes del bloque de JSON helpers):
+```go
+func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
+    modulo := r.URL.Query().Get("modulo")
+    if modulo == "" {
+        modulo = "expedientes"
+    }
+    cfg, ok := Modulos[modulo]
+    if !ok {
+        http.Error(w, "modulo invalido", http.StatusBadRequest)
+        return
+    }
 
-	rows, err := h.app.ObtenerHistorialFila(modulo, id)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+    // Filtros
+    q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
+    fechaDesde := r.URL.Query().Get("fecha_desde")
+    fechaHasta := r.URL.Query().Get("fecha_hasta")
 
-	data := struct {
-		Rows         []Row
-		ActiveModule string
-	}{
-		Rows:         rows,
-		ActiveModule: modulo,
-	}
+    // Columnas seleccionadas (comma-separated). Si vacío, todas las de la vista.
+    columnasParam := r.URL.Query().Get("columnas")
+    var columnasSel []string
+    if columnasParam != "" {
+        columnasSel = strings.Split(columnasParam, ",")
+    }
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	tmplName := "historial.html"
-	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
-		log.Printf("render error for %s: %v", tmplName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+    // 1. Obtener filas (vista ya con JOINs resueltos)
+    filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+
+    // 2. Filtrar en Go (igual que handleFiltrarExpedientes)
+    var filtered []Row
+    for _, row := range filas {
+        // Filtro texto
+        if q != "" {
+            matches := false
+            for _, val := range row {
+                if val != nil {
+                    sVal := strings.ToLower(fmt.Sprintf("%v", val))
+                    if strings.Contains(sVal, q) { matches = true; break }
+                }
+            }
+            if !matches { continue }
+        }
+        // Filtro fecha_recibido
+        fr, _ := row["fecha_recibido"].(string)
+        if fechaDesde != "" && fr < fechaDesde { continue }
+        if fechaHasta != "" && fr > fechaHasta { continue }
+        filtered = append(filtered, row)
+    }
+
+    if len(filtered) == 0 {
+        http.Error(w, "no hay datos para exportar con los filtros aplicados", http.StatusBadRequest)
+        return
+    }
+
+    // 3. Determinar columnas finales
+    keysOrdered := make([]string, 0, len(filtered[0]))
+    for k := range filtered[0] {
+        keysOrdered = append(keysOrdered, k)
+    }
+    sort.Strings(keysOrdered) // orden alfabético estable
+    // Mover IDColumna al principio
+    for i, k := range keysOrdered {
+        if k == cfg.IDColumna {
+            keysOrdered = append(keysOrdered[:i], keysOrdered[i+1:]...)
+            keysOrdered = append([]string{cfg.IDColumna}, keysOrdered...)
+            break
+        }
+    }
+    // Filtrar a las columnasSel si se especificaron
+    if len(columnasSel) > 0 {
+        sel := map[string]bool{}
+        for _, c := range columnasSel { sel[c] = true }
+        filtered_keys := make([]string, 0, len(columnasSel))
+        for _, k := range keysOrdered {
+            if sel[k] { filtered_keys = append(filtered_keys, k) }
+        }
+        keysOrdered = filtered_keys
+    }
+
+    // 4. Mapear IDs de columnas a labels legibles (snake_case → Title Case)
+    labelOf := func(k string) string {
+        words := strings.Split(strings.ReplaceAll(k, "_", " "), " ")
+        for i, w := range words {
+            if len(w) > 0 { words[i] = strings.ToUpper(w[:1]) + w[1:] }
+        }
+        return strings.Join(words, " ")
+    }
+
+    // 5. Generar XLSX con excelize
+    f := excelize.NewFile()
+    sheetName := cfg.Nombre
+    if len(sheetName) > 31 { sheetName = sheetName[:31] } // límite Excel
+    f.SetSheetName(f.GetSheetName(0), sheetName)
+
+    // Cabecera (fila 1)
+    for i, k := range keysOrdered {
+        cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+        f.SetCellValue(sheetName, cell, labelOf(k))
+    }
+    // Estilo cabecera (negrita + fondo teal)
+    styleID, _ := f.NewStyle(&excelize.Style{
+        Font: &excelize.Font{Bold: true, Color: "#FFFFFF"},
+        Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#0F766E"}},
+    })
+    lastCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), 1)
+    f.SetCellStyle(sheetName, "A1", lastCell, styleID)
+
+    // Filas de datos (desde fila 2)
+    for ri, row := range filtered {
+        for ci, k := range keysOrdered {
+            cell, _ := excelize.CoordinatesToCellName(ci+1, ri+2)
+            v := row[k]
+            if v == nil { continue }
+            f.SetCellValue(sheetName, cell, v)
+        }
+    }
+
+    // Auto-ancho aproximado
+    for i, k := range keysOrdered {
+        width := float64(len(labelOf(k))) + 4
+        for _, row := range filtered {
+            if v := row[k]; v != nil {
+                s := fmt.Sprintf("%v", v)
+                if len(s) > int(width) { width = float64(len(s)) + 2 }
+            }
+        }
+        colName, _ := excelize.ColumnNumberToName(i + 1)
+        f.SetColWidth(sheetName, colName, colName, width)
+    }
+
+    // Freeze panes (cabecera fija)
+    f.SetPanes(sheetName, &excelize.Panes{
+        Freeze: true, YSplit: 1,
+        TopLeftCell: "A2", ActivePane: "bottomLeft",
+    })
+
+    // Filtros automáticos en cabecera
+    f.AutoFilter(sheetName, "A1:"+lastCell, []excelize.AutoFilterOptions{})
+
+    // 6. Escribir al Response
+    filename := cfg.Nombre + "_" + time.Now().Format("2006-01-02") + ".xlsx"
+    w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+    if err := f.Write(w); err != nil {
+        log.Printf("exportar-excel: error escribiendo: %v", err)
+    }
 }
 ```
 
-**Nota crítica**: El template `historial.html` actualmente itera con `{{range .}}` directamente (toma `Rows` implícito). Si pasamos un struct `data`, `{{range .}}` no itera filas, hay que cambiar a `{{range .Rows}}` y todos los `{{rowGetStr . "..."}}` quedan igual (porque dentro del range el `.` es la fila).
+**Imports a añadir en `handler.go`** (verificar antes que no estén ya):
+- `"github.com/xuri/excelize/v2"`
+- `"sort"`
+- `"time"`
 
-Reescribir `templates/historial.html`:
+**Verificar**:IÓN con `go vet ./...` y `go build ./...` tras añadir el handler y los imports.
 
+### 2.4 Backend — mantener `/api/csv` por compatibilidad
+
+**Decisión**: NO eliminar `/api/csv`. Se mantiene por si algo lo referencia. Solo se añade `/api/exportar-excel` como nueva ruta paralela. El botón de la UI se migra al nuevo flujo (ver §2.5).
+
+### 2.5 Frontend — modal de configuración de exportación
+
+**Acción en `templates/index.html`**:
+
+1. Reemplazar el botón "CSV" (línea 81-83) por "Exportar Excel" que abre un modal de configuración.
+2. Añadir el modal al final del `<body>` (antes de los `<script>`s finales).
+
+**Botón reemplazo** (línea 81-83):
 ```html
-{{if eq (len .Rows) 0}}
-    <p class="text-gray-500 italic">Sin movimientos registrados.</p>
-{{else}}
-    <table class="w-full text-left text-xs border-collapse">
-        <thead>
-            <tr class="bg-gray-700/60 text-teal-400 uppercase">
-                <th class="p-2">Fecha Recibido</th>
-                <th class="p-2">Estatus</th>
-                <th class="p-2">Documento</th>
-                <th class="p-2">Emisor</th>
-                {{if ne .ActiveModule "reposos_medicos"}}<th class="p-2">Receptor</th>{{end}}
-                <th class="p-2">Observaciones</th>
-                <th class="p-2">Notas</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-700">
-            {{range .Rows}}
-            <tr class="hover:bg-gray-700/20">
-                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>
-                {{if ne $.ActiveModule "reposos_medicos"}}<td class="p-2">{{default (rowGetStr . "receptor") "-"}}</td>{{end}}
-                <td class="p-2 text-gray-400">{{default (rowGetStr . "observaciones") "-"}}</td>
-                <td class="p-2 text-gray-400">{{default (rowGetStr . "notas") "-"}}</td>
-            </tr>
-            {{end}}
-        </tbody>
-    </table>
-{{end}}
+<button onclick="abrirModalExportar()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
+    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+</button>
 ```
 
-**Notas críticas sobre este template**:
-- `{{range .Rows}}` itera las filas; dentro del range, `.` es cada fila individual (pasa a `rowGetStr`).
-- `$.ActiveModule` (con `$`) referencia el root data para acceder al `ActiveModule` fuera del range. Alternativamente `$.ActiveModule` puede usarse como `.ActiveModule` solo fuera del `{{range}}`; dentro del range hay que usar `$.ActiveModule` (Go html/template: `$` es el data original).
-- El `{{if ne .ActiveModule "reposos_medicos"}}` del `<th>` se evalúa FUERA del range (en el `data` struct), entonces `.ActiveModule` funciona. El del `<td>` se evalúa DENTRO del range, por eso usa `$.ActiveModule`.
-- `default` y `rowGetStr` son helpers ya registrados en `handler.go:38,104-113,201-207`.
-- `COALESCE(h.notas, '') AS notas` en los QueryHistorial garantiza que `rowGetStr . "notas"` retorne `""` si la BDD tiene NULL; el helper `default` lo cambiará a `"-"` para mostrar un guion en la tabla en lugar de celda vacía.
+**Modal** (añadir antes de `</body>`):
+```html
+<div id="export-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div class="relative modal-content w-full max-w-2xl my-8">
+        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-file-excel mr-2"></i>Exportar a Excel</h2>
+            <button onclick="cerrarModalExportar()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-5">
+            <!-- Módulo/Hoja -->
+            <div>
+                <label class="label">Hoja a exportar</label>
+                <select id="exp-modulo" class="input">
+                    {{$first := true}}
+                    {{range $key, $cfg := .Modulos}}
+                    <option value="{{$key}}">{{$cfg.Nombre}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <!-- Filtro texto -->
+            <div>
+                <label class="label">Filtro de búsqueda (opcional)</label>
+                <input type="text" id="exp-q" class="input" placeholder="Filtrar filas que contengan...">
+            </div>
+            <!-- Rango fechas -->
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="label">Fecha Desde (recibido)</label><input type="date" id="exp-fecha-desde" class="input"></div>
+                <div><label class="label">Fecha Hasta (recibido)</label><input type="date" id="exp-fecha-hasta" class="input"></div>
+            </div>
+            <!-- Columnas (se cargan dinámicamente según módulo) -->
+            <div>
+                <label class="label">Columnas a exportar (vacío = todas)</label>
+                <div class="flex gap-2 mb-2">
+                    <button type="button" onclick="toggleTodasColumnas(true)" class="btn btn-secondary text-xs">Seleccionar todas</button>
+                    <button type="button" onclick="toggleTodasColumnas(false)" class="btn btn-secondary text-xs">Limpiar</button>
+                </div>
+                <div id="exp-columnas" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-gray-700 rounded-lg"></div>
+            </div>
+        </div>
+        <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-4 flex justify-end gap-3 rounded-b-xl">
+            <button onclick="cerrarModalExportar()" class="btn btn-secondary">Cancelar</button>
+            <button onclick="ejecutarExportar()" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar XLSX</button>
+        </div>
+    </div>
+</div>
+```
 
-**Verificar**: En `historial.html`, HTMX inserta el resultado dentro del contenedor del modal. El contenedor espera HTML en fila-sucesiva. Cambiar de `rows []Row` a `struct { Rows, ActiveModule }` es seguro — el `{{if eq (len .Rows) 0}}` tomará el conteo.
+**JS** (añadir al bloque `<script>` de `index.html`, después de `exportarCSV` actual):
 
-**Confirmación**: revisar templates/index.html para confirmar `hx-target="#historial-cuerpo"` (o similar) donde se inyecta el historial. La firma HTML resultante (tabla `<table>…</table>` o `<p>…</p>`) no cambia, así que el hx-target sigue funcionando.
+```js
+function abrirModalExportar() {
+    $('export-modal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    cargarColumnasExportar();
+}
+function cerrarModalExportar() {
+    $('export-modal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+async function cargarColumnasExportar() {
+    const modulo = $('exp-modulo').value;
+    const cont = $('exp-columnas');
+    cont.innerHTML = '<p class="text-gray-500 text-xs col-span-full">Cargando columnas...</p>';
+    const res = await fetch('/api/columnas-modulo?modulo=' + encodeURIComponent(modulo));
+    if (!res.ok) { cont.innerHTML = '<p class="text-red-400 text-xs col-span-full">Error al cargar columnas</p>'; return; }
+    const cols = await res.json();
+    cont.innerHTML = '';
+    cols.forEach(c => {
+        const lbl = document.createElement('label');
+        lbl.className = 'flex items-center gap-2 text-xs text-gray-300 cursor-pointer';
+        lbl.innerHTML = `<input type="checkbox" value="${c}" class="exp-col"> ${c.replace(/_/g, ' ')}`;
+        cont.appendChild(lbl);
+    });
+}
+function toggleTodasColumnas(sel) {
+    document.querySelectorAll('.exp-col').forEach(cb => cb.checked = sel);
+}
+function ejecutarExportar() {
+    const modulo = $('exp-modulo').value;
+    const q = $('exp-q').value;
+    const fd = $('exp-fecha-desde').value;
+    const fh = $('exp-fecha-hasta').value;
+    const cols = Array.from(document.querySelectorAll('.exp-col:checked')).map(cb => cb.value);
+    const params = new URLSearchParams();
+    params.set('modulo', modulo);
+    if (q) params.set('q', q);
+    if (fd) params.set('fecha_desde', fd);
+    if (fh) params.set('fecha_hasta', fh);
+    if (cols.length) params.set('columnas', cols.join(','));
+    window.location.href = '/api/exportar-excel?' + params.toString();
+    cerrarModalExportar();
+}
+$('exp-modulo').addEventListener('change', cargarColumnasExportar);
+```
 
-#### B.4 Eliminar wrappers legacy de `app.go` y limpiar `handler.go`
+### 2.6 Backend — endpoint auxiliar `/api/columnas-modulo`
 
-`app.go:587-607` tiene:
+Para que el modal sepa qué columnas ofrece cada módulo (sin pedirselo al user a mano), se añade un endpoint mínimo que devuelve las columnas de la vista `cfg.Vista` consultando una fila vacía o usando `PRAGMA table_info`.
+
+**Decisión**: usar `PRAGMA table_info(<vista>)` no funciona para vistas en SQLite (devuelve vacío). Mejor: hacer `SELECT * FROM <vista> LIMIT 0` y leer `rows.ColumnTypes()`.
+
+**Handler en `handler.go`**:
 ```go
-// --- legacy wrapper functions for backward compatibility ---
-
-func (a *App) ObtenerExpedientes(orden string) ([]Row, error) {
-	return a.ObtenerFilas("expedientes", orden)
-}
-
-func (a *App) ObtenerExpedientePorId(id int) (Row, error) {
-	return a.ObtenerFilaPorId("expedientes", id)
-}
-
-func (a *App) GuardarExpediente(data map[string]interface{}) (int64, error) {
-	return a.GuardarFila("expedientes", data)
-}
-
-func (a *App) EliminarExpediente(id int64) error {
-	return a.EliminarFila("expedientes", id)
-}
-
-func (a *App) ObtenerHistorialCompleto(id int) ([]Row, error) {
-	return a.ObtenerHistorialFila("expedientes", id)
+func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Request) {
+    modulo := r.URL.Query().Get("modulo")
+    if modulo == "" { modulo = "expedientes" }
+    cfg, ok := Modulos[modulo]
+    if !ok {
+        writeJSONError(w, "modulo invalido", http.StatusBadRequest)
+        return
+    }
+    cols, err := h.app.ObtenerColumnasVista(cfg.Vista)
+    if err != nil {
+        writeJSONError(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    writeJSON(w, cols)
 }
 ```
 
-**Acción**: Eliminar todo ese bloque (comentario incluido).
-
-`handler.go:675` (en `handleCSV`) usa `h.app.ObtenerExpedientes("id_expediente DESC")`. Cambiar a:
+**Método en `app.go`** (añadir dentro de `App`):
 ```go
-data, err := h.app.ObtenerFilas("expedientes", "id_expediente DESC")
+func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {
+    a.mu.Lock()
+    defer a.mu.Unlock()
+    if a.db == nil { return nil, fmt.Errorf("no hay BD abierta") }
+    rows, err := a.db.Query("SELECT * FROM " + vista + " LIMIT 0")
+    if err != nil { return nil, err }
+    defer rows.Close()
+    return rows.Columns()
+}
 ```
 
-**Verificación grep**: Buscar en todo el repo (archivos `.go`) referencias a estos métodos eliminados:
-```bash
-rg '\b(ObtenerExpedientes|GuardarExpediente|EliminarExpediente|ObtenerExpedientePorId|ObtenerHistorialCompleto)\b' --type go
-```
-Debe dar cero coincidencias en `.go`. (Los bindings `App.d.ts`/`App.js` se regeneran solos en el próximo `wails dev` — no editarlos a mano.)
-
-#### B.5 Compilar y verificar
-
-```bash
-go vet ./...
-go build ./...
+**Ruta en `ServeHTTP`** (añadir al switch):
+```go
+case p == "/api/columnas-modulo" && r.Method == http.MethodGet:
+    h.handleColumnasModulo(w, r)
+    return
 ```
 
-`go vet` debe dar cero warnings. `go build` debe producir el binario sin errores. Si hay referencias residuales a wrappers eliminados, corregirlas.
+### 2.7 Commits para Feature #1
 
-**No ejecutar `wails dev` en este paso** — lo hará el usuario al final.
-
-#### B.6 Commit 2
-
+**Un solo commit** (el user no pidió subdividir):
 ```bash
-git add app.go handler.go templates/index.html templates/historial.html
+git add go.mod go.sum app.go handler.go templates/index.html
 git commit -m "$(cat <<'EOF'
-feat: integra multi-modulo en front y limpia API legacy
+feat: exportar Excel XLSX inteligente con filtros y seleccion de columnas
 
-- index.html: titulo de modal dinamico (Nuevo/Editar <Modulo.Nombre>)
-  lee #active-module-val via window.PAGE_DATA.modulos. Elimina
-  {{template "formulario.html"}} embebido (htmx lo reemplaza).
-- index.html: PAGE_DATA sincronizado con PageData (Filas en vez de
-  Expedientes; anyade Modulos).
-- handler.go: handleHistorial pasa ActiveModule al template. handleCSV
-  usa ObtenerFilas en vez del wrapper ObtenerExpedientes.
-- historial.html: anyade columna Notas (snapshot del historial por
-  trigger ya proyecta h.notas). Omite columna Receptor para
-  reposos_medicos (tabla sin id_receptor). Recibe struct
-  {Rows, ActiveModule}.
-- app.go: eliminados wrappers legacy ObtenerExpedientes,
-  ObtenerExpedientePorId, GuardarExpediente, EliminarExpediente,
-  ObtenerHistorialCompleto. API primaria: ObtenerFila/GuardarFila/etc.
+- handler.go: nuevo endpoint /api/exportar-excel que genera .xlsx con
+  github.com/xuri/excelize/v2. Soporta: modulo/hoja (9 opciones),
+  filtro texto (q), rango fechas (fecha_recibido), columnas
+  seleccionadas. Cabecera con estilo teal + freeze panes + autofilter.
+- handler.go: endpoint auxiliar /api/columnas-modulo devuelve columnas
+  de la vista activa (SELECT * LIMIT 0 + rows.Columns()).
+- app.go: metodo ObtenerColumnasVista(vista).
+- index.html: boton "Exportar Excel" reemplaza "CSV". Modal con
+  selector de modulo, filtro texto, rango fechas, checkboxes de
+  columnas (cargados dinamicamente por modulo). Mantiene /api/csv
+  por compatibilidad.
+- go.mod: anyade github.com/xuri/excelize/v2.
 
 [skip ci]
 EOF
@@ -406,106 +422,112 @@ EOF
 
 ---
 
-### FASE C — Commit 3 (docs)
+## 3. FEATURE #2 — RUTA PROCESOS: SELECCIÓN DE PROCESOS + AUTO-UPDATE
 
-#### C.1 `docs/doc.md`
+### 3.1 Bug actual — `RUTA_PROCESOS_DATA` roto en versión Wails
 
-**C.1.1** Diagrama arquitectura (líneas 18-56) — corregir:
-- Línea 39: `tabla_filas.html` → eliminar (o cambiar a `tabla_<key>.html` (9 plantillas)`)
-- Línea 43: `formulario.html` → `form_<key>.html` (9 plantillas)`
-- Líneas 48-51: cambiar métodos a `ObtenerFilas`, `GuardarFila`, `EliminarFila` y mencionar "...y moduloKey como primer arg".
+**Hallazgo**: `templates/ruta_procesos.html:16` referencia `window.RUTA_PROCESOS_DATA` (con `legend`, `columns`, `processes`) pero esa variable **NO está definida** en la nueva `templates/index.html` migrada a Wails. Solo existía en el `frontend/index.html` legacy (líneas 1906+). Esto significa que la Ruta Procesos actualmente está rota o muestra tabla vacía.
 
-**C.1.2** Sección "Tablas del Schema" (líneas 121-135) — añadir las 16 tablas nuevas (8 principales + 8 históricas) y las 8 vistas nuevas. Mencionar `cat_gerencia` con 13 gerencias.
+**Fix previo (debe ir antes o junto con Feature #2)**: definir `window.RUTA_PROCESOS_DATA` con datos reales. Requiere crear tablas en SQLite para:
+- `ruta_procesos_leyenda` (id, status_name, hex_color)
+- `ruta_procesos_cronograma` (id_proceso, id_expediente, fecha, id_leyenda, nota)
+- `ruta_procesos_procesos` (id, descripcion, db_id)
 
-**C.1.3** Sección de routas (líneas 261-271) — añadir `/api/cambiar-modulo | GET | Devuelve fragmento HTML de la tabla del módulo solicitado`.
+**Decisión de scope**: este fix previo es necesario para que Feature #2 funcione. Se incluye en el mismo commit de Feature #2.
 
-**C.1.4** Changelog (líneas 244-245) — añadir entradas:
-```
-| 28 | `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql` | Creados: schema multi-módulo (master + 8 módulos adicionales con sus tablas hist_, vistas vw_reporte_*, triggers) | Soporte a 9 módulos en una sola BD |
-| 29 | `app.go`, `handler.go`, `templates/*` | Multi-módulo: `Modulos` map (9 módulos), botonera inferior, `tabla_<key>.html`/`form_<key>.html` fragmentados, título dinámico del modal, historial condicional (`reposos_medicos` sin receptor) | UI y API multi-módulo |
-```
+### 3.2 Schema nuevo para Ruta Procesos
 
-**C.1.5** Sección "Migración a Go html/template — Estado" — actualizar "PageData inyecta catálogos_y Filas (multi-módulo) precargados".
+**Archivo nuevo**: `data/sql/03_ruta_procesos.sql` — crea las tablas + inserts de la leyenda base + vista agrupada.
 
-#### C.2 `docs/funciones.md`
+```sql
+-- Schema Ruta Procesos (Gantt)
+PRAGMA foreign_keys = ON;
 
-**C.2.1** Tabla "Backend Go — Métodos exportados (app.go)" (líneas 7-26) — eliminar las 5 filas `*Expediente*` y reemplazar por:
-```
-| `ObtenerFilas(moduloKey, orden)` | `moduloKey`: key de Modulos map; `orden`: columna DESC/ASC | SELECT * FROM cfg.Vista con sanitización whitelist |
-| `ObtenerFilaPorId(moduloKey, id)` | `moduloKey`, `id`: int | Retorna `Row` única o error |
-| `GuardarFila(moduloKey, data)` | `moduloKey`, `data`: map[string]interface{} | INSERT o UPDATE según presencia de cfg.IDColumna |
-| `EliminarFila(moduloKey, id)` | `moduloKey`, `id`: int64 | DELETE en transacción (historial + tabla módulo) |
-| `ObtenerHistorialFila(moduloKey, id)` | `moduloKey`, `id`: int | SELECT cfg.QueryHistorial (JOIN multi-tabla) |
-| `ObtenerRutaProcesos()` | — | (específico de expedientes) |
-| `ObtenerDocumentosPendientes()` | — | (específico de expedientes) |
-| `AbrirBaseDatos(filePath)` | filePath | Abre BD SQLite con WAL + foreign_keys |
-| `CerrarBaseDatos()` | — | Cierra la BD |
-| `ObtenerCatalogos()` | — | map[string][]CatalogoItem (11 catálogos) |
-| `GuardarNuevoCatalogo(tabla, nombre, extra)` | — | INSERT whitelist |
-| `OptimizarBD()` | — | VACUUM |
-| `AbrirDialogoBD()`, `GuardarDialogoBD(...)`, `SetBackupMaxCopies(n)`, `GetBackupMaxCopies()`, `DescargarBD(destPath)` | — | (diálogos y backup nativos Wails) |
-```
+CREATE TABLE ruta_procesos_leyenda (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    status_name TEXT NOT NULL UNIQUE,
+    hex_color   TEXT NOT NULL
+);
 
-**C.2.2** Capa JS — simplificar, ya que la mayoría de funciones JS se eliminaron con HTMX:
+CREATE TABLE ruta_procesos_cronograma (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_proceso   INTEGER NOT NULL,
+    id_expediente INTEGER,
+    fecha        DATE NOT NULL,
+    id_leyenda   INTEGER,
+    nota         TEXT,
+    CONSTRAINT fk_cron_ley FOREIGN KEY (id_leyenda) REFERENCES ruta_procesos_leyenda(id),
+    CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente)
+);
 
-Reemplazar las líneas 28-43 con nota indicativa:
-> "La mayoría de las funciones JS previas (cargarCatalogos, obtenerExpedientes, guardarExpedienteEnBd, etc.) fueron reemplazadas por HTMX. JS actual mínimo: helpers de modales, paginación DOM del lado del cliente, localStorage (recientes/fijados), y `abrirBaseDatos()` (única función que invoca binding Wails `AbrirDialogoBD`)."
+CREATE TABLE ruta_procesos_procesos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    descripcion TEXT NOT NULL,
+    db_id       INTEGER,
+    activo       INTEGER DEFAULT 1,
+    CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente)
+);
 
-#### C.3 `docs/decisiones.md`
-
-Añadir **DEC-014** al final (después de DEC-013):
-```markdown
----
-
-## DEC-014: Multi-módulo con schema separado y Modulos map
-
-- **Origen:** `[Instrucción Explícita del Usuario]`
-- **Contexto y Causa:** La app gestionaba originalmente un solo tipo de documento (expedientes de contrataciones). El usuario extendió el control a 9 tipos: expedientes, requisiciones, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos. Cada tipo tiene su propia tabla principal, tabla de historial, vista de reporte y trigger de auditoría. Se dividió el schema en dos archivos SQL limpios: `01_master_control_docs_presidencia.sql` (catálogos + expedientes) y `02_modulos_adicionales.sql` (8 módulos restantes). En código Go, se unificó la API con `var Modulos map[string]ModuloConfig` (app.go), cada entrada define `Tabla`, `Vista`, `IDColumna`, `HistorialTabla`, `Columnas`, `QueryHistorial`. Los handlers y templates se fragmentan en `tabla_<key>.html`/`form_<key>.html` y se despachan via `{{if eq .ActiveModule "<key>"}}`. Se añadió botonera inferior en index.html para cambiar de módulo sin recargar la página (HTMX swap de `#vista-tabla`).
-- **Alternativas evaluadas:**
-  - Una sola tabla polimórfica con `tipo_documento` — descartado: perdía integridad referencial y tipado de columnas.
-  - 9 esquemas SQLite separados — descartado: backup rotativo y apertura de BD por usuario no lo justifican.
-  - Multi-módulo con `Modulos` map + schema separado — elegido: DRY en la API Go, schemas limpios e independientes, UI unificada.
-- **Impacto:**
-  - `data/sql/01_master_control_docs_presidencia.sql` + `02_modulos_adicionales.sql` creados (Tablas8.sql queda obsoleto, conservado por histórico). `cat_gerencia` ampliada con 3 gerencias (IDs 11-13: PROCURA, CONTROL DE DOCUMENTOS, ASUNTOS PÚBLICOS).
-  - `app.go`: `Modulos map[string]ModuloConfig` (9 entradas). API primaria renombrada: `ObtenerFilas/FilaPorId/GuardarFila/EliminarFila/ObtenerHistorialFila` con `moduloKey` como primer arg. Wrappers legacy `*Expediente*` eliminados.
-  - `handler.go`: ruta nueva `/api/cambiar-modulo`. `handleCSV` migrado. `handleHistorial` pasa `ActiveModule` al template.
-  - `templates/`: 18 nuevos templates (9 `tabla_<key>.html` + 9 `form_<key>.html`). `historial.html` condicional (`{{if ne .ActiveModule "reposos_medicos"}}` para columna Receptor). `index.html`: botonera inferior `{{range $key, $cfg := .Modulos}}`, título de modal dinamico via `window.PAGE_DATA.modulos`.
-  - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso (referencia a `formulario.html` en index.html removida). [su eliminación física queda para un futuro PR cosmético].
+-- Leyenda base (colores del Gantt actual del legacy)
+INSERT INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
+('PENDIENTE', '#FFA500'),
+('EN REVISIÓN', '#3B82F6'),
+('FIRMADO', '#10B981'),
+('DEVUELTO', '#EF4444'),
+('SIN NOVEDAD', '#6B7280'),
+('OTRO', '#000000');
 ```
 
-#### C.4 `docs/ai-context.md`
+### 3.3 Backend — nueva API para Ruta Procesos
 
-**C.4.1** Líneas 18-19 (Estado Actual Julio 2026) — reemplazar por:
-```
-## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + HTMX**, ahora **multi-módulo** (9 tipos de documentos: expedientes, requisiciones, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql`. API Go unificada vía `var Modulos map[string]ModuloConfig` en `app.go`. Botonera inferior en `index.html` para conmutar módulos sin recargar. `frontend/wailsjs/` se regenera con `wails dev`. Único binding Wails utilizado: `AbrirDialogoBD`. Rama `wails-migration` activa.
+**Endpoints nuevos en `handler.go`**:
+- `GET /api/ruta-procesos` (ya existe, se reescribe): devuelve el HTML del Gantt Ya con datos de la BDD.
+- `GET /api/ruta-procesos-json`: devuelve JSON con `{legend, columns, processes}` para que el JS del template renderice.
+- `POST /api/ruta-procesos-toggle`: activa/desactiva un proceso (BOOL `activo`).
+- `GET /api/ruta-procesos-leyenda`: devuelve JSON de la leyenda.
+- `POST /api/ruta-procesos-leyenda`: añade/edita una leyenda (para Feature #3, pero el endpoint queda listo).
+
+**Métodos nuevos en `app.go`**:
+- `ObtenerRutaProcesosData()` → devuelve struct con `Legend`, `Columns`, `Processes` consultando las tablas nuevas + `vw_reporte_excel_contrataciones` para el `db_id`/`solped`/`estatus`.
+- `ToggleRutaProceso(id int, activo bool)` → UPDATE `ruta_procesos_procesos.activo`.
+- `ObtenerRutaProcesosLeyenda()` → SELECT * FROM `ruta_procesos_leyenda`.
+- `GuardarRutaProcesosLeyenda(statusName, hexColor string)` → INSERT (USAR para Feature #3).
+
+### 3.4 Frontend — modal de selección de procesos
+
+**Acción en `templates/ruta_procesos.html`**:
+- Reescribir el template para:
+  1. Mostrar lista de procesos con checkboxes ( activo/inactivo ).
+  2. Al togglear un checkbox → POST a `/api/ruta-procesos-toggle` → re-render del Gantt vía HTMX.
+  3. El Gantt solo renderiza procesos con `activo = 1`.
+  4. Auto-update: el Gantt se regenera desde la BDD cada vez que se cambia el estado, sin recargar la página.
+
+**Botón nuevo en `index.html`** para abrir el gestor de procesos:
+```html
+<button onclick="abrirGestorProcesos()" class="btn btn-secondary">
+    <i class="fas fa-cog mr-1"></i> Gestionar Procesos
+</button>
 ```
 
-**C.4.2** Tabla "Archivos Clave" (líneas 21-35) — añadir:
-```
-| `data/sql/01_master_control_docs_presidencia.sql` | Schema: catálogos + expedientes + historial_movimientos + vistas + triggers |
-| `data/sql/02_modulos_adicionales.sql` | Schema: 8 módulos adicionales con sus tablas hist_, vistas vw_reporte_*, triggers |
-| `templates/tabla_<key>.html` (9) | Plantilla de listado por módulo |
-| `templates/form_<key>.html` (9) | Plantilla de formulario por módulo |
-```
+Esto abre un modal	o panel lateral con la lista de procesos y checkboxes.
 
-#### C.5 Commit 3
+### 3.5 Commit para Feature #2
 
 ```bash
-git add docs/doc.md docs/funciones.md docs/decisiones.md docs/ai-context.md plan.md
+git add data/sql/03_ruta_procesos.sql app.go handler.go templates/ruta_procesos.html templates/index.html
 git commit -m "$(cat <<'EOF'
-docs: actualiza doc, funciones, decisiones y ai-context para multi-modulo
+feat: ruta procesos con seleccion de procesos y auto-update del Gantt
 
-- doc.md: arquitectura lista tabla_<key>/form_<key>; schema incluye 16
-  tablas+8 vistas nuevas; rutas API incluye /api/cambiar-modulo;
-  changelog anyade entradas #28-29. cat_gerencia ahora con 13 IDs.
-- funciones.md: API primaria ObtenerFila/FilaPorId/GuardarFila/EliminarFila/
-  ObtenerHistorialFila. Wrappers legacy eliminados. Capa JS simplificada.
-- decisiones.md: anyade DEC-014 (Multi-modulo con schema separado y
-  Modulos map).
-- ai-context.md: "Estado Actual Julio 2026" actualizado. Archivos Clave
-  incluyen sql/01_master, sql/02_modulos, templates tabla_/form_<key>.
-- plan.md: documento de planeacion auto-contenido para replicabilidad.
+- data/sql/03_ruta_procesos.sql: tablas ruta_procesos_leyenda,
+  _cronograma, _procesos + insert leyenda base.
+- app.go: metodos ObtenerRutaProcesosData, ToggleRutaProceso,
+  ObtenerRutaProcesosLeyenda, GuardarRutaProcesosLeyenda.
+- handler.go: nuevos endpoints /api/ruta-procesos-json,
+  /api/ruta-procesos-toggle, /api/ruta-procesos-leyenda.
+- ruta_procesos.html: reescrito para renderizar desde BDD con
+  checkboxes de activo/inactivo por proceso. Gantt auto-update
+  via HTMX al togglear.
+- index.html: boton "Gestionar Procesos" abre el modal.
 
 [skip ci]
 EOF
@@ -514,184 +536,458 @@ EOF
 
 ---
 
-### FASE D — Push final
+## 3b. FEATURE #4 — MODALES SE CIERRAN AL CLICKEAR AFUERA (CON JERARQUÍA)
 
-```bash
-git push origin wails-migration
-```
+### 3b.1 Estado actual y comportamiento buscado
 
-Si el remote rechaza (fast-forward), NO usar `--force` sin consultar. Hacer `git pull --rebase origin wails-migration` primero, resolver conflictos y luego push.
+**Modales existentes en `templates/index.html`** (todos con backdrop `bg-black/70`, sin handler de cierre al clic afuera):
 
-Tras el push:
-- CI en GitHub Actions disparará job `wails` (Linux+Windows) — los 3 commits llevan `[skip ci]` así que NO debería dispararse (confirmar leyendo `.github/workflows/build.yml` para ver si respeta `[skip ci]`).
-- El usuario compilará localmente desde Linux para probar: `make wails-build-linux` (debug) o `make wails-build-linux-prod`.
-
----
-
-## 5. VERIFICACIÓN FINAL (smoke test manual tras push, por el user)
-
-1. `make wails-build-linux` ( genera `build/bin/GestionExpedientes`).
-2. Ejecutar el binario. Window 1400×900 abre.
-3. Abrir `data/expedientes.db` ( debe cargar catálogos y filas ).
-4. Click en botonera inferior → cambiar entre los 9 módulos. Cada uno muestra su propia tabla.
-5. Click "Nuevo Registro" → modal abre con título "Nuevo <Modulo.Nombre>" (no "Expediente").
-6. Llenar un form de `requisiciones` y guardar → toast "Registro guardado". Listado actualiza.
-7. Editar esa fila (UPDATE) → trigger `trg_req_mat_auditoria` YA NO falla (fix #1).
-8. Click "Ver Historial" en la fila → modal muestra tabla. Para `reposos_medicos`, columna Receptor no aparece. Para los demás, sí. La columna **Notas** aparece para todos los módulos; si el expediente tuvo una nota en algún snapshot (verificado con `SELECT id_movimiento, notas FROM historial_movimientos WHERE notas IS NOT NULL AND notas != '' LIMIT 5;` en SQLite CLI antes de probar), debe verse el texto en la celda correspondiente; si no hay nota en ese snapshot, debe verse "-".
-9. Si algo de esto rompe, viene un nuevo pase de fix + commit.
-
----
-
-## 6. RIESGOS Y NOTAS
-
-- **Bindings wailsjs**: `frontend/wailsjs/go/main/App.d.ts` y `App.js` siguen teniendo los métodos legacy después de eliminar los wrappers de app.go. **No se editan a mano**; el próximo `wails dev` o `wails build` los regenerará sin esos métodos. Si el usuario ejecuta `wails dev` antes del push, los bindings se regeneran y se quedan en el dir de trabajo — en ese caso añadirlos al Commit 2 con `git add frontend/wailsjs/`.
-- **`make combine`**: si se corre después de los cambios, `combined.txt` puede crecer significativamente. Verificar que `.gitignore` lo excluye (no lo hace — está committed como `combined.txt` en `git ls-files`. Pero el Makefile lo genera — es un build artifact; considerar añadirlo a `.gitignore` en el futuro. FUERA DE SCOPE ahora).
-- **`docs/decisiones.md`** crece grande; el archivo sigue el patrón de los ADR previos sin refactor.
-- **`data/expedientes.db`**: si el usuario ya tiene un .db populado con schema viejo, ejecutar los scripts `01_`+`02_` fallará (no tienen `DROP IF EXISTS` ni `INSERT OR IGNORE`). Confirmado: el usuario actualizará `importar_datos.py` después para recrear la BD limpia desde los nuevos scripts.
-- **`PRAGMA user_version`** está comentado en `01_:397` y en `02_` no se setea. Recomendación (fuera de scope): descomentar y bump a `9` en `01_` (nueva versión de schema). El script de migración deberá respetar esto.
-
----
-
-## 7. RESUMEN EJECUTIVO
-
-| Fase | Archivos tocados | Líneas aprox. |
+| ID del modal | Función de cierre | Origen (botón/acción) |
 |---|---|---|
-| A (SQL fix) | `data/sql/02_modulos_adicionales.sql` | 1 línea |
-| B (front + Go) | `templates/index.html`, `templates/historial.html`, `handler.go`, `app.go` | ~90 líneas |
-| C (docs) | `docs/doc.md`, `docs/funciones.md`, `docs/decisiones.md`, `docs/ai-context.md` | ~150 líneas añadidas |
-| D (push) | — | git push |
+| `form-modal` (línea 170) | `cerrarFormulario()` (línea 357) | Botón "+ Nuevo Registro", `hxGetFormulario(id)`, fila de la tabla (editar) |
+| `historial-modal` (línea 181) | `cerrarHistorial()` (línea 374) | Botón "Ver Historial" en cada fila |
+| `modal-ruta` (línea 195) | `cerrarRuta()` (línea 375) | Botón "Ruta Procesos" |
+| `modal-pendientes` (línea 206) | `cerrarPendientes()` (línea 376) | Botón "Pendientes" |
+| `modal-recientes` (línea 217) | `cerrarRecientes()` (línea 456) | Botón "Recientes" |
+| `modal-frecuentes` (línea 228) | `cerrarFrecuentes()` (línea ~528) | Botón "Frecuentes" |
+| `export-modal` (añadido en Feature #1) | `cerrarModalExportar()` (definido en Feature #1) | Botón "Exportar Excel" |
 
-**Total**: 3 commits, ~240 líneas, 1 push. Cero archivos eliminados (los cosméticos quedan para otro PR). Bug crítico del trigger resuelto. Multi-módulo operativo. Docs coherentes. Historial muestra `notas`.
+**Comportamiento actual**: los modales solo se cierran con el botón "X" o con sus funciones `_cerrar*` explícitas. Click afuera NO cierra nada.
+
+**Comportamiento deseado (del user)**:
+1. Al clickear en el backdrop (overlay oscuro `bg-black/70`), el modal activo se cierra.
+2. **Jerarquía nested**: si un modal A abre otro modal B, al clickear afuera de B solo se cierra B, NO A. Solo cuando se cierra B el siguiente clic afuera cierra A.
+3. Click dentro del contenido del modal (`modal-content`) NO cierra nada (stopPropagation en elcontenido).
+
+**Casos nested reales identificados en el código**:
+- `ruta_procesos.html:47` — `cerrarRuta(); hxGetFormulario(${p.db_id})` cierra el Gantt (modal-ruta) y abre el formulario (form-modal). Actualmente es secuencial (uno se cierra antes de abrir el otro), pero si se cambia a no cerrar explícitamente, el form-modal quedaría encima de modal-ruta. La jerarquía debe respetarse.
+- `toggleFrecuente` llamado desde `modal-recientes` puede invocar `abrirFrecuentes()` (línea 477) → abre `modal-frecuentes` mientras `modal-recientes` sigue visible.
+- `hxGetFormulario` puede ser llamado desde cualquier modal → abre `form-modal` encima.
+
+### 3b.2 Implementación — gestión de stack de modales
+
+**Decisión**: Llevar un stack (`Array`) de IDs de modales abiertos en orden de apertura. Al clic afuera (en el backdrop), se cierra solo el tope del stack (el más reciente). El backdrop más antiguo permanece visible.
+
+**Alternativas evaluadas**:
+- Un solo handler global en `document.body` que cierre el último modal abierto — descartado: requiere saber ALWAYS cuál es el "último".
+- Un backdrop invisible gigante que se redimensiona con cada modal nuevo — descartado: complica el CSS.
+- Stack explícito — elegido: simple, robusto, sin depender de z-index ni de DOM order.
+
+### 3b.3 Cambios en `templates/index.html`
+
+**Bloque JS nuevo** (añadir al inicio del `<script>` principal, antes de las funciones de modal actuales):
+
+```js
+const MODAL_STACK = [];
+function pushModal(id) {
+    const el = $(id);
+    if (!el || !el.classList.contains('hidden')) return;
+    el.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    MODAL_STACK.push(id);
+    // Listener del backdrop: solo el tope del stack reacciona
+    el.addEventListener('click', (e) => {
+        if (e.target === el) {
+            // Click en el backdrop (no dentro de .modal-content)
+            const top = MODAL_STACK[MODAL_STACK.length - 1];
+            if (top === id) cerrarModal(id);
+        }
+    });
+}
+function cerrarModal(id) {
+    const el = $(id);
+    if (!el) return;
+    el.classList.add('hidden');
+    const idx = MODAL_STACK.lastIndexOf(id);
+    if (idx !== -1) MODAL_STACK.splice(idx, 1);
+    if (MODAL_STACK.length === 0) document.body.style.overflow = '';
+}
+function topModal() { return MODAL_STACK[MODAL_STACK.length - 1] || null; }
+```
+
+**Refactor de funciones existentes** (mantener nombres públicos por compatibilidad, delegar en el stack):
+
+```js
+function mostrarFormulario(id) {
+    const titulo = $('form-titulo');
+    const moduloKey = (window.PAGE_DATA?.modulos && $('active-module-val')) ? $('active-module-val').value : 'expedientes';
+    const nombreModulo = window.PAGE_DATA?.modulos?.[moduloKey]?.Nombre || 'Registro';
+    titulo.textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
+    pushModal('form-modal');
+}
+function cerrarFormulario() { cerrarModal('form-modal'); }
+
+function cerrarHistorial()   { cerrarModal('historial-modal'); }
+function cerrarRuta()        { cerrarModal('modal-ruta'); }
+function cerrarPendientes()  { cerrarModal('modal-pendientes'); }
+function cerrarRecientes()   { cerrarModal('modal-recientes'); }
+function cerrarFrecuentes()  { cerrarModal('modal-frecuentes'); }
+function cerrarModalExportar() { cerrarModal('export-modal'); }
+```
+
+**Cambios en funciones de apertura**:
+
+- `abrirRecientes()` (línea 432): sustituir `modal.classList.remove('hidden'); document.body.style.overflow = 'hidden';` por `pushModal('modal-recientes');` (resto del body se mantiene: construir el HTML interno, etc.).
+- `abrirFrecuentes()` (línea 491): idem con `'modal-frecuentes'`.
+- `abrirModalExportar()` (definido en Feature #1): sustituir `$('export-modal').classList.remove('hidden'); document.body.style.overflow = 'hidden';` por `pushModal('export-modal');`.
+- El modal `historial-modal` se abre desde los `tabla_*.html` con `hx-on::before-request="$('historial-modal').classList.remove('hidden'); document.body.style.overflow = 'hidden'; ...`. Cambiar por `pushModal('historial-modal');` en cada `tabla_*.html` (9 archivos). El `hx-on::before-request` permite invocar JS, así que se reemplaza por `pushModal('historial-modal');` (el `document.body.style.overflow = 'hidden'` ya lo hace `pushModal`).
+- El modal `modal-ruta` se abre desde index.html línea 71 con `hx-on::after-request="$('modal-ruta').classList.remove('hidden'); document.body.style.overflow = 'hidden';"`. Cambiar por `hx-on::after-request="pushModal('modal-ruta');"`.
+- El modal `modal-pendientes` se abre desde index.html línea 77 con `hx-on::after-request="$('modal-pendientes').classList.remove('hidden'); document.body.style.overflow = 'hidden';"`. Cambiar por `hx-on::after-request="pushModal('modal-pendientes');"`.
+- El modal `form-modal` ya se abre vía `mostrarFormulario` (refactoreado arriba) y vía `hxGetFormulario` (línea 671). No hay `hx-on::after-request` que abra el form-modal directamente — `hxGetFormulario` llama a `mostrarFormulario(id)` que ahora usa `pushModal`.
+
+### 3b.4 Caso especial — `ruta_procesos.html:47`
+
+Actualmente: `onclick="event.stopPropagation(); cerrarRuta(); hxGetFormulario(${p.db_id})"` cierra el Gantt y luego abre el formulario.
+
+**Decisión**: dejarlo así. El comportamiento current es correcto para este caso: el user quiere editar un expediente y queda solo el form-modal. SI en el futuro se quiere mantener el Gantt abierto debajo (form-modal encima de modal-ruta), basta con quitar `cerrarRuta();` y reemplazar `hxGetFormulario(...)` por una variante que abra ambos con `pushModal('form-modal')` sin cerrar `'modal-ruta'`.
+
+El stack soporta ambos modos automáticamente: si `cerrarRuta()` se llama, saca `modal-ruta` del stack; si se omite, queda y el clic afuera de `form-modal` solo cerrará form-modal, dejando `modal-ruta` visible para clic afuera en su backdrop.
+
+### 3b.5 Verificación de jerarquía (caso de prueba)
+
+1. Abrir app, abrir BD, abrir `modal-recientes` (stack: `[modal-recientes]`).
+2. Desde `modal-recientes`, click en un item que abre `modal-frecuentes` (caso hypothetical: `toggleFrecuente` lo invoca). Stack: `[modal-recientes, modal-frecuentes]`.
+3. Click en el backdrop oscuro de `modal-frecuentes` → se cierra solo `modal-frecuentes`. Stack: `[modal-recientes]`. `modal-recientes` sigue visible.
+4. Click en el backdrop oscuro de `modal-recientes` → se cierra `modal-recientes`. Stack: `[]`. body.overflow restaurado.
+
+### 3b.6 Commit para Feature #4
+
+**Commit separado** (Feature #4 es independiente de #1 y #2, pero toca `index.html` que también se toca en #1 y #2 → requerirá merge si se hacen en paralelo; mejor做完 #1 antes de #4).
+
+```bash
+git add templates/index.html templates/tabla_*.html
+git commit -m "$(cat <<'EOF'
+feat: modales se cierran al clickear afuera del backdrop con jerarquia
+
+- index.html: anyadido MODAL_STACK array + funciones pushModal/cerrarModal/
+  topModal. Las funciones abrir*/cerrar* existentes delegan en el stack.
+- El listener de click en cada backdrop solo cierra el modal si es el tope
+  del stack (jerarquia: cerrar B no cierra A).
+- tabla_*.html (9): hx-on::before-request migrado a pushModal('historial-modal').
+- modal-ruta, modal-pendientes, modal-recientes, modal-frecuentes: aperturas
+  migradas a pushModal.
+
+[skip ci]
+EOF
+)"
+```
 
 ---
 
-## 8. ANTI-ALUCINACIÓN (verificación cruzada para el agente que ejecuta)
+## 3c. FEATURES #5, #6, #7 — GERENCIAS PERMITIDAS + BOTONERA AL FONDO + BOTÓN SUMAS
 
-> Esta sección existe para reducir el riesgo de que el modelo que ejecute este plan (p.ej. DeepSeek V4 Flash) invente archivos, lineas o comportamientos. **Antes de cada edit, Siege verificar con el tool correspondiente (Read/Grep/Bash)**.
+> Las 3 features se incluyen en **un solo commit** porque son pequeñas y/o comparten archivos (`app.go`, `templates/index.html`, `form_*.html`).
 
-### 8.1 Archivos que SÍ existen (verificar con `ls`/Read antes de editar)
+### 3c.1 Feature #5 — Gerencias permitidas por módulo en formularios
 
-- `/home/user/Documentos/proyecto/baseaccess/data/sql/02_modulos_adicionales.sql` (827 lineas, commit committed)
-- `/home/user/Documentos/proyecto/baseaccess/data/sql/01_master_control_docs_presidencia.sql` (398 lineas)
-- `/home/user/Documentos/proyecto/baseaccess/app.go` (731 lineas, modified)
-- `/home/user/Documentos/proyecto/baseaccess/handler.go` (728 lineas, modified)
-- `/home/user/Documentos/proyecto/baseaccess/templates/index.html` (684 lineas, modified)
-- `/home/user/Documentos/proyecto/baseaccess/templates/historial.html` (28 lineas)
-- `/home/user/Documentos/proyecto/baseaccess/docs/doc.md` (271 lineas)
-- `/home/user/Documentos/proyecto/baseaccess/docs/funciones.md` (148 lineas)
-- `/home/user/Documentos/proyecto/baseaccess/docs/decisiones.md` (172 lineas)
-- `/home/user/Documentos/proyecto/baseaccess/docs/ai-context.md` (38 lineas)
+**Dato del user** — gerencias permitidas por módulo:
 
-### 8.2 Archivos que NO existen o NO se tocan
+| Módulo (key) | Gerencias permitidas (IDs) | Note |
+|---|---|---|
+| `expedientes` (Control Docs. Presidencia) | 1-10 | SIAHO-A, TÉCNICA, OPERACIONES, SSGG, JURÍDICO, FINANZAS, CONTRATACIÓN, RRHH, ASUNTOS GUBERNAMENTALES, COMISIÓN |
+| `requisiciones` | 1, 2, 3, 4, 8, 11 | + PROCURA |
+| `memorandums` | 1-11 | 1-10 + PROCURA (11) |
+| `recobros` | 1, 2, 3, 4, 8 | |
+| `valuaciones` | 1, 2, 3, 4, 8 | |
+| `aprobacion_jd` | 1, 2, 3, 4, 7, 8 | + CONTRATACIÓN (7) |
+| `certificacion_bdu` | 7 | Solo CONTRATACIÓN |
+| `vacaciones` | 1-10, 12 | + CONTROL DE DOCUMENTOS (12) |
+| `reposos_medicos` | 1-10, 13 | + ASUNTOS PÚBLICOS (13) |
 
-- `templates/formulario.html` — existe pero NO se elimina fisicamente en este plan (su referencia en `index.html:176` SI se quita — eso es todo).
-- `templates/tabla_filas.html` — existe pero NO se toca en este plan (cosmético fuera de scope).
-- `data/sql/Tablas8.sql` — legado, NO se toca.
-- `data/importar_datos.py` — NO se toca en este plan (el user lo actualizara aparte).
-- `main.go`, `go.mod`, `wails.json` — NO se tocan.
-- `frontend/wailsjs/go/main/App.d.ts`, `App.js` — NO se editan a mano (se regeneran con `wails dev`/`wails build`).
-- `frontend/index.html` (legacy estático) — NO se toca.
-- `data/expedientes.db` — NO se toca (gitignored).
+**Estado actual**: `app.go:34-167` define `Modulos` sin campo de gerencias. `handler.go:444` (`handleCargarExpediente`) pasa todos los catálogos completos al form. El `<select>` de `f-id_gerencia` en cada `form_*.html` renderiza `{{range .Catalogs.gerencia}}` — todas las 13 gerencias aparecen.
 
-### 8.3 Lineas exactas a editar (anchors verificadas)
+**Implementación**:
 
-| Archivo | Linea | Cadena exacta a buscar | Acción |
+1. **`app.go`** — Añadir campo `GerenciasIDs []int` al struct `ModuloConfig`. Poblarlo en cada entrada de `Modulos`:
+
+```go
+type ModuloConfig struct {
+    Nombre         string
+    Tabla          string
+    Vista          string
+    IDColumna      string
+    HistorialTabla string
+    Columnas       []string
+    QueryHistorial string
+    GerenciasIDs   []int // IDs de gerencias permitidas en el form de este módulo
+}
+```
+
+Ejemplos de poblado:
+```go
+"expedientes": { ..., GerenciasIDs: []int{1,2,3,4,5,6,7,8,9,10} },
+"requisiciones": { ..., GerenciasIDs: []int{1,2,3,4,8,11} },
+"memorandums": { ..., GerenciasIDs: []int{1,2,3,4,5,6,7,8,9,10,11} },
+"recobros": { ..., GerenciasIDs: []int{1,2,3,4,8} },
+"valuaciones": { ..., GerenciasIDs: []int{1,2,3,4,8} },
+"aprobacion_jd": { ..., GerenciasIDs: []int{1,2,3,4,7,8} },
+"certificacion_bdu": { ..., GerenciasIDs: []int{7} },
+"vacaciones": { ..., GerenciasIDs: []int{1,2,3,4,5,6,7,8,9,10,12} },
+"reposos_medicos": { ..., GerenciasIDs: []int{1,2,3,4,5,6,7,8,9,10,13} },
+```
+
+2. **`handler.go`** — En `handleCargarExpediente` (línea 425-463), después de obtener `catalogs`, filtrar la sub-lista `gerencia` por `cfg.GerenciasIDs`. Pasa el catálogo filtrado al template.
+
+```go
+cfg := Modulos[modulo]
+
+catalogs, err2 := h.app.ObtenerCatalogos()
+// ... error handling ya existente ...
+
+// Filtrar gerencias permitidas para este módulo
+if cfg.GerenciasIDs != nil {
+    permitidas := map[int]bool{}
+    for _, id := range cfg.GerenciasIDs { permitidas[id] = true }
+    filtradas := make([]CatalogoItem, 0, len(cfg.GerenciasIDs))
+    for _, g := range catalogs["gerencia"] {
+        if permitidas[g.ID] { filtradas = append(filtradas, g) }
+    }
+    catalogs["gerencia"] = filtradas
+}
+// También filtrar superintendencias: solo las que su id_gerencia está en GerenciasIDs
+if cfg.GerenciasIDs != nil {
+    permitidas := map[int]bool{}
+    for _, id := range cfg.GerenciasIDs { permitidas[id] = true }
+    filtradas := []CatalogoItem{}
+    for _, s := range catalogs["superintendencia"] {
+        if permitidas[s.IDGerencia] { filtradas = append(filtradas, s) }
+    }
+    catalogs["superintendencia"] = filtradas
+}
+```
+
+3. **`CatalogoItem`** — verificar que ya tiene campo `IDGerencia` para superintendencias (ver `handler.go` struct `CatalogoItem`). Si no, añadirlo y poblarlo en `ObtenerCatalogos`.
+
+**Resultado**: los 9 `form_<key>.html` no requieren cambios — el `<select>` ya itera `.Catalogs.gerencia`, que ahora viene filtrado.
+
+### 3c.2 Feature #6 — Botonera inferior alineada al fondo real de la ventana
+
+**Estado actual** (`templates/index.html:149-164`): el `<footer>` con `id="modulo-botones"` está dentro del flujo normal, justo después de la tabla. Cuando hay pocos registros, queda " flotando" en el medio de la ventana.
+
+**Comportamiento deseado**: la botonera SIEMPRE visible pegada al fondo de la ventana (sticky footer), incluso con la página vacía.
+
+**Implementación** (CSS en `templates/index.html`, dentro del `<style>` existente en el `<head>`):
+
+```css
+#app-root { display: flex; flex-direction: column; min-height: 100vh; }
+#vista-tabla { flex: 1 1 auto; }
+#modulo-botones { position: sticky; bottom: 0; background: rgb(17, 24, 39); padding: 1rem 1rem 1.5rem; z-index: 10; border-top: 1px solid rgb(55, 65, 81); }
+```
+
+**Acción HTML**: envolver el `<div id="app">` (línea 54) con `<div id="app-root">` y mover el `<footer>` con `id="modulo-botones"` (líneas 150-164) para que sea hermano directo de `#app-root` nivel body (no dentro de `#app`). Alternativa más segura: aplicar `position: fixed; bottom: 0; left: 0; right: 0;` al footer y añadir `padding-bottom: 80px` al contenedor padre para evitar que el footer tape contenido.
+
+**Decisión**: usar `position: sticky; bottom: 0` (alternativa A) sobre `position: fixed` para no tener que añadir `padding-bottom` extra y evitar que el footer tape el último registro.
+
+### 3c.3 Feature #7 — Botón "Sumas" (calculadora con 2 decimales)
+
+**Estado actual**: no existe botón de sumas. El botón superior (`index.html:60-78`) tiene: Nuevo Registro, Ruta Procesos, Pendientes, Recientes, Frecuentes, Exportar Excel (añadido en Feature #1), Optimizar BD, Abrir BD.
+
+**Implementación**:
+
+1. **Botón nuevo** en el header de `index.html` (al lado de "Exportar Excel"):
+```html
+<button onclick="abrirSumas()" class="btn btn-primary" id="btn-sumas">
+    <i class="fas fa-calculator mr-1"></i> Sumas
+</button>
+```
+
+2. **Modal nuevo** (añadir antes de `</body>`, junto con el `export-modal` de Feature #1):
+```html
+<div id="sumas-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div class="relative modal-content w-full max-w-md my-8">
+        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-calculator mr-2"></i>Sumas</h2>
+            <button onclick="cerrarSumas()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-3">
+            <div id="sumas-filas" class="space-y-2"></div>
+            <button onclick="anyadirFilaSuma()" class="btn btn-secondary w-full"><i class="fas fa-plus mr-1"></i> Añadir número</button>
+            <div class="border-t border-gray-700 pt-4 mt-4">
+                <div class="flex justify-between items-center text-lg font-bold">
+                    <span class="text-gray-300">Resultado:</span>
+                    <span id="sumas-resultado" class="text-teal-400">0.00</span>
+                </div>
+            </div>
+            <button onclick="limpiarSumas()" class="btn btn-secondary w-full text-xs"><i class="fas fa-eraser mr-1"></i> Limpiar todo</button>
+        </div>
+    </div>
+</div>
+```
+
+3. **JS nuevo** (al final del bloque `<script>` principal):
+```js
+function abrirSumas() {
+    pushModal('sumas-modal');  // usa el stack de Feature #4
+    if (document.querySelectorAll('.suma-fila').length === 0) anyadirFilaSuma();
+    calcularSumas();
+}
+function cerrarSumas() { cerrarModal('sumas-modal'); }
+function anyadirFilaSuma() {
+    const div = document.createElement('div');
+    div.className = 'suma-fila flex gap-2';
+    div.innerHTML = `
+        <input type="number" step="0.01" placeholder="0.00" class="input flex-1 suma-input" oninput="calcularSumas()">
+        <button onclick="this.parentElement.remove(); calcularSumas();" class="btn-icon text-red-400 hover:text-red-300" title="Quitar"><i class="fas fa-times"></i></button>
+    `;
+    $('sumas-filas').appendChild(div);
+    div.querySelector('input').focus();
+}
+function calcularSumas() {
+    let total = 0;
+    document.querySelectorAll('.suma-input').forEach(inp => {
+        // Validar máximo 2 decimales: si tiene más, truncar (no redondear)
+        let v = inp.value.trim();
+        if (v === '') return;
+        // Validar: si tiene más de 2 decimales, mostrar error y truncar
+        const parts = v.split('.');
+        if (parts.length > 1 && parts[1].length > 2) {
+            inp.value = parseFloat(v).toFixed(2);
+            v = inp.value;
+        }
+        const n = parseFloat(v);
+        if (!isNaN(n)) total += n;
+    });
+    $('sumas-resultado').textContent = total.toFixed(2);
+}
+function limpiarSumas() {
+    $('sumas-filas').innerHTML = '';
+    anyadirFilaSuma();
+    $('sumas-resultado').textContent = '0.00';
+}
+```
+
+**Restricción de 2 decimales**: input `type="number"` con `step="0.01"`. JS trunca a 2 decimales si el user pega/teclea más. No permite negativos implícitamente (no se prohibe, pero el user dijo "varios números" sin especificar signo).
+
+4. **Depende de Feature #4**: usa `pushModal`/`cerrarModal` del stack. Por eso el commit orden va después del de modales (Commit 2).
+
+### 3c.4 Commit para Features #5, #6, #7
+
+```bash
+git add app.go handler.go templates/index.html
+git commit -m "$(cat <<'EOF'
+feat: gerencias por modulo en forms + botonera al fondo + boton Sumas
+
+- app.go: anyade campo GerenciasIDs []int a ModuloConfig. Poblado por
+  modulo con IDs 1-13 (PROCURA=11, CONTROL DE DOCUMENTOS=12,
+  ASUNTOS PUBLICOS=13). Cada modulo solo permite sus gerencias.
+- handler.go: handleCargarExpediente filtra Catalogs.gerencia y
+  Catalogs.superintendencia por cfg.GerenciasIDs antes de pasar al
+  form. Los form_*.html no cambian (siguen iterando .Catalogs.gerencia).
+- index.html: CSS sticky footer para #modulo-botones (position: sticky
+  bottom: 0). Boton "Sumas" en header. Modal de calculadora con inputs
+  type=number step=0.01, JS trunca a 2 decimales si el user excede,
+  muestra resultado en tiempo real. Usa pushModal del stack (#4).
+
+[skip ci]
+EOF
+)"
+```
+
+---
+
+## 4. FEATURE #3 (POSPUESTO) — LEYENDAS PERSONALIZADAS CON COLORES
+
+> El user dijo: "esa dejala pendiente porque hay una mas importante". **No se ejecuta en este plan.** Queda documentado para un próximo PR.
+
+
+**Lo que se hará cuando se active**:
+- Reutilizar el endpoint `/api/ruta-procesos-leyenda` (POST) ya creado en Feature #2.
+- UI: en el modal de gestión de procesos, añadir sección "Leyendas" con:
+  - Listado de leyendas existentes (color + nombre).
+  - Color picker (`<input type="color">`) + input de nombre + botón "Añadir".
+  - Botón "Eliminar" por leyenda.
+- El Gantt re-renderiza al cambiar la leyenda (mismo flujo de auto-update).
+
+**No se añade nada al código en este plan para Feature #3**. Solo se deja el endpoint listo y se documenta.
+
+---
+
+## 5. ESTRUCTURA DE COMMITS (resumen)
+
+1. **Commit 1** — Feature #1 (Exportar Excel XLSX inteligente) — archivos: `go.mod`, `go.sum`, `app.go`, `handler.go`, `templates/index.html`.
+2. **Commit 2** — Feature #4 (Modales se cierran al clic afuera con jerarquía) — archivos: `templates/index.html`, `templates/tabla_*.html` (9). Se hace antes que #2 para no tocar `index.html` mientras se hace otra feature.
+3. **Commit 3** — Features #5+#6+#7 (Gerencias por módulo, botonera al fondo, botón Sumas) — archivos: `app.go`, `handler.go`, `templates/index.html`.
+4. **Commit 4** — Feature #2 (Ruta Procesos selección + auto-update) — archivos: `data/sql/03_ruta_procesos.sql`, `app.go`, `handler.go`, `templates/ruta_procesos.html`, `templates/index.html`.
+5. **Push final**: `git push origin wails-migration` con `[skip ci]` en los 4 commits.
+
+Feature #3 queda pospuesto y NO genera commit en este plan.
+
+---
+
+## 6. VERIFICACIÓN (smoke test manual tras push, por el user)
+
+1. `make wails-build-linux` → genera `build/bin/GestionExpedientes`.
+2. Ejecutar el binario. Abrir `data/expedientes.db`.
+3. Click "Exportar Excel" → modal abre con:
+   - Selector de módulo (9 opciones).
+   - Filtro texto vacío.
+   - Rango fechas vacío.
+   - Lista de columnas del módulo (`expedientes` por defecto) con checkboxes.
+4. Seleccionar "Requisiciones" en el selector → la lista de columnas cambia dinámicamente.
+5. Marcar 3 columnas + escribir un filtro + rango fechas → Descargar XLSX → se descarga `Requisición de Materiales_2026-07-13.xlsx` con las filas filtradas y solo las 3 columnas seleccionadas, cabecera teal, freeze panes, autofilter.
+6. Abrir el XLSX en Excel/LibreOffice → verificar que las filas coinciden con los filtros.
+7. (Feature #2) Click "Gestionar Procesos" → lista de procesos con checkboxes → desactivar uno → el Gantt se re-renderiza sin ese proceso.
+8. (Feature #4) Abrir "Recientes" → click afuera (en el backdrop oscuro) → el modal se cierra. body.overflow restaurado.
+9. (Feature #4) Abrir "Ruta Procesos" → desde el Gantt, click "Ver/Editar Expediente #N" (abre form-modal encima de modal-ruta) → click afuera de form-modal → solo form-modal se cierra, modal-ruta sigue visible. Luego click afuera de modal-ruta → modal-ruta se cierra.
+10. (Feature #5) Abrir "Nuevo Registro" con `expedientes` activo → el `<select>` de Gerencia muestra solo las 10 gerencias 1-10 (no aparecen 11 PROCURA, 12 CONTROL DE DOCUMENTOS, 13 ASUNTOS PÚBLICOS).
+11. (Feature #5) Cambiar a `certificacion_bdu` → "Nuevo Registro" → el select de Gerencia muestra **solo** "CONTRATACIÓN" (ID 7).
+12. (Feature #5) Cambiar a `vacaciones` → el select muestra 1-10 + 12 (CONTROL DE DOCUMENTOS), pero NO 11 (PROCURA) ni 13 (ASUNTOS PÚBLICOS).
+13. (Feature #6) Con pocos registros (o vacío), la botonera inferior queda pegada al fondo de la ventana (sticky). No flota en el medio.
+14. (Feature #7) Click "Sumas" → modal abre con un input vacío. Escribir "100.50" → añadir otra fila, escribir "200.25" → resultado muestra "300.75". Pegar "1.234" → se trunca a "1.23", resultado recalculado. Click "Añadir" → nueva fila en blanco, resultado no cambia.
+
+---
+
+## 7. NOTAS Y RIESGOS
+
+- **`github.com/xuri/excelize/v2`**:.dependencia pura Go sin CGO, añade ~5 MB al binario. Aceptable.
+- **`rows.Columns()` en vistas SQLite**: confirmado que funciona con `SELECT * FROM <vista> LIMIT 0` (devuelve nombres de columna de la vista).
+- **`RUTA_PROCESOS_DATA` roto**: el bug ya existía en la rama antes de este plan. Feature #2 lo resuelve como efecto colateral.
+- **BD**: `data/expedientes.db` ya tiene schema 01+02. Feature #2 añade schema 03 (aplicar con `sqlite3 data/expedientes.db < data/sql/03_ruta_procesos.sql` durante el desarrollo, NO se commitea el .db).
+- **Anti-alucinación**: antes de cada edit, verificar con Read/Grep que el anchor existe. NO editar `frontend/wailsjs/*` a mano. NO tocar `src/`, `src-tauri/`, `main.js`, `package.json` (legacy).
+
+---
+
+## 8. ANTI-ALUCINACIÓN (verificación cruzada)
+
+### 8.1 Archivos que SÍ existen y se editan
+
+- `/home/user/Documentos/proyecto/baseaccess/app.go` (709 líneas) — añadir `ObtenerColumnasVista`, métodos de Ruta Procesos.
+- `/home/user/Documentos/proyecto/baseaccess/handler.go` (736 líneas) — añadir `handleExportarExcel`, `handleColumnasModulo`, handlers Ruta Procesos.
+- `/home/user/Documentos/proyecto/baseaccess/templates/index.html` (689 líneas) — reemplazar botón CSV, añadir modal exportar, botón gestionar procesos, añadir `MODAL_STACK` + `pushModal`/`cerrarModal` y refactor de `abrirRecientes`/`abrirFrecuentes`/`mostrarFormulario`/`cerrar*`.
+- `/home/user/Documentos/proyecto/baseaccess/templates/tabla_*.html` (9: `tabla_expedientes`, `tabla_requisiciones`, `tabla_memorandums`, `tabla_recobros`, `tabla_valuaciones`, `tabla_aprobacion_jd`, `tabla_certificacion_bdu`, `tabla_vacaciones`, `tabla_reposos_medicos`) — migrar `hx-on::before-request` a `pushModal('historial-modal')`.
+- `/home/user/Documentos/proyecto/baseaccess/templates/ruta_procesos.html` (180 líneas) — reescribir para datos desde BDD.
+- `/home/user/Documentos/proyecto/baseaccess/go.mod` (39 líneas) — añadir `excelize/v2`.
+
+### 8.2 Archivos NUEVOS
+
+- `/home/user/Documentos/proyecto/baseaccess/data/sql/03_ruta_procesos.sql` — schema Ruta Procesos.
+
+### 8.3 Archivos que NO existen o NO se tocan
+
+- `frontend/index.html`, `src/index.html` — legacy, NO se tocan.
+- `frontend/wailsjs/*` — se regeneran solos con `wails dev`/`wails build`.
+- `data/expedientes.db` — gitignored, NO se commitea.
+- `data/sql/01_master_*.sql`, `data/sql/02_modulos_*.sql` — NO se modifican.
+- `main.go`, `wails.json` — NO se tocan.
+
+### 8.4 Verificaciones post-edit
+
+1. `go vet ./...` — cero warnings.
+2. `go build ./...` — compila sin errores.
+3. `make wails-build-linux` — genera binario correctamente.
+4. `git diff --stat` — confirma archivos tocados son solo los listados por commit.
+5. Aplicar `data/sql/03_ruta_procesos.sql` a `data/expedientes.db` antes de probar Feature #2.
+
+---
+
+## 9. RESUMEN EJECUTIVO
+
+| Fase | Archivos tocados | Líneas aprox. | Commit |
 |---|---|---|---|
-| `data/sql/02_modulos_adicionales.sql` | 71 | `VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.documento, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);` | Reemplazar `NEW.documento` por `NEW.descripcion_materiales` (solo esa ocurrencia en linea 71). |
-| `templates/index.html` | ~176 | `<form id="form-expediente" class="space-y-6" onsubmit="return false;">\n    {{template "formulario.html" .}}\n</form>` | Eliminar la linea `{{template "formulario.html" .}}`. |
-| `templates/index.html` | ~46-50 | bloque `window.PAGE_DATA = { ... }` | Sustituir por bloque con `modulos: {{jsonEncode .Modulos}},` y `filas: {{jsonEncode .Filas}},` (eliminando `expedientes: {{jsonEncode .Expedientes}}`). |
-| `templates/index.html` | 345-350 | `function mostrarFormulario(id) { const modal = $('form-modal'); $('form-titulo').textContent = id ? 'Editar Expediente #' + id : 'Nuevo Expediente'; modal.classList.remove('hidden'); document.body.style.overflow = 'hidden'; }` | Sustituir por version dinamica que lee `window.PAGE_DATA.modulos[moduloKey].Nombre`. |
-| `handler.go` | 562-587 (`handleHistorial`) | bloque `rows, err := h.app.ObtenerHistorialFila(modulo, id)` … `h.tmpl.ExecuteTemplate(w, "historial.html", rows)` | Cambiar para pasar `struct { Rows []Row; ActiveModule string }`. |
-| `handler.go` | 675 | `data, err := h.app.ObtenerExpedientes("id_expediente DESC")` | Cambiar `ObtenerExpedientes` por `ObtenerFilas("expedientes", ...)`. |
-| `app.go` | 587-607 | bloque `// --- legacy wrapper functions for backward compatibility ---` … `func (a *App) ObtenerHistorialCompleto(id int) ([]Row, error) { return a.ObtenerHistorialFila("expedientes", id) }` | Eliminar el bloque entero (5 funciones + comentario). |
-| `templates/historial.html` | 1-28 (archivo completo) | plantilla actual con `{{if eq (len .) 0}}` … `{{range .}}` … `{{end}}` | Reescribir según §B.3 con `struct {Rows, ActiveModule}`, condicional Receptor, nueva columna Notas. |
+| Feature #1 (Exportar Excel) | `go.mod`, `go.sum`, `handler.go`, `app.go`, `templates/index.html` | ~250 añadidas | 1 |
+| Feature #4 (Modales click-afuera) | `templates/index.html`, `templates/tabla_*.html` (9) | ~80 añadidas | 1 |
+| Features #5+#6+#7 (Gerencias + footer + Sumas) | `app.go`, `handler.go`, `templates/index.html` | ~120 añadidas | 1 |
+| Feature #2 (Ruta Procesos) | `data/sql/03_ruta_procesos.sql`, `handler.go`, `app.go`, `templates/ruta_procesos.html`, `templates/index.html` | ~300 añadidas | 1 |
+| Feature #3 (Leyendas custom) | — | — | POSPUESTO |
 
-**Regla de oro para el agente que ejecuta**: si una busqueda con `grep`/Read no encuentra la cadena exacta listada arriba, **NO inventar** el edit. Detenerse y reportar el desajuste al usuario. Es preferible abortar una fase que editar una linea distinta y romper el razon de gemini.
-
-### 8.4 Verificaciones de compilación/sintaxis después de los edits
-
-1. `go vet ./...` — debe dar cero warnings.
-2. `go build ./...` — debe compilar sin errores (producira un binario `baseaccess` en la raiz — borrarlo despues, esta gitignored si o no `.gitignore` no lo cubre; usar `git status` para confirmar que no se agregara al commit).
-3. Verificar con `git diff --stat` que los archivos tocados son solo los listados en cada commit. Si aparece cualquier otro archivo (p.ej. `app.go` en Commit 1, o `wailsjs/*` en Commit 2 sin runs previos de `wails dev`), abortar y reportar.
-
-### 8.5 Verificación post-push (smoke mínimo sin abrir la app)
-
-```bash
-# 1. Confirmar 3 commits nuevos en wails-migration locales
-git log --oneline -5
-
-# 2. Confirmar que remote los recibio
-git log --oneline origin/wails-migration -5
-
-# 3. Confirmar que [skip ci] esta presente (para que GitHub Actions no corra)
-git log -3 --format="%H %s%n%b" | rg -i 'skip ci'
-# Debe devolver 3 lineas con '[skip ci]'
-
-# 4. Verificar el diff final de los 3 commits
-git diff origin/wails-migration~3 origin/wails-migration --stat
-# Debe listar: app.go, handler.go, templates/index.html, templates/historial.html,
-#              data/sql/02_modulos_adicionales.sql,
-#              docs/doc.md, docs/funciones.md, docs/decisiones.md, docs/ai-context.md
-# (9 archivos maximo)
-```
-
-### 8.6 Anti-alucinaciones específicas para DeepSeek V4 Flash
-
-Modelos con contexto grande pero reasoning medio-bajo tienden a:
-
-1. **Inventar archivos** que suenan plausible pero no existen. **Mitigación**: §8.1 lista los unicos archivos validos. Antes de tocar cualquiera, ejecutar `ls <ruta>` y verificar que devuelva el archivo.
-2. **Mover lineas que no existen** en el archivo (`Edit` con `oldString` fabricado). **Mitigación**: §8.3 da los anchors exactos. Si `grep` no los encuentra, abortar.
-3. **Agregar imports o constantes innecesarios** (p.ej. `import "strings"` si ya esta). **Mitigación**: NO agregar imports. Todos los edits se hacen con funciones/constantes ya existentes (`jsonEncode`, `rowGetStr`, `default`, `eq`, `ne`, `range`).
-4. **Crear templates nuevos** (p.ej. `historial_<key>.html` por modulo). **Mitigación**: SOLO se reescribe `historial.html`. NO crear ningun template nuevo en este plan.
-5. **Eliminar archivos legacy** (`formulario.html`, `tabla_filas.html`). **Mitigación**: NO borrar archivos en este plan, solo se quita la referencia `{{template "formulario.html" .}}` de `index.html`.
-6. **Tocar el schema SQL** mas alla de la linea 71 de `02_modulos_adicionales.sql`. **Mitigación**: el UNICO edit SQL es esa unica linea. No agregar `DROP IF EXISTS`, no tocar `01_master`, no modificar triggers otros que `trg_req_mat_auditoria`.
-7. **Regenerar bindings wailsjs a mano**. **Mitigación**: NO editar `frontend/wailsjs/*`. Se regeneran solos en el proximo `wails dev`/`wails build`.
-8. **Agregar el `بیان` script de migracion de datos**. **Mitigación**: NO tocar `data/importar_datos.py`. El usuario lo actualizara aparte.
-9. **Hacer push con `--force`**. **Mitigación**: NUNCA usar `--force`. Si el push falla por fast-forward, hacer `git pull --rebase origin wails-migration` primero.
-10. **Commits mezclando fases**. **Mitigación**: 3 commits separados, cada uno con su `git add` explicito listado en §A.2, §B.6, §C.5. NO usar `git add -A`. NO usar `git add .`.
-
-### 8.7 Comandos exactos a NO ejecutar
-
-- ❌ `git add -A` o `git add .` (commitearia archivos no deseados como `data/expedientes.db` si no estuviera gitignored, o `combined.txt` si se corrio `make combine`).
-- ❌ `wails dev` o `wails build` durante el plan (lo hara el user al final).
-- ❌ `make combine` (no se quiere regenerar `combined.txt`).
-- ❌ `git push --force` o `git push -f`.
-- ❌ `rm templates/formulario.html` o `rm templates/tabla_filas.html` (cosmetico fuera de scope).
-- ❌ `sqlite3 data/expedientes.db ...` (no se toca la BD).
-
-### 8.8 Confirmaciones de estado pre-ejecución
-
-El agente que ejecuta debe, antes de tocar nada, correr:
-
-```bash
-cd /home/user/Documentos/proyecto/baseaccess
-git branch --show-current          # debe imprimir: wails-migration
-git status --short                 # debe mostrar:
-                                    #  M app.go
-                                    #  M frontend/wailsjs/go/main/App.d.ts
-                                    #  M frontend/wailsjs/go/main/App.js
-                                    #  M handler.go
-                                    #  M templates/index.html
-                                    # ?? templates/form_aprobacion_jd.html
-                                    # ?? templates/form_certificacion_bdu.html
-                                    # ?? templates/form_expedientes.html
-                                    # ?? templates/form_memorandums.html
-                                    # ?? templates/form_recobros.html
-                                    # ?? templates/form_reposos_medicos.html
-                                    # ?? templates/form_requisiciones.html
-                                    # ?? templates/form_vacaciones.html
-                                    # ?? templates/form_valuaciones.html
-                                    # ?? templates/tabla_aprobacion_jd.html
-                                    # ?? templates/tabla_certificacion_bdu.html
-                                    # ?? templates/tabla_expedientes.html
-                                    # ?? templates/tabla_memorandums.html
-                                    # ?? templates/tabla_recobros.html
-                                    # ?? templates/tabla_reposos_medicos.html
-                                    # ?? templates/tabla_requisiciones.html
-                                    # ?? templates/tabla_vacaciones.html
-                                    # ?? templates/tabla_valuaciones.html
-```
-
-Si el `git status` NO coincide con lo esperado (p.ej. hay mas archivos modified, o `plan.md` aparece como `??` porque se acaba de crear — eso es OK, `plan.md` se commitea en Commit 3 junto con docs), **abortar** y reportar al usuario.
-
-**Importante sobre `plan.md`**: este archivo (`plan.md`) se crea como artefacto del planeo. **Se commitea junto con los docs en Commit 3**. Si se prefiere excluirlo, en Commit 3 hacer `git add docs/` en vez de listar archivos uno por uno, y dejar `plan.md` sin commitear. **Recomendación**: commitear `plan.md` tambien en Commit 3 (añadir `git add plan.md` al listado §C.5), porque documenta el racional de los cambios para futuros maintainers.
+**Total**: 4 commits, ~750 líneas. 1 push. Exportar Excel XLSX con filtros. Modales se cierran al click afuera con jerarquía. Gerencias filtradas por módulo en forms. Botonera inferior sticky al fondo. Botón Sumas con 2 decimales. Ruta Procesos con selección y auto-update. Leyendas custom pospuestas.

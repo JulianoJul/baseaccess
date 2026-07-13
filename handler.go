@@ -8,8 +8,12 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/xuri/excelize/v2"
 )
 
 //go:embed all:frontend
@@ -299,6 +303,12 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/api/cambiar-modulo" && r.Method == http.MethodGet:
 		h.handleCambiarModulo(w, r)
+		return
+	case p == "/api/exportar-excel" && r.Method == http.MethodGet:
+		h.handleExportarExcel(w, r)
+		return
+	case p == "/api/columnas-modulo" && r.Method == http.MethodGet:
+		h.handleColumnasModulo(w, r)
 		return
 	case p == "/api/historial" && r.Method == http.MethodGet:
 		h.handleHistorial(w, r)
@@ -717,6 +727,182 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(csv))
+}
+
+func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
+	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
+	fechaDesde := r.URL.Query().Get("fecha_desde")
+	fechaHasta := r.URL.Query().Get("fecha_hasta")
+
+	columnasParam := r.URL.Query().Get("columnas")
+	var columnasSel []string
+	if columnasParam != "" {
+		columnasSel = strings.Split(columnasParam, ",")
+	}
+
+	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var filtered []Row
+	for _, row := range filas {
+		if q != "" {
+			matches := false
+			for _, val := range row {
+				if val != nil {
+					sVal := strings.ToLower(fmt.Sprintf("%v", val))
+					if strings.Contains(sVal, q) {
+						matches = true
+						break
+					}
+				}
+			}
+			if !matches {
+				continue
+			}
+		}
+		fr, _ := row["fecha_recibido"].(string)
+		if fechaDesde != "" && fr < fechaDesde {
+			continue
+		}
+		if fechaHasta != "" && fr > fechaHasta {
+			continue
+		}
+		filtered = append(filtered, row)
+	}
+
+	if len(filtered) == 0 {
+		http.Error(w, "No hay datos para exportar con los filtros aplicados", http.StatusBadRequest)
+		return
+	}
+
+	keysOrdered := make([]string, 0, len(filtered[0]))
+	for k := range filtered[0] {
+		keysOrdered = append(keysOrdered, k)
+	}
+	sort.Strings(keysOrdered)
+	for i, k := range keysOrdered {
+		if k == cfg.IDColumna {
+			copy(keysOrdered[1:i+1], keysOrdered[0:i])
+			keysOrdered[0] = k
+			break
+		}
+	}
+
+	if len(columnasSel) > 0 {
+		sel := map[string]bool{}
+		for _, c := range columnasSel {
+			sel[c] = true
+		}
+		filteredKeys := make([]string, 0, len(columnasSel))
+		for _, k := range keysOrdered {
+			if sel[k] {
+				filteredKeys = append(filteredKeys, k)
+			}
+		}
+		if len(filteredKeys) > 0 {
+			keysOrdered = filteredKeys
+		}
+	}
+
+	labelOf := func(k string) string {
+		words := strings.Split(strings.ReplaceAll(k, "_", " "), " ")
+		for i, w := range words {
+			if len(w) > 0 {
+				words[i] = strings.ToUpper(w[:1]) + w[1:]
+			}
+		}
+		return strings.Join(words, " ")
+	}
+
+	f := excelize.NewFile()
+	sheetName := cfg.Nombre
+	if len(sheetName) > 31 {
+		sheetName = sheetName[:31]
+	}
+	f.SetSheetName(f.GetSheetName(0), sheetName)
+
+	for i, k := range keysOrdered {
+		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+		f.SetCellValue(sheetName, cell, labelOf(k))
+	}
+	styleID, _ := f.NewStyle(&excelize.Style{
+		Font: &excelize.Font{Bold: true, Color: "#FFFFFF"},
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#0F766E"}},
+	})
+	lastCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), 1)
+	f.SetCellStyle(sheetName, "A1", lastCell, styleID)
+
+	for ri, row := range filtered {
+		for ci, k := range keysOrdered {
+			cell, _ := excelize.CoordinatesToCellName(ci+1, ri+2)
+			v := row[k]
+			if v == nil {
+				continue
+			}
+			f.SetCellValue(sheetName, cell, v)
+		}
+	}
+
+	for i, k := range keysOrdered {
+		width := float64(len(labelOf(k))) + 4
+		for _, row := range filtered {
+			if v := row[k]; v != nil {
+				s := fmt.Sprintf("%v", v)
+				if len(s) > int(width) {
+					width = float64(len(s)) + 2
+				}
+			}
+		}
+		colName, err := excelize.ColumnNumberToName(i + 1)
+		if err == nil {
+			f.SetColWidth(sheetName, colName, colName, width)
+		}
+	}
+
+	f.SetPanes(sheetName, &excelize.Panes{
+		Freeze: true, YSplit: 1,
+		TopLeftCell: "A2", ActivePane: "bottomLeft",
+	})
+	endCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), len(filtered)+1)
+	f.AutoFilter(sheetName, "A1:"+endCell, []excelize.AutoFilterOptions{})
+
+	filename := cfg.Nombre + "_" + time.Now().Format("2006-01-02") + ".xlsx"
+	w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+	if err := f.Write(w); err != nil {
+		log.Printf("exportar-excel: error escribiendo: %v", err)
+	}
+}
+
+func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+	cols, err := h.app.ObtenerColumnasVista(cfg.Vista)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, cols)
 }
 
 // --- JSON helpers ---

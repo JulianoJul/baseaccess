@@ -584,6 +584,20 @@ func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
 	return a.queryRows(cfg.QueryHistorial, id)
 }
 
+func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return nil, fmt.Errorf("no hay BD abierta")
+	}
+	rows, err := a.db.Query("SELECT * FROM " + vista + " LIMIT 0")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	return rows.Columns()
+}
+
 func (a *App) ObtenerRutaProcesos() ([]Row, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()

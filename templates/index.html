@@ -78,8 +78,8 @@
                         {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes">
                     <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
-                <button onclick="exportarCSV()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar-csv">
-                    <i class="fas fa-file-csv mr-1"></i> CSV
+                <button onclick="abrirModalExportar()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
+                    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
                 </button>
                 <button onclick="abrirRecientes()" class="btn btn-primary" id="btn-recientes">
                     <i class="fas fa-history mr-1"></i> Recientes
@@ -232,6 +232,46 @@
                 <button onclick="cerrarFrecuentes()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body overflow-y-auto max-h-[75vh] p-4" id="frecuentes-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Exportar Excel Modal -->
+    <div id="export-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-2xl my-8">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-file-excel mr-2"></i>Exportar a Excel</h2>
+                <button onclick="cerrarModalExportar()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 space-y-5">
+                <div>
+                    <label class="label">Hoja a exportar</label>
+                    <select id="exp-modulo" class="input" onchange="cargarColumnasExportar()">
+                        {{range $key, $cfg := .Modulos}}
+                        <option value="{{$key}}">{{$cfg.Nombre}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div>
+                    <label class="label">Filtro de busqueda (opcional)</label>
+                    <input type="text" id="exp-q" class="input" placeholder="Filtrar filas que contengan...">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="label">Fecha Desde (recibido)</label><input type="date" id="exp-fecha-desde" class="input"></div>
+                    <div><label class="label">Fecha Hasta (recibido)</label><input type="date" id="exp-fecha-hasta" class="input"></div>
+                </div>
+                <div>
+                    <label class="label">Columnas a exportar (vacio = todas)</label>
+                    <div class="flex gap-2 mb-2">
+                        <button type="button" onclick="toggleTodasColumnas(true)" class="btn btn-secondary text-xs">Seleccionar todas</button>
+                        <button type="button" onclick="toggleTodasColumnas(false)" class="btn btn-secondary text-xs">Limpiar</button>
+                    </div>
+                    <div id="exp-columnas" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-gray-700 rounded-lg"></div>
+                </div>
+            </div>
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-4 flex justify-end gap-3 rounded-b-xl">
+                <button onclick="cerrarModalExportar()" class="btn btn-secondary">Cancelar</button>
+                <button onclick="ejecutarExportar()" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar XLSX</button>
+            </div>
         </div>
     </div>
 
@@ -674,8 +714,49 @@
             });
         }
 
-        // --- CSV ---
-        function exportarCSV() { window.location.href = '/api/csv'; }
+        // --- Exportar Excel ---
+        function abrirModalExportar() {
+            $('export-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            cargarColumnasExportar();
+        }
+        function cerrarModalExportar() {
+            $('export-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+        async function cargarColumnasExportar() {
+            const modulo = $('exp-modulo').value;
+            const cont = $('exp-columnas');
+            cont.innerHTML = '<p class="text-gray-500 text-xs col-span-full">Cargando columnas...</p>';
+            const res = await fetch('/api/columnas-modulo?modulo=' + encodeURIComponent(modulo));
+            if (!res.ok) { cont.innerHTML = '<p class="text-red-400 text-xs col-span-full">Error al cargar columnas</p>'; return; }
+            const cols = await res.json();
+            cont.innerHTML = '';
+            cols.forEach(c => {
+                const lbl = document.createElement('label');
+                lbl.className = 'flex items-center gap-2 text-xs text-gray-300 cursor-pointer';
+                lbl.innerHTML = '<input type="checkbox" value="' + c + '" class="exp-col"> ' + c.replace(/_/g, ' ');
+                cont.appendChild(lbl);
+            });
+        }
+        function toggleTodasColumnas(sel) {
+            document.querySelectorAll('.exp-col').forEach(cb => cb.checked = sel);
+        }
+        function ejecutarExportar() {
+            const modulo = $('exp-modulo').value;
+            const q = $('exp-q').value;
+            const fd = $('exp-fecha-desde').value;
+            const fh = $('exp-fecha-hasta').value;
+            const cols = Array.from(document.querySelectorAll('.exp-col:checked')).map(cb => cb.value);
+            const params = new URLSearchParams();
+            params.set('modulo', modulo);
+            if (q) params.set('q', q);
+            if (fd) params.set('fecha_desde', fd);
+            if (fh) params.set('fecha_hasta', fh);
+            if (cols.length) params.set('columnas', cols.join(','));
+            window.location.href = '/api/exportar-excel?' + params.toString();
+            cerrarModalExportar();
+        }
 
         // --- Helpers JS ---
         function formatNum(v) {
