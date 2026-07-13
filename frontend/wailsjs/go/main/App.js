@@ -18,8 +18,8 @@ export function DescargarBD(arg1) {
   return window['go']['main']['App']['DescargarBD'](arg1);
 }
 
-export function EliminarExpediente(arg1) {
-  return window['go']['main']['App']['EliminarExpediente'](arg1);
+export function EliminarFila(arg1, arg2) {
+  return window['go']['main']['App']['EliminarFila'](arg1, arg2);
 }
 
 export function GetBackupMaxCopies() {
@@ -30,8 +30,8 @@ export function GuardarDialogoBD(arg1) {
   return window['go']['main']['App']['GuardarDialogoBD'](arg1);
 }
 
-export function GuardarExpediente(arg1) {
-  return window['go']['main']['App']['GuardarExpediente'](arg1);
+export function GuardarFila(arg1, arg2) {
+  return window['go']['main']['App']['GuardarFila'](arg1, arg2);
 }
 
 export function GuardarNuevoCatalogo(arg1, arg2, arg3) {
@@ -46,16 +46,16 @@ export function ObtenerDocumentosPendientes() {
   return window['go']['main']['App']['ObtenerDocumentosPendientes']();
 }
 
-export function ObtenerExpedientePorId(arg1) {
-  return window['go']['main']['App']['ObtenerExpedientePorId'](arg1);
+export function ObtenerFilaPorId(arg1, arg2) {
+  return window['go']['main']['App']['ObtenerFilaPorId'](arg1, arg2);
 }
 
-export function ObtenerExpedientes(arg1) {
-  return window['go']['main']['App']['ObtenerExpedientes'](arg1);
+export function ObtenerFilas(arg1, arg2) {
+  return window['go']['main']['App']['ObtenerFilas'](arg1, arg2);
 }
 
-export function ObtenerHistorialCompleto(arg1) {
-  return window['go']['main']['App']['ObtenerHistorialCompleto'](arg1);
+export function ObtenerHistorialFila(arg1, arg2) {
+  return window['go']['main']['App']['ObtenerHistorialFila'](arg1, arg2);
 }
 
 export function ObtenerRutaProcesos() {

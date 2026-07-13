@@ -10,13 +10,13 @@ export function CerrarBaseDatos():Promise<void>;
 
 export function DescargarBD(arg1:string):Promise<void>;
 
-export function EliminarExpediente(arg1:number):Promise<void>;
+export function EliminarFila(arg1:string,arg2:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
 
 export function GuardarDialogoBD(arg1:string):Promise<string>;
 
-export function GuardarExpediente(arg1:Record<string, any>):Promise<number>;
+export function GuardarFila(arg1:string,arg2:Record<string, any>):Promise<number>;
 
 export function GuardarNuevoCatalogo(arg1:string,arg2:string,arg3:Record<string, any>):Promise<number>;
 
@@ -24,11 +24,11 @@ export function ObtenerCatalogos():Promise<Record<string, Array<main.CatalogoIte
 
 export function ObtenerDocumentosPendientes():Promise<Array<main.Row>>;
 
-export function ObtenerExpedientePorId(arg1:number):Promise<main.Row>;
+export function ObtenerFilaPorId(arg1:string,arg2:number):Promise<main.Row>;
 
-export function ObtenerExpedientes(arg1:string):Promise<Array<main.Row>>;
+export function ObtenerFilas(arg1:string,arg2:string):Promise<Array<main.Row>>;
 
-export function ObtenerHistorialCompleto(arg1:number):Promise<Array<main.Row>>;
+export function ObtenerHistorialFila(arg1:string,arg2:number):Promise<Array<main.Row>>;
 
 export function ObtenerRutaProcesos():Promise<Array<main.Row>>;
 

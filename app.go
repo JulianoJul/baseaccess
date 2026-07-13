@@ -33,7 +33,7 @@ type ModuloConfig struct {
 
 var Modulos = map[string]ModuloConfig{
 	"expedientes": {
-		Nombre:         "Contrataciones",
+		Nombre:         "Control Docs. Presidencia",
 		Tabla:          "expedientes",
 		Vista:          "vw_reporte_excel_contrataciones",
 		IDColumna:      "id_expediente",
