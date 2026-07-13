@@ -219,6 +219,7 @@ type PageData struct {
 	SortColumn   string
 	SortDir      string
 	DBPath       string
+	Expediente   Row
 }
 
 func (h *TemplateHandler) preparePageData() *PageData {
