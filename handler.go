@@ -319,6 +319,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos" && r.Method == http.MethodGet:
 		h.handleRutaProcesos(w, r)
 		return
+	case p == "/api/ruta-procesos-toggle" && r.Method == http.MethodPost:
+		h.handleToggleRutaProceso(w, r)
+		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
 		return
@@ -646,17 +649,33 @@ func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.app.ObtenerRutaProcesos()
+	data, err := h.app.ObtenerRutaProcesosData()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "ruta_procesos.html", rows); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "ruta_procesos.html", data); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+func (h *TemplateHandler) handleToggleRutaProceso(w http.ResponseWriter, r *http.Request) {
+	idStr := r.FormValue("id")
+	activoStr := r.FormValue("activo")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSONError(w, "id invalido", http.StatusBadRequest)
+		return
+	}
+	activo := activoStr == "1" || activoStr == "true"
+	if err := h.app.ToggleRutaProceso(id, activo); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
 }
 
 func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Request) {

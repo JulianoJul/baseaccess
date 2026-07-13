@@ -1,180 +1,84 @@
 <div id="gantt-chart-container">
-    <!-- Aquí se inyectará el Gantt mediante script JS -->
+    <div class="mb-5 bg-gray-900/30 border border-gray-800 rounded-lg p-4">
+        <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fas fa-cog"></i> Gestion de Procesos
+        </h3>
+        <div class="procesos-grid" id="procesos-checkboxes"></div>
+    </div>
+    <div id="gantt-process-content"></div>
 </div>
 <script>
-    (function() {
-        // Obtenemos los expedientes inyectados desde Go y generamos el mapa de IDs
-        const dbExpedientes = {{jsonEncode .}};
-        const dbExpMap = {};
-        if (dbExpedientes && dbExpedientes.length) {
-            dbExpedientes.forEach(row => {
-                dbExpMap[row.id_expediente] = row;
-            });
-        }
+(function() {
+    const data = {{jsonEncode .}};
+    const { Legend: legend, Columns: ganttColumns, Processes: processes } = data;
 
-        // Accedemos a los datos de cronograma cargados estáticamente en la página
-        const { legend, columns, processes } = window.RUTA_PROCESOS_DATA;
+    function renderAll() {
+        renderProcesosCheckboxes();
+        renderGantt();
+    }
 
-        // 1. Process Cards List
-        let procesosHtml = `
-            <div class="mb-5 bg-gray-900/30 border border-gray-800 rounded-lg p-4">
-                <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="fas fa-list-ol"></i> Procesos con Aprobación de Junta Directiva
-                </h3>
-                <div class="procesos-grid">
-        `;
+    function renderProcesosCheckboxes() {
+        let html = '';
         processes.forEach(p => {
-            const dbInfo = dbExpMap[p.db_id] || {};
-            const solpedText = dbInfo.solped || 'SIN SOLPED';
-            const estatusText = dbInfo.estatus_detalle || 'N/A';
-            const receptorText = dbInfo.receptor || 'N/A';
-            const isFirmado = estatusText === 'FIRMADO';
-
-            procesosHtml += `
-                <div class="proceso-card">
-                    <div class="flex items-start gap-2.5">
-                        <span class="proceso-card-num">${p.id}</span>
-                        <div class="flex-1 min-w-0">
-                            <p class="proceso-card-desc">${p.descripcion}</p>
-                            <div class="proceso-card-meta">
-                                <span>SOLPED: <strong class="text-teal-400">${solpedText}</strong></span>
-                                <span>Estatus: <span class="proceso-card-badge ${isFirmado ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente'}">${estatusText}</span></span>
-                                ${receptorText !== 'N/A' && receptorText !== '' ? `<span>Receptor: <strong class="text-gray-300">${receptorText}</strong></span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div class="proceso-card-actions">
-                        <button onclick="event.stopPropagation(); cerrarRuta(); hxGetFormulario(${p.db_id})" class="proceso-card-edit-btn">
-                            <i class="fas fa-edit"></i> Ver/Editar Expediente #${p.db_id}
-                        </button>
-                    </div>
-                </div>
-            `;
+            html += `<div class="proceso-card">
+                <div class="flex items-start gap-2.5">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" ${p.activo ? 'checked' : ''} onchange="toggleProceso(${p.id}, this.checked)"><span class="proceso-card-num">${p.id}</span></label>
+                    <div class="flex-1 min-w-0"><p class="proceso-card-desc">${p.descripcion}</p>
+                    <div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">${p.solped || 'SIN SOLPED'}</strong></span><span>Estatus: <span class="proceso-card-badge ${(p.estatus_detalle||'') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente'}">${p.estatus_detalle || 'N/A'}</span></span></div></div>
+                </div></div>`;
         });
-        procesosHtml += `
-                </div>
-            </div>
-        `;
+        if (!processes.length) html = '<p class="text-gray-500 text-sm italic col-span-full">Sin procesos registrados.</p>';
+        document.getElementById('procesos-checkboxes').innerHTML = html;
+    }
 
-        // 2. Gantt Timeline Grid Table
-        let cronogramaHtml = `
-            <div class="mb-5">
-                <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="fas fa-calendar-alt"></i> Cronograma Diario (Línea de Tiempo)
-                </h3>
-                <div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2">
-                    <table class="gantt-table text-left text-xs text-gray-300">
-                        <thead>
-                            <tr class="bg-gray-800 text-gray-300 uppercase font-bold">
-                                <th rowspan="4" class="gantt-col-num p-2">Nº</th>
-                                <th colspan="5" class="gantt-week-header">DEL 01/06/26</th>
-                                <th colspan="5" class="gantt-week-header">DEL 05/06/26</th>
-                                <th colspan="5" class="gantt-week-header">DEL 15/06/26</th>
-                                <th colspan="5" class="gantt-week-header">DEL 22/06/26</th>
-                                <th colspan="5" class="gantt-week-header">DEL 30/06/26</th>
-                                <th colspan="5" class="gantt-week-header">DEL 6/07/26</th>
-                            </tr>
-                            <tr class="bg-gray-800 uppercase font-bold">
-                                <th colspan="5" class="gantt-week-subheader">AL 05/06/26</th>
-                                <th colspan="5" class="gantt-week-subheader">AL 12/06/26</th>
-                                <th colspan="5" class="gantt-week-subheader">AL 19/06/26</th>
-                                <th colspan="5" class="gantt-week-subheader">AL 26/06/26</th>
-                                <th colspan="5" class="gantt-week-subheader">AL 03/07/26</th>
-                                <th colspan="5" class="gantt-week-subheader">AL 10/07/26</th>
-                            </tr>
-                            <tr class="bg-gray-800 uppercase font-bold">
-                                <th colspan="5" class="gantt-week-label">SEMANA 1</th>
-                                <th colspan="5" class="gantt-week-label">SEMANA 2</th>
-                                <th colspan="5" class="gantt-week-label">SEMANA 3</th>
-                                <th colspan="5" class="gantt-week-label">SEMANA 4</th>
-                                <th colspan="5" class="gantt-week-label">SEMANA 5</th>
-                                <th colspan="5" class="gantt-week-label">SEMANA 6</th>
-                            </tr>
-                            <tr class="bg-gray-700/80 text-gray-200 font-bold">
-                                ${columns.map(c => `<th class="gantt-col-day gantt-day-header">${c.day_name}</th>`).join('')}
-                            </tr>
-                        </thead>
-                        <tbody>
-        `;
+    function renderGantt() {
+        const active = processes.filter(p => p.activo);
+        let html = `<div class="mb-5"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>
+            <tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th><th colspan="5" class="gantt-week-header">DEL 01/06/26</th><th colspan="5" class="gantt-week-header">DEL 05/06/26</th><th colspan="5" class="gantt-week-header">DEL 15/06/26</th><th colspan="5" class="gantt-week-header">DEL 22/06/26</th><th colspan="5" class="gantt-week-header">DEL 30/06/26</th><th colspan="5" class="gantt-week-header">DEL 6/07/26</th></tr>
+            <tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-subheader">AL 05/06/26</th><th colspan="5" class="gantt-week-subheader">AL 12/06/26</th><th colspan="5" class="gantt-week-subheader">AL 19/06/26</th><th colspan="5" class="gantt-week-subheader">AL 26/06/26</th><th colspan="5" class="gantt-week-subheader">AL 03/07/26</th><th colspan="5" class="gantt-week-subheader">AL 10/07/26</th></tr>
+            <tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-label">SEMANA 1</th><th colspan="5" class="gantt-week-label">SEMANA 2</th><th colspan="5" class="gantt-week-label">SEMANA 3</th><th colspan="5" class="gantt-week-label">SEMANA 4</th><th colspan="5" class="gantt-week-label">SEMANA 5</th><th colspan="5" class="gantt-week-label">SEMANA 6</th></tr>
+            <tr class="bg-gray-700/80 text-gray-200 font-bold">${ganttColumns.map(c => '<th class="gantt-col-day gantt-day-header">' + c.day_name + '</th>').join('')}</tr></thead><tbody>`;
 
-        processes.forEach(p => {
-            cronogramaHtml += `
-                <tr class="border-b border-gray-700/60 hover:bg-gray-700/10">
-                    <td class="gantt-col-num p-2 text-gray-400">${p.id}</td>
-            `;
-
-            columns.forEach(col => {
-                const dateStr = col.date_str;
-                const dayData = p.timeline[dateStr] || {};
+        active.forEach(p => {
+            html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10"><td class="gantt-col-num p-2 text-gray-400">' + p.id + '</td>';
+            ganttColumns.forEach(col => {
+                const dayData = p.timeline[col.date_str] || {};
                 const color = dayData.hex_color;
                 const statusName = dayData.status_name || '';
                 const note = dayData.note || '';
-
                 if (color) {
                     const titleColor = color === '#000000' ? '#ffffff' : color;
-                    cronogramaHtml += `
-                        <td style="background-color: ${color};" class="gantt-col-day gantt-cell-active">
-                            <div class="gantt-tooltip">
-                                <div class="gantt-tooltip-title">
-                                    <span>Proceso ${p.id} - ${col.week_label} - ${col.day_name}</span>
-                                    <span class="gantt-tooltip-date">${dateStr}</span>
-                                </div>
-                                <div class="gantt-tooltip-stage">
-                                    <span class="gantt-tooltip-stage-label">Etapa:</span>
-                                    <strong style="color: ${titleColor}">${statusName}</strong>
-                                </div>
-                                ${note ? `<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">${note}</span></div>` : '<div class="gantt-tooltip-empty">Sin comentarios.</div>'}
-                            </div>
-                        </td>
-                    `;
+                    html += '<td style="background-color: ' + color + '" class="gantt-col-day gantt-cell-active"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + titleColor + '">' + statusName + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + note + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
                 } else {
-                    cronogramaHtml += `
-                        <td class="gantt-col-day gantt-cell-empty">
-                            <div class="gantt-tooltip">
-                                <div class="gantt-tooltip-title">
-                                    <span>Proceso ${p.id} - ${col.week_label} - ${col.day_name}</span>
-                                    <span class="gantt-tooltip-date">${dateStr}</span>
-                                </div>
-                                <div class="gantt-tooltip-empty">Sin actividad programada</div>
-                            </div>
-                        </td>
-                    `;
+                    html += '<td class="gantt-col-day gantt-cell-empty"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada</div></div></td>';
                 }
             });
-
-            cronogramaHtml += `</tr>`;
+            html += '</tr>';
         });
 
-        cronogramaHtml += `
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        `;
+        html += '</tbody></table></div></div>';
 
-        // 3. Legend Section
-        let leyendaHtml = `
-            <div class="mt-6 border-t border-gray-700 pt-4">
-                <h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5">
-                    <i class="fas fa-info-circle"></i> Leyenda de Etapas
-                </h3>
-                <div class="gantt-legend-grid">
-        `;
-        legend.forEach(leg => {
-            if (leg.hex_color) {
-                leyendaHtml += `
-                    <div class="gantt-legend-item">
-                        <span class="gantt-legend-circle" style="background-color: ${leg.hex_color};"></span>
-                        <span class="gantt-legend-label">${leg.status_name}</span>
-                    </div>
-                `;
+        let leyendaHtml = '<div class="mt-6 border-t border-gray-700 pt-4"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
+        legend.forEach(leg => { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + leg.hex_color + '"></span><span class="gantt-legend-label">' + leg.status_name + '</span></div>'; });
+        leyendaHtml += '</div></div>';
+        html += leyendaHtml;
+        document.getElementById('gantt-process-content').innerHTML = html;
+    }
+
+    window.toggleProceso = function(id, checked) {
+        fetch('/api/ruta-procesos-toggle', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'id=' + id + '&activo=' + (checked ? '1' : '0') })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                const p = processes.find(pr => pr.id === id);
+                if (p) p.activo = checked;
+                renderProcesosCheckboxes();
+                renderGantt();
             }
         });
-        leyendaHtml += `
-                </div>
-            </div>
-        `;
+    };
 
-        document.getElementById('gantt-chart-container').innerHTML = procesosHtml + cronogramaHtml + leyendaHtml;
-    })();
+    renderAll();
+})();
 </script>

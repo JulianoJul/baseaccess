@@ -620,6 +620,165 @@ func (a *App) ObtenerDocumentosPendientes() ([]Row, error) {
 	return a.queryRows(queryObtenerDocsPendientes)
 }
 
+type RutaProcesosLegend struct {
+	ID         int    `json:"id"`
+	StatusName string `json:"status_name"`
+	HexColor   string `json:"hex_color"`
+}
+
+type RutaProcesosProceso struct {
+	ID          int                    `json:"id"`
+	Descripcion string                 `json:"descripcion"`
+	DbID        int                    `json:"db_id"`
+	Activo      bool                   `json:"activo"`
+	Solped      string                 `json:"solped"`
+	Estatus     string                 `json:"estatus_detalle"`
+	Receptor    string                 `json:"receptor"`
+	Timeline    map[string]interface{} `json:"timeline"`
+}
+
+type RutaProcesosGanttData struct {
+	Legend    []RutaProcesosLegend   `json:"legend"`
+	Columns   []map[string]string    `json:"columns"`
+	Processes []RutaProcesosProceso  `json:"processes"`
+}
+
+func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return nil, fmt.Errorf("no hay BD abierta")
+	}
+
+	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY id")
+	if err != nil {
+		return nil, err
+	}
+	defer legendRows.Close()
+	var legend []RutaProcesosLegend
+	for legendRows.Next() {
+		var l RutaProcesosLegend
+		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor); err != nil {
+			continue
+		}
+		legend = append(legend, l)
+	}
+	if legend == nil {
+		legend = []RutaProcesosLegend{}
+	}
+
+	columns := buildGanttColumns()
+
+	procRows, err := a.db.Query(`
+		SELECT p.id, p.descripcion, p.db_id, p.activo,
+			COALESCE(e.solped, 'SIN SOLPED'), COALESCE(e.estatus_detalle, 'N/A'), COALESCE(e.receptor, 'N/A')
+		FROM ruta_procesos_procesos p
+		LEFT JOIN vw_reporte_excel_contrataciones e ON p.db_id = e.id_expediente
+		ORDER BY p.id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer procRows.Close()
+	var processes []RutaProcesosProceso
+	for procRows.Next() {
+		var p RutaProcesosProceso
+		var activo int
+		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor); err != nil {
+			continue
+		}
+		p.Activo = activo == 1
+		p.Timeline = map[string]interface{}{}
+		processes = append(processes, p)
+	}
+
+	if len(processes) == 0 {
+		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}}, nil
+	}
+
+	idList := make([]string, 0, len(processes))
+	for _, p := range processes {
+		idList = append(idList, fmt.Sprintf("%d", p.ID))
+	}
+	cronoRows, err := a.db.Query(
+		"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(idList, ",")+")")
+	if err == nil {
+		defer cronoRows.Close()
+		for cronoRows.Next() {
+			var idProc int
+			var fecha, nota, statusName, hexColor string
+			var statusNameNull, hexColorNull sql.NullString
+			if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
+				continue
+			}
+			if statusNameNull.Valid {
+				statusName = statusNameNull.String
+			}
+			if hexColorNull.Valid {
+				hexColor = hexColorNull.String
+			}
+			for i := range processes {
+				if processes[i].ID == idProc {
+					processes[i].Timeline[fecha] = map[string]string{
+						"status_name": statusName,
+						"hex_color":   hexColor,
+						"note":        nota,
+					}
+					break
+				}
+			}
+		}
+	}
+
+	return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: processes}, nil
+}
+
+func buildGanttColumns() []map[string]string {
+	weeks := []struct {
+		label    string
+		sublabel string
+		start    string
+		name     string
+		days     []string
+	}{
+		{"DEL 01/06/26", "AL 05/06/26", "01/06/2026", "SEMANA 1", []string{"L", "M", "M", "J", "V"}},
+		{"DEL 05/06/26", "AL 12/06/26", "05/06/2026", "SEMANA 2", []string{"V", "L", "M", "M", "J"}},
+		{"DEL 15/06/26", "AL 19/06/26", "15/06/2026", "SEMANA 3", []string{"L", "M", "M", "J", "V"}},
+		{"DEL 22/06/26", "AL 26/06/26", "22/06/2026", "SEMANA 4", []string{"L", "M", "M", "J", "V"}},
+		{"DEL 30/06/26", "AL 03/07/26", "30/06/2026", "SEMANA 5", []string{"M", "M", "J", "V", "L"}},
+		{"DEL 6/07/26", "AL 10/07/26", "06/07/2026", "SEMANA 6", []string{"L", "M", "M", "J", "V"}},
+	}
+	idx := 0
+	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	columns := make([]map[string]string, 0, 30)
+	for _, w := range weeks {
+		for _, d := range w.days {
+			date := start.AddDate(0, 0, idx)
+			columns = append(columns, map[string]string{
+				"day_name":   d,
+				"week_label": w.name,
+				"date_str":   date.Format("02/01/2006"),
+			})
+			idx++
+		}
+	}
+	return columns
+}
+
+func (a *App) ToggleRutaProceso(id int, activo bool) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	v := 0
+	if activo {
+		v = 1
+	}
+	_, err := a.db.Exec("UPDATE ruta_procesos_procesos SET activo = ? WHERE id = ?", v, id)
+	return err
+}
+
 
 type CatalogoItem struct {
 	ID         int    `json:"id"`
