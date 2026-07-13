@@ -21,15 +21,154 @@ const DefaultBackupMaxCopies = 2
 
 var backupMaxCopies = DefaultBackupMaxCopies
 
+type ModuloConfig struct {
+	Nombre         string
+	Tabla          string
+	Vista          string
+	IDColumna      string
+	HistorialTabla string
+	Columnas       []string
+	QueryHistorial string
+}
+
+var Modulos = map[string]ModuloConfig{
+	"expedientes": {
+		Nombre:         "Contrataciones",
+		Tabla:          "expedientes",
+		Vista:          "vw_reporte_excel_contrataciones",
+		IDColumna:      "id_expediente",
+		HistorialTabla: "historial_movimientos",
+		Columnas: []string{
+			"solped", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "fecha_presupuesto_base", "presupuesto_base_usd",
+			"tipo_cambio", "presupuesto_base_bs", "id_plan", "descripcion_proceso",
+			"id_modalidad", "id_art", "id_tipo_contrato", "nro_acta_apertura",
+			"cantidad_frentes", "nro_resolucion_jd", "id_estatus",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "nro_proceso",
+			"id_resultado", "nro_contrato_sicac", "nro_contrato_sap", "id_empresa",
+			"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
+			"fecha_firma_contrato", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(tc.nombre, '-') AS tipo_contrato, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(d.nombre, '-') AS documento, COALESCE(em.nombre, '-') AS emisor, COALESCE(rec.nombre, '-') AS receptor, COALESCE(ed.nombre, '-') AS estatus, COALESCE(h.fecha_recibido, '-') AS fecha_recibido, COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto, COALESCE(h.nro_proceso, '-') AS nro_proceso, h.presupuesto_base_usd, h.tipo_cambio, h.monto_adjudicado_usd, COALESCE(rp.nombre, '-') AS resultado, COALESCE(emp.nombre, '-') AS empresa, COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion, COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato, COALESCE(h.observaciones, '') AS observaciones, COALESCE(h.notas, '') AS notas FROM historial_movimientos h LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id WHERE h.id_expediente = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"requisiciones": {
+		Nombre:         "Requisición de Materiales",
+		Tabla:          "req_materiales",
+		Vista:          "vw_reporte_req_materiales",
+		IDColumna:      "id_requisicion",
+		HistorialTabla: "hist_req_materiales",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
+			"descripcion_materiales", "serial_equipo", "pase_sicesma", "id_estatus",
+			"observaciones_entrega", "fecha_recibido", "fecha_devuelto", "id_receptor",
+			"observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.descripcion_materiales, h.serial_equipo, h.pase_sicesma, COALESCE(ed.nombre, '-') AS estatus, h.observaciones_entrega, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_req_materiales h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_requisicion = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"memorandums": {
+		Nombre:         "Memorándums",
+		Tabla:          "memorandums",
+		Vista:          "vw_reporte_memorandums",
+		IDColumna:      "id_memorandum",
+		HistorialTabla: "hist_memorandums",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"asunto", "id_estatus", "fecha_recibido", "fecha_devuelto",
+			"id_receptor", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_memorandums h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_memorandum = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"recobros": {
+		Nombre:         "Recobros",
+		Tabla:          "recobros",
+		Vista:          "vw_reporte_recobros",
+		IDColumna:      "id_recobro",
+		HistorialTabla: "hist_recobros",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"asunto", "fecha_inicio", "fecha_final", "servicios", "beneficios",
+			"nota_debito_reverso", "costo_servicio_usd", "id_estatus",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, h.fecha_inicio, h.fecha_final, h.servicios, h.beneficios, h.nota_debito_reverso, h.costo_servicio_usd, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_recobros h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_recobro = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"valuaciones": {
+		Nombre:         "Valuaciones",
+		Tabla:          "valuaciones",
+		Vista:          "vw_reporte_valuaciones",
+		IDColumna:      "id_valuacion",
+		HistorialTabla: "hist_valuaciones",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"solped", "presupuesto_base_bs", "presupuesto_base_usd", "descripcion_proceso",
+			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "nro_proceso",
+			"nro_contrato_sicac", "nro_contrato_sap", "id_empresa", "tiempo_ejecucion",
+			"monto_adjudicado_bs", "monto_adjudicado_usd", "periodo_valuacion_desde",
+			"periodo_valuacion_hasta", "monto_valuacion", "nro_proforma", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.solped, h.presupuesto_base_bs, h.presupuesto_base_usd, h.descripcion_proceso, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.nro_proceso, h.nro_contrato_sicac, h.nro_contrato_sap, COALESCE(emp.nombre, '-') AS empresa, h.tiempo_ejecucion, h.monto_adjudicado_bs, h.monto_adjudicado_usd, h.periodo_valuacion_desde, h.periodo_valuacion_hasta, h.monto_valuacion, h.nro_proforma, h.observaciones, h.notas FROM hist_valuaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id WHERE h.id_valuacion = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"aprobacion_jd": {
+		Nombre:         "Aprobación JD",
+		Tabla:          "aprobacion_jd",
+		Vista:          "vw_reporte_aprobacion_jd",
+		IDColumna:      "id_aprobacion_jd",
+		HistorialTabla: "hist_aprobacion_jd",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
+			"solped", "fecha_presupuesto_base", "presupuesto_base_bs", "tipo_cambio",
+			"presupuesto_base_usd", "id_plan", "descripcion_proceso", "cantidad_frentes",
+			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "tiempo_ejecucion",
+			"observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.solped, h.fecha_presupuesto_base, h.presupuesto_base_bs, h.tipo_cambio, h.presupuesto_base_usd, COALESCE(p.nombre, '-') AS plan_contrataciones, h.descripcion_proceso, h.cantidad_frentes, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.tiempo_ejecucion, h.observaciones, h.notas FROM hist_aprobacion_jd h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_plan_contratacion p ON h.id_plan = p.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_aprobacion_jd = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"certificacion_bdu": {
+		Nombre:         "Certificación BDU",
+		Tabla:          "certificacion_bdu",
+		Vista:          "vw_reporte_certificacion_bdu",
+		IDColumna:      "id_certificacion_bdu",
+		HistorialTabla: "hist_certificacion_bdu",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
+			"presupuesto_base_total_usd", "monto_adjudicado_total_usd", "monto_contrato",
+			"monto_ejecutado", "monto_pagado", "id_estatus", "fecha_recibido",
+			"fecha_devuelto", "id_receptor", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.presupuesto_base_total_usd, h.monto_adjudicado_total_usd, h.monto_contrato, h.monto_ejecutado, h.monto_pagado, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_certificacion_bdu h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_certificacion_bdu = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"vacaciones": {
+		Nombre:         "Vacaciones",
+		Tabla:          "vacaciones",
+		Vista:          "vw_reporte_vacaciones",
+		IDColumna:      "id_vacacion",
+		HistorialTabla: "hist_vacaciones",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"anio", "cantidad_dias", "fecha_desde", "fecha_hasta", "id_estatus",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.anio, h.cantidad_dias, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_vacaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id WHERE h.id_vacacion = ? ORDER BY h.id_movimiento DESC`,
+	},
+	"reposos_medicos": {
+		Nombre:         "Reposos Médicos",
+		Tabla:          "reposos_medicos",
+		Vista:          "vw_reporte_reposos_medicos",
+		IDColumna:      "id_reposo_medico",
+		HistorialTabla: "hist_reposos_medicos",
+		Columnas: []string{
+			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"dias_periodo", "fecha_desde", "fecha_hasta", "id_estatus",
+			"fecha_recibido", "observaciones", "notas",
+		},
+		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.dias_periodo, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.observaciones, h.notas FROM hist_reposos_medicos h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id WHERE h.id_reposo_medico = ? ORDER BY h.id_movimiento DESC`,
+	},
+}
+
 const (
-	queryObtenerExpedientes       = `SELECT * FROM vw_reporte_excel_contrataciones ORDER BY `
-	queryObtenerExpedientePorId   = `SELECT * FROM vw_reporte_excel_contrataciones WHERE id_expediente = ?`
-	queryObtenerRutaProcesos      = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso FROM vw_reporte_excel_contrataciones e ORDER BY e.estatus_detalle, e.id_expediente DESC`
-	queryObtenerDocsPendientes    = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada FROM vw_reporte_excel_contrataciones e WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO' ORDER BY e.estatus_detalle, e.id_expediente DESC`
-	queryObtenerHistorialCompleto = `SELECT h.id_movimiento, COALESCE(tc.nombre, '-') AS tipo_contrato, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(d.nombre, '-') AS documento, COALESCE(em.nombre, '-') AS emisor, COALESCE(rec.nombre, '-') AS receptor, COALESCE(ed.nombre, '-') AS estatus, COALESCE(h.fecha_recibido, '-') AS fecha_recibido, COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto, COALESCE(h.nro_proceso, '-') AS nro_proceso, h.presupuesto_base_usd, h.tipo_cambio, h.monto_adjudicado_usd, COALESCE(rp.nombre, '-') AS resultado, COALESCE(emp.nombre, '-') AS empresa, COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion, COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato, COALESCE(h.observaciones, '') AS observaciones, COALESCE(h.notas, '') AS notas FROM historial_movimientos h LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id WHERE h.id_expediente = ? ORDER BY h.id_movimiento DESC`
-	queryDeleteHistorialPorId     = `DELETE FROM historial_movimientos WHERE id_expediente = ?`
-	queryDeleteExpedientePorId    = `DELETE FROM expedientes WHERE id_expediente = ?`
-	queryVacuum                   = `VACUUM`
+	queryObtenerRutaProcesos   = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso FROM vw_reporte_excel_contrataciones e ORDER BY e.estatus_detalle, e.id_expediente DESC`
+	queryObtenerDocsPendientes = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada FROM vw_reporte_excel_contrataciones e WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO' ORDER BY e.estatus_detalle, e.id_expediente DESC`
+	queryVacuum                 = `VACUUM`
 )
 
 var catalogosValidos = map[string]string{
@@ -59,17 +198,6 @@ var columnasOrdenValidas = map[string]bool{
 	"estatus_detalle":     true,
 }
 
-var columnasExpedientes = []string{
-	"solped", "id_gerencia", "id_superintendencia", "id_emisor",
-	"id_documento", "fecha_presupuesto_base", "presupuesto_base_usd",
-	"tipo_cambio", "presupuesto_base_bs", "id_plan", "descripcion_proceso",
-	"id_modalidad", "id_art", "id_tipo_contrato", "nro_acta_apertura",
-	"cantidad_frentes", "nro_resolucion_jd", "id_estatus",
-	"fecha_recibido", "fecha_devuelto", "id_receptor", "nro_proceso",
-	"id_resultado", "nro_contrato_sicac", "nro_contrato_sap", "id_empresa",
-	"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
-	"fecha_firma_contrato", "observaciones", "notas",
-}
 
 type App struct {
 	ctx    context.Context
@@ -264,10 +392,10 @@ func (a *App) exec(query string, args ...interface{}) (sql.Result, error) {
 	return a.db.Exec(query, args...)
 }
 
-func sanitizarOrden(orden string) string {
+func sanitizarOrden(orden string, def string) string {
 	partes := strings.Fields(orden)
 	if len(partes) == 0 {
-		return "id_expediente DESC"
+		return def + " DESC"
 	}
 	col := partes[0]
 	dir := "DESC"
@@ -277,30 +405,183 @@ func sanitizarOrden(orden string) string {
 			dir = d
 		}
 	}
-	if !columnasOrdenValidas[strings.ToLower(col)] {
-		return "id_expediente DESC"
+	colClean := ""
+	for _, r := range col {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
+			colClean += string(r)
+		}
 	}
-	return col + " " + dir
+	if colClean == "" {
+		return def + " DESC"
+	}
+	return colClean + " " + dir
 }
 
-func (a *App) ObtenerExpedientes(orden string) ([]Row, error) {
+func (a *App) ObtenerFilas(moduloKey string, orden string) ([]Row, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	orden = sanitizarOrden(orden)
-	return a.queryRows(queryObtenerExpedientes + orden)
+
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	orden = sanitizarOrden(orden, cfg.IDColumna)
+	q := `SELECT * FROM ` + cfg.Vista + ` ORDER BY ` + orden
+	return a.queryRows(q)
 }
 
-func (a *App) ObtenerExpedientePorId(id int) (Row, error) {
+func (a *App) ObtenerFilaPorId(moduloKey string, id int) (Row, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	rows, err := a.queryRows(queryObtenerExpedientePorId, id)
+
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	q := `SELECT * FROM ` + cfg.Vista + ` WHERE ` + cfg.IDColumna + ` = ?`
+	rows, err := a.queryRows(q, id)
 	if err != nil {
 		return nil, err
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("expediente %d no encontrado", id)
+		return nil, fmt.Errorf("registro %d no encontrado en %s", id, moduloKey)
 	}
 	return rows[0], nil
+}
+
+func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.db == nil {
+		return 0, fmt.Errorf("no hay base de datos abierta")
+	}
+
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return 0, fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	if err := a.crearBackup(); err != nil {
+		log.Printf("Backup falló: %v", err)
+	}
+
+	idVal, ok := data[cfg.IDColumna]
+	delete(data, cfg.IDColumna)
+
+	var id float64
+	if ok && idVal != nil {
+		switch v := idVal.(type) {
+		case float64:
+			id = v
+		case int:
+			id = float64(v)
+		case int64:
+			id = float64(v)
+		case string:
+			if v != "" {
+				parsed, err := strconv.ParseFloat(v, 64)
+				if err != nil {
+					return 0, fmt.Errorf("id inválido: %v", idVal)
+				}
+				id = parsed
+			}
+		default:
+			return 0, fmt.Errorf("id tipo no soportado: %T", idVal)
+		}
+	}
+
+	vals := make([]interface{}, len(cfg.Columnas))
+	for i, col := range cfg.Columnas {
+		v, ok := data[col]
+		if !ok || v == nil {
+			vals[i] = nil
+		} else {
+			vals[i] = v
+		}
+	}
+
+	if id > 0 {
+		sets := make([]string, len(cfg.Columnas))
+		for i, col := range cfg.Columnas {
+			sets[i] = col + " = ?"
+		}
+		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
+			`, fecha_actualizacion = CURRENT_DATE WHERE ` + cfg.IDColumna + ` = ?`
+		res, err := a.exec(q, append(vals, id)...)
+		if err != nil {
+			return 0, fmt.Errorf("error al actualizar: %w", err)
+		}
+		return res.LastInsertId()
+	}
+
+	placeholders := make([]string, len(cfg.Columnas))
+	for i := range placeholders {
+		placeholders[i] = "?"
+	}
+	q := `INSERT INTO ` + cfg.Tabla + ` (` + strings.Join(cfg.Columnas, ", ") +
+		`) VALUES (` + strings.Join(placeholders, ", ") + `)`
+	res, err := a.exec(q, vals...)
+	if err != nil {
+		return 0, fmt.Errorf("error al insertar: %w", err)
+	}
+	return res.LastInsertId()
+}
+
+func (a *App) EliminarFila(moduloKey string, id int64) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if a.db == nil {
+		return fmt.Errorf("no hay base de datos abierta")
+	}
+
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	if err := a.crearBackup(); err != nil {
+		log.Printf("Backup falló: %v", err)
+	}
+
+	tx, err := a.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if cfg.HistorialTabla != "" {
+		qHist := `DELETE FROM ` + cfg.HistorialTabla + ` WHERE ` + cfg.IDColumna + ` = ?`
+		if _, err = tx.Exec(qHist, id); err != nil {
+			return err
+		}
+	}
+
+	qDel := `DELETE FROM ` + cfg.Tabla + ` WHERE ` + cfg.IDColumna + ` = ?`
+	if _, err = tx.Exec(qDel, id); err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	if cfg.QueryHistorial == "" {
+		return nil, fmt.Errorf("modulo %s no tiene soporte para historial", moduloKey)
+	}
+
+	return a.queryRows(cfg.QueryHistorial, id)
 }
 
 func (a *App) ObtenerRutaProcesos() ([]Row, error) {
@@ -315,107 +596,6 @@ func (a *App) ObtenerDocumentosPendientes() ([]Row, error) {
 	return a.queryRows(queryObtenerDocsPendientes)
 }
 
-func (a *App) ObtenerHistorialCompleto(id int) ([]Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.queryRows(queryObtenerHistorialCompleto, id)
-}
-
-func (a *App) GuardarExpediente(data map[string]interface{}) (int64, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	if a.db == nil {
-		return 0, fmt.Errorf("no hay base de datos abierta")
-	}
-
-	if err := a.crearBackup(); err != nil {
-		log.Printf("Backup falló: %v", err)
-	}
-
-	idVal, ok := data["id_expediente"]
-	delete(data, "id_expediente")
-
-	var id float64
-	if ok && idVal != nil {
-		switch v := idVal.(type) {
-		case float64:
-			id = v
-		case int:
-			id = float64(v)
-		case int64:
-			id = float64(v)
-		case string:
-			parsed, err := strconv.ParseFloat(v, 64)
-			if err != nil {
-				return 0, fmt.Errorf("id_expediente inválido: %v", idVal)
-			}
-			id = parsed
-		default:
-			return 0, fmt.Errorf("id_expediente tipo no soportado: %T", idVal)
-		}
-	}
-
-	vals := make([]interface{}, len(columnasExpedientes))
-	for i, col := range columnasExpedientes {
-		v, ok := data[col]
-		if !ok || v == nil {
-			vals[i] = nil
-		} else {
-			vals[i] = v
-		}
-	}
-
-	if id > 0 {
-		sets := make([]string, len(columnasExpedientes))
-		for i, col := range columnasExpedientes {
-			sets[i] = col + " = ?"
-		}
-		q := `UPDATE expedientes SET ` + strings.Join(sets, ", ") +
-			`, fecha_actualizacion = CURRENT_DATE WHERE id_expediente = ?`
-		res, err := a.exec(q, append(vals, id)...)
-		if err != nil {
-			return 0, fmt.Errorf("error al actualizar: %w", err)
-		}
-		return res.LastInsertId()
-	}
-
-	placeholders := make([]string, len(columnasExpedientes))
-	for i := range placeholders {
-		placeholders[i] = "?"
-	}
-	q := `INSERT INTO expedientes (` + strings.Join(columnasExpedientes, ", ") +
-		`) VALUES (` + strings.Join(placeholders, ", ") + `)`
-	res, err := a.exec(q, vals...)
-	if err != nil {
-		return 0, fmt.Errorf("error al insertar: %w", err)
-	}
-	return res.LastInsertId()
-}
-
-func (a *App) EliminarExpediente(id int64) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.db == nil {
-		return fmt.Errorf("no hay base de datos abierta")
-	}
-	if err := a.crearBackup(); err != nil {
-		log.Printf("Backup falló: %v", err)
-	}
-	tx, err := a.db.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-
-	if _, err = tx.Exec(queryDeleteHistorialPorId, id); err != nil {
-		return err
-	}
-	if _, err = tx.Exec(queryDeleteExpedientePorId, id); err != nil {
-		return err
-	}
-	return tx.Commit()
-}
 
 type CatalogoItem struct {
 	ID         int    `json:"id"`

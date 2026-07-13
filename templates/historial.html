@@ -1,4 +1,4 @@
-{{if eq (len .) 0}}
+{{if eq (len .Rows) 0}}
     <p class="text-gray-500 italic">Sin movimientos registrados.</p>
 {{else}}
     <table class="w-full text-left text-xs border-collapse">
@@ -8,19 +8,21 @@
                 <th class="p-2">Estatus</th>
                 <th class="p-2">Documento</th>
                 <th class="p-2">Emisor</th>
-                <th class="p-2">Receptor</th>
+                {{if ne .ActiveModule "reposos_medicos"}}<th class="p-2">Receptor</th>{{end}}
                 <th class="p-2">Observaciones</th>
+                <th class="p-2">Notas</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-700">
-            {{range .}}
+            {{range .Rows}}
             <tr class="hover:bg-gray-700/20">
                 <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "receptor") "-"}}</td>
-                <td class="p-2 text-gray-400">{{rowGetStr . "observaciones"}}</td>
+                {{if ne $.ActiveModule "reposos_medicos"}}<td class="p-2">{{default (rowGetStr . "receptor") "-"}}</td>{{end}}
+                <td class="p-2 text-gray-400">{{default (rowGetStr . "observaciones") "-"}}</td>
+                <td class="p-2 text-gray-400">{{default (rowGetStr . "notas") "-"}}</td>
             </tr>
             {{end}}
         </tbody>

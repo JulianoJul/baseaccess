@@ -212,23 +212,32 @@ type PageData struct {
 	Title        string
 	HasDB        bool
 	Catalogs     map[string][]CatalogoItem
-	Expedientes  []Row
+	ActiveModule string
+	Modulos      map[string]ModuloConfig
+	Filas        []Row
 	PageSize     int
 	TotalPages   int
 	CurrentPage  int
 	SortColumn   string
 	SortDir      string
 	DBPath       string
-	Expediente   Row
+	Registro     Row
 }
 
-func (h *TemplateHandler) preparePageData() *PageData {
+func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+
 	data := &PageData{
-		Title:       "Gestión de Expedientes con Historial",
-		PageSize:    10,
-		CurrentPage: 1,
-		SortColumn:  "fecha_creacion",
-		SortDir:     "DESC",
+		Title:        "Control de Documentos",
+		ActiveModule: modulo,
+		Modulos:      Modulos,
+		PageSize:     10,
+		CurrentPage:  1,
+		SortColumn:   "fecha_creacion",
+		SortDir:      "DESC",
 	}
 
 	data.HasDB = h.app.db != nil
@@ -245,14 +254,22 @@ func (h *TemplateHandler) preparePageData() *PageData {
 	}
 	data.Catalogs = catalogs
 
-	expedientes, err := h.app.ObtenerExpedientes("fecha_creacion DESC")
-	if err != nil {
-		log.Printf("preparePageData: error expedientes: %v", err)
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		modulo = "expedientes"
+		cfg = Modulos[modulo]
 	}
-	data.Expedientes = expedientes
+	data.ActiveModule = modulo
+	data.SortColumn = cfg.IDColumna
 
-	if len(expedientes) > 0 {
-		data.TotalPages = (len(expedientes) + data.PageSize - 1) / data.PageSize
+	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	if err != nil {
+		log.Printf("preparePageData: error filas: %v", err)
+	}
+	data.Filas = filas
+
+	if len(filas) > 0 {
+		data.TotalPages = (len(filas) + data.PageSize - 1) / data.PageSize
 		if data.TotalPages < 1 {
 			data.TotalPages = 1
 		}
@@ -266,7 +283,7 @@ func (h *TemplateHandler) preparePageData() *PageData {
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 
-	// --- API routes (POST) ---
+	// --- API routes ---
 	switch {
 	case p == "/api/guardar-expediente" && r.Method == http.MethodPost:
 		h.handleGuardarExpediente(w, r)
@@ -279,6 +296,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/api/filtrar-expedientes" && r.Method == http.MethodGet:
 		h.handleFiltrarExpedientes(w, r)
+		return
+	case p == "/api/cambiar-modulo" && r.Method == http.MethodGet:
+		h.handleCambiarModulo(w, r)
 		return
 	case p == "/api/historial" && r.Method == http.MethodGet:
 		h.handleHistorial(w, r)
@@ -305,7 +325,7 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// --- Page routes ---
 	if p == "/" || p == "/index.html" {
-		data := h.preparePageData()
+		data := h.preparePageData(r)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		if err := h.tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
 			log.Printf("template error: %v", err)
@@ -331,8 +351,18 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 		return
 	}
 
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
 	data := make(map[string]interface{})
-	for _, col := range columnasExpedientes {
+	for _, col := range cfg.Columnas {
 		val := r.FormValue(col)
 		if val == "" {
 			data[col] = nil
@@ -341,15 +371,15 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 		}
 	}
 
-	idStr := r.FormValue("id_expediente")
+	idStr := r.FormValue(cfg.IDColumna)
 	if idStr != "" {
 		id, err := strconv.ParseInt(idStr, 10, 64)
 		if err == nil && id > 0 {
-			data["id_expediente"] = id
+			data[cfg.IDColumna] = id
 		}
 	}
 
-	newID, err := h.app.GuardarExpediente(data)
+	newID, err := h.app.GuardarFila(modulo, data)
 	if err != nil {
 		writeJSONError(w, "error al guardar: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -358,40 +388,56 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 	writeJSON(w, map[string]interface{}{
 		"success": true,
 		"id":      newID,
-		"message": "Expediente guardado correctamente",
+		"message": "Registro guardado correctamente",
 	})
 }
 
 func (h *TemplateHandler) handleEliminarExpediente(w http.ResponseWriter, r *http.Request) {
-	idStr := r.FormValue("id")
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
+	idStr := r.FormValue(cfg.IDColumna)
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, "ID inválido", http.StatusBadRequest)
 		return
 	}
 
-	if err := h.app.EliminarExpediente(id); err != nil {
+	err = h.app.EliminarFila(modulo, id)
+	if err != nil {
 		writeJSONError(w, "error al eliminar: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	writeJSON(w, map[string]interface{}{
 		"success": true,
-		"message": "Expediente eliminado correctamente",
+		"message": "Registro eliminado correctamente",
 	})
 }
 
 func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	if _, ok := Modulos[modulo]; !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
 	idStr := r.URL.Query().Get("id")
-	var row Row
-	var err error
+	var registro Row
 	if idStr != "" && idStr != "null" {
-		id, err2 := strconv.Atoi(idStr)
-		if err2 == nil && id > 0 {
-			row, err = h.app.ObtenerExpedientePorId(id)
-			if err != nil {
-				log.Printf("handleCargarExpediente: error finding expediente %d: %v", id, err)
-			}
+		id, err := strconv.Atoi(idStr)
+		if err == nil && id > 0 {
+			registro, _ = h.app.ObtenerFilaPorId(modulo, id)
 		}
 	}
 
@@ -402,42 +448,43 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 	}
 
 	data := map[string]interface{}{
-		"Catalogs":   catalogs,
-		"Expediente": row,
+		"Catalogs":     catalogs,
+		"Registro":     registro,
+		"Expediente":   registro,
+		"ActiveModule": modulo,
 	}
 
+	tmplName := "form_" + modulo + ".html"
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "formulario.html", data); err != nil {
-		log.Printf("render error: %v", err)
+	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
+		log.Printf("render error for %s: %v", tmplName, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
 func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *http.Request) {
-	q := strings.ToLower(r.URL.Query().Get("q"))
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
+	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
 	sortCol := r.URL.Query().Get("sort")
 	dir := r.URL.Query().Get("dir")
 
-	if sortCol == "" {
-		sortCol = "fecha_creacion"
-	}
-	if dir == "" {
-		dir = "DESC"
-	}
-
-	// Validar columnas y dirección para evitar SQL injection
-	validCols := map[string]bool{
-		"fecha_creacion":      true,
-		"fecha_actualizacion": true,
-	}
-	if !validCols[sortCol] {
-		sortCol = "fecha_creacion"
-	}
 	if dir != "ASC" && dir != "DESC" {
 		dir = "DESC"
 	}
+	if sortCol == "" {
+		sortCol = cfg.IDColumna
+	}
 
-	expedientes, err := h.app.ObtenerExpedientes(sortCol + " " + dir)
+	filas, err := h.app.ObtenerFilas(modulo, sortCol+" "+dir)
 	if err != nil {
 		log.Printf("handleFiltrarExpedientes: error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -446,38 +493,78 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 
 	var filtered []Row
 	if q == "" {
-		filtered = expedientes
+		filtered = filas
 	} else {
-		for _, e := range expedientes {
-			solped := strings.ToLower(rowGetStr(e, "solped"))
-			descripcion := strings.ToLower(rowGetStr(e, "descripcion_proceso"))
-			gerencia := strings.ToLower(rowGetStr(e, "gerencia"))
-			documento := strings.ToLower(rowGetStr(e, "documento"))
-			empresa := strings.ToLower(rowGetStr(e, "empresa_adjudicada"))
-			nroProceso := strings.ToLower(rowGetStr(e, "nro_proceso"))
-
-			if strings.Contains(solped, q) ||
-				strings.Contains(descripcion, q) ||
-				strings.Contains(gerencia, q) ||
-				strings.Contains(documento, q) ||
-				strings.Contains(empresa, q) ||
-				strings.Contains(nroProceso, q) {
-				filtered = append(filtered, e)
+		for _, row := range filas {
+			matches := false
+			for _, val := range row {
+				if val != nil {
+					sVal := strings.ToLower(fmt.Sprintf("%v", val))
+					if strings.Contains(sVal, q) {
+						matches = true
+						break
+					}
+				}
+			}
+			if matches {
+				filtered = append(filtered, row)
 			}
 		}
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	data := map[string]interface{}{
-		"Expedientes": filtered,
+		"ActiveModule": modulo,
+		"Filas":        filtered,
+		"Modulos":      Modulos,
+		"HasDB":        h.app.db != nil,
 	}
-	if err := h.tmpl.ExecuteTemplate(w, "tabla_filas.html", data); err != nil {
+
+	tmplName := "tabla_" + modulo + ".html"
+	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
 
+func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
+	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]interface{}{
+		"ActiveModule": modulo,
+		"Filas":        filas,
+		"Modulos":      Modulos,
+		"HasDB":        h.app.db != nil,
+	}
+
+	tmplName := "tabla_" + modulo + ".html"
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
+		log.Printf("handleCambiarModulo: error rendering template %s: %v", tmplName, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+
 	idStr := r.URL.Query().Get("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -485,15 +572,24 @@ func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	rows, err := h.app.ObtenerHistorialCompleto(id)
+	rows, err := h.app.ObtenerHistorialFila(modulo, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	data := struct {
+		Rows         []Row
+		ActiveModule string
+	}{
+		Rows:         rows,
+		ActiveModule: modulo,
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "historial.html", rows); err != nil {
-		log.Printf("render error: %v", err)
+	tmplName := "historial.html"
+	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
+		log.Printf("render error for %s: %v", tmplName, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
@@ -584,7 +680,7 @@ func (h *TemplateHandler) handleOptimizarBD(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
-	data, err := h.app.ObtenerExpedientes("id_expediente DESC")
+	data, err := h.app.ObtenerFilas("expedientes", "id_expediente DESC")
 	if err != nil || len(data) == 0 {
 		writeJSONError(w, "no hay datos", http.StatusBadRequest)
 		return
