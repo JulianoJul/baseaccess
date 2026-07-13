@@ -80,14 +80,31 @@
         </header>
 
         <div class="w-full">
-            <!-- Buscador -->
+            <!-- Buscador y Ordenar -->
             <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                 <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 text-xs shrink-0">
+                        <select id="sort-order" name="sort" class="input text-xs" style="width: auto; padding: 0.2rem 0.5rem;"
+                                hx-get="/api/filtrar-expedientes"
+                                hx-target="#tabla-cuerpo"
+                                hx-include="#search, #sort-dir-val"
+                                hx-trigger="change"
+                                title="Ordenar" {{if not .HasDB}}disabled{{end}}>
+                            <option value="id_expediente" {{if isSelected .SortColumn "id_expediente"}}selected{{end}}>ID Expediente</option>
+                            <option value="fecha_creacion" {{if isSelected .SortColumn "fecha_creacion"}}selected{{end}}>Creación</option>
+                            <option value="fecha_actualizacion" {{if isSelected .SortColumn "fecha_actualizacion"}}selected{{end}}>Modificación</option>
+                        </select>
+                        <input type="hidden" id="sort-dir-val" name="dir" value="{{default .SortDir "DESC"}}">
+                        <button id="sort-dir" onclick="toggleSortDir()" class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600" title="Cambiar dirección (Descendente)" {{if not .HasDB}}disabled{{end}}>
+                            <i class="fas {{if eq .SortDir "ASC"}}fa-arrow-up-short-wide{{else}}fa-arrow-down-wide-short{{end}}"></i>
+                        </button>
+                    </div>
                     <i class="fas fa-search text-teal-400 text-sm"></i>
                     <input type="text" id="search" name="q" placeholder="Filtrar al instante..." class="input input-lg flex-1"
                            hx-get="/api/filtrar-expedientes"
                            hx-trigger="input changed delay:200ms, search"
                            hx-target="#tabla-cuerpo"
+                           hx-include="#sort-order, #sort-dir-val"
                            hx-indicator="#spinner-overlay"
                            {{if not .HasDB}}disabled{{end}}>
                 </div>
@@ -305,6 +322,27 @@
         function cerrarHistorial() { $('historial-modal').classList.add('hidden'); document.body.style.overflow = ''; }
         function cerrarRuta() { $('modal-ruta').classList.add('hidden'); document.body.style.overflow = ''; }
         function cerrarPendientes() { $('modal-pendientes').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        function toggleSortDir() {
+            const valEl = $('sort-dir-val');
+            const dir = valEl.value === 'ASC' ? 'DESC' : 'ASC';
+            valEl.value = dir;
+            const icon = $('sort-dir').querySelector('i');
+            if (dir === 'ASC') {
+                icon.className = 'fas fa-arrow-up-short-wide';
+                $('sort-dir').title = 'Cambiar dirección (Ascendente)';
+            } else {
+                icon.className = 'fas fa-arrow-down-wide-short';
+                $('sort-dir').title = 'Cambiar dirección (Descendente)';
+            }
+            htmx.trigger('#sort-order', 'change');
+        }
+
+        function hxGetFormulario(id) {
+            htmx.ajax('GET', '/api/cargar-expediente?id=' + id, {target: '#form-expediente'}).then(() => {
+                mostrarFormulario(id);
+            });
+        }
 
         // --- CSV ---
         function exportarCSV() { window.location.href = '/api/csv'; }

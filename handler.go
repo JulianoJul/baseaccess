@@ -415,7 +415,30 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 
 func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *http.Request) {
 	q := strings.ToLower(r.URL.Query().Get("q"))
-	expedientes, err := h.app.ObtenerExpedientes("id_expediente DESC")
+	sortCol := r.URL.Query().Get("sort")
+	dir := r.URL.Query().Get("dir")
+
+	if sortCol == "" {
+		sortCol = "id_expediente"
+	}
+	if dir == "" {
+		dir = "DESC"
+	}
+
+	// Validar columnas y dirección para evitar SQL injection
+	validCols := map[string]bool{
+		"id_expediente":       true,
+		"fecha_creacion":      true,
+		"fecha_actualizacion": true,
+	}
+	if !validCols[sortCol] {
+		sortCol = "id_expediente"
+	}
+	if dir != "ASC" && dir != "DESC" {
+		dir = "DESC"
+	}
+
+	expedientes, err := h.app.ObtenerExpedientes(sortCol + " " + dir)
 	if err != nil {
 		log.Printf("handleFiltrarExpedientes: error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
