@@ -240,6 +240,10 @@ Workflow: `.github/workflows/build.yml`
 | 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Expedientes}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` / `htmx` | Paso 3 del roadmap completado |
 | 21 | `app.go` | `CatalogoItem` struct: añadido `IDGerencia int` para filtrar superintendencias por gerencia | Soporte template superintendencias |
 | 22 | `templates/*`, `handler.go`, `index.html` | Migración completa a HTMX y plantillas fragmentadas | Remoción de gluecode JS para buscador, modales y formularios |
+| 23 | `templates/ruta_procesos.html` | Gantt timeline restaurado utilizando `window.RUTA_PROCESOS_DATA` estático | Visualización correcta de Gantt en HTMX |
+| 24 | `templates/index.html`, `templates/tabla_filas.html` | Panel de Fijados en modal superior, pins reactivos de color azul/verde en Acciones y bug de duplicados corregido | Acceso rápido premium |
+| 25 | `templates/index.html`, `templates/pendientes.html` | Tabla configurada con `table-layout: fixed` y anchos proporcionales con reparto 50/50 para Documento/Descripción; badges con `whitespace-nowrap` | UX y diseño responsivo sin desbordamientos |
+| 26 | `templates/index.html` | Paginación por bloques del lado del cliente acoplada con eventos de HTMX | Navegación de registros optimizada |
 
 
 ## Migración a Go html/template — Estado
@@ -247,7 +251,7 @@ Workflow: `.github/workflows/build.yml`
 | # | Paso | Estado | Detalle |
 |---|------|--------|---------|
 | 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y expedientes. El template renderiza la tabla con `{{range}}`. |
-| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 10 rutas `/api/*` para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
+| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 11 rutas `/api/*` para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
 | 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` y luego `htmx` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD`. |
 | 4 | **HTMX** | ✅ Hecho | Integrado en plantillas y handler. Las vistas parciales renderizan HTML fragmentado reactivamente sin gluecode JS. |
 
@@ -257,11 +261,12 @@ Workflow: `.github/workflows/build.yml`
 |------|--------|-------------|
 | `/api/guardar-expediente` | POST | Guarda (INSERT/UPDATE) desde formulario |
 | `/api/eliminar-expediente` | POST | Elimina expediente + historial por ID |
-| `/api/cargar-expediente` | GET | Devuelve JSON del expediente para edición |
-| `/api/historial` | GET | Devuelve JSON del historial de un expediente |
+| `/api/cargar-expediente` | GET | Devuelve fragmento HTML del formulario de edición |
+| `/api/filtrar-expedientes` | GET | Filtra, ordena y devuelve fragmento HTML de las filas de la tabla |
+| `/api/historial` | GET | Devuelve fragmento HTML del historial de un expediente |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
-| `/api/ruta-procesos` | GET | Devuelve JSON de la ruta de procesos |
-| `/api/pendientes` | GET | Devuelve JSON de documentos pendientes |
+| `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos |
+| `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
 | `/api/csv` | GET | Descarga CSV de expedientes |
