@@ -131,7 +131,7 @@
                                     <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
                                         <th class="p-3 text-center whitespace-nowrap" style="width: 55px;">Ver</th>
                                         <th class="p-3 text-center whitespace-nowrap" style="width: 85px;">Acción</th>
-                                        <th class="p-3 whitespace-nowrap" style="width: 110px;">SOLPED</th>
+                                        <th class="p-3 whitespace-nowrap" style="width: 130px;">SOLPED</th>
                                         <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
                                         <th class="p-3 whitespace-nowrap">Documento</th>
                                         <th class="p-3 whitespace-nowrap">Descripción</th>
@@ -531,20 +531,107 @@
             });
         }
 
-        // Registrar evento htmx:afterSwap para colorear pines al recargar la tabla
+        // --- Paginación del lado del cliente ---
+        let currentPage = 1;
+        const pageSize = 10;
+
+        function irPagina(pagina) {
+            currentPage = pagina;
+            aplicarPaginacionDOM();
+        }
+
+        function aplicarPaginacionDOM() {
+            // Obtener todas las filas principales (omitir las subfilas de detalles)
+            const filas = Array.from(document.querySelectorAll('#tabla-cuerpo > tr')).filter(tr => !tr.id.startsWith('subfila-'));
+            const totalItems = filas.length;
+            const totalPages = Math.ceil(totalItems / pageSize);
+
+            if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
+
+            const startIdx = (currentPage - 1) * pageSize;
+            const endIdx = currentPage * pageSize;
+
+            // Ocultar o mostrar las filas principales
+            filas.forEach((fila, idx) => {
+                const clickAttr = fila.getAttribute('onclick') || '';
+                const match = clickAttr.match(/\d+/);
+                const idExp = match ? match[0] : null;
+                const subfila = idExp ? $('subfila-' + idExp) : null;
+                
+                if (idx >= startIdx && idx < endIdx) {
+                    fila.style.display = '';
+                } else {
+                    fila.style.display = 'none';
+                    if (subfila) subfila.classList.add('hidden'); // Forzar a ocultar la subfila si la principal está oculta
+                }
+            });
+
+            renderPaginacionControles(totalPages);
+        }
+
+        function renderPaginacionControles(totalPages) {
+            const cont = $('paginacion');
+            if (!cont) return;
+
+            if (totalPages <= 1) {
+                cont.innerHTML = '';
+                return;
+            }
+
+            const buildBtn = (label, onclick, disabled, active) =>
+                `<button onclick="${onclick}" class="btn btn-sm ${active ? 'bg-teal-600 text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600'}" ${disabled ? 'disabled' : ''}>${label}</button>`;
+
+            let html = '<div class="flex items-center justify-center gap-1.5 flex-wrap">';
+
+            html += buildBtn('<i class="fas fa-angle-double-left text-[10px]"></i>', 'irPagina(1)', currentPage === 1, false);
+            html += buildBtn('<i class="fas fa-chevron-left text-[10px]"></i>', `irPagina(${currentPage - 1})`, currentPage === 1, false);
+
+            const maxVisible = 7;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisible - 1);
+            if (endPage - startPage + 1 < maxVisible) {
+                startPage = Math.max(1, endPage - maxVisible + 1);
+            }
+
+            if (startPage > 1) {
+                html += buildBtn('1', 'irPagina(1)', false, false);
+                if (startPage > 2) html += '<span class="text-gray-500 px-1 text-xs">...</span>';
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                html += buildBtn(String(i), `irPagina(${i})`, false, i === currentPage);
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += '<span class="text-gray-500 px-1 text-xs">...</span>';
+                html += buildBtn(String(totalPages), `irPagina(${totalPages})`, false, false);
+            }
+
+            html += buildBtn('<i class="fas fa-chevron-right text-[10px]"></i>', `irPagina(${currentPage + 1})`, currentPage === totalPages, false);
+            html += buildBtn('<i class="fas fa-angle-double-right text-[10px]"></i>', `irPagina(${totalPages})`, currentPage === totalPages, false);
+
+            html += '</div>';
+            cont.innerHTML = html;
+        }
+
+        // Registrar evento htmx:afterSwap para colorear pines y paginar al recargar la tabla
         document.body.addEventListener('htmx:afterSwap', function(evt) {
             if (evt.detail.target.id === 'tabla-cuerpo') {
+                currentPage = 1;
+                aplicarPaginacionDOM();
                 inicializarPines();
             }
         });
 
-        // Auto-registro en carga de página y refresco de Acceso Rápido
+        // Auto-registro en carga de página y refresco de Acceso Rápido y Paginación
         (function() {
             if (window.PAGE_DATA && window.PAGE_DATA.hasDB && window.PAGE_DATA.dbPath) {
                 const path = window.PAGE_DATA.dbPath;
                 const nombre = path.split('/').pop().split('\\').pop() || path;
                 registrarReciente(nombre, path);
             }
+            currentPage = 1;
+            aplicarPaginacionDOM();
             inicializarPines();
         })();
 
