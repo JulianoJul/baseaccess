@@ -734,32 +734,32 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 }
 
 func buildGanttColumns() []map[string]string {
-	weeks := []struct {
-		label    string
-		sublabel string
-		start    string
-		name     string
-		days     []string
-	}{
-		{"DEL 01/06/26", "AL 05/06/26", "01/06/2026", "SEMANA 1", []string{"L", "M", "M", "J", "V"}},
-		{"DEL 05/06/26", "AL 12/06/26", "05/06/2026", "SEMANA 2", []string{"V", "L", "M", "M", "J"}},
-		{"DEL 15/06/26", "AL 19/06/26", "15/06/2026", "SEMANA 3", []string{"L", "M", "M", "J", "V"}},
-		{"DEL 22/06/26", "AL 26/06/26", "22/06/2026", "SEMANA 4", []string{"L", "M", "M", "J", "V"}},
-		{"DEL 30/06/26", "AL 03/07/26", "30/06/2026", "SEMANA 5", []string{"M", "M", "J", "V", "L"}},
-		{"DEL 6/07/26", "AL 10/07/26", "06/07/2026", "SEMANA 6", []string{"L", "M", "M", "J", "V"}},
+	type weekDef struct{ label, sublabel, name string }
+	weeks := []weekDef{
+		{"DEL 01/06/26", "AL 05/06/26", "SEMANA 1"},
+		{"DEL 05/06/26", "AL 12/06/26", "SEMANA 2"},
+		{"DEL 15/06/26", "AL 19/06/26", "SEMANA 3"},
+		{"DEL 22/06/26", "AL 26/06/26", "SEMANA 4"},
+		{"DEL 30/06/26", "AL 03/07/26", "SEMANA 5"},
+		{"DEL 6/07/26", "AL 10/07/26", "SEMANA 6"},
 	}
-	idx := 0
+	dayNames := []string{"L", "M", "M", "J", "V"}
 	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
 	columns := make([]map[string]string, 0, 30)
+	dateIdx := 0
 	for _, w := range weeks {
-		for _, d := range w.days {
-			date := start.AddDate(0, 0, idx)
+		for _, d := range dayNames {
+			date := start.AddDate(0, 0, dateIdx)
+			for date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
+				dateIdx++
+				date = start.AddDate(0, 0, dateIdx)
+			}
 			columns = append(columns, map[string]string{
 				"day_name":   d,
 				"week_label": w.name,
-				"date_str":   date.Format("02/01/2006"),
+				"date_str":   date.Format("2006-01-02"),
 			})
-			idx++
+			dateIdx++
 		}
 	}
 	return columns
