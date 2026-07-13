@@ -466,6 +466,11 @@
                 }
             }
         }
+        document.body.addEventListener('htmx:afterSettle', function() {
+            if ($('form-modal') && !$('form-modal').classList.contains('hidden')) {
+                cargarSuperintendencias();
+            }
+        });
 
         function cerrarHistorial() { cerrarModal('historial-modal'); }
         function cerrarRuta() { cerrarModal('modal-ruta'); }
