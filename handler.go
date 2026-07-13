@@ -306,7 +306,7 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p == "/" || p == "/index.html" {
 		data := h.preparePageData()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := h.tmpl.ExecuteTemplate(w, "templates/index.html", data); err != nil {
+		if err := h.tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
 			log.Printf("template error: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -406,7 +406,7 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "templates/formulario.html", data); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "formulario.html", data); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -448,7 +448,7 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	data := map[string]interface{}{
 		"Expedientes": filtered,
 	}
-	if err := h.tmpl.ExecuteTemplate(w, "templates/tabla_filas.html", data); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "tabla_filas.html", data); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -469,7 +469,7 @@ func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "templates/historial.html", rows); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "historial.html", rows); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -502,7 +502,7 @@ func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Requ
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "templates/ruta_procesos.html", rows); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "ruta_procesos.html", rows); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
@@ -516,7 +516,7 @@ func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "templates/pendientes.html", rows); err != nil {
+	if err := h.tmpl.ExecuteTemplate(w, "pendientes.html", rows); err != nil {
 		log.Printf("render error: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
