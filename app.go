@@ -418,8 +418,9 @@ func (a *App) EliminarExpediente(id int64) error {
 }
 
 type CatalogoItem struct {
-	ID     int    `json:"id"`
-	Nombre string `json:"nombre"`
+	ID         int    `json:"id"`
+	Nombre     string `json:"nombre"`
+	IDGerencia int    `json:"id_gerencia,omitempty"`
 }
 
 func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
@@ -454,6 +455,9 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 			if err := rows.Scan(scanArgs...); err != nil {
 				rows.Close()
 				return nil, err
+			}
+			if extraCol != "" && extraVal.Valid {
+				item.IDGerencia = int(extraVal.Int64)
 			}
 			items = append(items, item)
 		}

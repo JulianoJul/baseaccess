@@ -1,7 +1,7 @@
 package main
 
 import (
-	"embed"
+	"log"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -9,20 +9,22 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/windows"
 )
 
-//go:embed all:frontend
-var assets embed.FS
-
 const WebView2RuntimeDir = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64"
 
 func main() {
 	app := NewApp()
 
-	err := wails.Run(&options.App{
+	handler, err := NewTemplateHandler(app)
+	if err != nil {
+		log.Fatalf("error creando template handler: %v", err)
+	}
+
+	err = wails.Run(&options.App{
 		Title:  "Gestión de Expedientes con Historial",
 		Width:  1400,
 		Height: 900,
 		AssetServer: &assetserver.Options{
-			Assets: assets,
+			Handler: handler,
 		},
 		OnStartup: app.Startup,
 		Bind: []interface{}{

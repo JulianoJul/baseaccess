@@ -118,3 +118,39 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - Dict `solped_fechas` trackea `MIN(fecha_recibido)` y `MAX(fecha_devuelto or fecha_recibido)` por solped
   - UPDATE final aplica esos valores
   - `fecha_creacion` = nacimiento del expediente, `fecha_actualizacion` = último movimiento
+
+---
+
+## DEC-011: Go html/template via custom Handler en AssetServer
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** El usuario quería un stack más unificado (solo Go) sin tecnologías frontend separadas. En lugar de servir `frontend/index.html` como archivo estático, se reemplazó `Assets: assets` por `Handler: handler` en el AssetServer de Wails. El handler (`TemplateHandler`) usa `html/template` de Go para renderizar el HTML con datos inyectados desde Go.
+- **Alternativas evaluadas:**
+  - Seguir con `Assets: assets` (frontend estático) — descartado: JS sigue siendo tecnología separada
+  - `webview_go` + html/template — descartado: problema de cross-compile CGO en Linux→Windows
+  - Wails + Handler + Go templates — elegido: Wails sigue dando la ventana nativa, el HTML se genera desde Go
+- **Impacto:**
+  - `handler.go` creado: `TemplateHandler` (http.Handler), `//go:embed all:frontend` (estáticos), `//go:embed templates/*` (templates Go)
+  - `templates/index.html` creado: template Go de 332 líneas con la estructura HTML completa
+  - `main.go`: `Assets: assets` → `Handler: handler`
+  - Los bindings Wails (`window.go.main.App.*`) siguen funcionando (JS los llama igual)
+  - Wails inyecta su runtime JS automáticamente en respuestas HTML
+  - `frontend/index.html` se mantiene como estático (el handler lo ignora para `/`)
+
+---
+
+## DEC-012: Rutas API REST en el handler + JS mínimo
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Tras DEC-011, el template Go ya generaba el HTML, pero el JS seguía llamando a bindings Wails (`window.go.main.App.*`) para toda operación de datos. Se quería eliminar el "glue code" JS y que el handler sirviera rutas API REST (`/api/*`) que el frontend consume con `fetch()`.
+- **Alternativas evaluadas:**
+  - Mantener bindings Wails — descartado: requiere JS glue code
+  - HTMX para interactividad declarativa — postergado: `fetch()` + JS mínimo es suficiente
+  - Rutas API REST en handler + `fetch()` — elegido: elimina bindings, mantiene JS mínimo, la IA escribe rutas Go con facilidad
+- **Impacto:**
+  - `handler.go`: 10 rutas `/api/*` (JSON) para CRUD, BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM
+  - `handler.go`: `PageData` ahora inyecta `Catalogs` y `Expedientes` precargados al template
+  - `handler.go`: Funciones template (`default`, `rowGet`, `rowGetStr`, `rowGetNum`, `estatusClass`, `formatNum`, `jsonEncode`, `truncate`, `isSelected`)
+  - `templates/index.html`: Reescrito — tabla con `{{range}}`, `<select>` con catálogos Go, JS reducido a `fetch()` + modales + apertura BD
+  - `app.go`: `CatalogoItem` con `IDGerencia` para filtrar superintendencias por gerencia
+  - Único binding Wails restante: `AbrirDialogoBD` (diálogo nativo de archivos del SO)

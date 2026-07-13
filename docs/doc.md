@@ -10,7 +10,8 @@
 |------|-----------|
 | Backend | Go 1.21+, Wails v2 |
 | SQLite | mattn/go-sqlite3 (driver nativo) |
-| Frontend | HTML + Tailwind CSS + Font Awesome |
+| Frontend | Go `html/template` + Tailwind CSS + Font Awesome |
+| Renderizado | `TemplateHandler` (http.Handler) intercepta AssetServer |
 | Empaquetado | Wails CLI (`wails build`) |
 | Windows | WebView2 Fixed Version Runtime incluido (portable) |
 
@@ -19,9 +20,21 @@
 ```
 ┌──────────────────────────────────────────────────┐
 │  main.go (entry point Wails)                      │
-│  ├── go:embed all:frontend → assets embed.FS      │
+│  ├── NewTemplateHandler(app) → http.Handler       │
+│  ├── Handler en AssetServer (en vez de Assets)    │
 │  ├── Bind: app (*App) → expuesto a JS             │
 │  └── windows.Options.WebviewBrowserPath → runtime │
+├──────────────────────────────────────────────────┤
+│  handler.go (TemplateHandler)                     │
+│  ├── go:embed all:frontend → estáticos (CSS/JS)   │
+│  ├── go:embed templates/* → Go html/template      │
+│  ├── ServeHTTP()                                   │
+│  │   ├── "/" → renderiza template Go con datos     │
+│  │   └── otro → sirve archivo estático             │
+│  └── PageData struct (datos inyectados al template)│
+├──────────────────────────────────────────────────┤
+│  templates/ (Go html/template)                    │
+│  └── index.html (estructura HTML renderizada Go)  │
 ├──────────────────────────────────────────────────┤
 │  app.go (backend Go nativo)                       │
 │  ├── App struct { db *sql.DB, mu sync.Mutex }     │
@@ -31,35 +44,51 @@
 │  ├── EliminarExpediente(id) → DELETE transacción  │
 │  └── ...otros 8 métodos                           │
 ├──────────────────────────────────────────────────┤
-│  frontend/ (embebido en binario)                  │
-│  ├── index.html (HTML + CSS + JS)                 │
+│  frontend/ (estáticos embebidos)                  │
 │  ├── schema-config.js (config del schema)         │
+│  ├── ruta-procesos-data.js (datos Gantt)          │
 │  └── vendor/ (Tailwind, FontAwesome, styles)      │
 └──────────────────────────────────────────────────┘
 ```
 
-**Flujo de datos:**
+**Flujo de datos (render inicial):**
 ```
-Usuario → Click en UI → JS llama window.go.main.App.*
-                                ↓
-                        app.go (Go)
+Wails webview → GET / → TemplateHandler.ServeHTTP()
+                            ↓
+                    templates/index.html (Go template)
+                            ↓
+                    HTML renderizado con datos Go
+                            ↓
+                    Wails inyecta runtime JS automáticamente
+                            ↓
+                    Navegador carga CSS/JS desde estáticos
+```
+
+**Flujo de datos (interacción):**
+```
+Usuario → Click → JS llama window.go.main.App.*
                           ↓
-                    database/sql + go-sqlite3
-                          ↓
-                    Archivo .db (escritura directa)
+                  app.go (Go)
+                    ↓
+              database/sql + go-sqlite3
+                    ↓
+              Archivo .db (escritura directa)
 ```
 
 ## Estructura del Proyecto
 
 ```
 baseaccess/
-├── main.go                 # Entry point Wails
+├── main.go                 # Entry point Wails (Handler en AssetServer)
+├── handler.go              # TemplateHandler: http.Handler con templates Go
 ├── app.go                  # Backend Go (App struct, 12 métodos)
 ├── go.mod                  # Dependencias Go
 ├── go.sum                  # Checksums Go
 ├── wails.json              # Config proyecto Wails
-├── frontend/               # Código fuente (embebido vía go:embed)
-│   ├── index.html          # App completa (HTML + CSS + JS)
+├── templates/              # Go html/template (renderizados desde Go)
+│   └── index.html          # Template principal (estructura HTML)
+├── frontend/               # Estáticos embebidos (CSS, JS, fuentes)
+│   ├── index.html          # Obsoleto (mantenido como fallback estático)
 │   ├── schema-config.js    # Config del schema (catálogos, columnas, etc.)
 │   ├── ruta-procesos-data.js  # Datos Gantt para Ruta Procesos
 │   └── vendor/             # Dependencias locales (sin CDN)
@@ -198,3 +227,33 @@ Workflow: `.github/workflows/build.yml`
 | 13 | `frontend/schema-config.js` | `MODAL_HISTORIAL`/`HISTORIAL_CONTENIDO` renombrados (`historial-modal`/`historial-cuerpo`). Eliminados selectores fantasma (`SIDEBAR_TOGGLE`, `MENU_RECIENTES`, `BTN_VACUUM`). Añadido `ORDEN_DIRECCION` a `STORAGE_KEYS` | Bugfix SMOKE test |
 | 14 | `frontend/vendor/styles.css` | `color-scheme: dark` (WebKitGTK controles nativos oscuros). `select.input option` bg/color. ~20 utilidades Tailwind faltantes (`bg-gray-700/10`, `border-gray-800`, etc.) emuladas con `rgba()` — fix bordes blancos visibles | Bugfix Tailwind purgado |
 | 15 | `data/importar_datos.py` | `DROP TRIGGER trg_exp_auditoria` durante migración. Tracking por solped: `fecha_creacion=MIN(fecha_recibido)`, `fecha_actualizacion=MAX(fecha_devuelto or fecha_recibido)`. Trigger recreado al final | Fix fechas migración Excel |
+| 16 | `handler.go` | **Creado**: TemplateHandler con `http.Handler`, embebe `frontend/` y `templates/`, sirve templates Go para `/` y estáticos para el resto | Migración a Go html/template (DEC-011) |
+| 17 | `templates/index.html` | **Creado**: Go template con estructura HTML de la app (332 líneas), renderizado desde `html/template` con datos Go | Migración a Go html/template (DEC-011) |
+| 18 | `main.go` | `Assets: assets` → `Handler: handler`. Eliminado `//go:embed all:frontend` (ahora en handler.go). Nuevo `NewTemplateHandler(app)` | AssetServer ahora usa Handler personalizado |
+| 19 | `handler.go` | `PageData` con `Catalogs` + `Expedientes` precargados. 10 rutas `/api/*` (JSON) para CRUD, BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. Funciones template: `default`, `rowGet`, `rowGetStr`, `rowGetNum`, `estatusClass`, `formatNum`, `jsonEncode`, `truncate`, `isSelected` | Pasos 1-2 del roadmap completados |
+| 20 | `templates/index.html` | Reescrito: tabla renderizada con `{{range .Expedientes}}`, `<select>` del formulario rellenados desde `{{range .Catalogs.*}}`. JS reducido a `fetch()` a `/api/*` + toggle modales + apertura BD (único binding Wails restante). Eliminados: pagination JS, orden JS, cache JS, bindings Go directos | Paso 3 del roadmap completado |
+| 21 | `app.go` | `CatalogoItem` struct: añadido `IDGerencia int` para filtrar superintendencias por gerencia. `ObtenerCatalogos` ahora popula `IDGerencia` | Soporte template superintendencias |
+
+## Migración a Go html/template — Estado
+
+| # | Paso | Estado | Detalle |
+|---|------|--------|---------|
+| 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y expedientes. El template renderiza la tabla con `{{range}}`. |
+| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 10 rutas `/api/*` (JSON) para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
+| 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` a `/api/*` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD` (diálogo nativo de archivos). |
+| 4 | **HTMX** | ⏸ Postergado | Se evaluó pero `fetch()` + JS mínimo es suficiente para el alcance actual. |
+
+### Rutas API del handler
+
+| Ruta | Método | Descripción |
+|------|--------|-------------|
+| `/api/guardar-expediente` | POST | Guarda (INSERT/UPDATE) desde formulario |
+| `/api/eliminar-expediente` | POST | Elimina expediente + historial por ID |
+| `/api/cargar-expediente` | GET | Devuelve JSON del expediente para edición |
+| `/api/historial` | GET | Devuelve JSON del historial de un expediente |
+| `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
+| `/api/ruta-procesos` | GET | Devuelve JSON de la ruta de procesos |
+| `/api/pendientes` | GET | Devuelve JSON de documentos pendientes |
+| `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
+| `/api/optimizar-bd` | POST | Ejecuta VACUUM |
+| `/api/csv` | GET | Descarga CSV de expedientes |

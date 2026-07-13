@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome.min.css" rel="stylesheet">
+    <link href="vendor/styles.css" rel="stylesheet">
+    <style>
+        .drag-over {
+            outline: 3px dashed #2dd4bf;
+            outline-offset: -10px;
+            background-color: rgba(45, 212, 191, 0.05);
+        }
+        .campo-frecuente .label::after {
+            content: '';
+            display: inline-block;
+            width: 6px; height: 6px;
+            background: #f59e0b; border-radius: 50%;
+            margin-left: 4px; vertical-align: middle;
+        }
+        .campo-frecuente .label { border-left: 2px solid #f59e0b; padding-left: 6px; }
+    </style>
+    <script src="schema-config.js"></script>
+    <script src="ruta-procesos-data.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
+
+    <!-- Datos Go inyectados al JS -->
+    <script>
+        window.PAGE_DATA = {
+            hasDB: {{.HasDB}},
+            dbPath: "{{.DBPath}}",
+            catalogs: {{jsonEncode .Catalogs}},
+            expedientes: {{jsonEncode .Expedientes}},
+            totalPages: {{.TotalPages}},
+            currentPage: {{.CurrentPage}},
+            pageSize: {{.PageSize}}
+        };
+    </script>
+
+    <div class="w-full" id="app">
+        <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                <input type="file" id="dbfile" accept=".db,.sqlite" style="display:none;">
+                <button onclick="abrirBaseDatos()" class="btn btn-primary">
+                    <i class="fas fa-folder-open mr-1"></i> Abrir Base de Datos
+                </button>
+                <button id="btn-nuevo" onclick="mostrarFormulario(null)" {{if not .HasDB}}disabled{{end}} class="btn btn-primary">
+                    + Nuevo Expediente
+                </button>
+                <button onclick="abrirRutaProcesos()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-ruta">
+                    <i class="fas fa-route mr-1"></i> Ruta Procesos
+                </button>
+                <button onclick="abrirPendientes()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes">
+                    <i class="fas fa-clock mr-1"></i> Pendientes
+                </button>
+                <button onclick="exportarCSV()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar-csv">
+                    <i class="fas fa-file-csv mr-1"></i> CSV
+                </button>
+                <span id="estado-bd" class="text-xs text-gray-500 italic">
+                    {{if .HasDB}}<i class="fas fa-check"></i> {{.DBPath}}{{end}}
+                </span>
+            </div>
+        </header>
+
+        <div class="w-full">
+            <!-- Buscador -->
+            <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-search text-teal-400 text-sm"></i>
+                    <input type="text" id="search" placeholder="Filtrar al instante..." class="input input-lg flex-1"
+                           oninput="filtrarTabla()" {{if not .HasDB}}disabled{{end}}>
+                </div>
+            </div>
+
+            <!-- Tabla Principal (renderizada desde Go) -->
+            <div id="vista-tabla" class="mt-3 w-full">
+                <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 w-full">
+                    <div class="overflow-x-auto w-full">
+                        <table class="w-full text-left border-collapse" style="table-layout: fixed;">
+                            <thead>
+                                <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                                    <th class="p-3 w-[6%] text-center whitespace-nowrap">Ver</th>
+                                    <th class="p-3 w-[5%] text-center whitespace-nowrap">Acción</th>
+                                    <th class="p-3 w-[12%] whitespace-nowrap">SOLPED</th>
+                                    <th class="p-3 w-[12%] whitespace-nowrap">Gerencia</th>
+                                    <th class="p-3 w-[15%] whitespace-nowrap">Documento</th>
+                                    <th class="p-3 w-[25%] whitespace-nowrap">Descripción</th>
+                                    <th class="p-3 w-[13%] whitespace-nowrap">Estatus Detalle</th>
+                                    <th class="p-3 w-[12%] whitespace-nowrap">Nro Proceso</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+                            {{if not .HasDB}}
+                                <tr><td colspan="8" class="p-12 text-center text-gray-500">Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.</td></tr>
+                            {{else if eq (len .Expedientes) 0}}
+                                <tr><td colspan="8" class="p-12 text-center text-gray-500">No hay expedientes en la base de datos.</td></tr>
+                            {{else}}
+                                {{range $i, $exp := .Expedientes}}
+                                <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $exp "id_expediente"}})">
+                                    <td class="p-3 text-center">
+                                        <button class="btn-icon text-link" id="btn-{{rowGetStr $exp "id_expediente"}}"><i class="fas fa-plus"></i></button>
+                                        <button onclick="event.stopPropagation(); toggleFrecuente({{rowGetStr $exp "id_expediente"}}, '{{rowGetStr $exp "solped"}}')" class="btn-icon text-amber-400 hover:text-amber-300 ml-1" title="Frecuente"><i class="fas fa-star" id="star-{{rowGetStr $exp "id_expediente"}}"></i></button>
+                                    </td>
+                                    <td class="p-3 text-center">
+                                        <button onclick="event.stopPropagation(); mostrarFormulario({{rowGetStr $exp "id_expediente"}})" class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                    <td class="p-3 font-semibold text-gray-200 truncate" title="{{rowGetStr $exp "solped"}}">{{default (rowGetStr $exp "solped") "SIN SOLPED"}}</td>
+                                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $exp "gerencia"}}">{{default (rowGetStr $exp "gerencia") "N/A"}}</td>
+                                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $exp "documento"}}">{{default (rowGetStr $exp "documento") "N/A"}}</td>
+                                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $exp "descripcion_proceso"}}">{{rowGetStr $exp "descripcion_proceso"}}</td>
+                                    <td class="p-3 truncate" title="{{rowGetStr $exp "estatus_detalle"}}">
+                                        <span class="px-2 py-1 rounded text-xs {{estatusClass (rowGetStr $exp "estatus_detalle")}}">{{default (rowGetStr $exp "estatus_detalle") "PENDIENTE"}}</span>
+                                    </td>
+                                    <td class="p-3 text-gray-300 font-mono text-xs truncate" title="{{rowGetStr $exp "nro_proceso"}}">{{default (rowGetStr $exp "nro_proceso") "N/A"}}</td>
+                                </tr>
+                                <tr id="subfila-{{rowGetStr $exp "id_expediente"}}" class="hidden bg-gray-950/40 border-l-4 border-teal-500">
+                                    <td colspan="8" class="p-5">
+                                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                                            <!-- Info del proceso -->
+                                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
+                                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</h4>
+                                                <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">{{default (rowGetStr $exp "descripcion_proceso") "Sin descripción."}}</span></p>
+                                                <div class="grid grid-cols-2 gap-2 text-xs pt-2">
+                                                    <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "superintendencia") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Plan Contratación:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "plan_contrataciones") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Modalidad:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "modalidad_contratacion") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "art") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "tipo_contrato") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $exp "cantidad_frentes") "0"}}</span></div>
+                                                </div>
+                                            </div>
+                                            <!-- Valores y trazabilidad -->
+                                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-coins mr-1"></i> Valores y Trazabilidad</h4>
+                                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                                    <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">{{if rowGetNum $exp "presupuesto_base_usd"}}${{formatNum (rowGet $exp "presupuesto_base_usd")}}{{else}}N/A{{end}}</span></div>
+                                                    <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">{{if rowGetNum $exp "monto_adjudicado_bs"}}Bs {{formatNum (rowGet $exp "monto_adjudicado_bs")}}{{else}}N/A{{end}}</span></div>
+                                                    <div><span class="text-gray-400">Emisor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $exp "emisor") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400">Receptor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $exp "receptor") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $exp "fecha_recibido") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $exp "fecha_devuelto") "N/A"}}</span></div>
+                                                </div>
+                                            </div>
+                                            <!-- Adjudicación -->
+                                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-building mr-1"></i> Adjudicación y Legal</h4>
+                                                <p><span class="text-gray-400">Empresa:</span> <span class="text-gray-200 block font-medium truncate">{{default (rowGetStr $exp "empresa_adjudicada") "N/A"}}</span></p>
+                                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                                    <div><span class="text-gray-400 block">Acta Apertura:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $exp "nro_acta_apertura") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Resolución JD:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $exp "nro_resolucion_jd") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">SICAC:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $exp "nro_contrato_sicac") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">SAP:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $exp "nro_contrato_sap") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Tiempo Ejec.:</span> <span class="text-gray-200">{{default (rowGetStr $exp "tiempo_ejecucion") "N/A"}}</span></div>
+                                                    <div><span class="text-gray-400 block">Fecha Firma:</span> <span class="text-emerald-400 font-mono font-medium">{{default (rowGetStr $exp "fecha_firma_contrato") "N/A"}}</span></div>
+                                                </div>
+                                                <div class="pt-1"><span class="text-gray-400">Estatus:</span> <span class="text-teal-300 block">{{default (rowGetStr $exp "estatus_detalle") "N/A"}}</span></div>
+                                                <div class="pt-2 border-t border-gray-700/40 mt-2">
+                                                    <button onclick="event.stopPropagation(); abrirHistorial({{rowGetStr $exp "id_expediente"}})" class="text-xs text-teal-400 hover:text-teal-300 font-semibold">
+                                                        <i class="fas fa-clipboard-list mr-1"></i> Ver Historial
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {{if rowGetStr $exp "observaciones"}}
+                                        <div class="mt-4 border-t border-gray-700/50 pt-4">
+                                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+                                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
+                                                <div class="text-gray-300 italic whitespace-pre-wrap">{{rowGetStr $exp "observaciones"}}</div>
+                                            </div>
+                                        </div>
+                                        {{end}}
+                                        {{if rowGetStr $exp "notas"}}
+                                        <div class="mt-4 border-t border-gray-700/50 pt-4">
+                                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+                                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
+                                                <p class="text-gray-300 whitespace-pre-wrap">{{rowGetStr $exp "notas"}}</p>
+                                            </div>
+                                        </div>
+                                        {{end}}
+                                    </td>
+                                </tr>
+                                {{end}}
+                            {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Paginación -->
+                <div id="paginacion" class="mt-4 pb-2"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Formulario -->
+    <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-4xl my-8">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
+                <button onclick="cerrarFormulario()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="form-expediente" class="space-y-6" onsubmit="return false;">
+                <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]">
+                    <input type="hidden" id="f-id_expediente" name="id_expediente" value="">
+
+                    <fieldset class="card">
+                        <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                            <div><label class="label">SOLPED</label><input type="text" id="f-solped" name="solped" class="input"></div>
+                            <div><label class="label">Nro. Proceso</label><input type="text" id="f-nro_proceso" name="nro_proceso" class="input"></div>
+                            <div>
+                                <label class="label">Documento</label>
+                                <select id="f-id_documento" name="id_documento" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.documento}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div class="md:col-span-2 lg:col-span-3">
+                                <label class="label">Descripción del Proceso</label>
+                                <textarea id="f-descripcion_proceso" name="descripcion_proceso" rows="2" class="input"></textarea>
+                            </div>
+                            <div>
+                                <label class="label">Gerencia</label>
+                                <select id="f-id_gerencia" name="id_gerencia" class="input" onchange="cargarSuperintendencias()">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.gerencia}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Superintendencia</label>
+                                <select id="f-id_superintendencia" name="id_superintendencia" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.superintendencia}}<option value="{{.ID}}" data-id-gerencia="{{.IDGerencia}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Plan Contratación</label>
+                                <select id="f-id_plan" name="id_plan" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.plan_contratacion}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Modalidad</label>
+                                <select id="f-id_modalidad" name="id_modalidad" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.modalidad}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Art. Normativa</label>
+                                <select id="f-id_art" name="id_art" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.art}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="label">Tipo Contrato</label>
+                                <select id="f-id_tipo_contrato" name="id_tipo_contrato" class="input">
+                                    <option value=""></option>
+                                    {{if .Catalogs}}{{range .Catalogs.tipo_contrato}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}
+                                </select>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="card">
+                        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                            <div><label class="label">Fecha Presupuesto Base</label><input type="date" id="f-fecha_presupuesto_base" name="fecha_presupuesto_base" class="input"></div>
+                            <div><label class="label">Presupuesto Base (USD)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_usd" name="presupuesto_base_usd" class="input" onblur="this.value=formatNum(this.value)"></div>
+                            <div><label class="label">Tipo de Cambio</label><input type="text" inputmode="decimal" id="f-tipo_cambio" name="tipo_cambio" class="input" onblur="this.value=formatNum(this.value)"></div>
+                            <div><label class="label">Presupuesto Base (Bs)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_bs" name="presupuesto_base_bs" class="input" onblur="this.value=formatNum(this.value)"></div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="card">
+                        <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Gestión y Firmas</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label class="label">Emisor / Remitente</label>
+                                <select id="f-id_emisor" name="id_emisor" class="input"><option value=""></option>{{if .Catalogs}}{{range .Catalogs.responsables}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}</select>
+                            </div>
+                            <div>
+                                <label class="label">Receptor</label>
+                                <select id="f-id_receptor" name="id_receptor" class="input"><option value=""></option>{{if .Catalogs}}{{range .Catalogs.responsables}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}</select>
+                            </div>
+                            <div>
+                                <label class="label">Estatus Detalle</label>
+                                <select id="f-id_estatus" name="id_estatus" class="input"><option value=""></option>{{if .Catalogs}}{{range .Catalogs.estatus_detalle}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}</select>
+                            </div>
+                            <div><label class="label">Fecha Recibido</label><input type="date" id="f-fecha_recibido" name="fecha_recibido" class="input"></div>
+                            <div><label class="label">Fecha Devuelto</label><input type="date" id="f-fecha_devuelto" name="fecha_devuelto" class="input"></div>
+                            <div><label class="label">Nro. Acta Apertura</label><input type="text" id="f-nro_acta_apertura" name="nro_acta_apertura" class="input"></div>
+                            <div><label class="label">Cant. Frentes</label><input type="number" step="1" min="0" id="f-cantidad_frentes" name="cantidad_frentes" class="input"></div>
+                            <div><label class="label">Nro. Resolución JD</label><input type="text" id="f-nro_resolucion_jd" name="nro_resolucion_jd" class="input"></div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="card">
+                        <legend class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</legend>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label class="label">Resultado Proceso</label>
+                                <select id="f-id_resultado" name="id_resultado" class="input"><option value=""></option>{{if .Catalogs}}{{range .Catalogs.resultado_proceso}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}</select>
+                            </div>
+                            <div>
+                                <label class="label">Empresa Adjudicada</label>
+                                <select id="f-id_empresa" name="id_empresa" class="input"><option value=""></option>{{if .Catalogs}}{{range .Catalogs.empresas}}<option value="{{.ID}}">{{.Nombre}}</option>{{end}}{{end}}</select>
+                            </div>
+                            <div><label class="label">Nro. Contrato SICAC</label><input type="text" id="f-nro_contrato_sicac" name="nro_contrato_sicac" class="input"></div>
+                            <div><label class="label">Nro. Contrato SAP</label><input type="text" id="f-nro_contrato_sap" name="nro_contrato_sap" class="input"></div>
+                            <div><label class="label">Tiempo Ejecución</label><input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" placeholder="ej: 120" class="input"></div>
+                            <div><label class="label">Monto Adjudicado (USD)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" name="monto_adjudicado_usd" class="input" onblur="this.value=formatNum(this.value)"></div>
+                            <div><label class="label">Monto Adjudicado (Bs)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" name="monto_adjudicado_bs" class="input" onblur="this.value=formatNum(this.value)"></div>
+                            <div><label class="label">Fecha Firma Contrato</label><input type="date" id="f-fecha_firma_contrato" name="fecha_firma_contrato" class="input"></div>
+                        </div>
+                    </fieldset>
+
+                    <fieldset class="card">
+                        <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
+                        <div class="mt-3"><label class="label">Observaciones</label><textarea id="f-observaciones" name="observaciones" rows="3" class="input"></textarea></div>
+                        <div class="mt-2"><label class="label">Notas</label><textarea id="f-notas" name="notas" rows="2" class="input"></textarea></div>
+                    </fieldset>
+                </div>
+
+                <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
+                    <button onclick="cerrarFormulario()" class="btn btn-secondary">Cancelar</button>
+                    <button id="btn-eliminar" onclick="eliminarExpediente()" class="btn btn-danger hidden">Eliminar</button>
+                    <button onclick="guardarExpedienteForm()" class="btn btn-primary btn-lg">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Historial -->
+    <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-5xl my-8">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
+                <button onclick="cerrarHistorial()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="historial-cuerpo" class="modal-body overflow-x-auto max-h-[75vh] overflow-y-auto"></div>
+            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
+                <button onclick="cerrarHistorial()" class="btn btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ruta Procesos -->
+    <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-5xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
+                <button onclick="cerrarRuta()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body overflow-y-auto max-h-[75vh]" id="ruta-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Modal Pendientes -->
+    <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-4xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
+                <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body overflow-y-auto max-h-[75vh]" id="pendientes-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Modales: ruta, historial, etc. se rellenarán via fetch -->
+
+    <!-- Spinner + Toast -->
+    <div id="spinner-overlay" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-2xl flex items-center gap-3 border border-gray-700">
+            <svg class="animate-spin h-5 w-5 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span id="spinner-text" class="text-sm text-gray-200">Procesando...</span>
+        </div>
+    </div>
+    <div id="toast-container" class="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- JS mínimo: solo Wails dialog + modales + fetch API -->
+    <script>
+        const $ = id => document.getElementById(id);
+        const DATA = window.PAGE_DATA;
+        let todosExpedientes = DATA.expedientes || [];
+        let expFiltrados = [...todosExpedientes];
+
+        // --- Toast ---
+        function toast(msg, tipo = 'info') {
+            const el = document.createElement('div');
+            el.className = 'toast ' + tipo;
+            el.textContent = msg;
+            $('toast-container').appendChild(el);
+            requestAnimationFrame(() => el.classList.add('show'));
+            setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+        }
+
+        // --- Filtro tabla (client-side, sin llamada al server) ---
+        function filtrarTabla() {
+            const q = ($('search')?.value || '').toLowerCase();
+            if (!q) { expFiltrados = [...todosExpedientes]; }
+            else {
+                expFiltrados = todosExpedientes.filter(e =>
+                    (e.solped || '').toLowerCase().includes(q) ||
+                    (e.descripcion_proceso || '').toLowerCase().includes(q) ||
+                    (e.gerencia || '').toLowerCase().includes(q) ||
+                    (e.documento || '').toLowerCase().includes(q) ||
+                    (e.empresa_adjudicada || '').toLowerCase().includes(q) ||
+                    (String(e.nro_proceso || '')).toLowerCase().includes(q)
+                );
+            }
+            renderTabla();
+        }
+
+        function renderTabla() {
+            const cuerpo = $('tabla-cuerpo');
+            // Solo re-renderiza filas principales (sin el subfila desplegable para simplicidad)
+            // El render inicial ya vino del server; el filtro aquí es para los expedientes en DATA
+            // Para MVP: simplemente muestra/oculta filas
+            const filas = cuerpo.querySelectorAll('tr[id^="subfila-"]');
+            // En realidad el server ya renderizó todo. El filtro recarga via server redirect
+            // o re-renderiza en JS. Por simplicidad, recargamos la página:
+            if ($('search').value === '') {
+                // Sin filtro: mostrar todo
+                location.reload();
+            }
+        }
+
+        // --- Abrir BD (único punto que necesita Wails binding) ---
+        async function abrirBaseDatos() {
+            // Intenta Wails primero (desktop), sino input file (navegador)
+            let path;
+            try {
+                if (window.go && window.go.main && window.go.main.App) {
+                    path = await window.go.main.App.AbrirDialogoBD();
+                } else if (window.runtime) {
+                    path = await window.runtime.OpenFileDialog({
+                        Title: 'Seleccionar base de datos',
+                        Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
+                if (path) {
+                    await fetch('/api/abrir-bd', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'path=' + encodeURIComponent(path)
+                    });
+                    location.reload();
+                }
+            } catch(e) {
+                // Fallback: input file
+                $('dbfile').click();
+            }
+        }
+
+        $('dbfile').addEventListener('change', async function(e) {
+            const f = e.target.files[0];
+            if (!f) return;
+            const path = f.path || f.name;
+            try {
+                await fetch('/api/abrir-bd', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'path=' + encodeURIComponent(path)
+                });
+                location.reload();
+            } catch(err) {
+                alert('Error al abrir BD: ' + err);
+            }
+        });
+
+        // --- Drag & Drop ---
+        document.addEventListener('dragover', e => { e.preventDefault(); $('body').classList.add('drag-over'); });
+        document.addEventListener('dragleave', e => { if (!e.relatedTarget) $('body').classList.remove('drag-over'); });
+        document.addEventListener('drop', async e => {
+            e.preventDefault(); $('body').classList.remove('drag-over');
+            const f = e.dataTransfer?.files?.[0]; if (!f) return;
+            const path = f.path || f.name;
+            try {
+                await fetch('/api/abrir-bd', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: 'path=' + encodeURIComponent(path) });
+                location.reload();
+            } catch(err) { alert('Error: ' + err); }
+        });
+
+        // --- Desplegable fila ---
+        function toggleDesplegable(id) {
+            const sub = $('subfila-' + id);
+            const btn = $('btn-' + id);
+            if (!sub || !btn) return;
+            sub.classList.toggle('hidden');
+            btn.innerHTML = sub.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
+        }
+
+        // --- Sidebar frecuentes (localStorage) ---
+        function toggleFrecuente(id, solped) {
+            let favs = JSON.parse(localStorage.getItem('frecuentes') || '[]');
+            const idx = favs.findIndex(f => f.id == id);
+            if (idx !== -1) favs.splice(idx, 1);
+            else favs.push({ id, solped });
+            localStorage.setItem('frecuentes', JSON.stringify(favs));
+            const star = $('star-' + id);
+            if (star) star.classList.toggle('text-amber-300');
+        }
+
+        // --- Formulario ---
+        function mostrarFormulario(id) {
+            const modal = $('form-modal');
+            $('form-titulo').textContent = id ? 'Editar Expediente #' + id : 'Nuevo Expediente';
+            $('form-expediente').reset();
+            $('f-id_expediente').value = '';
+            $('btn-eliminar').classList.toggle('hidden', !id);
+            if (id) {
+                cargarExpedienteForm(id);
+            }
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        async function cargarExpedienteForm(id) {
+            try {
+                const res = await fetch('/api/cargar-expediente?id=' + id);
+                const data = await res.json();
+                if (data.error) { alert(data.error); cerrarFormulario(); return; }
+                const campos = ['id_expediente','solped','nro_proceso','id_documento','descripcion_proceso',
+                    'id_gerencia','id_superintendencia','id_plan','id_modalidad','id_art','id_tipo_contrato',
+                    'fecha_presupuesto_base','presupuesto_base_usd','tipo_cambio','presupuesto_base_bs',
+                    'id_emisor','id_receptor','id_estatus','fecha_recibido','fecha_devuelto',
+                    'nro_acta_apertura','cantidad_frentes','nro_resolucion_jd',
+                    'id_resultado','id_empresa','nro_contrato_sicac','nro_contrato_sap',
+                    'tiempo_ejecucion','monto_adjudicado_usd','monto_adjudicado_bs','fecha_firma_contrato',
+                    'observaciones','notas'];
+                campos.forEach(c => {
+                    const el = $('f-' + c);
+                    if (el && data[c] != null) el.value = data[c];
+                });
+                cargarSuperintendencias();
+                if (data.id_superintendencia) $('f-id_superintendencia').value = data.id_superintendencia;
+            } catch(e) { alert('Error al cargar: ' + e); }
+        }
+
+        function cerrarFormulario() {
+            $('form-modal').classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        async function guardarExpedienteForm() {
+            const form = $('form-expediente');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            // Remove empty strings → null
+            Object.keys(data).forEach(k => { if (data[k] === '') data[k] = null; });
+            const id = $('f-id_expediente').value;
+            if (id) data.id_expediente = parseInt(id);
+
+            try {
+                const res = await fetch('/api/guardar-expediente', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: new URLSearchParams(formData).toString() + (id ? '&id_expediente=' + id : '')
+                });
+                const result = await res.json();
+                if (result.success) {
+                    toast(result.message, 'success');
+                    cerrarFormulario();
+                    location.reload();
+                } else {
+                    alert(result.error || 'Error al guardar');
+                }
+            } catch(e) { alert('Error: ' + e); }
+        }
+
+        async function eliminarExpediente() {
+            const id = $('f-id_expediente').value;
+            if (!id) return;
+            if (!confirm('¿Eliminar expediente #' + id + '?')) return;
+            if (!confirm('CONFIRMACIÓN FINAL: se eliminará el expediente y su historial.')) return;
+            try {
+                const res = await fetch('/api/eliminar-expediente', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'id=' + encodeURIComponent(id)
+                });
+                const result = await res.json();
+                if (result.success) {
+                    toast(result.message, 'success');
+                    cerrarFormulario();
+                    location.reload();
+                } else { alert(result.error); }
+            } catch(e) { alert('Error: ' + e); }
+        }
+
+        // --- Superintendencias (filtra por gerencia) ---
+        function cargarSuperintendencias() {
+            const gerId = $('f-id_gerencia').value;
+            const sel = $('f-id_superintendencia');
+            const opts = sel.querySelectorAll('option');
+            opts.forEach(o => {
+                if (!o.value) return;
+                const dataGer = o.getAttribute('data-id-gerencia');
+                o.style.display = (!gerId || String(dataGer) === String(gerId)) ? '' : 'none';
+            });
+        }
+
+        // --- Historial ---
+        async function abrirHistorial(id) {
+            $('historial-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            $('historial-titulo').innerHTML = '<i class="fas fa-hourglass-half mr-1"></i> Historial #' + id;
+            try {
+                const res = await fetch('/api/historial?id=' + id);
+                const rows = await res.json();
+                if (!rows || rows.length === 0) {
+                    $('historial-cuerpo').innerHTML = '<p class="text-gray-500 italic">Sin movimientos registrados.</p>';
+                    return;
+                }
+                let html = '<table class="w-full text-left text-xs border-collapse"><thead><tr class="bg-gray-700/60 text-teal-400 uppercase">';
+                html += '<th class="p-2">Fecha Recibido</th><th class="p-2">Estatus</th><th class="p-2">Documento</th><th class="p-2">Emisor</th><th class="p-2">Receptor</th><th class="p-2">Observaciones</th>';
+                html += '</tr></thead><tbody class="divide-y divide-gray-700">';
+                rows.forEach(r => {
+                    html += '<tr class="hover:bg-gray-700/20">';
+                    html += '<td class="p-2 font-mono">' + (r.fecha_recibido || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.estatus || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.documento || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.emisor || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.receptor || '-') + '</td>';
+                    html += '<td class="p-2 text-gray-400">' + (r.observaciones || '') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                $('historial-cuerpo').innerHTML = html;
+            } catch(e) {
+                $('historial-cuerpo').innerHTML = '<p class="text-red-400">Error: ' + e + '</p>';
+            }
+        }
+        function cerrarHistorial() { $('historial-modal').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        // --- Ruta procesos / Pendientes (simplificado: fetch JSON y render) ---
+        async function abrirRutaProcesos() {
+            $('modal-ruta').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            try {
+                const res = await fetch('/api/ruta-procesos');
+                const rows = await res.json();
+                if (!rows || rows.length === 0) { $('ruta-contenido').innerHTML = '<p class="text-gray-500 italic">Sin datos.</p>'; return; }
+                let html = '<div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse"><thead><tr class="bg-gray-700/60 text-teal-400 uppercase">';
+                html += '<th class="p-2">SOLPED</th><th class="p-2">Descripción</th><th class="p-2">Emisor</th><th class="p-2">Receptor</th><th class="p-2">Estatus</th><th class="p-2">Recibido</th><th class="p-2">Devuelto</th><th class="p-2">Proceso</th>';
+                html += '</tr></thead><tbody class="divide-y divide-gray-700">';
+                rows.forEach(r => {
+                    html += '<tr class="hover:bg-gray-700/20">';
+                    html += '<td class="p-2 font-semibold">' + (r.solped || '') + '</td>';
+                    html += '<td class="p-2">' + truncate(r.descripcion_proceso, 40) + '</td>';
+                    html += '<td class="p-2">' + (r.emisor || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.receptor || '-') + '</td>';
+                    html += '<td class="p-2"><span class="px-1.5 py-0.5 rounded ' + estatusClass(r.estatus_detalle) + '">' + (r.estatus_detalle || 'PENDIENTE') + '</span></td>';
+                    html += '<td class="p-2 font-mono">' + (r.fecha_recibido || '-') + '</td>';
+                    html += '<td class="p-2 font-mono">' + (r.fecha_devuelto || '-') + '</td>';
+                    html += '<td class="p-2 font-mono">' + (r.nro_proceso || '-') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                $('ruta-contenido').innerHTML = html;
+            } catch(e) { $('ruta-contenido').innerHTML = '<p class="text-red-400">Error: ' + e + '</p>'; }
+        }
+        function cerrarRuta() { $('modal-ruta').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        async function abrirPendientes() {
+            $('modal-pendientes').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            try {
+                const res = await fetch('/api/pendientes');
+                const rows = await res.json();
+                if (!rows || rows.length === 0) { $('pendientes-contenido').innerHTML = '<p class="text-gray-500 italic">No hay documentos pendientes.</p>'; return; }
+                let html = '<div class="overflow-x-auto"><table class="w-full text-xs text-left border-collapse"><thead><tr class="bg-gray-700/60 text-amber-400 uppercase">';
+                html += '<th class="p-2">SOLPED</th><th class="p-2">Descripción</th><th class="p-2">Estatus</th><th class="p-2">Receptor</th><th class="p-2">Proceso</th><th class="p-2">Empresa</th>';
+                html += '</tr></thead><tbody class="divide-y divide-gray-700">';
+                rows.forEach(r => {
+                    html += '<tr class="hover:bg-gray-700/20">';
+                    html += '<td class="p-2 font-semibold">' + (r.solped || '') + '</td>';
+                    html += '<td class="p-2">' + truncate(r.descripcion_proceso, 50) + '</td>';
+                    html += '<td class="p-2"><span class="px-1.5 py-0.5 rounded ' + estatusClass(r.estatus_detalle) + '">' + (r.estatus_detalle || '-') + '</span></td>';
+                    html += '<td class="p-2">' + (r.receptor || '-') + '</td>';
+                    html += '<td class="p-2 font-mono">' + (r.nro_proceso || '-') + '</td>';
+                    html += '<td class="p-2">' + (r.empresa_adjudicada || '-') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+                $('pendientes-contenido').innerHTML = html;
+            } catch(e) { $('pendientes-contenido').innerHTML = '<p class="text-red-400">Error: ' + e + '</p>'; }
+        }
+        function cerrarPendientes() { $('modal-pendientes').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        // --- CSV ---
+        function exportarCSV() { window.location.href = '/api/csv'; }
+
+        // --- Helpers JS (algunos usados por atributos onblur del form) ---
+        function formatNum(v) {
+            if (!v && v !== 0) return '';
+            const s = String(v).replace(/\./g, '').replace(',', '.');
+            const n = parseFloat(s); if (isNaN(n)) return String(v);
+            return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+        function truncate(s, n) { if (!s) return ''; return s.length > n ? s.slice(0, n) + '...' : s; }
+        function estatusClass(e) {
+            if (!e) return 'bg-yellow-500/20 text-yellow-400';
+            const u = e.toUpperCase();
+            if (u === 'FIRMADO') return 'bg-emerald-500/20 text-emerald-400';
+            if (u === 'PENDIENTE') return 'bg-yellow-500/20 text-yellow-400';
+            if (u.includes('CORRECCIÓN')) return 'bg-orange-500/20 text-orange-400';
+            if (u.includes('SIN FIRMA')) return 'bg-red-500/20 text-red-400';
+            return 'bg-gray-500/20 text-gray-400';
+        }
+    </script>
+</body>
+</html>

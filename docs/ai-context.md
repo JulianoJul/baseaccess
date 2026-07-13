@@ -3,7 +3,8 @@
 ## Stack (no negociable)
 - **Wails v2** (Go 1.21+): backend nativo, frontend web embebido
 - **Go** + **mattn/go-sqlite3**: acceso SQLite directo al archivo .db
-- **Frontend**: HTML + Tailwind CSS + Font Awesome (en `frontend/vendor/`)
+- **Frontend**: Go `html/template` renderiza el HTML desde `TemplateHandler`
+- **Estáticos**: Tailwind CSS + Font Awesome (en `frontend/vendor/`)
 - **Sin CDN, sin frameworks JS, sin backend externo**
 
 ## Líneas Rojas
@@ -15,17 +16,19 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App migrada de Electron/sql.js a **Wails v2**. Backend Go con 16 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, `AbrirDialogoBD`, `GuardarDialogoBD`, `SetBackupMaxCopies`, etc.) + backup rotativo configurable antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*` con detección automática navegador vs Wails. WebView2 Fixed Runtime incluido para portabilidad Windows. DevTools habilitados vía `-debug` build flag. Diálogos nativos desde Go (DEC-007). Tailwind purgado emulado en styles.css (DEC-009). Migración Excel trackea fechas por solped (DEC-010). Rama `wails-migration`, `master` intacto con Electron/Tauri original.
+App con **Wails v2 + Go html/template + rutas API REST**. El HTML no es estático: lo renderiza `TemplateHandler` desde `templates/index.html` con datos inyectados (catálogos, expedientes). El handler expone 10 rutas `/api/*` (JSON) que el frontend consume con `fetch()`. JS reducido al mínimo: `fetch()`, toggle de modales, apertura de BD (único binding Wails: `AbrirDialogoBD`). Backend Go con 16 métodos + backup rotativo. WebView2 Fixed Runtime para Windows. Rama `wails-migration`, `master` intacto.
 
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|
-| `main.go` | Entry point Wails (embed frontend, bind App) |
+| `main.go` | Entry point Wails (Handler en AssetServer, bind App) |
+| `handler.go` | TemplateHandler: http.Handler que renderiza templates Go |
+| `templates/index.html` | Go html/template (estructura HTML renderizada desde Go) |
 | `app.go` | Backend Go: App struct, 12 métodos CRUD SQLite |
 | `go.mod` | Dependencias Go (wails/v2 + go-sqlite3) |
 | `wails.json` | Config proyecto Wails |
-| `frontend/index.html` | App completa (HTML + CSS + JS) |
 | `frontend/schema-config.js` | Config del schema (catálogos, columnas, etc.) |
+| `frontend/ruta-procesos-data.js` | Datos Gantt para Ruta Procesos |
 | `docs/doc.md` | Documentación + changelog |
 | `docs/decisiones.md` | ADR: historial de decisiones técnicas |
 | `docs/funciones.md` | Catálogo SPOT de funciones |
