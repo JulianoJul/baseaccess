@@ -6,6 +6,10 @@ export function AbrirBaseDatos(arg1) {
   return window['go']['main']['App']['AbrirBaseDatos'](arg1);
 }
 
+export function AbrirDialogoBD() {
+  return window['go']['main']['App']['AbrirDialogoBD']();
+}
+
 export function CerrarBaseDatos() {
   return window['go']['main']['App']['CerrarBaseDatos']();
 }
@@ -20,6 +24,10 @@ export function EliminarExpediente(arg1) {
 
 export function GetBackupMaxCopies() {
   return window['go']['main']['App']['GetBackupMaxCopies']();
+}
+
+export function GuardarDialogoBD(arg1) {
+  return window['go']['main']['App']['GuardarDialogoBD'](arg1);
 }
 
 export function GuardarExpediente(arg1) {

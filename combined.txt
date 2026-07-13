@@ -132,12 +132,14 @@
                 <!-- Buscador (sticky) -->
                 <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1 text-xs shrink-0">
-                            <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
-                            <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
-                                <option value="fecha_creacion DESC">Creación</option>
-                                <option value="fecha_actualizacion DESC">Modificación</option>
+                        <div class="flex items-center gap-3 text-xs shrink-0">
+                            <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" title="Ordenar" disabled>
+                                <option value="fecha_creacion">Creación</option>
+                                <option value="fecha_actualizacion">Modificación</option>
                             </select>
+                            <button id="sort-dir" onclick="toggleSortDir()" class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600" title="Cambiar dirección (Descendente)" disabled>
+                                <i class="fas fa-arrow-down-wide-short"></i>
+                            </button>
                         </div>
                         <i class="fas fa-search text-teal-400 text-sm"></i>
                         <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg flex-1" disabled>
@@ -400,7 +402,7 @@
                 <input type="hidden" id="ac-catalog-key">
                 <input type="hidden" id="ac-tabla">
                 <div class="mb-3">
-                    <label class="label">Nombre</label>
+                    <label class="label" id="ac-campo-label">Nombre</label>
                     <input type="text" id="ac-nombre" class="input" placeholder="Ingrese el nombre">
                 </div>
                 <div id="ac-extra-fields" class="mb-3 hidden">
@@ -747,8 +749,11 @@
             dbFilePath = filePath;
             $(SELECTORS.SEARCH).disabled = false;
             $(SELECTORS.SORT_ORDER).disabled = false;
+            $('sort-dir').disabled = false;
             const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
             if (ordenGuardado) $(SELECTORS.SORT_ORDER).value = ordenGuardado;
+            const dirGuardada = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+            actualizarIconoSortDir(dirGuardada);
             $('btn-nuevo').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
@@ -852,14 +857,23 @@
         });
 
         async function abrirBaseDatos() {
+            const usarWails = !!(window.go && window.go.main && window.go.main.App);
+            DEBUG.log('[abrirBaseDatos] backend:', usarWails ? 'wails' : 'navegador');
             try {
-                const result = await window.runtime.OpenFileDialog({
-                    Title: 'Seleccionar base de datos',
-                    Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
-                });
+                let result;
+                if (usarWails) {
+                    result = await window.go.main.App.AbrirDialogoBD();
+                } else {
+                    result = await window.runtime.OpenFileDialog({
+                        Title: 'Seleccionar base de datos',
+                        Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
                 if (!result) return;
+                DEBUG.log('[abrirBaseDatos] ruta seleccionada:', result);
                 await _cargarBaseDatosComun(result);
             } catch (err) {
+                DEBUG.error('[abrirBaseDatos] error:', err);
                 $('dbfile').click();
             }
         }
@@ -880,16 +894,25 @@
 
         async function descargarBDError() {
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+            const usarWails = !!(window.go && window.go.main && window.go.main.App);
+            DEBUG.log('[descargarBDError] backend:', usarWails ? 'wails' : 'navegador');
             try {
-                const result = await window.runtime.SaveFileDialog({
-                    defaultFilename: 'backup-expedientes.db',
-                    filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
-                });
+                let result;
+                if (usarWails) {
+                    result = await window.go.main.App.GuardarDialogoBD('backup-expedientes.db');
+                } else {
+                    result = await window.runtime.SaveFileDialog({
+                        defaultFilename: 'backup-expedientes.db',
+                        filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
                 if (result) {
+                    DEBUG.log('[descargarBDError] destino:', result);
                     await window.go.main.App.DescargarBD(result);
                     toast('Copia de BD guardada en: ' + result, 'success');
                 }
             } catch (err) {
+                DEBUG.error('[descargarBDError] error:', err);
                 toast('Error al guardar copia: ' + err, 'error');
             }
         }
@@ -907,8 +930,6 @@
             try {
                 const data = await window.go.main.App.ObtenerExpedientes('id_expediente DESC');
                 if (!data || !data.length) { toast('No hay datos para exportar.', 'warning'); return; }
-                const headers = Object.keys(data[0]);
-                const csv = headers.join(',') + '\n' + data.map(row =>
                 const headers = Object.keys(data[0]);
                 const csv = headers.join(',') + '\n' + data.map(row =>
                     headers.map(h => {
@@ -1098,13 +1119,36 @@
         // CARGA Y RENDERIZADO DE TABLA
         // ================================================================
         async function cargarDatos() {
-            const ORDENES_VALIDOS = ['id_expediente DESC', 'fecha_creacion DESC', 'fecha_actualizacion DESC'];
-            let orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
-            if (!ORDENES_VALIDOS.includes(orden)) orden = 'id_expediente DESC';
-            expedientesCache = await obtenerExpedientes(orden);
+            const ORDENES_VALIDOS = ['fecha_creacion', 'fecha_actualizacion'];
+            const col = $(SELECTORS.SORT_ORDER)?.value || 'fecha_creacion';
+            if (!ORDENES_VALIDOS.includes(col)) { expedientesCache = await obtenerExpedientes('id_expediente DESC'); }
+            else {
+                const dir = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+                expedientesCache = await obtenerExpedientes(`${col} ${dir === 'ASC' ? 'ASC' : 'DESC'}`);
+            }
             filteredData = [...expedientesCache];
             currentPage = 1;
             aplicarPaginacion();
+        }
+        function toggleSortDir() {
+            const btn = $('sort-dir');
+            if (!btn) return;
+            const actual = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+            const nuevo = actual === 'ASC' ? 'DESC' : 'ASC';
+            localStorage.setItem(STORAGE_KEYS.ORDEN_DIRECCION, nuevo);
+            actualizarIconoSortDir(nuevo);
+            cambiarOrden();
+        }
+        function actualizarIconoSortDir(dir) {
+            const btn = $('sort-dir');
+            if (!btn) return;
+            if (dir.toUpperCase() === 'ASC') {
+                btn.innerHTML = '<i class="fas fa-arrow-up-wide-short"></i>';
+                btn.title = 'Cambiar dirección (Ascendente)';
+            } else {
+                btn.innerHTML = '<i class="fas fa-arrow-down-wide-short"></i>';
+                btn.title = 'Cambiar dirección (Descendente)';
+            }
         }
         async function cambiarOrden() {
             localStorage.setItem(STORAGE_KEYS.ORDEN_PREFERIDO, $(SELECTORS.SORT_ORDER).value);
@@ -2146,6 +2190,7 @@ const STORAGE_KEYS = {
     SIDEBAR_VISIBLE: 'sidebarVisible',
     BACKUP_MAX_COPIES: 'BACKUP_MAX_COPIES',
     ORDEN_PREFERIDO: 'ordenPreferido',
+    ORDEN_DIRECCION: 'ordenDireccion',
 };
 
 const SELECTORS = {
@@ -2154,16 +2199,14 @@ const SELECTORS = {
     SEARCH: 'search',
     SORT_ORDER: 'sort-order',
     SIDEBAR: 'sidebar',
-    SIDEBAR_TOGGLE: 'sidebar-toggle',
     BODY: 'body',
     FILE_INPUT: 'dbfile',
-    MENU_RECIENTES: 'menu-recientes',
     MODAL_RUTA: 'modal-ruta',
     RUTA_CONTENIDO: 'ruta-contenido',
     MODAL_PENDIENTES: 'modal-pendientes',
     PENDIENTES_CONTENIDO: 'pendientes-contenido',
-    MODAL_HISTORIAL: 'modal-historial',
-    HISTORIAL_CONTENIDO: 'historial-contenido',
+    MODAL_HISTORIAL: 'historial-modal',
+    HISTORIAL_CONTENIDO: 'historial-cuerpo',
     MODAL_CATALOGO: 'modal-agregar-catalogo',
     AC_NOMBRE: 'ac-nombre',
     AC_SELECT_ID: 'ac-select-id',
@@ -2174,7 +2217,6 @@ const SELECTORS = {
     AC_EXTRA_LABEL: 'ac-extra-label',
     AC_EXTRA_VAL: 'ac-extra-val',
     F_OBSERVACIONES: 'f-observaciones',
-    BTN_VACUUM: 'btn-vacuum',
     MODAL_ERROR: 'modal-error-critico',
     ERROR_CONTENIDO: 'error-critico-contenido',
     BTN_DESCARGAR_BD: 'btn-descargar-bd-error',
@@ -3464,6 +3506,7 @@ window.RUTA_PROCESOS_DATA = {
 
 === styles.css ===
 :root {
+  color-scheme: dark;
   --bg-body: #111827;
   --bg-card: rgba(17, 24, 39, 0.4);
   --bg-input: #1f2937;
@@ -3578,6 +3621,10 @@ window.RUTA_PROCESOS_DATA = {
 
 select.input {
   appearance: auto;
+}
+select.input option {
+  background: var(--bg-input);
+  color: var(--text-body);
 }
 
 .card {
@@ -3983,6 +4030,30 @@ select.input {
   }
 }
 
+/* === Utilidades Tailwind faltantes (tailwind.min.css purgado no las incluye) ===
+   Clases con opacidad /NN y border-gray-800, border-red-700 que el purge eliminó.
+   Valores: gray-700=#374151, gray-800=#1f2937, gray-900=#111827,
+            red-700=#b91c1c, red-900=#7f1d1d */
+.bg-gray-700\/10 { background-color: rgba(55, 65, 81, 0.10); }
+.bg-gray-700\/20 { background-color: rgba(55, 65, 81, 0.20); }
+.bg-gray-700\/40 { background-color: rgba(55, 65, 81, 0.40); }
+.bg-gray-700\/60 { background-color: rgba(55, 65, 81, 0.60); }
+.bg-gray-700\/80 { background-color: rgba(55, 65, 81, 0.80); }
+.bg-gray-800\/40 { background-color: rgba(31, 41, 55, 0.40); }
+.bg-gray-800\/60 { background-color: rgba(31, 41, 55, 0.60); }
+.bg-gray-800\/80 { background-color: rgba(31, 41, 55, 0.80); }
+.bg-gray-900\/30 { background-color: rgba(17, 24, 39, 0.30); }
+.bg-gray-900\/40 { background-color: rgba(17, 24, 39, 0.40); }
+.bg-gray-900\/60 { background-color: rgba(17, 24, 39, 0.60); }
+.bg-red-900\/40 { background-color: rgba(127, 29, 29, 0.40); }
+
+.border-gray-700\/40 { border-color: rgba(55, 65, 81, 0.40); }
+.border-gray-700\/50 { border-color: rgba(55, 65, 81, 0.50); }
+.border-gray-700\/60 { border-color: rgba(55, 65, 81, 0.60); }
+.border-gray-800 { border-color: #1f2937; }
+.border-red-700 { border-color: #b91c1c; }
+.border-red-700\/60 { border-color: rgba(185, 28, 28, 0.60); }
+
 === app.go ===
 package main
 
@@ -3997,8 +4068,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const DefaultBackupMaxCopies = 2
@@ -4079,6 +4152,25 @@ func (a *App) SetBackupMaxCopies(n int) {
 }
 
 func (a *App) GetBackupMaxCopies() int { return backupMaxCopies }
+
+func (a *App) AbrirDialogoBD() (string, error) {
+	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Seleccionar base de datos",
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
+		},
+	})
+}
+
+func (a *App) GuardarDialogoBD(nombreDefault string) (string, error) {
+	return wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Guardar copia de base de datos",
+		DefaultFilename: nombreDefault,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
+		},
+	})
+}
 
 func (a *App) AbrirBaseDatos(filePath string) error {
 	a.mu.Lock()
@@ -4204,9 +4296,16 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 		row := make(Row)
 		for i, col := range cols {
 			val := values[i]
-			if b, ok := val.([]byte); ok {
-				row[col] = string(b)
-			} else {
+			switch v := val.(type) {
+			case []byte:
+				row[col] = string(v)
+			case time.Time:
+				if v.IsZero() {
+					row[col] = ""
+				} else {
+					row[col] = v.Format("2006-01-02")
+				}
+			default:
 				row[col] = val
 			}
 		}
@@ -4512,6 +4611,10 @@ func main() {
 		OnStartup: app.Startup,
 		Bind: []interface{}{
 			app,
+		},
+		EnableDefaultContextMenu: true,
+		Debug: options.Debug{
+			OpenInspectorOnStartup: false,
 		},
 		// Solo aplica en Windows (WebView2). En Linux/macOS se ignora.
 		Windows: &windows.Options{
@@ -5172,6 +5275,12 @@ Workflow: `.github/workflows/build.yml`
 | 7 | `app.go` | Backup rotativo implementado en Go antes de cada escritura | Cortes de energía frecuentes — riesgo de corrupción |
 | 8 | `frontend/index.html` | Botón "Guardar BD" eliminado, `descargarBDError()` implementado (diálogo guardar copia), autosave eliminado | Escrituras directas Go, no necesitan exportación ni timer |
 | 9 | `docs/*` | Actualizados: doc.md, ai-context.md, funciones.md, decisiones.md | Reflejar arquitectura Wails |
+| 10 | `app.go` | Auditoría: `GuardarNuevoCatalogo` whitelist tabla/columna (SQL injection fix), `ObtenerCatalogos` rows.Close() por iteración (resource leak fix), queries a constantes `query*`, type assertions estrictas, `crearBackup()` con io.Copy, `SetBackupMaxCopies(n)` configurable. `AbrirDialogoBD()`/`GuardarDialogoBD()` para diálogos nativos Wails (vía `wailsRuntime.OpenFileDialog`). `queryRows` convierte `time.Time`→`"2006-01-02"` | Seguridad + SoC + portabilidad |
+| 11 | `main.go` | `EnableDefaultContextMenu: true`, `Debug.OpenInspectorOnStartup` para F12 en WebKitGTK | Debugging en Linux |
+| 12 | `frontend/index.html` | Detección `window.go.main.App` → bindings Wails (`AbrirDialogoBD`) vs fallback navegador. Fix bug `exportarCSV()` líneas duplicadas corruptas (`const` duplicado). Botón `sort-dir` toggle ASC/DESC con persistencia `localStorage`. Tooltip `title="Ordenar"` en select. Gap coherente `gap-3` global | UX + bugfix |
+| 13 | `frontend/schema-config.js` | `MODAL_HISTORIAL`/`HISTORIAL_CONTENIDO` renombrados (`historial-modal`/`historial-cuerpo`). Eliminados selectores fantasma (`SIDEBAR_TOGGLE`, `MENU_RECIENTES`, `BTN_VACUUM`). Añadido `ORDEN_DIRECCION` a `STORAGE_KEYS` | Bugfix SMOKE test |
+| 14 | `frontend/vendor/styles.css` | `color-scheme: dark` (WebKitGTK controles nativos oscuros). `select.input option` bg/color. ~20 utilidades Tailwind faltantes (`bg-gray-700/10`, `border-gray-800`, etc.) emuladas con `rgba()` — fix bordes blancos visibles | Bugfix Tailwind purgado |
+| 15 | `data/importar_datos.py` | `DROP TRIGGER trg_exp_auditoria` durante migración. Tracking por solped: `fecha_creacion=MIN(fecha_recibido)`, `fecha_actualizacion=MAX(fecha_devuelto or fecha_recibido)`. Trigger recreado al final | Fix fechas migración Excel |
 
 === decisiones.md ===
 # Architecture Decision Records (ADR)
@@ -5250,6 +5359,51 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Contexto y Causa:** En sql.js, los cambios estaban solo en RAM hasta que se exportaba la BD. En Wails, cada INSERT/UPDATE/DELETE escribe directamente al archivo .db. El autoguardado cada 30s ya no tiene sentido.
 - **Impacto:** `AUTOSAVE_ENABLED` y `AUTOSAVE_INTERVAL_MS` eliminados de `schema-config.js`.
 
+---
+
+## DEC-007: Diálogos nativos desde Go (no desde JS)
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** En Wails v2, `window.runtime.OpenFileDialog`/`SaveFileDialog` NO existen en el runtime JS. El frontend llamaba a esos métodos inexistentes, caía al catch silenciosamente, y nunca abría el explorador de archivos.
+- **Alternativas evaluadas:**
+  - Usar `<input type="file">` con fallback — descartado: no hay APIs de archivo nativo en WebKit para rutas absolutas
+  -Implementar diálogos nativos en Go — elegido: Wails expone `runtime.OpenFileDialog(ctx, opts)` en Go
+- **Impacto:**
+  - `app.go`: añadidos `AbrirDialogoBD()` y `GuardarDialogoBD(nombreDefault)` envolviendo `wailsRuntime.OpenFileDialog`/`SaveFileDialog`
+  - `frontend/index.html`: detección `window.go.main.App` → usa bindings Go; fallback a `window.runtime` en navegador
+
+---
+
+## DEC-008: DevTools habilitados en builds debug
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** Para depurar el frontend en Wails (WebKitGTK), se necesita acceso a DevTools (F12). Por defecto Wails los deshabilita en producción.
+- **Impacto:** `main.go`: `EnableDefaultContextMenu: true`, `Debug: options.Debug{OpenInspectorOnStartup: false}`. Makefile: `wails-build-linux` usa `-debug`, `wails-build-linux-prod` sin flag.
+
+---
+
+## DEC-009: Utilidades Tailwind emuladas en styles.css
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** `tailwind.min.css` es un build purgado que sólo incluye clases usadas en el HTML escaneado. Clases con opacidad (`bg-gray-700/40`, `border-gray-700/60`) y colores no escaneados (`border-gray-800`, `border-red-700`) NO existen. Resultado: bordes blancos visibles (preflight deja `border-color: #e5e7eb` por defecto).
+- **Alternativas evaluadas:**
+  - Regenerar tailwind.min.css con content scanning actualizado — descartado: requiere Node.js + configuración Tailwind
+  - Migrar a clases existentes — descartado: muchas不知/a
+  - Emular clases faltantes en styles.css — elegido: SoC, centraliza el fix
+- **Impacto:** `frontend/vendor/styles.css`: añadidas ~20 utilidades (`.bg-gray-700\/10`, `.border-gray-800`, etc.) con valores `rgba()` equivalentes.
+
+---
+
+## DEC-010: Fechas de migración Excel trackeadas por solped
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** El trigger `trg_exp_auditoria` (Tablas8.sql) fuerza `fecha_actualizacion = CURRENT_DATE` en cada UPDATE. Durante la migración, los duplicados de solped disparaban UPDATEs que sobreescribían con la fecha de hoy. Además, `fecha_creacion` era pisada con la `fecha_recibido` más nueva en lugar de la más antigua.
+- **Impacto:** `data/importar_datos.py`:
+  - `DROP TRIGGER trg_exp_auditoria` al inicio (recreado al final)
+  - Dict `solped_fechas` trackea `MIN(fecha_recibido)` y `MAX(fecha_devuelto or fecha_recibido)` por solped
+  - UPDATE final aplica esos valores
+  - `fecha_creacion` = nacimiento del expediente, `fecha_actualizacion` = último movimiento
+
 === ai-context.md ===
 # AI Context — Gestión de Expedientes (Wails)
 
@@ -5268,7 +5422,7 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App migrada de Electron/sql.js a **Wails v2**. Backend Go con 12 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, etc.) + backup rotativo antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*`. WebView2 Fixed Runtime incluido para portabilidad Windows. Rama `wails-migration`, `master` intacto con Electron/Tauri original.
+App migrada de Electron/sql.js a **Wails v2**. Backend Go con 16 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, `AbrirDialogoBD`, `GuardarDialogoBD`, `SetBackupMaxCopies`, etc.) + backup rotativo configurable antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*` con detección automática navegador vs Wails. WebView2 Fixed Runtime incluido para portabilidad Windows. DevTools habilitados vía `-debug` build flag. Diálogos nativos desde Go (DEC-007). Tailwind purgado emulado en styles.css (DEC-009). Migración Excel trackea fechas por solped (DEC-010). Rama `wails-migration`, `master` intacto con Electron/Tauri original.
 
 ## Archivos Clave
 | Archivo | Para qué |
@@ -5309,7 +5463,11 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `EliminarExpediente(id)` | `id`: int64 | DELETE en transacción (historial + expediente) |
 | `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 tablas) |
 | `OptimizarBD()` | — | Ejecuta VACUUM |
-| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo |
+| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo (whitelist tabla/columna) |
+| `AbrirDialogoBD()` | — | Abre diálogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
+| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre diálogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
+| `SetBackupMaxCopies(n)` | `n`: int | Configura número de backups rotativos (1-20) |
+| `GetBackupMaxCopies()` | — | Retorna número actual de backups |
 
 ## Data Layer — Frontend JS (llama a Go)
 
@@ -5331,7 +5489,8 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza tabla de 8 columnas + fila desplegable |
-| `cambiarOrden()` | — | Lee selector de orden, recarga datos ordenados |
+| `cambiarOrden()` | — | Lee selector de orden + dirección, recarga datos ordenados |
+| `toggleSortDir()` | — | Alterna ASC/DESC, persiste en localStorage |
 | `aplicarPaginacion()` | — | Calcula páginas, renderiza slice actual |
 | `irPagina(n)` | `n`: número de página | Cambia página, refresca tabla |
 | `renderPaginacion()` | — | Renderiza controles de paginación |

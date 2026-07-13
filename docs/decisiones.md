@@ -73,3 +73,48 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
 - **Origen:** `[Derivado de DEC-001]`
 - **Contexto y Causa:** En sql.js, los cambios estaban solo en RAM hasta que se exportaba la BD. En Wails, cada INSERT/UPDATE/DELETE escribe directamente al archivo .db. El autoguardado cada 30s ya no tiene sentido.
 - **Impacto:** `AUTOSAVE_ENABLED` y `AUTOSAVE_INTERVAL_MS` eliminados de `schema-config.js`.
+
+---
+
+## DEC-007: Diálogos nativos desde Go (no desde JS)
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** En Wails v2, `window.runtime.OpenFileDialog`/`SaveFileDialog` NO existen en el runtime JS. El frontend llamaba a esos métodos inexistentes, caía al catch silenciosamente, y nunca abría el explorador de archivos.
+- **Alternativas evaluadas:**
+  - Usar `<input type="file">` con fallback — descartado: no hay APIs de archivo nativo en WebKit para rutas absolutas
+  -Implementar diálogos nativos en Go — elegido: Wails expone `runtime.OpenFileDialog(ctx, opts)` en Go
+- **Impacto:**
+  - `app.go`: añadidos `AbrirDialogoBD()` y `GuardarDialogoBD(nombreDefault)` envolviendo `wailsRuntime.OpenFileDialog`/`SaveFileDialog`
+  - `frontend/index.html`: detección `window.go.main.App` → usa bindings Go; fallback a `window.runtime` en navegador
+
+---
+
+## DEC-008: DevTools habilitados en builds debug
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** Para depurar el frontend en Wails (WebKitGTK), se necesita acceso a DevTools (F12). Por defecto Wails los deshabilita en producción.
+- **Impacto:** `main.go`: `EnableDefaultContextMenu: true`, `Debug: options.Debug{OpenInspectorOnStartup: false}`. Makefile: `wails-build-linux` usa `-debug`, `wails-build-linux-prod` sin flag.
+
+---
+
+## DEC-009: Utilidades Tailwind emuladas en styles.css
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** `tailwind.min.css` es un build purgado que sólo incluye clases usadas en el HTML escaneado. Clases con opacidad (`bg-gray-700/40`, `border-gray-700/60`) y colores no escaneados (`border-gray-800`, `border-red-700`) NO existen. Resultado: bordes blancos visibles (preflight deja `border-color: #e5e7eb` por defecto).
+- **Alternativas evaluadas:**
+  - Regenerar tailwind.min.css con content scanning actualizado — descartado: requiere Node.js + configuración Tailwind
+  - Migrar a clases existentes — descartado: muchas不知/a
+  - Emular clases faltantes en styles.css — elegido: SoC, centraliza el fix
+- **Impacto:** `frontend/vendor/styles.css`: añadidas ~20 utilidades (`.bg-gray-700\/10`, `.border-gray-800`, etc.) con valores `rgba()` equivalentes.
+
+---
+
+## DEC-010: Fechas de migración Excel trackeadas por solped
+
+- **Origen:** `[Bug reportado por usuario]`
+- **Contexto y Causa:** El trigger `trg_exp_auditoria` (Tablas8.sql) fuerza `fecha_actualizacion = CURRENT_DATE` en cada UPDATE. Durante la migración, los duplicados de solped disparaban UPDATEs que sobreescribían con la fecha de hoy. Además, `fecha_creacion` era pisada con la `fecha_recibido` más nueva en lugar de la más antigua.
+- **Impacto:** `data/importar_datos.py`:
+  - `DROP TRIGGER trg_exp_auditoria` al inicio (recreado al final)
+  - Dict `solped_fechas` trackea `MIN(fecha_recibido)` y `MAX(fecha_devuelto or fecha_recibido)` por solped
+  - UPDATE final aplica esos valores
+  - `fecha_creacion` = nacimiento del expediente, `fecha_actualizacion` = último movimiento

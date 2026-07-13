@@ -19,7 +19,11 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `EliminarExpediente(id)` | `id`: int64 | DELETE en transacción (historial + expediente) |
 | `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 tablas) |
 | `OptimizarBD()` | — | Ejecuta VACUUM |
-| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo |
+| `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catálogo (whitelist tabla/columna) |
+| `AbrirDialogoBD()` | — | Abre diálogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
+| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre diálogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
+| `SetBackupMaxCopies(n)` | `n`: int | Configura número de backups rotativos (1-20) |
+| `GetBackupMaxCopies()` | — | Retorna número actual de backups |
 
 ## Data Layer — Frontend JS (llama a Go)
 
@@ -41,7 +45,8 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | Función | Parámetros | Descripción |
 |---------|-----------|-------------|
 | `renderizarTabla(lista)` | `lista[]`: array de objetos expediente | Renderiza tabla de 8 columnas + fila desplegable |
-| `cambiarOrden()` | — | Lee selector de orden, recarga datos ordenados |
+| `cambiarOrden()` | — | Lee selector de orden + dirección, recarga datos ordenados |
+| `toggleSortDir()` | — | Alterna ASC/DESC, persiste en localStorage |
 | `aplicarPaginacion()` | — | Calcula páginas, renderiza slice actual |
 | `irPagina(n)` | `n`: número de página | Cambia página, refresca tabla |
 | `renderPaginacion()` | — | Renderiza controles de paginación |

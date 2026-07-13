@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --bg-body: #111827;
   --bg-card: rgba(17, 24, 39, 0.4);
   --bg-input: #1f2937;
@@ -113,6 +114,10 @@
 
 select.input {
   appearance: auto;
+}
+select.input option {
+  background: var(--bg-input);
+  color: var(--text-body);
 }
 
 .card {
@@ -517,3 +522,27 @@ select.input {
     grid-template-columns: 1fr 1fr;
   }
 }
+
+/* === Utilidades Tailwind faltantes (tailwind.min.css purgado no las incluye) ===
+   Clases con opacidad /NN y border-gray-800, border-red-700 que el purge eliminó.
+   Valores: gray-700=#374151, gray-800=#1f2937, gray-900=#111827,
+            red-700=#b91c1c, red-900=#7f1d1d */
+.bg-gray-700\/10 { background-color: rgba(55, 65, 81, 0.10); }
+.bg-gray-700\/20 { background-color: rgba(55, 65, 81, 0.20); }
+.bg-gray-700\/40 { background-color: rgba(55, 65, 81, 0.40); }
+.bg-gray-700\/60 { background-color: rgba(55, 65, 81, 0.60); }
+.bg-gray-700\/80 { background-color: rgba(55, 65, 81, 0.80); }
+.bg-gray-800\/40 { background-color: rgba(31, 41, 55, 0.40); }
+.bg-gray-800\/60 { background-color: rgba(31, 41, 55, 0.60); }
+.bg-gray-800\/80 { background-color: rgba(31, 41, 55, 0.80); }
+.bg-gray-900\/30 { background-color: rgba(17, 24, 39, 0.30); }
+.bg-gray-900\/40 { background-color: rgba(17, 24, 39, 0.40); }
+.bg-gray-900\/60 { background-color: rgba(17, 24, 39, 0.60); }
+.bg-red-900\/40 { background-color: rgba(127, 29, 29, 0.40); }
+
+.border-gray-700\/40 { border-color: rgba(55, 65, 81, 0.40); }
+.border-gray-700\/50 { border-color: rgba(55, 65, 81, 0.50); }
+.border-gray-700\/60 { border-color: rgba(55, 65, 81, 0.60); }
+.border-gray-800 { border-color: #1f2937; }
+.border-red-700 { border-color: #b91c1c; }
+.border-red-700\/60 { border-color: rgba(185, 28, 28, 0.60); }

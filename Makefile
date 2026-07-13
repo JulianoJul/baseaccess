@@ -63,6 +63,9 @@ wails-install:
 	go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 wails-build-linux:
+	wails build -platform linux/amd64 -tags webkit2_41 -debug
+
+wails-build-linux-prod:
 	wails build -platform linux/amd64 -tags webkit2_41
 
 wails-build-win:

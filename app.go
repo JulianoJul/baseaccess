@@ -11,8 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
+	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 const DefaultBackupMaxCopies = 2
@@ -93,6 +95,25 @@ func (a *App) SetBackupMaxCopies(n int) {
 }
 
 func (a *App) GetBackupMaxCopies() int { return backupMaxCopies }
+
+func (a *App) AbrirDialogoBD() (string, error) {
+	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
+		Title: "Seleccionar base de datos",
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
+		},
+	})
+}
+
+func (a *App) GuardarDialogoBD(nombreDefault string) (string, error) {
+	return wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
+		Title:           "Guardar copia de base de datos",
+		DefaultFilename: nombreDefault,
+		Filters: []wailsRuntime.FileFilter{
+			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
+		},
+	})
+}
 
 func (a *App) AbrirBaseDatos(filePath string) error {
 	a.mu.Lock()
@@ -218,9 +239,16 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 		row := make(Row)
 		for i, col := range cols {
 			val := values[i]
-			if b, ok := val.([]byte); ok {
-				row[col] = string(b)
-			} else {
+			switch v := val.(type) {
+			case []byte:
+				row[col] = string(v)
+			case time.Time:
+				if v.IsZero() {
+					row[col] = ""
+				} else {
+					row[col] = v.Format("2006-01-02")
+				}
+			default:
 				row[col] = val
 			}
 		}

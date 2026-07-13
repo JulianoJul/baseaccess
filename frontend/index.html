@@ -131,12 +131,14 @@
                 <!-- Buscador (sticky) -->
                 <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-1 text-xs shrink-0">
-                            <span class="text-gray-400 hidden sm:inline">Ordenar:</span>
-                            <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" disabled>
-                                <option value="fecha_creacion DESC">Creación</option>
-                                <option value="fecha_actualizacion DESC">Modificación</option>
+                        <div class="flex items-center gap-3 text-xs shrink-0">
+                            <select id="sort-order" class="input text-xs" style="width: auto; padding: 0.15rem 0.4rem;" onchange="cambiarOrden()" title="Ordenar" disabled>
+                                <option value="fecha_creacion">Creación</option>
+                                <option value="fecha_actualizacion">Modificación</option>
                             </select>
+                            <button id="sort-dir" onclick="toggleSortDir()" class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600" title="Cambiar dirección (Descendente)" disabled>
+                                <i class="fas fa-arrow-down-wide-short"></i>
+                            </button>
                         </div>
                         <i class="fas fa-search text-teal-400 text-sm"></i>
                         <input type="text" id="search" placeholder="Filtrar al instante por SOLPED, Proceso, Gerencia, Contrato o Empresa..." class="input input-lg flex-1" disabled>
@@ -399,7 +401,7 @@
                 <input type="hidden" id="ac-catalog-key">
                 <input type="hidden" id="ac-tabla">
                 <div class="mb-3">
-                    <label class="label">Nombre</label>
+                    <label class="label" id="ac-campo-label">Nombre</label>
                     <input type="text" id="ac-nombre" class="input" placeholder="Ingrese el nombre">
                 </div>
                 <div id="ac-extra-fields" class="mb-3 hidden">
@@ -746,8 +748,11 @@
             dbFilePath = filePath;
             $(SELECTORS.SEARCH).disabled = false;
             $(SELECTORS.SORT_ORDER).disabled = false;
+            $('sort-dir').disabled = false;
             const ordenGuardado = localStorage.getItem(STORAGE_KEYS.ORDEN_PREFERIDO);
             if (ordenGuardado) $(SELECTORS.SORT_ORDER).value = ordenGuardado;
+            const dirGuardada = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+            actualizarIconoSortDir(dirGuardada);
             $('btn-nuevo').disabled = false;
             $('btn-ruta').disabled = false;
             $('btn-pendientes').disabled = false;
@@ -851,14 +856,23 @@
         });
 
         async function abrirBaseDatos() {
+            const usarWails = !!(window.go && window.go.main && window.go.main.App);
+            DEBUG.log('[abrirBaseDatos] backend:', usarWails ? 'wails' : 'navegador');
             try {
-                const result = await window.runtime.OpenFileDialog({
-                    Title: 'Seleccionar base de datos',
-                    Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
-                });
+                let result;
+                if (usarWails) {
+                    result = await window.go.main.App.AbrirDialogoBD();
+                } else {
+                    result = await window.runtime.OpenFileDialog({
+                        Title: 'Seleccionar base de datos',
+                        Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
                 if (!result) return;
+                DEBUG.log('[abrirBaseDatos] ruta seleccionada:', result);
                 await _cargarBaseDatosComun(result);
             } catch (err) {
+                DEBUG.error('[abrirBaseDatos] error:', err);
                 $('dbfile').click();
             }
         }
@@ -879,16 +893,25 @@
 
         async function descargarBDError() {
             $(SELECTORS.MODAL_ERROR)?.classList.add('hidden');
+            const usarWails = !!(window.go && window.go.main && window.go.main.App);
+            DEBUG.log('[descargarBDError] backend:', usarWails ? 'wails' : 'navegador');
             try {
-                const result = await window.runtime.SaveFileDialog({
-                    defaultFilename: 'backup-expedientes.db',
-                    filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
-                });
+                let result;
+                if (usarWails) {
+                    result = await window.go.main.App.GuardarDialogoBD('backup-expedientes.db');
+                } else {
+                    result = await window.runtime.SaveFileDialog({
+                        defaultFilename: 'backup-expedientes.db',
+                        filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
                 if (result) {
+                    DEBUG.log('[descargarBDError] destino:', result);
                     await window.go.main.App.DescargarBD(result);
                     toast('Copia de BD guardada en: ' + result, 'success');
                 }
             } catch (err) {
+                DEBUG.error('[descargarBDError] error:', err);
                 toast('Error al guardar copia: ' + err, 'error');
             }
         }
@@ -906,8 +929,6 @@
             try {
                 const data = await window.go.main.App.ObtenerExpedientes('id_expediente DESC');
                 if (!data || !data.length) { toast('No hay datos para exportar.', 'warning'); return; }
-                const headers = Object.keys(data[0]);
-                const csv = headers.join(',') + '\n' + data.map(row =>
                 const headers = Object.keys(data[0]);
                 const csv = headers.join(',') + '\n' + data.map(row =>
                     headers.map(h => {
@@ -1097,13 +1118,36 @@
         // CARGA Y RENDERIZADO DE TABLA
         // ================================================================
         async function cargarDatos() {
-            const ORDENES_VALIDOS = ['id_expediente DESC', 'fecha_creacion DESC', 'fecha_actualizacion DESC'];
-            let orden = $(SELECTORS.SORT_ORDER)?.value || 'id_expediente DESC';
-            if (!ORDENES_VALIDOS.includes(orden)) orden = 'id_expediente DESC';
-            expedientesCache = await obtenerExpedientes(orden);
+            const ORDENES_VALIDOS = ['fecha_creacion', 'fecha_actualizacion'];
+            const col = $(SELECTORS.SORT_ORDER)?.value || 'fecha_creacion';
+            if (!ORDENES_VALIDOS.includes(col)) { expedientesCache = await obtenerExpedientes('id_expediente DESC'); }
+            else {
+                const dir = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+                expedientesCache = await obtenerExpedientes(`${col} ${dir === 'ASC' ? 'ASC' : 'DESC'}`);
+            }
             filteredData = [...expedientesCache];
             currentPage = 1;
             aplicarPaginacion();
+        }
+        function toggleSortDir() {
+            const btn = $('sort-dir');
+            if (!btn) return;
+            const actual = (localStorage.getItem(STORAGE_KEYS.ORDEN_DIRECCION) || 'DESC').toUpperCase();
+            const nuevo = actual === 'ASC' ? 'DESC' : 'ASC';
+            localStorage.setItem(STORAGE_KEYS.ORDEN_DIRECCION, nuevo);
+            actualizarIconoSortDir(nuevo);
+            cambiarOrden();
+        }
+        function actualizarIconoSortDir(dir) {
+            const btn = $('sort-dir');
+            if (!btn) return;
+            if (dir.toUpperCase() === 'ASC') {
+                btn.innerHTML = '<i class="fas fa-arrow-up-wide-short"></i>';
+                btn.title = 'Cambiar dirección (Ascendente)';
+            } else {
+                btn.innerHTML = '<i class="fas fa-arrow-down-wide-short"></i>';
+                btn.title = 'Cambiar dirección (Descendente)';
+            }
         }
         async function cambiarOrden() {
             localStorage.setItem(STORAGE_KEYS.ORDEN_PREFERIDO, $(SELECTORS.SORT_ORDER).value);

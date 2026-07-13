@@ -15,7 +15,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App migrada de Electron/sql.js a **Wails v2**. Backend Go con 12 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, etc.) + backup rotativo antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*`. WebView2 Fixed Runtime incluido para portabilidad Windows. Rama `wails-migration`, `master` intacto con Electron/Tauri original.
+App migrada de Electron/sql.js a **Wails v2**. Backend Go con 16 métodos exportados (`App.AbrirBaseDatos`, `ObtenerExpedientes`, `GuardarExpediente`, `AbrirDialogoBD`, `GuardarDialogoBD`, `SetBackupMaxCopies`, etc.) + backup rotativo configurable antes de cada escritura. Frontend 100% adaptado a bindings `window.go.main.App.*` con detección automática navegador vs Wails. WebView2 Fixed Runtime incluido para portabilidad Windows. DevTools habilitados vía `-debug` build flag. Diálogos nativos desde Go (DEC-007). Tailwind purgado emulado en styles.css (DEC-009). Migración Excel trackea fechas por solped (DEC-010). Rama `wails-migration`, `master` intacto con Electron/Tauri original.
 
 ## Archivos Clave
 | Archivo | Para qué |

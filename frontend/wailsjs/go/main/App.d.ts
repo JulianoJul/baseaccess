@@ -4,6 +4,8 @@ import {main} from '../models';
 
 export function AbrirBaseDatos(arg1:string):Promise<void>;
 
+export function AbrirDialogoBD():Promise<string>;
+
 export function CerrarBaseDatos():Promise<void>;
 
 export function DescargarBD(arg1:string):Promise<void>;
@@ -11,6 +13,8 @@ export function DescargarBD(arg1:string):Promise<void>;
 export function EliminarExpediente(arg1:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
+
+export function GuardarDialogoBD(arg1:string):Promise<string>;
 
 export function GuardarExpediente(arg1:Record<string, any>):Promise<number>;
 

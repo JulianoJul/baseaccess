@@ -80,6 +80,11 @@ def main():
     with open(SCHEMA) as f:
         cur.executescript(f.read())
 
+    # Desactivar el trigger de auditoría durante la migración para que
+    # no sobreescriba fecha_actualizacion con CURRENT_DATE en los UPDATE
+    # (queremos que fecha_actualizacion refleje el último movimiento del historial)
+    cur.execute("DROP TRIGGER trg_exp_auditoria")
+
     with open(DATA) as f:
         data_sql = f.read()
 
@@ -102,7 +107,10 @@ def main():
             all_rows.append(row)
 
     # Leer observaciones y notas del Excel (Col 20 = OBSERVACIONES HISTORIAL, Col 34 = OBSERVACIONES)
-    # fecha_creacion = fecha_recibido (Col 22), fecha_actualizacion = fecha_devuelto (Col 23)
+    # Trackear por solped:
+    #   fecha_creacion = MIN(fecha_recibido)  — cuando nace el expediente
+    #   fecha_actualizacion = MAX(fecha_devuelto, fecha_recibido)  — último movimiento
+    solped_fechas = {}  # solped -> [min_recibido, max_actualizacion]
     if os.path.exists(EXCEL):
         import openpyxl
         import datetime
@@ -110,14 +118,11 @@ def main():
         ws = wb.active
         obs_col = COLUMNS.index('observaciones')
         notas_col = COLUMNS.index('notas')
-        creacion_col = COLUMNS.index('fecha_creacion')
-        actualizacion_col = COLUMNS.index('fecha_actualizacion')
 
         def to_date_str(val):
             if isinstance(val, (datetime.datetime, datetime.date)):
                 return val.strftime('%Y-%m-%d')
             s = str(val).strip() if val else ''
-            # Intentar parsear DD/MM/YYYY
             import re
             m = re.match(r'(\d{2})/(\d{2})/(\d{4})', s)
             if m:
@@ -132,10 +137,19 @@ def main():
             notas = str(ws.cell(i + 2, 34).value or '').strip()
             if notas:
                 row[notas_col] = notas
-            fecha_rec = ws.cell(i + 2, 22).value
-            fecha_dev = ws.cell(i + 2, 23).value
-            row[creacion_col] = to_date_str(fecha_rec)
-            row[actualizacion_col] = to_date_str(fecha_dev) or to_date_str(fecha_rec)
+            fecha_rec = to_date_str(ws.cell(i + 2, 22).value)
+            fecha_dev = to_date_str(ws.cell(i + 2, 23).value)
+            # fecha_actualizacion candidata = la más nueva entre recibido y devuelto de esta fila
+            cand_actualizacion = fecha_dev or fecha_rec
+            solped_key = (row[0] or '').strip() if row[0] else ''
+            prev = solped_fechas.get(solped_key)
+            if prev is None:
+                solped_fechas[solped_key] = [fecha_rec, cand_actualizacion]
+            else:
+                if fecha_rec and (prev[0] is None or fecha_rec < prev[0]):
+                    prev[0] = fecha_rec
+                if cand_actualizacion and (prev[1] is None or cand_actualizacion > prev[1]):
+                    prev[1] = cand_actualizacion
 
     insert_cols = ', '.join(COLUMNS)
     placeholders = ', '.join(['?' for _ in COLUMNS])
@@ -194,6 +208,76 @@ def main():
                         raise
                     update_count += 1
 
+    con.commit()
+
+    # Setear fecha_creacion y fecha_actualizacion según el tracking por solped:
+    #   fecha_creacion = MIN(fecha_recibido) — nacimiento del expediente
+    #   fecha_actualizacion = MAX(fecha_devuelto, fecha_recibido) — último movimiento
+    for solped_key, (min_rec, max_act) in solped_fechas.items():
+        if not min_rec and not max_act:
+            continue
+        if solped_key:
+            cur.execute(
+                "UPDATE expedientes SET fecha_creacion = ?, fecha_actualizacion = ? WHERE solped = ?",
+                (min_rec, max_act, solped_key)
+            )
+        else:
+            cur.execute(
+                "UPDATE expedientes SET fecha_creacion = ?, fecha_actualizacion = ? WHERE (solped IS NULL OR solped = '')",
+                (min_rec, max_act)
+            )
+    upd_count = cur.rowcount
+    con.commit()
+    print(f"fecha_actualizacion recalculada para {upd_count} expedientes (último movimiento del historial)")
+
+    # Recrear el trigger de auditoría eliminado al inicio
+    cur.executescript("""
+        CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
+        FOR EACH ROW
+        BEGIN
+            INSERT INTO historial_movimientos (
+                id_expediente, solped, id_gerencia, id_superintendencia,
+                id_emisor, id_receptor, id_documento, id_plan,
+                id_modalidad, id_art, id_tipo_contrato, id_estatus,
+                id_resultado, id_empresa,
+                fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
+                fecha_firma_contrato,
+                nro_proceso, nro_acta_apertura, nro_resolucion_jd,
+                nro_contrato_sicac, nro_contrato_sap,
+                descripcion_proceso,
+                presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
+                monto_adjudicado_usd, monto_adjudicado_bs,
+                tiempo_ejecucion, cantidad_frentes,
+                observaciones, notas
+            ) VALUES (
+                NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
+                NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
+                NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+                NEW.id_resultado, NEW.id_empresa,
+                NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
+                NEW.fecha_firma_contrato,
+                NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
+                NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
+                NEW.descripcion_proceso,
+                NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
+                NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
+                NEW.tiempo_ejecucion, NEW.cantidad_frentes,
+                NEW.observaciones, NEW.notas
+            );
+            UPDATE expedientes
+            SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
+            WHERE NEW.fecha_firma_contrato IS NULL
+              AND OLD.fecha_firma_contrato IS NOT NULL
+              AND id_expediente = NEW.id_expediente;
+            UPDATE expedientes
+            SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
+            WHERE NEW.fecha_firma_contrato IS NOT NULL
+              AND id_expediente = NEW.id_expediente;
+            UPDATE expedientes
+            SET fecha_actualizacion = CURRENT_DATE
+            WHERE id_expediente = NEW.id_expediente;
+        END;
+    """)
     con.commit()
 
     hist_count = cur.execute("SELECT COUNT(*) FROM historial_movimientos").fetchone()[0]

@@ -3,6 +3,9 @@ dist/
 *.tgz
 data/*.db
 data/*.sqlite
+data/*.db-shm
+data/*.db-wal
+data/*.bak.*
 src-tauri/target/
 src-tauri/gen/
 data/datos_excel.sql
