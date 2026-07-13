@@ -68,7 +68,7 @@ END;
 CREATE TRIGGER trg_req_mat_auditoria AFTER UPDATE ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
-    VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.documento, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
+    VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
     UPDATE req_materiales SET fecha_actualizacion = CURRENT_DATE WHERE id_requisicion = NEW.id_requisicion;
 END;
 
