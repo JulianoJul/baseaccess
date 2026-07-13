@@ -7,19 +7,19 @@ SCHEMA ?= data/sql/Tablas8.sql
 
 combine:
 	{ \
-	  echo "=== index.html ===" && cat src/index.html && \
-	  echo "" && echo "=== schema-config.js ===" && cat src/schema-config.js && \
+	  echo "=== index.html ===" && cat frontend/index.html && \
+	  echo "" && echo "=== schema-config.js ===" && cat frontend/schema-config.js && \
+	  echo "" && echo "=== ruta-procesos-data.js ===" && cat frontend/ruta-procesos-data.js && \
+	  echo "" && echo "=== styles.css ===" && cat frontend/vendor/styles.css && \
+	  echo "" && echo "=== app.go ===" && cat app.go && \
+	  echo "" && echo "=== main.go ===" && cat main.go && \
 	  echo "" && echo "=== Tablas8.sql ===" && cat $(SCHEMA) && \
-	  echo "" && echo "=== main.js ===" && cat main.js && \
-	  echo "" && echo "=== preload.js ===" && cat src/preload.js && \
-	  echo "" && echo "=== tauri-preload.js ===" && cat src/tauri-preload.js && \
-	  echo "" && echo "=== lib.rs ===" && cat src-tauri/src/lib.rs && \
-	  echo "" && echo "=== package.json ===" && cat package.json && \
+	  echo "" && echo "=== wails.json ===" && cat wails.json && \
+	  echo "" && echo "=== go.mod ===" && cat go.mod && \
 	  echo "" && echo "=== doc.md ===" && cat docs/doc.md && \
 	  echo "" && echo "=== decisiones.md ===" && cat docs/decisiones.md && \
 	  echo "" && echo "=== ai-context.md ===" && cat docs/ai-context.md && \
-	  echo "" && echo "=== funciones.md ===" && cat docs/funciones.md && \
-	  echo "" && echo "=== .clinerules ===" && cat .clinerules; \
+	  echo "" && echo "=== funciones.md ===" && cat docs/funciones.md; \
 	} > combined.txt
 	@echo "combined.txt generado (schema: $(SCHEMA))"
 
@@ -27,7 +27,7 @@ clean:
 	rm -f combined.txt
 
 serve:
-	@echo "Abriendo http://localhost:8000/src/index.html"
+	@echo "Abriendo http://localhost:8000/frontend/index.html"
 	@lsof -ti:8000 | xargs kill -9 2>/dev/null; sleep 0.5
 	python3 -m http.server 8000 --directory .
 
@@ -63,7 +63,7 @@ wails-install:
 	go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
 wails-build-linux:
-	wails build -platform linux/amd64
+	wails build -platform linux/amd64 -tags webkit2_41
 
 wails-build-win:
 	wails build -platform windows/amd64 -webview2 embed

@@ -28,6 +28,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
+		// Solo aplica en Windows (WebView2). En Linux/macOS se ignora.
 		Windows: &windows.Options{
 			WebviewBrowserPath: WebView2RuntimeDir,
 		},
