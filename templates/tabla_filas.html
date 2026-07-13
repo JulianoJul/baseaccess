@@ -22,7 +22,7 @@
         <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $exp "documento"}}">{{default (rowGetStr $exp "documento") "N/A"}}</td>
         <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $exp "descripcion_proceso"}}">{{rowGetStr $exp "descripcion_proceso"}}</td>
         <td class="p-3 truncate" title="{{rowGetStr $exp "estatus_detalle"}}">
-            <span class="px-2 py-1 rounded text-xs {{estatusClass (rowGetStr $exp "estatus_detalle")}}">{{default (rowGetStr $exp "estatus_detalle") "PENDIENTE"}}</span>
+            <span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $exp "estatus_detalle")}}">{{default (rowGetStr $exp "estatus_detalle") "PENDIENTE"}}</span>
         </td>
         <td class="p-3 text-gray-300 font-mono text-xs truncate" title="{{rowGetStr $exp "nro_proceso"}}">{{default (rowGetStr $exp "nro_proceso") "N/A"}}</td>
     </tr>
