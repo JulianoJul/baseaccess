@@ -73,6 +73,9 @@
                 <button onclick="exportarCSV()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar-csv">
                     <i class="fas fa-file-csv mr-1"></i> CSV
                 </button>
+                <button onclick="abrirRecientes()" class="btn btn-primary" id="btn-recientes">
+                    <i class="fas fa-history mr-1"></i> Recientes
+                </button>
                 <span id="estado-bd" class="text-xs text-gray-500 italic">
                     {{if .HasDB}}<i class="fas fa-check"></i> {{.DBPath}}{{end}}
                 </span>
@@ -90,7 +93,6 @@
                                 hx-include="#search, #sort-dir-val"
                                 hx-trigger="change"
                                 title="Ordenar" {{if not .HasDB}}disabled{{end}}>
-                            <option value="id_expediente" {{if isSelected .SortColumn "id_expediente"}}selected{{end}}>ID Expediente</option>
                             <option value="fecha_creacion" {{if isSelected .SortColumn "fecha_creacion"}}selected{{end}}>Creación</option>
                             <option value="fecha_actualizacion" {{if isSelected .SortColumn "fecha_actualizacion"}}selected{{end}}>Modificación</option>
                         </select>
@@ -189,6 +191,17 @@
                 <button onclick="cerrarPendientes()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal-body overflow-y-auto max-h-[75vh]" id="pendientes-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Modal BD Recientes -->
+    <div id="modal-recientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+        <div class="relative modal-content w-full max-w-4xl my-8">
+            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+                <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
+                <button onclick="cerrarRecientes()" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body overflow-y-auto max-h-[75vh] p-4" id="recientes-contenido"></div>
         </div>
     </div>
 
@@ -322,6 +335,98 @@
         function cerrarHistorial() { $('historial-modal').classList.add('hidden'); document.body.style.overflow = ''; }
         function cerrarRuta() { $('modal-ruta').classList.add('hidden'); document.body.style.overflow = ''; }
         function cerrarPendientes() { $('modal-pendientes').classList.add('hidden'); document.body.style.overflow = ''; }
+
+        // --- BD Recientes ---
+        function registrarReciente(nombre, path) {
+            if (!nombre || !path) return;
+            let recientes = [];
+            try {
+                recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]');
+            } catch(e) { recientes = []; }
+            const idx = recientes.findIndex(r => r.path === path);
+            if (idx !== -1) recientes.splice(idx, 1);
+            recientes.unshift({ nombre, path, timestamp: Date.now() });
+            if (recientes.length > 5) recientes = recientes.slice(0, 5);
+            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+        }
+
+        function eliminarReciente(path) {
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            recientes = recientes.filter(r => r.path !== path);
+            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+            abrirRecientes();
+        }
+
+        function eliminarRecienteIndex(index) {
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            if (index >= 0 && index < recientes.length) {
+                recientes.splice(index, 1);
+            }
+            localStorage.setItem('baseaccess_recientes', JSON.stringify(recientes));
+            abrirRecientes();
+        }
+
+        async function abrirBaseDatosReciente(path) {
+            if (!path) return;
+            try {
+                const res = await fetch('/api/abrir-bd', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'path=' + encodeURIComponent(path)
+                });
+                if (res.ok) {
+                    location.reload();
+                } else {
+                    const err = await res.text();
+                    alert("No se pudo reabrir la base de datos: " + err);
+                    eliminarReciente(path);
+                }
+            } catch (err) {
+                alert("Error al abrir base de datos: " + err);
+                eliminarReciente(path);
+            }
+            cerrarRecientes();
+        }
+
+        function abrirRecientes() {
+            const modal = $('modal-recientes');
+            const cont = $('recientes-contenido');
+            if (!modal || !cont) return;
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            let recientes = [];
+            try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
+            if (recientes.length === 0) {
+                cont.innerHTML = '<p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>';
+            } else {
+                cont.innerHTML = '<div class="flex flex-col gap-2">' + recientes.map((r, i) => `
+                    <div class="reciente-item flex items-center gap-2 px-4 py-3 cursor-pointer rounded-lg bg-gray-900/60 border border-gray-700/60 hover:border-teal-500/60 transition-all"
+                         onclick="abrirBaseDatosReciente('${r.path.replace(/'/g, "\\'")}')">
+                        <div class="min-w-0 flex-1">
+                            <div class="text-sm text-gray-200 truncate font-semibold">${r.nombre}</div>
+                            <div class="text-xs text-gray-500 truncate">${r.path}</div>
+                        </div>
+                        <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-xs text-gray-400 hover:text-red-400 shrink-0 p-1" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                    </div>
+                `).join('') + '</div>';
+            }
+        }
+
+        function cerrarRecientes() {
+            $('modal-recientes')?.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        // Auto-registro en carga de página
+        (function() {
+            if (window.PAGE_DATA && window.PAGE_DATA.hasDB && window.PAGE_DATA.dbPath) {
+                const path = window.PAGE_DATA.dbPath;
+                const nombre = path.split('/').pop().split('\\').pop() || path;
+                registrarReciente(nombre, path);
+            }
+        })();
 
         function toggleSortDir() {
             const valEl = $('sort-dir-val');

@@ -227,7 +227,7 @@ func (h *TemplateHandler) preparePageData() *PageData {
 		Title:       "Gestión de Expedientes con Historial",
 		PageSize:    10,
 		CurrentPage: 1,
-		SortColumn:  "id_expediente",
+		SortColumn:  "fecha_creacion",
 		SortDir:     "DESC",
 	}
 
@@ -245,7 +245,7 @@ func (h *TemplateHandler) preparePageData() *PageData {
 	}
 	data.Catalogs = catalogs
 
-	expedientes, err := h.app.ObtenerExpedientes("id_expediente DESC")
+	expedientes, err := h.app.ObtenerExpedientes("fecha_creacion DESC")
 	if err != nil {
 		log.Printf("preparePageData: error expedientes: %v", err)
 	}
@@ -419,7 +419,7 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	dir := r.URL.Query().Get("dir")
 
 	if sortCol == "" {
-		sortCol = "id_expediente"
+		sortCol = "fecha_creacion"
 	}
 	if dir == "" {
 		dir = "DESC"
@@ -427,12 +427,11 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 
 	// Validar columnas y dirección para evitar SQL injection
 	validCols := map[string]bool{
-		"id_expediente":       true,
 		"fecha_creacion":      true,
 		"fecha_actualizacion": true,
 	}
 	if !validCols[sortCol] {
-		sortCol = "id_expediente"
+		sortCol = "fecha_creacion"
 	}
 	if dir != "ASC" && dir != "DESC" {
 		dir = "DESC"
