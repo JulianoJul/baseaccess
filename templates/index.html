@@ -448,32 +448,37 @@
 
         function cerrarFormulario() { cerrarModal('form-modal'); }
 
-        // --- Superintendencias (rebuild, no display:none — WebKit no lo soporta en option) ---
+        // --- Superintendencias (cachea todas las opciones para filtrar siempre desde el set completo) ---
+        var _superCache = null;
         function cargarSuperintendencias() {
             const gerId = $('f-id_gerencia')?.value;
             const sel = $('f-id_superintendencia');
             if (!sel) return;
             var curVal = sel.value;
-            var opts = [];
-            sel.querySelectorAll('option').forEach(function(o) {
-                if (!o.value) return;
-                var dg = o.getAttribute('data-id-gerencia') || '';
-                if (!gerId || dg === gerId) opts.push({ v: o.value, t: o.textContent, g: dg });
-            });
+            if (_superCache === null) {
+                _superCache = [];
+                sel.querySelectorAll('option').forEach(function(o) {
+                    if (!o.value) return;
+                    _superCache.push({ v: o.value, t: o.textContent, g: o.getAttribute('data-id-gerencia') || '' });
+                });
+            }
             var frag = document.createDocumentFragment();
             var empty = document.createElement('option'); empty.value = '';
             frag.appendChild(empty);
             var found = false;
-            opts.forEach(function(o) {
-                var el = document.createElement('option');
-                el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
-                if (o.v === curVal) found = true;
-                frag.appendChild(el);
+            _superCache.forEach(function(o) {
+                if (!gerId || o.g === gerId) {
+                    var el = document.createElement('option');
+                    el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
+                    if (o.v === curVal) found = true;
+                    frag.appendChild(el);
+                }
             });
             sel.replaceChildren(frag);
             if (found) sel.value = curVal;
         }
         document.body.addEventListener('htmx:afterSettle', function() {
+            _superCache = null;
             if ($('form-modal') && !$('form-modal').classList.contains('hidden')) {
                 cargarSuperintendencias();
             }
@@ -857,29 +862,34 @@
                     }
                 }
             });
+            _expSuperCache = null;
             filtrarSuperintendenciasExportar();
         }
         
+        var _expSuperCache = null;
         function filtrarSuperintendenciasExportar() {
             const gerId = $('exp-filt-id_gerencia')?.value;
             const sel = $('exp-filt-id_superintendencia');
             if (!sel) return;
             var curVal = sel.value;
-            var opts = [];
-            sel.querySelectorAll('option').forEach(function(o) {
-                if (!o.value) return;
-                var dg = o.getAttribute('data-id-gerencia') || '';
-                if (!gerId || dg === gerId) opts.push({ v: o.value, t: o.textContent, g: dg });
-            });
+            if (_expSuperCache === null) {
+                _expSuperCache = [];
+                sel.querySelectorAll('option').forEach(function(o) {
+                    if (!o.value) return;
+                    _expSuperCache.push({ v: o.value, t: o.textContent, g: o.getAttribute('data-id-gerencia') || '' });
+                });
+            }
             var frag = document.createDocumentFragment();
             var empty = document.createElement('option'); empty.value = '';
             frag.appendChild(empty);
             var found = false;
-            opts.forEach(function(o) {
-                var el = document.createElement('option');
-                el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
-                if (o.v === curVal) found = true;
-                frag.appendChild(el);
+            _expSuperCache.forEach(function(o) {
+                if (!gerId || o.g === gerId) {
+                    var el = document.createElement('option');
+                    el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
+                    if (o.v === curVal) found = true;
+                    frag.appendChild(el);
+                }
             });
             sel.replaceChildren(frag);
             if (found) sel.value = curVal;
