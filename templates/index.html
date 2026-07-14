@@ -35,8 +35,6 @@
         #app-root { display: flex; flex-direction: column; min-height: 100vh; }
         #vista-tabla { flex: 1; }
         #modulo-botones { position: sticky; bottom: 0; background: rgb(17, 24, 39); padding: 1rem 1rem 1.5rem; z-index: 10; }
-
-        .num-formatted { color: rgba(243, 244, 246, 0.4); }
     </style>
     <script src="vendor/htmx.min.js"></script>
     <script src="ruta-procesos-data.js"></script>
@@ -1019,11 +1017,10 @@
         }
         function _fmtNum(input) {
             var raw = _rawNum(input);
-            if (!raw || isNaN(parseFloat(raw))) { input.classList.remove('num-formatted'); return; }
+            if (!raw || isNaN(parseFloat(raw))) return;
             var n = parseFloat(raw);
             input.dataset.raw = n.toFixed(2);
             input.value = n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            input.classList.add('num-formatted');
         }
         function _initNumInput(input) {
             if (input.dataset.numInited) return;
@@ -1037,9 +1034,8 @@
                 this.dataset.raw = v;
             });
             input.addEventListener('focus', function() {
-                if (this.classList.contains('num-formatted') && this.dataset.raw !== undefined) {
+                if (this.dataset.raw !== undefined) {
                     this.value = this.dataset.raw;
-                    this.classList.remove('num-formatted');
                 }
             });
             input.addEventListener('blur', function() { _fmtNum(this); });
