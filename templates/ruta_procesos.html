@@ -1,27 +1,27 @@
-<div id="gantt-chart-container">
-    <div class="mb-4 bg-gray-900/30 border border-gray-800 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-            <h3 class="text-xs font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
-                <i class="fas fa-cog"></i> Gestion de Procesos
+<div id="gantt-chart-container" class="space-y-6">
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="legend legend-teal flex items-center gap-1.5">
+                <i class="fas fa-cog"></i> Gestión de Procesos
             </h3>
-            <button onclick="toggleFormProceso()" class="btn btn-primary text-xs">
+            <button onclick="toggleFormProceso()" class="btn btn-primary">
                 <i class="fas fa-plus mr-1"></i> Añadir Proceso
             </button>
         </div>
-        <div id="form-agregar-proceso" class="hidden bg-gray-800/50 border border-gray-700 rounded-lg p-4 mb-3 space-y-3">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div id="form-agregar-proceso" class="hidden border border-gray-700 rounded-lg p-4 mb-4 space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label class="label">Descripcion</label>
-                    <input type="text" id="proc-descripcion" class="input" placeholder="Ej: Contratacion de servicios...">
+                    <label class="label">Descripción</label>
+                    <input type="text" id="proc-descripcion" class="input" placeholder="Ej: Contratación de servicios...">
                 </div>
                 <div>
                     <label class="label">Expediente ID (opcional)</label>
                     <input type="number" id="proc-db-id" class="input" placeholder="ID del expediente...">
                 </div>
             </div>
-            <div class="flex justify-end gap-2">
-                <button onclick="toggleFormProceso()" class="btn btn-secondary text-xs">Cancelar</button>
-                <button onclick="agregarProceso()" class="btn btn-primary text-xs"><i class="fas fa-check mr-1"></i> Agregar</button>
+            <div class="flex justify-end gap-3">
+                <button onclick="toggleFormProceso()" class="btn btn-secondary">Cancelar</button>
+                <button onclick="agregarProceso()" class="btn btn-primary"><i class="fas fa-check mr-1"></i> Agregar</button>
             </div>
         </div>
         <div class="procesos-grid" id="procesos-checkboxes"></div>
@@ -99,7 +99,7 @@
 
     function renderAll() {
         var html = '';
-        if (!processes.length) html = '<p class="text-gray-500 text-sm italic py-2">Sin procesos. Usa el boton para agregar.</p>';
+        if (!processes.length) html = '<p class="text-gray-500 text-sm italic py-2">Sin procesos. Usa el botón para agregar.</p>';
         else processes.forEach(p => {
             html += '<div class="proceso-card flex items-center justify-between">' +
                 '<div class="flex items-start gap-2.5">' +
@@ -118,10 +118,10 @@
     function renderGantt() {
         const active = processes.filter(p => p.activo);
         if (!active.length) {
-            document.getElementById('gantt-process-content').innerHTML = '<p class="text-gray-500 text-sm italic text-center py-4">Selecciona procesos arriba para ver el cronograma.</p>';
+            document.getElementById('gantt-process-content').innerHTML = '<p class="text-gray-500 text-sm italic text-center py-8">Selecciona procesos arriba para ver el cronograma.</p>';
             return;
         }
-        var html = '<div class="mb-5"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
+        var html = '<div class="card mt-0"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
             '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th><th colspan="5" class="gantt-week-header">DEL 01/06/26</th><th colspan="5" class="gantt-week-header">DEL 05/06/26</th><th colspan="5" class="gantt-week-header">DEL 15/06/26</th><th colspan="5" class="gantt-week-header">DEL 22/06/26</th><th colspan="5" class="gantt-week-header">DEL 30/06/26</th><th colspan="5" class="gantt-week-header">DEL 6/07/26</th></tr>' +
             '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-subheader">AL 05/06/26</th><th colspan="5" class="gantt-week-subheader">AL 12/06/26</th><th colspan="5" class="gantt-week-subheader">AL 19/06/26</th><th colspan="5" class="gantt-week-subheader">AL 26/06/26</th><th colspan="5" class="gantt-week-subheader">AL 03/07/26</th><th colspan="5" class="gantt-week-subheader">AL 10/07/26</th></tr>' +
             '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-label">SEMANA 1</th><th colspan="5" class="gantt-week-label">SEMANA 2</th><th colspan="5" class="gantt-week-label">SEMANA 3</th><th colspan="5" class="gantt-week-label">SEMANA 4</th><th colspan="5" class="gantt-week-label">SEMANA 5</th><th colspan="5" class="gantt-week-label">SEMANA 6</th></tr>' +
@@ -145,7 +145,7 @@
         });
         html += '</tbody></table></div></div>';
 
-        var leyendaHtml = '<div class="mt-6 border-t border-gray-700 pt-4"><h3 class="text-xs font-bold text-teal-400 mb-3 uppercase tracking-wider flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
+        var leyendaHtml = '<div class="border-t border-gray-700 pt-4"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
         legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + leg.hex_color + '"></span><span class="gantt-legend-label">' + leg.status_name + '</span></div>'; });
         leyendaHtml += '</div></div>';
         html += leyendaHtml;
