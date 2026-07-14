@@ -450,7 +450,7 @@ func (a *App) ObtenerFilaPorId(moduloKey string, id int) (Row, error) {
 		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
 	}
 
-	q := `SELECT * FROM ` + cfg.Vista + ` WHERE ` + cfg.IDColumna + ` = ?`
+	q := `SELECT * FROM ` + cfg.Tabla + ` WHERE ` + cfg.IDColumna + ` = ?`
 	rows, err := a.queryRows(q, id)
 	if err != nil {
 		return nil, err
