@@ -1011,6 +1011,7 @@
         function _rawNum(input) {
             if (input.dataset.raw !== undefined) return input.dataset.raw;
             var v = input.value.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+            if (v.endsWith('.')) v = v.slice(0, -1);
             var lastDot = v.lastIndexOf('.');
             if (lastDot >= 0) v = v.substring(0, lastDot).replace(/\./g, '') + v.substring(lastDot);
             return v;
@@ -1032,6 +1033,7 @@
                 var parts = v.split('.');
                 if (parts.length === 2 && parts[1].length > 2) v = parts[0] + '.' + parts[1].substring(0, 2);
                 this.dataset.raw = v;
+                this.value = v;
             });
             input.addEventListener('focus', function() {
                 if (this.dataset.raw !== undefined) {
