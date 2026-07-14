@@ -448,23 +448,30 @@
 
         function cerrarFormulario() { cerrarModal('form-modal'); }
 
-        // --- Superintendencias (filtra por gerencia) ---
+        // --- Superintendencias (rebuild, no display:none — WebKit no lo soporta en option) ---
         function cargarSuperintendencias() {
             const gerId = $('f-id_gerencia')?.value;
             const sel = $('f-id_superintendencia');
             if (!sel) return;
-            const opts = sel.querySelectorAll('option');
-            opts.forEach(o => {
+            var curVal = sel.value;
+            var opts = [];
+            sel.querySelectorAll('option').forEach(function(o) {
                 if (!o.value) return;
-                const dataGer = o.getAttribute('data-id-gerencia');
-                o.style.display = (!gerId || String(dataGer) === String(gerId)) ? '' : 'none';
+                var dg = o.getAttribute('data-id-gerencia') || '';
+                if (!gerId || dg === gerId) opts.push({ v: o.value, t: o.textContent, g: dg });
             });
-            if (gerId) {
-                const selectedOpt = sel.options[sel.selectedIndex];
-                if (selectedOpt && selectedOpt.style.display === 'none') {
-                    sel.value = '';
-                }
-            }
+            var frag = document.createDocumentFragment();
+            var empty = document.createElement('option'); empty.value = '';
+            frag.appendChild(empty);
+            var found = false;
+            opts.forEach(function(o) {
+                var el = document.createElement('option');
+                el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
+                if (o.v === curVal) found = true;
+                frag.appendChild(el);
+            });
+            sel.replaceChildren(frag);
+            if (found) sel.value = curVal;
         }
         document.body.addEventListener('htmx:afterSettle', function() {
             if ($('form-modal') && !$('form-modal').classList.contains('hidden')) {
@@ -857,18 +864,25 @@
             const gerId = $('exp-filt-id_gerencia')?.value;
             const sel = $('exp-filt-id_superintendencia');
             if (!sel) return;
-            const opts = sel.querySelectorAll('option');
-            opts.forEach(o => {
+            var curVal = sel.value;
+            var opts = [];
+            sel.querySelectorAll('option').forEach(function(o) {
                 if (!o.value) return;
-                const dataGer = o.getAttribute('data-id-gerencia');
-                o.style.display = (!gerId || String(dataGer) === String(gerId)) ? '' : 'none';
+                var dg = o.getAttribute('data-id-gerencia') || '';
+                if (!gerId || dg === gerId) opts.push({ v: o.value, t: o.textContent, g: dg });
             });
-            if (gerId) {
-                const selectedOpt = sel.options[sel.selectedIndex];
-                if (selectedOpt && selectedOpt.style.display === 'none') {
-                    sel.value = '';
-                }
-            }
+            var frag = document.createDocumentFragment();
+            var empty = document.createElement('option'); empty.value = '';
+            frag.appendChild(empty);
+            var found = false;
+            opts.forEach(function(o) {
+                var el = document.createElement('option');
+                el.value = o.v; el.textContent = o.t; el.setAttribute('data-id-gerencia', o.g);
+                if (o.v === curVal) found = true;
+                frag.appendChild(el);
+            });
+            sel.replaceChildren(frag);
+            if (found) sel.value = curVal;
         }
 
         function toggleTodasColumnas(sel) {
