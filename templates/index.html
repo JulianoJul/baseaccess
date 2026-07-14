@@ -35,6 +35,13 @@
         #app-root { display: flex; flex-direction: column; min-height: 100vh; }
         #vista-tabla { flex: 1; }
         #modulo-botones { position: sticky; bottom: 0; background: rgb(17, 24, 39); padding: 1rem 1rem 1.5rem; z-index: 10; }
+
+        /* z-index fixes: Tailwind precompilado no incluye valores arbitrarios */
+        .z-toast { z-index: 9999; }
+        .z-spinner { z-index: 9998; }
+        .bottom-4 { bottom: 1rem; }
+        .right-4 { right: 1rem; }
+        .pointer-events-none { pointer-events: none; }
     </style>
     <script src="vendor/htmx.min.js"></script>
     <script src="ruta-procesos-data.js"></script>
@@ -306,7 +313,7 @@
     <!-- Modales: ruta, historial, etc. se rellenarán via fetch -->
 
     <!-- Spinner + Toast -->
-    <div id="spinner-overlay" class="hidden fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
+    <div id="spinner-overlay" class="hidden fixed inset-0 z-spinner flex items-center justify-center bg-black/70">
         <div class="bg-gray-800 rounded-xl p-6 shadow-2xl flex items-center gap-3 border border-gray-700">
             <svg class="animate-spin h-5 w-5 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -315,7 +322,7 @@
             <span id="spinner-text" class="text-sm text-gray-200">Procesando...</span>
         </div>
     </div>
-    <div id="toast-container" class="fixed bottom-4 right-4 z-[300] flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed bottom-4 right-4 z-toast flex-col gap-2 flex pointer-events-none"></div>
 
     <!-- JS mínimo: solo Wails dialog + modales + helpers -->
     <script>
