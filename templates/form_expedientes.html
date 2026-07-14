@@ -80,9 +80,9 @@
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
             <div><label class="label">Fecha Presupuesto Base</label><input type="date" id="f-fecha_presupuesto_base" name="fecha_presupuesto_base" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_presupuesto_base"}}{{end}}"></div>
-            <div><label class="label">Presupuesto Base (USD)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_usd" name="presupuesto_base_usd" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_usd")}}{{end}}"></div>
-            <div><label class="label">Tipo de Cambio</label><input type="text" inputmode="decimal" id="f-tipo_cambio" name="tipo_cambio" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "tipo_cambio")}}{{end}}"></div>
-            <div><label class="label">Presupuesto Base (Bs)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_bs" name="presupuesto_base_bs" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_bs")}}{{end}}"></div>
+            <div><label class="label">Presupuesto Base (USD)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_usd" name="presupuesto_base_usd" class="input num-field" oninput="convertirMoneda()" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_usd")}}{{end}}"></div>
+            <div><label class="label">Tipo de Cambio</label><input type="text" inputmode="decimal" id="f-tipo_cambio" name="tipo_cambio" class="input num-field" oninput="convertirMoneda()" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "tipo_cambio")}}{{end}}"></div>
+            <div><label class="label">Presupuesto Base (Bs)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_bs" name="presupuesto_base_bs" class="input num-field" oninput="convertirMoneda('bs_presup')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_bs")}}{{end}}"></div>
         </div>
     </fieldset>
 
@@ -148,8 +148,8 @@
             <div><label class="label">Nro. Contrato SICAC</label><input type="text" id="f-nro_contrato_sicac" name="nro_contrato_sicac" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_contrato_sicac"}}{{end}}"></div>
             <div><label class="label">Nro. Contrato SAP</label><input type="text" id="f-nro_contrato_sap" name="nro_contrato_sap" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_contrato_sap"}}{{end}}"></div>
             <div><label class="label">Tiempo Ejecución</label><input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" placeholder="ej: 120" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "tiempo_ejecucion"}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado (USD)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" name="monto_adjudicado_usd" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_usd")}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado (Bs)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" name="monto_adjudicado_bs" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_bs")}}{{end}}"></div>
+            <div><label class="label">Monto Adjudicado (USD)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" name="monto_adjudicado_usd" class="input num-field" oninput="convertirMoneda('usd_adj')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_usd")}}{{end}}"></div>
+            <div><label class="label">Monto Adjudicado (Bs)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" name="monto_adjudicado_bs" class="input num-field" oninput="convertirMoneda('bs_adj')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_bs")}}{{end}}"></div>
             <div><label class="label">Fecha Firma Contrato</label><input type="date" id="f-fecha_firma_contrato" name="fecha_firma_contrato" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_firma_contrato"}}{{end}}"></div>
         </div>
     </fieldset>

@@ -37,11 +37,11 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos Totales</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div><label class="label">Presupuesto Base Total ($)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_total_usd" name="presupuesto_base_total_usd" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "presupuesto_base_total_usd")}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado Total ($)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_total_usd" name="monto_adjudicado_total_usd" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_adjudicado_total_usd")}}{{end}}"></div>
-            <div><label class="label">Monto del Contrato</label><input type="text" inputmode="decimal" id="f-monto_contrato" name="monto_contrato" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_contrato")}}{{end}}"></div>
-            <div><label class="label">Monto Ejecutado</label><input type="text" inputmode="decimal" id="f-monto_ejecutado" name="monto_ejecutado" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_ejecutado")}}{{end}}"></div>
-            <div><label class="label">Monto Pagado</label><input type="text" inputmode="decimal" id="f-monto_pagado" name="monto_pagado" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_pagado")}}{{end}}"></div>
+            <div><label class="label">Presupuesto Base Total ($)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_total_usd" name="presupuesto_base_total_usd" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "presupuesto_base_total_usd")}}{{end}}"></div>
+            <div><label class="label">Monto Adjudicado Total ($)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_total_usd" name="monto_adjudicado_total_usd" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_adjudicado_total_usd")}}{{end}}"></div>
+            <div><label class="label">Monto del Contrato</label><input type="text" inputmode="decimal" id="f-monto_contrato" name="monto_contrato" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_contrato")}}{{end}}"></div>
+            <div><label class="label">Monto Ejecutado</label><input type="text" inputmode="decimal" id="f-monto_ejecutado" name="monto_ejecutado" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_ejecutado")}}{{end}}"></div>
+            <div><label class="label">Monto Pagado</label><input type="text" inputmode="decimal" id="f-monto_pagado" name="monto_pagado" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_pagado")}}{{end}}"></div>
         </div>
     </fieldset>
 

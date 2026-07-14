@@ -35,8 +35,8 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Servicios</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-            <div><label class="label">Costo del Servicio ($)</label><input type="text" inputmode="decimal" id="f-costo_servicio_usd" name="costo_servicio_usd" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "costo_servicio_usd")}}{{end}}"></div>
-            <div><label class="label">(-) Nota de Débito (Reverso)</label><input type="text" inputmode="decimal" id="f-nota_debito_reverso" name="nota_debito_reverso" class="input" onblur="this.value=formatNum(this.value)" value="{{if .Registro}}{{formatNum (rowGet .Registro "nota_debito_reverso")}}{{end}}"></div>
+            <div><label class="label">Costo del Servicio ($)</label><input type="text" inputmode="decimal" id="f-costo_servicio_usd" name="costo_servicio_usd" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "costo_servicio_usd")}}{{end}}"></div>
+            <div><label class="label">(-) Nota de Débito (Reverso)</label><input type="text" inputmode="decimal" id="f-nota_debito_reverso" name="nota_debito_reverso" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "nota_debito_reverso")}}{{end}}"></div>
             <div class="md:col-span-2">
                 <label class="label">Servicios</label>
                 <textarea id="f-servicios" name="servicios" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "servicios"}}{{end}}</textarea>
