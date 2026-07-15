@@ -17,3 +17,4 @@ plan_modificaciones.md
 build/bin/
 build/*.app
 baseaccess
+Microsoft.WebView2.FixedVersionRuntime.*
