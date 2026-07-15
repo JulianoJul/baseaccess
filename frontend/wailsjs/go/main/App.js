@@ -58,6 +58,10 @@ export function ObtenerDocumentosPendientes() {
   return window['go']['main']['App']['ObtenerDocumentosPendientes']();
 }
 
+export function ObtenerExpedientesDisponiblesRuta() {
+  return window['go']['main']['App']['ObtenerExpedientesDisponiblesRuta']();
+}
+
 export function ObtenerFilaPorId(arg1, arg2) {
   return window['go']['main']['App']['ObtenerFilaPorId'](arg1, arg2);
 }

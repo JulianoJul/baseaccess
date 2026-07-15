@@ -31,10 +31,18 @@
         .bg-gray-850 {
             background-color: #1e293b;
         }
-        /* Sticky footer para botonera inferior */
+        /* Bottom bar tipo hojas de calculo */
         #app-root { display: flex; flex-direction: column; min-height: 100vh; }
         #vista-tabla { flex: 1; }
-        #modulo-botones { position: sticky; bottom: 0; background: rgb(17, 24, 39); padding: 1rem 1rem 1.5rem; z-index: 10; }
+        #bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; }
+        #bottom-bar .sheet-tab { padding: 0.5rem 1rem; font-size: 0.75rem; border-radius: 0; border-top: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+        #bottom-bar .sheet-tab:hover { background: rgba(45,212,191,0.08); }
+        #bottom-bar .sheet-tab.active { border-top-color: #2dd4bf; background: rgba(45,212,191,0.12); color: #2dd4bf; }
+        #bottom-bar .sheet-tab.inactive { color: #9ca3af; }
+        #bottom-bar .sheet-tab.inactive:hover { color: #d1d5db; }
+        #bottom-bar .sheet-tab.ruta-tab { color: #f59e0b; border-top-color: rgba(245,158,11,0.3); border-left: 1px solid rgba(75,85,99,0.5); }
+        #bottom-bar .sheet-tab.ruta-tab:hover { background: rgba(245,158,11,0.1); }
+        body.has-db { padding-bottom: 3.5rem; }
 
         /* z-index fixes: Tailwind precompilado no incluye valores arbitrarios */
         .z-toast { z-index: 9999; }
@@ -46,7 +54,7 @@
     <script src="vendor/htmx.min.js"></script>
     <script src="ruta-procesos-data.js"></script>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans" id="body">
+<body class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans{{if .HasDB}} has-db{{end}}" id="body">
 
     <!-- Datos Go inyectados al JS -->
     <script>
@@ -159,26 +167,36 @@
 
                 <!-- Paginación -->
                 <div id="paginacion" class="mt-4 pb-2"></div>
-
-                <!-- Barra de Navegación de Módulos (Botonera Inferior) -->
-                <footer class="mt-8 border-t border-gray-700 pt-4 pb-6">
-                    <div class="flex items-center justify-center gap-2 flex-wrap" id="modulo-botones">
-                        {{range $key, $config := .Modulos}}
-                        <button hx-get="/api/cambiar-modulo?modulo={{$key}}"
-                                hx-target="#vista-tabla"
-                                hx-include="#search, #sort-order, #sort-dir-val"
-                                hx-indicator="#spinner-overlay"
-                                hx-on::after-request="document.querySelectorAll('#modulo-botones button').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); }); this.classList.remove('btn-secondary'); this.classList.add('btn-primary');"
-                                class="btn {{if eq $.ActiveModule $key}}btn-primary{{else}}btn-secondary{{end}}"
-                                {{if not $.HasDB}}disabled{{end}}>
-                            {{$config.Nombre}}
-                        </button>
-                        {{end}}
-                    </div>
-                </footer>
             </div>
         </div>
     </div>
+
+    {{if .HasDB}}
+    <!-- Bottom Bar tipo hojas de calculo -->
+    <div id="bottom-bar" class="bg-gray-850 border-t border-gray-700">
+        <div class="flex items-center overflow-x-auto" id="modulo-botones">
+            <div class="flex items-center">
+                {{range $key, $config := .Modulos}}
+                <button hx-get="/api/cambiar-modulo?modulo={{$key}}"
+                        hx-target="#vista-tabla"
+                        hx-include="#search, #sort-order, #sort-dir-val"
+                        hx-indicator="#spinner-overlay"
+                        hx-on::after-request="document.querySelectorAll('#modulo-botones .sheet-tab').forEach(b => { b.classList.remove('active'); b.classList.add('inactive'); }); this.classList.remove('inactive'); this.classList.add('active');"
+                        class="sheet-tab {{if eq $.ActiveModule $key}}active{{else}}inactive{{end}}"
+                        {{if not $.HasDB}}disabled{{end}}>
+                    {{$config.Nombre}}
+                </button>
+                {{end}}
+            </div>
+            <button hx-get="/api/ruta-procesos"
+                    hx-target="#ruta-contenido"
+                    hx-on::after-request="pushModal('modal-ruta');"
+                    class="sheet-tab ruta-tab ml-auto">
+                <i class="fas fa-route mr-1"></i> Ruta Procesos
+            </button>
+        </div>
+    </div>
+    {{end}}
 
     <!-- Modal Formulario -->
     <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">

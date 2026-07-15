@@ -792,6 +792,41 @@ func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
 	return res.LastInsertId()
 }
 
+func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return nil, fmt.Errorf("no hay BD abierta")
+	}
+	rows, err := a.db.Query(`
+		SELECT e.id_expediente, e.solped, e.descripcion_proceso
+		FROM vw_reporte_excel_contrataciones e
+		WHERE e.id_expediente NOT IN (SELECT COALESCE(db_id, 0) FROM ruta_procesos_procesos WHERE db_id IS NOT NULL)
+		ORDER BY e.id_expediente DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var solped, desc string
+		if err := rows.Scan(&id, &solped, &desc); err != nil {
+			continue
+		}
+		result = append(result, map[string]interface{}{
+			"id":                 id,
+			"solped":             solped,
+			"descripcion_proceso": desc,
+		})
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+	return result, nil
+}
+
 func (a *App) EliminarRutaProceso(id int) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()

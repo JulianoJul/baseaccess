@@ -30,6 +30,8 @@ export function ObtenerColumnasVista(arg1:string):Promise<Array<string>>;
 
 export function ObtenerDocumentosPendientes():Promise<Array<main.Row>>;
 
+export function ObtenerExpedientesDisponiblesRuta():Promise<Array<Record<string, any>>>;
+
 export function ObtenerFilaPorId(arg1:string,arg2:number):Promise<main.Row>;
 
 export function ObtenerFilas(arg1:string,arg2:string):Promise<Array<main.Row>>;

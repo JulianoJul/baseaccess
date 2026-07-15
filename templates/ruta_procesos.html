@@ -9,15 +9,11 @@
             </button>
         </div>
         <div id="form-agregar-proceso" class="hidden border border-gray-700 rounded-lg p-4 mb-4 space-y-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                    <label class="label">Descripción</label>
-                    <input type="text" id="proc-descripcion" class="input" placeholder="Ej: Contratación de servicios...">
-                </div>
-                <div>
-                    <label class="label">Expediente ID (opcional)</label>
-                    <input type="number" id="proc-db-id" class="input" placeholder="ID del expediente...">
-                </div>
+            <div>
+                <label class="label">Expediente existente</label>
+                <select id="proc-exp-select" class="input" size="8">
+                    <option value="" disabled selected>Cargando expedientes...</option>
+                </select>
             </div>
             <div class="flex justify-end gap-3">
                 <button onclick="toggleFormProceso()" class="btn btn-secondary">Cancelar</button>
@@ -37,26 +33,47 @@
     window.toggleFormProceso = function() {
         formVisible = !formVisible;
         document.getElementById('form-agregar-proceso').classList.toggle('hidden', !formVisible);
-        if (formVisible) document.getElementById('proc-descripcion').focus();
+        if (formVisible) {
+            var sel = document.getElementById('proc-exp-select');
+            sel.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+            fetch('/api/ruta-procesos-expedientes')
+                .then(function(r) { return r.json(); })
+                .then(function(list) {
+                    if (!list || !list.length) {
+                        sel.innerHTML = '<option value="" disabled>No hay expedientes disponibles</option>';
+                        return;
+                    }
+                    sel.innerHTML = '';
+                    list.forEach(function(ex) {
+                        var opt = document.createElement('option');
+                        opt.value = ex.id;
+                        opt.textContent = '#' + ex.id + ' - ' + ex.solped + ' - ' + (ex.descripcion_proceso || '').substring(0, 60);
+                        sel.appendChild(opt);
+                    });
+                })
+                .catch(function() {
+                    sel.innerHTML = '<option value="" disabled>Error al cargar</option>';
+                });
+        }
     };
 
     window.agregarProceso = function() {
-        const desc = document.getElementById('proc-descripcion').value.trim();
-        const dbId = document.getElementById('proc-db-id').value;
-        if (!desc) { alert('La descripcion es requerida'); return; }
+        var sel = document.getElementById('proc-exp-select');
+        var dbId = parseInt(sel.value);
+        if (!dbId) { alert('Selecciona un expediente'); return; }
+        var desc = sel.options[sel.selectedIndex].textContent;
         fetch('/api/ruta-procesos-agregar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'descripcion=' + encodeURIComponent(desc) + '&db_id=' + (dbId || '0')
+            body: 'descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
         })
         .then(r => r.json())
         .then(json => {
             if (json.success) {
-                processes.push({ id: json.id, descripcion: desc, db_id: parseInt(dbId)||0, activo: true, solped: 'SIN SOLPED', estatus_detalle: 'N/A', receptor: 'N/A', timeline: {} });
+                processes.push({ id: json.id, descripcion: desc, db_id: dbId, activo: true, solped: 'SIN SOLPED', estatus_detalle: 'N/A', receptor: 'N/A', timeline: {} });
                 renderAll();
                 toggleFormProceso();
-                document.getElementById('proc-descripcion').value = '';
-                document.getElementById('proc-db-id').value = '';
+                sel.value = '';
             } else {
                 alert('Error al agregar proceso');
             }

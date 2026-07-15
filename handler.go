@@ -328,6 +328,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarRutaProceso(w, r)
 		return
+	case p == "/api/ruta-procesos-expedientes" && r.Method == http.MethodGet:
+		h.handleRutaProcesosExpedientes(w, r)
+		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
 		return
@@ -715,6 +718,15 @@ func (h *TemplateHandler) handleEliminarRutaProceso(w http.ResponseWriter, r *ht
 		return
 	}
 	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleRutaProcesosExpedientes(w http.ResponseWriter, r *http.Request) {
+	expedientes, err := h.app.ObtenerExpedientesDisponiblesRuta()
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, expedientes)
 }
 
 func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Request) {
