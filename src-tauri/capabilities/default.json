@@ -1,9 +1,0 @@
-{
-  "identifier": "default",
-  "description": "Permisos para la ventana principal",
-  "windows": ["main"],
-  "permissions": [
-    "core:default",
-    "dialog:default"
-  ]
-}
