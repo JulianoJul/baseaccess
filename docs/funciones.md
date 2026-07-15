@@ -22,6 +22,7 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catalogo (whitelist tabla/columna) |
 | `AbrirDialogoBD()` | — | Abre dialogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
 | `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre dialogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
+| `ObtenerExpedientesDisponiblesRuta()` | — | Retorna JSON con expedientes no agregados aún a Ruta Procesos |
 | `SetBackupMaxCopies(n)` | `n`: int | Configura numero de backups rotativos (1-20) |
 | `GetBackupMaxCopies()` | — | Retorna numero actual de backups |
 | `DescargarBD(destPath)` | `destPath`: string | Copia el .db actual a otra ruta |
@@ -63,6 +64,10 @@ La mayoria de las funciones JS previas (cargarCatalogos, obtenerExpedientes, gua
 |---------|-----------|-------------|
 | `abrirRutaProcesos()` | — | Modal Gantt-chart de ruta de procesos |
 | `cerrarRutaProcesos()` | — | Cierra modal ruta |
+| `toggleFormProceso()` | — | Muestra/oculta formulario para agregar proceso con selector de expedientes |
+| `agregarProceso()` | — | Agrega expediente seleccionado como proceso en la ruta |
+| `toggleProceso(id, checked)` | `id`, `checked` | Activa/desactiva proceso en la ruta |
+| `eliminarProceso(id)` | `id` | Elimina proceso de la ruta |
 | `abrirDocumentosPendientes()` | — | Modal con expedientes no FIRMADOS |
 | `cerrarPendientes()` | — | Cierra modal pendientes |
 | `abrirHistorialCompleto(id)` | `id`: ID | Modal historial de snapshots |

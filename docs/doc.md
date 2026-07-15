@@ -91,19 +91,24 @@ baseaccess/
 ├── go.sum                  # Checksums Go
 ├── wails.json              # Config proyecto Wails
 ├── templates/              # Go html/template (renderizados desde Go)
-│   └── index.html          # Template principal (estructura HTML)
+│   ├── index.html          # Template principal (estructura HTML)
+│   ├── tabla_<key>.html (9)# Listado por modulo
+│   ├── form_<key>.html (9) # Formulario por modulo
+│   ├── historial.html      # Historial (multi-modulo)
+│   ├── ruta_procesos.html  # Ruta de procesos Gantt
+│   └── pendientes.html     # Docs pendientes
 ├── frontend/               # Estáticos embebidos (CSS, JS, fuentes)
-│   ├── index.html          # Obsoleto (mantenido como fallback estático)
-│   ├── schema-config.js    # Legacy (ya no se carga en templates)
-│   ├── ruta-procesos-data.js  # Datos Gantt para Ruta Procesos
+│   ├── ruta-procesos-data.js  # Datos Gantt para Ruta Procesos (legacy)
 │   └── vendor/             # Dependencias locales (sin CDN)
 │       ├── tailwind.min.css    # Tailwind CSS build estático
 │       ├── styles.css          # Estilos adicionales
+│       ├── htmx.min.js         # HTMX
 │       ├── fontawesome.min.css # Font Awesome Free
 │       └── webfonts/           # Fuentes de iconos
 ├── data/                   # Archivos de datos
-│   ├── sql/Tablas8.sql     # Schema SQLite v8
-│   └── importar_datos.py   # Script de importación desde Excel
+│   ├── sql/01_master_control_docs_presidencia.sql  # Schema: catalogos + expedientes
+│   ├── sql/02_modulos_adicionales.sql               # Schema: 8 modulos adicionales
+│   └── sql/03_ruta_procesos.sql                      # Schema: ruta procesos (Gantt)
 ├── docs/                   # Documentación
 │   ├── doc.md              # Este archivo
 │   ├── decisiones.md       # ADR
@@ -115,7 +120,7 @@ baseaccess/
 └── .github/workflows/      # CI/CD
 ```
 
-## Tablas del Schema (Tablas8.sql)
+## Tablas del Schema
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -157,7 +162,8 @@ Tailwind CSS (dark mode personalizado):
 ```bash
 make wails-install          # go install Wails CLI
 make wails-dev              # wails dev (hot reload)
-make wails-build-linux      # Build Linux AMD64
+make wails-build-linux      # Build Linux AMD64 (debug)
+make wails-build-linux-prod # Build Linux AMD64 (produccion)
 make wails-build-win        # Build Windows AMD64 (con WebView2 embed)
 make wails-build            # Build Linux (default)
 ```
@@ -217,8 +223,7 @@ Separar estrictamente:
 
 Workflow: `.github/workflows/build.yml`
 - Push a `master` o `wails-migration` dispara build
-- Jobs: `tauri` (legacy), `wails`, `electron` (legacy)
-- Wails: Linux (binary) + Windows (binary + WebView2 Fixed Runtime)
+- Jobs: `wails` (Linux + Windows)
 
 ## Cambios Realizados
 
@@ -255,6 +260,11 @@ Workflow: `.github/workflows/build.yml`
 | 27 | `templates/index.html` | `schema-config.js` eliminado de imports; `STORAGE_KEYS` inlineado directamente en el template. Todas las references a `'baseaccess_recientes'` migradas a `STORAGE_KEYS.RECIENTES` | Eliminación total de dependencia externa de schema-config.js |
 | 28 | `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql` | **Creados**: schema multi-módulo (master + 8 módulos adicionales con sus tablas hist_, vistas vw_reporte_*, y triggers de auditoría). `cat_gerencia` ampliada de 10 a 13 gerencias. | Soporte a 9 tipos de documentos en una sola BD |
 | 29 | `app.go`, `handler.go`, `templates/*` | **Multi-módulo**: `Modulos` map (9 módulos), botonera inferior en index.html, `tabla_<key>.html`/`form_<key>.html` fragmentados, título dinámico del modal (`PAGE_DATA.modulos`), `historial.html` parametrizable (Receptor omitido en reposos_medicos, columna Notas añadida). API renombrada: `ObtenerFilas/GuardarFila/EliminarFila` con `moduloKey`. Wrappers legacy `*Expediente*` eliminados. | UI y API unificada multi-módulo |
+| 30 | `templates/index.html` | **Bottom bar**: barra inferior fija tipo hojas de cálculo con pestañas de módulos. Ruta Procesos a la derecha en naranja. Oculta si no hay BD. | UX tipo spreadsheet |
+| 31 | `templates/ruta_procesos.html`, `handler.go`, `app.go` | **Selector de expedientes existentes**: al añadir proceso en Ruta Procesos, se muestra un `<select>` con expedientes de la BD no agregados aún. Nuevo endpoint `/api/ruta-procesos-expedientes`. | Los procesos se agregan desde registros existentes |
+| 32 | `data/sql/04_ruta_procesos_datos.sql` | **Eliminado**: seed data con IDs fijos (32-36) que podían no existir en la BD del usuario | Los procesos se agregan manualmente desde el selector |
+| 33 | `Makefile` | Limpiado: eliminados targets legacy de Electron y Tauri | Proyecto Wails-only |
+| 34 | `node_modules/`, `src/`, `src-tauri/`, `dist/`, `main.js`, `package.json`, `package-lock.json` | **Eliminados**: ~493 MB de archivos legacy de Electron/Tauri | Limpieza post-migración |
 
 
 ## Migración a Go html/template — Estado
@@ -278,6 +288,10 @@ Workflow: `.github/workflows/build.yml`
 | `/api/historial` | GET | Devuelve fragmento HTML del historial de un registro (multi-módulo) |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
 | `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos |
+| `/api/ruta-procesos-agregar` | POST | Agrega un proceso a la ruta (vinculado a un expediente existente) |
+| `/api/ruta-procesos-toggle` | POST | Activa/desactiva un proceso en la ruta |
+| `/api/ruta-procesos-eliminar` | POST | Elimina un proceso de la ruta |
+| `/api/ruta-procesos-expedientes` | GET | Devuelve JSON con expedientes disponibles para agregar como procesos |
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
