@@ -11,8 +11,6 @@ combine:
 	  echo "" && echo "=== app.go ===" && cat app.go && \
 	  echo "" && echo "=== handler.go ===" && cat handler.go && \
 	  echo "" && echo "=== templates/index.html ===" && cat templates/index.html && \
-	  echo "" && echo "=== templates/formulario.html ===" && cat templates/formulario.html && \
-	  echo "" && echo "=== templates/tabla_filas.html ===" && cat templates/tabla_filas.html && \
 	  echo "" && echo "=== templates/historial.html ===" && cat templates/historial.html && \
 	  echo "" && echo "=== templates/pendientes.html ===" && cat templates/pendientes.html && \
 	  echo "" && echo "=== templates/ruta_procesos.html ===" && cat templates/ruta_procesos.html && \

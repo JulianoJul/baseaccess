@@ -858,13 +858,103 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fechaDesde := r.URL.Query().Get("fecha_desde")
+	fechaHasta := r.URL.Query().Get("fecha_hasta")
+
+	filters := make(map[string]string)
+	for k, v := range r.URL.Query() {
+		if strings.HasPrefix(k, "id_") && len(v) > 0 && v[0] != "" {
+			filters[k] = v[0]
+		}
+	}
+
+	var filterColMap = map[string][2]string{
+		"id_gerencia":         {"gerencia", "gerencia"},
+		"id_superintendencia": {"superintendencia", "superintendencia"},
+		"id_documento":        {"documento", "documento"},
+		"id_plan":             {"plan_contrataciones", "plan_contratacion"},
+		"id_modalidad":        {"modalidad_contratacion", "modalidad"},
+		"id_art":              {"art", "art"},
+		"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
+		"id_estatus":          {"estatus_detalle", "estatus_detalle"},
+		"id_resultado":        {"resultados_proceso", "resultado_proceso"},
+		"id_empresa":          {"empresa_adjudicada", "empresas"},
+		"id_emisor":           {"emisor", "responsables"},
+		"id_receptor":         {"receptor", "responsables"},
+	}
+
 	data, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	if len(data) == 0 {
-		writeJSONError(w, "no hay datos", http.StatusBadRequest)
+
+	catalogs, cerr := h.app.ObtenerCatalogos()
+	catMaps := make(map[string]map[string]string)
+	if cerr == nil {
+		for catKey, items := range catalogs {
+			catMaps[catKey] = make(map[string]string)
+			for _, item := range items {
+				catMaps[catKey][strconv.Itoa(item.ID)] = item.Nombre
+			}
+		}
+	}
+
+	if cfg.GerenciasIDs != nil && len(cfg.GerenciasIDs) > 0 {
+		catGer := catMaps["gerencia"]
+		permitidasNames := map[string]bool{}
+		for _, id := range cfg.GerenciasIDs {
+			if name, ok := catGer[strconv.Itoa(id)]; ok {
+				permitidasNames[name] = true
+			}
+		}
+		filteredByGer := make([]Row, 0, len(data))
+		for _, row := range data {
+			gerName, _ := row["gerencia"].(string)
+			if permitidasNames[gerName] {
+				filteredByGer = append(filteredByGer, row)
+			}
+		}
+		data = filteredByGer
+	}
+
+	var filtered []Row
+	for _, row := range data {
+		fr, _ := row["fecha_recibido"].(string)
+		if fechaDesde != "" && fr != "" && fr < fechaDesde {
+			continue
+		}
+		if fechaHasta != "" && fr != "" && fr > fechaHasta {
+			continue
+		}
+
+		match := true
+		for paramKey, paramVal := range filters {
+			mapping, ok := filterColMap[paramKey]
+			if !ok {
+				continue
+			}
+			rowKey, catKey := mapping[0], mapping[1]
+			expectedName := catMaps[catKey][paramVal]
+			rowVal, exists := row[rowKey]
+			if !exists {
+				continue
+			}
+			rowValStr, _ := rowVal.(string)
+			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+
+		filtered = append(filtered, row)
+	}
+
+	if len(filtered) == 0 {
+		writeJSONError(w, "no hay datos con los filtros aplicados", http.StatusBadRequest)
 		return
 	}
 
@@ -872,15 +962,15 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
-	headers := make([]string, 0, len(data[0]))
-	for k := range data[0] {
+	headers := make([]string, 0, len(filtered[0]))
+	for k := range filtered[0] {
 		headers = append(headers, k)
 	}
 	sort.Strings(headers)
 
 	wr := csv.NewWriter(w)
 	wr.Write(headers)
-	for _, row := range data {
+	for _, row := range filtered {
 		vals := make([]string, len(headers))
 		for i, h := range headers {
 			v := row[h]
