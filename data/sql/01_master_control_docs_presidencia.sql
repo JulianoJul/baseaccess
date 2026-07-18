@@ -152,7 +152,6 @@ CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(
 
 -- Tabla para evitar que trg_exp_auditoria se dispare
 -- durante las correcciones automáticas del trigger INSERT.
-CREATE TABLE IF NOT EXISTS _skip_audit (flag INTEGER);
 
 -- Snapshot inicial al crear expediente
 CREATE TRIGGER IF NOT EXISTS trg_exp_snapshot_inicial AFTER INSERT ON expedientes
@@ -175,7 +174,7 @@ BEGIN
     ) VALUES (
         NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
         NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
-        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
+        NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, CASE WHEN NEW.fecha_firma_contrato IS NULL THEN 1 ELSE 2 END,
         NEW.id_resultado, NEW.id_empresa,
         NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
         NEW.fecha_firma_contrato,
@@ -188,23 +187,21 @@ BEGIN
         NEW.observaciones, NEW.notas
     );
 
-    INSERT INTO _skip_audit VALUES (1);
-
+    -- The UPDATE will trigger the BEFORE/AFTER UPDATE triggers.
+    -- However, we only need to enforce the status. If the user sent the correct status initially, the UPDATE won't change anything,
+    -- and thanks to our new WHEN clause in the UPDATE trigger, no history row will be created.
+    -- If the user sent a wrong status (e.g. NULL), the UPDATE will correct it, which WILL trigger a history row.
+    -- To completely avoid a double row even if the status is corrected, we could use a TEMP TABLE, but it's simpler
+    -- to just let it record the correction, or we can make the snapshot INSERT use the corrected status, and in the UPDATE
+    -- we do nothing if it's already correct. Let's just do the UPDATE conditionally.
     UPDATE expedientes
-    SET id_estatus = 1  /* PENDIENTE (seed en cat_estatus_detalle id=1) */
-    WHERE NEW.fecha_firma_contrato IS NULL
-      AND id_expediente = NEW.id_expediente;
-
-    UPDATE expedientes
-    SET id_estatus = 2  /* FIRMADO (seed en cat_estatus_detalle id=2) */
-    WHERE NEW.fecha_firma_contrato IS NOT NULL
-      AND id_expediente = NEW.id_expediente;
-
-    DELETE FROM _skip_audit;
+    SET id_estatus = CASE WHEN NEW.fecha_firma_contrato IS NULL THEN 1 ELSE 2 END
+    WHERE id_expediente = NEW.id_expediente
+      AND id_estatus IS NOT (CASE WHEN NEW.fecha_firma_contrato IS NULL THEN 1 ELSE 2 END);
 END;
 CREATE TRIGGER IF NOT EXISTS trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
-WHEN (SELECT COUNT(*) FROM _skip_audit) = 0 AND (OLD.solped IS NOT NEW.solped OR OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.id_plan IS NOT NEW.id_plan OR OLD.id_modalidad IS NOT NEW.id_modalidad OR OLD.id_art IS NOT NEW.id_art OR OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.id_resultado IS NOT NEW.id_resultado OR OLD.id_empresa IS NOT NEW.id_empresa OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.fecha_presupuesto_base IS NOT NEW.fecha_presupuesto_base OR OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR OLD.nro_proceso IS NOT NEW.nro_proceso OR OLD.nro_acta_apertura IS NOT NEW.nro_acta_apertura OR OLD.nro_resolucion_jd IS NOT NEW.nro_resolucion_jd OR OLD.nro_contrato_sicac IS NOT NEW.nro_contrato_sicac OR OLD.nro_contrato_sap IS NOT NEW.nro_contrato_sap OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.tipo_cambio IS NOT NEW.tipo_cambio OR OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR OLD.monto_adjudicado_bs IS NOT NEW.monto_adjudicado_bs OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.cantidad_frentes IS NOT NEW.cantidad_frentes OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas)
+WHEN (OLD.solped IS NOT NEW.solped OR OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.id_plan IS NOT NEW.id_plan OR OLD.id_modalidad IS NOT NEW.id_modalidad OR OLD.id_art IS NOT NEW.id_art OR OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.id_resultado IS NOT NEW.id_resultado OR OLD.id_empresa IS NOT NEW.id_empresa OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.fecha_presupuesto_base IS NOT NEW.fecha_presupuesto_base OR OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR OLD.nro_proceso IS NOT NEW.nro_proceso OR OLD.nro_acta_apertura IS NOT NEW.nro_acta_apertura OR OLD.nro_resolucion_jd IS NOT NEW.nro_resolucion_jd OR OLD.nro_contrato_sicac IS NOT NEW.nro_contrato_sicac OR OLD.nro_contrato_sap IS NOT NEW.nro_contrato_sap OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.tipo_cambio IS NOT NEW.tipo_cambio OR OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR OLD.monto_adjudicado_bs IS NOT NEW.monto_adjudicado_bs OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.cantidad_frentes IS NOT NEW.cantidad_frentes OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas)
 BEGIN
     INSERT INTO historial_movimientos (
         id_expediente, solped, id_gerencia, id_superintendencia,

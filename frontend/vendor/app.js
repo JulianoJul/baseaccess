@@ -685,12 +685,7 @@ function formatNum(v) {
 
 // --- Campos numéricos: formato, separador miles, max 2 decimales ---
 function _rawNum(input) {
-    if (input.dataset.raw !== undefined) return input.dataset.raw;
-    var v = input.value.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-    if (v.endsWith('.')) v = v.slice(0, -1);
-    var lastDot = v.lastIndexOf('.');
-    if (lastDot >= 0) v = v.substring(0, lastDot).replace(/\./g, '') + v.substring(lastDot);
-    return v;
+    return _parseValue(input).toString();
 }
 function _parseValue(input) {
     var v = (input.value || '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
@@ -737,7 +732,7 @@ var _convLock = false;
 function convertirMoneda(origen) {
     if (_convLock) return;
     var tcEl = document.getElementById('f-tipo_cambio');
-    var tc = tcEl ? (parseFloat(tcEl.dataset.raw) || 0) : 0;
+    var tc = tcEl ? _parseValue(tcEl) : 0;
     if (!tc) return;
     _convLock = true;
     try {

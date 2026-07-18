@@ -359,7 +359,8 @@ func (a *App) initRutaProcesosSchema() error {
 			id          INTEGER PRIMARY KEY AUTOINCREMENT,
 			descripcion TEXT NOT NULL,
 			db_id       INTEGER,
-			activo      INTEGER DEFAULT 1
+			activo      INTEGER DEFAULT 1,
+			CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente)
 		)`,
 		`CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
 			id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -367,7 +368,11 @@ func (a *App) initRutaProcesosSchema() error {
 			id_expediente INTEGER,
 			fecha         DATE NOT NULL,
 			id_leyenda    INTEGER,
-			nota          TEXT
+			nota          TEXT,
+			CONSTRAINT fk_cron_proc FOREIGN KEY (id_proceso) REFERENCES ruta_procesos_procesos(id) ON DELETE CASCADE,
+			CONSTRAINT fk_cron_ley FOREIGN KEY (id_leyenda) REFERENCES ruta_procesos_leyenda(id),
+			CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente),
+			CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 		)`,
 		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
 			('PENDIENTE', '#FFA500'),
