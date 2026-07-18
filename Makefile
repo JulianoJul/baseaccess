@@ -1,5 +1,7 @@
 .PHONY: clean wails-install wails-build-linux wails-build-linux-prod wails-build-win wails-build wails-dev
 
+SQL_FILES := $(filter-out data/sql/Tablas8.sql,$(wildcard data/sql/*.sql))
+
 combine:
 	{ \
 	  echo "=== go.mod ===" && cat go.mod && \
@@ -31,12 +33,10 @@ combine:
 	  echo "" && echo "=== templates/form_vacaciones.html ===" && cat templates/form_vacaciones.html && \
 	  echo "" && echo "=== templates/tabla_vacaciones.html ===" && cat templates/tabla_vacaciones.html && \
 	  echo "" && echo "=== templates/form_reposos_medicos.html ===" && cat templates/form_reposos_medicos.html && \
-	  echo "" && echo "=== templates/tabla_reposos_medicos.html ===" && cat templates/tabla_reposos_medicos.html && \
-	  echo "" && echo "=== frontend/index.html ===" && cat frontend/index.html && \
-	  echo "" && echo "=== frontend/schema-config.js ===" && cat frontend/schema-config.js && \
-	  echo "" && echo "=== frontend/ruta-procesos-data.js ===" && cat frontend/ruta-procesos-data.js; \
+	  echo "" && echo "=== templates/tabla_reposos_medicos.html ===" && cat templates/tabla_reposos_medicos.html; \
+	  $(foreach f,$(SQL_FILES), echo "" && echo "=== $(f) ===" && cat $(f) &&) :; \
 	} > combined.txt
-	@echo "combined.txt generado (solo codigo: go, templates, frontend)"
+	@echo "combined.txt generado (codigo + templates + SQL)"
 
 clean:
 	rm -f combined.txt

@@ -69,7 +69,7 @@ CREATE TRIGGER trg_req_mat_auditoria AFTER UPDATE ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE req_materiales SET fecha_actualizacion = CURRENT_DATE WHERE id_requisicion = NEW.id_requisicion;
+    UPDATE req_materiales SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_requisicion = NEW.id_requisicion;
 END;
 
 CREATE VIEW vw_reporte_req_materiales AS
@@ -160,7 +160,7 @@ CREATE TRIGGER trg_mem_auditoria AFTER UPDATE ON memorandums
 FOR EACH ROW BEGIN
     INSERT INTO hist_memorandums (id_memorandum, id_gerencia, id_superintendencia, id_emisor, documento, asunto, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_memorandum, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE memorandums SET fecha_actualizacion = CURRENT_DATE WHERE id_memorandum = NEW.id_memorandum;
+    UPDATE memorandums SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_memorandum = NEW.id_memorandum;
 END;
 
 CREATE VIEW vw_reporte_memorandums AS
@@ -259,7 +259,7 @@ CREATE TRIGGER trg_rec_auditoria AFTER UPDATE ON recobros
 FOR EACH ROW BEGIN
     INSERT INTO hist_recobros (id_recobro, id_gerencia, id_superintendencia, id_emisor, documento, asunto, fecha_inicio, fecha_final, servicios, beneficios, nota_debito_reverso, costo_servicio_usd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_recobro, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.fecha_inicio, NEW.fecha_final, NEW.servicios, NEW.beneficios, NEW.nota_debito_reverso, NEW.costo_servicio_usd, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE recobros SET fecha_actualizacion = CURRENT_DATE WHERE id_recobro = NEW.id_recobro;
+    UPDATE recobros SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_recobro = NEW.id_recobro;
 END;
 
 CREATE VIEW vw_reporte_recobros AS
@@ -382,7 +382,7 @@ CREATE TRIGGER trg_val_auditoria AFTER UPDATE ON valuaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_valuaciones (id_valuacion, id_gerencia, id_superintendencia, id_emisor, documento, solped, presupuesto_base_bs, presupuesto_base_usd, descripcion_proceso, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, periodo_valuacion_desde, periodo_valuacion_hasta, monto_valuacion, nro_proforma, observaciones, notas)
     VALUES (NEW.id_valuacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.solped, NEW.presupuesto_base_bs, NEW.presupuesto_base_usd, NEW.descripcion_proceso, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.nro_proceso, NEW.nro_contrato_sicac, NEW.nro_contrato_sap, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.monto_adjudicado_bs, NEW.monto_adjudicado_usd, NEW.periodo_valuacion_desde, NEW.periodo_valuacion_hasta, NEW.monto_valuacion, NEW.nro_proforma, NEW.observaciones, NEW.notas);
-    UPDATE valuaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_valuacion = NEW.id_valuacion;
+    UPDATE valuaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_valuacion = NEW.id_valuacion;
 END;
 
 CREATE VIEW vw_reporte_valuaciones AS
@@ -505,7 +505,7 @@ CREATE TRIGGER trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
 FOR EACH ROW BEGIN
     INSERT INTO hist_aprobacion_jd (id_aprobacion_jd, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, fecha_presupuesto_base, presupuesto_base_bs, tipo_cambio, presupuesto_base_usd, id_plan, descripcion_proceso, cantidad_frentes, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, tiempo_ejecucion, observaciones, notas)
     VALUES (NEW.id_aprobacion_jd, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.fecha_presupuesto_base, NEW.presupuesto_base_bs, NEW.tipo_cambio, NEW.presupuesto_base_usd, NEW.id_plan, NEW.descripcion_proceso, NEW.cantidad_frentes, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.tiempo_ejecucion, NEW.observaciones, NEW.notas);
-    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_DATE WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
+    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
 END;
 
 CREATE VIEW vw_reporte_aprobacion_jd AS
@@ -612,7 +612,7 @@ CREATE TRIGGER trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
 FOR EACH ROW BEGIN
     INSERT INTO hist_certificacion_bdu (id_certificacion_bdu, id_gerencia, id_superintendencia, id_emisor, id_documento, presupuesto_base_total_usd, monto_adjudicado_total_usd, monto_contrato, monto_ejecutado, monto_pagado, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_certificacion_bdu, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.presupuesto_base_total_usd, NEW.monto_adjudicado_total_usd, NEW.monto_contrato, NEW.monto_ejecutado, NEW.monto_pagado, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_DATE WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
+    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
 END;
 
 CREATE VIEW vw_reporte_certificacion_bdu AS
@@ -710,7 +710,7 @@ CREATE TRIGGER trg_vac_auditoria AFTER UPDATE ON vacaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_vacaciones (id_vacacion, id_gerencia, id_superintendencia, id_emisor, documento, anio, cantidad_dias, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_vacacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.anio, NEW.cantidad_dias, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE vacaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_vacacion = NEW.id_vacacion;
+    UPDATE vacaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_vacacion = NEW.id_vacacion;
 END;
 
 CREATE VIEW vw_reporte_vacaciones AS
@@ -798,7 +798,7 @@ CREATE TRIGGER trg_rep_auditoria AFTER UPDATE ON reposos_medicos
 FOR EACH ROW BEGIN
     INSERT INTO hist_reposos_medicos (id_reposo_medico, id_gerencia, id_superintendencia, id_emisor, documento, dias_periodo, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, observaciones, notas)
     VALUES (NEW.id_reposo_medico, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.dias_periodo, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.observaciones, NEW.notas);
-    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_DATE WHERE id_reposo_medico = NEW.id_reposo_medico;
+    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_reposo_medico = NEW.id_reposo_medico;
 END;
 
 CREATE VIEW vw_reporte_reposos_medicos AS

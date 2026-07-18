@@ -284,6 +284,35 @@ Workflow: `.github/workflows/build.yml`
 | 51 | `templates/index.html` | Referencia a `ruta-procesos-data.js` eliminada | Archivo eliminado |
 
 
+## Auditorías de Código (Julio 2026)
+
+Se recibieron 3 auditorías externas (Qwen, Kimi, GLM) con un total de ~70 hallazgos. Muchos "críticos" eran falsos positivos porque los auditores solo analizaron `01_master_control_docs_presidencia.sql` sin considerar `02_modulos_adicionales.sql` (8 módulos completos) ni `03_ruta_procesos.sql`.
+
+### Correcciones aplicadas
+
+| # | Hallazgo | Archivo | Fix |
+|---|----------|---------|-----|
+| 1 | `parseSpanishNumber` corrompía campos textuales (observaciones) | `handler.go` | Whitelist `columnasNumericas` — solo se aplica a columnas monetarias/numéricas |
+| 2 | `sanitizarOrden` rechazaba `fecha_creacion`/`fecha_actualizacion` | `app.go` | `columnasOrdenValidas` incluidas en validación |
+| 3 | `convertirMoneda` sobrescribía presupuesto al editar adjudicación | `templates/index.html` | Lógica de presupuesto vs adjudicación en bloques independientes |
+| 4 | `toggleFrecuente` inyección JS por comillas en solped | `templates/tabla_expedientes.html`, `index.html` | Migrado a `data-df-*` attributes + dataset |
+| 5 | `hxGetFormulario` no pasaba módulo | `templates/index.html` | Parámetro `modulo` en URL; items fijados guardan `{id, solped, modulo}` |
+| 6 | `EliminarFila` no limpiaba `ruta_procesos_*` (FK constraint) | `app.go` | DELETE en cronograma + procesos antes del DELETE principal |
+| 7 | Trigger sobrescribía `id_estatus` manual del usuario | `01_master...sql` | `AND OLD.fecha_firma_contrato IS NULL` en UPDATE a FIRMADO |
+| 8 | `truncate` rompía UTF-8 multi-byte | `handler.go` | `[]rune(s)[:n]` en vez de `s[:n]` |
+| 9 | `formatNumGo` error de precisión float (1,14 en vez de 1,15) | `handler.go` | `math.Round(f*100)/100` |
+| 10 | `handleCSV` orden de columnas aleatorio (map iteration) | `handler.go` | `sort.Strings(headers)` |
+| 11 | `fecha_actualizacion` inconsistente (CURRENT_DATE vs TIMESTAMP) | `02_modulos...sql` | Triggers cambiados a `CURRENT_TIMESTAMP` |
+| 12 | `EliminarRutaProceso` sin transacción | `app.go` | Envuelto en `tx.Begin/Commit/Rollback` |
+| 13 | `LastInsertId()` error ignorado | `app.go` | Error chequeado explícitamente |
+| 14 | Errores scan silenciados en `ObtenerRutaProcesosData` | `app.go` | `log.Printf` en cada scan fallido |
+| 15 | Items fijados perdían módulo al recargar | `templates/index.html` | `modulo` persistido en localStorage junto a id/solped |
+| 16 | Label incorrecto "Asunto del Memorándum" en recobros | `templates/form_recobros.html` | Cambiado a "Asunto del Recobro" |
+| 17 | `fecha_devuelto` consultado pero no mostrado en historial | `templates/historial.html` | Columna agregada al template |
+| 18 | `dayNames` duplicado "M" para Lunes y Miércoles | `app.go` | "L", "M", **"X"**, "J", "V" |
+| 19 | `pushModal` fuga de event listeners por apertura | `templates/index.html` | Listener único global con delegación de eventos |
+| 20 | `crearBackup` corrupción de bak.1 si el sistema crashea durante la copia | `app.go` | Copia primero a `bak.tmp`, renombra solo si exitoso |
+
 ## Migración a Go html/template — Estado
 
 | # | Paso | Estado | Detalle |

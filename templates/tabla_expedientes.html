@@ -31,7 +31,8 @@
                                 hx-target="#form-expediente"
                                 hx-on::after-request="mostrarFormulario({{rowGetStr $exp "id_expediente"}})"
                                 class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="event.stopPropagation(); toggleFrecuente({{rowGetStr $exp "id_expediente"}}, '{{rowGetStr $exp "solped"}}')"
+                        <button data-df-id="{{rowGetStr $exp "id_expediente"}}" data-df-solped="{{rowGetStr $exp "solped"}}"
+                                onclick="event.stopPropagation(); var d=this.dataset; toggleFrecuente(d.dfId, d.dfSolped)"
                                 class="btn-icon text-blue-500 hover:text-blue-400" title="Anclar" id="pin-btn-{{rowGetStr $exp "id_expediente"}}">
                             <i class="fas fa-thumbtack rotate-45 text-xs"></i>
                         </button>

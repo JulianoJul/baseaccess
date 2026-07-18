@@ -226,11 +226,8 @@ BEGIN
     UPDATE expedientes
     SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
     WHERE NEW.fecha_firma_contrato IS NOT NULL
+      AND OLD.fecha_firma_contrato IS NULL
       AND id_expediente = NEW.id_expediente;
-
-    UPDATE expedientes
-    SET fecha_actualizacion = CURRENT_DATE
-    WHERE id_expediente = NEW.id_expediente;
 END;
 
 -- ==========================================

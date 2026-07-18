@@ -5,6 +5,7 @@
         <thead>
             <tr class="bg-gray-700/60 text-teal-400 uppercase">
                 <th class="p-2">Fecha Recibido</th>
+                <th class="p-2">Fecha Devuelto</th>
                 <th class="p-2">Estatus</th>
                 <th class="p-2">Documento</th>
                 <th class="p-2">Emisor</th>
@@ -17,6 +18,7 @@
             {{range .Rows}}
             <tr class="hover:bg-gray-700/20">
                 <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
+                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_devuelto") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>

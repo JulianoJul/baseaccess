@@ -7,11 +7,13 @@ import (
 	"html/template"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/xuri/excelize/v2"
 )
@@ -160,27 +162,70 @@ func formatNumGo(v interface{}) string {
 	if v == nil {
 		return ""
 	}
+	var f float64
 	switch n := v.(type) {
 	case float64:
 		if n == 0 {
 			return ""
 		}
-		return fmt.Sprintf("%.2f", n)
+		f = n
 	case int64:
-		return strconv.FormatInt(n, 10)
+		f = float64(n)
 	case int:
-		return strconv.Itoa(n)
+		f = float64(n)
 	case string:
 		if n == "" {
 			return ""
 		}
-		f, err := strconv.ParseFloat(n, 64)
+		parsed, err := strconv.ParseFloat(n, 64)
 		if err != nil {
 			return n
 		}
-		return fmt.Sprintf("%.2f", f)
+		if parsed == 0 {
+			return ""
+		}
+		f = parsed
+	default:
+		return fmt.Sprintf("%v", v)
 	}
-	return fmt.Sprintf("%v", v)
+	rounded := math.Round(f*100) / 100
+	intPart := int64(rounded)
+	decPart := int64(math.Abs(rounded-float64(intPart))*100 + 0.5)
+	if decPart < 0 {
+		decPart = -decPart
+	}
+	intStr := strconv.FormatInt(intPart, 10)
+	if intPart < 0 {
+		intStr = intStr[1:]
+	}
+	var withDots strings.Builder
+	for i, c := range intStr {
+		if i > 0 && (len(intStr)-i)%3 == 0 {
+			withDots.WriteByte('.')
+		}
+		withDots.WriteByte(byte(c))
+	}
+	result := withDots.String()
+	if intPart < 0 {
+		result = "-" + result
+	}
+	return result + "," + fmt.Sprintf("%02d", decPart)
+}
+
+var columnasNumericas = map[string]bool{
+	"presupuesto_base_usd": true, "presupuesto_base_bs": true, "tipo_cambio": true,
+	"monto_adjudicado_usd": true, "monto_adjudicado_bs": true, "monto_valuacion": true,
+	"presupuesto_base_total_usd": true, "monto_adjudicado_total_usd": true,
+	"monto_contrato": true, "monto_ejecutado": true, "monto_pagado": true,
+	"costo_servicio_usd": true, "nota_debito_reverso": true,
+	"cantidad_frentes": true, "cantidad_dias": true, "dias_periodo": true,
+	"tiempo_ejecucion": true, "anio": true,
+}
+
+func parseSpanishNumber(s string) string {
+	s = strings.ReplaceAll(s, ".", "")
+	s = strings.Replace(s, ",", ".", 1)
+	return s
 }
 
 func jsonEncode(v interface{}) template.JS {
@@ -188,14 +233,18 @@ func jsonEncode(v interface{}) template.JS {
 	if err != nil {
 		return "null"
 	}
-	return template.JS(b)
+	s := string(b)
+	s = strings.ReplaceAll(s, "</script>", "<\\/script>")
+	s = strings.ReplaceAll(s, "<!--", "<\\!--")
+	return template.JS(s)
 }
 
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	if utf8.RuneCountInString(s) <= n {
 		return s
 	}
-	return s[:n] + "..."
+	runes := []rune(s)
+	return string(runes[:n]) + "..."
 }
 
 func isSelected(val interface{}, target string) bool {
@@ -272,11 +321,9 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	}
 	data.Filas = filas
 
-	if len(filas) > 0 {
-		data.TotalPages = (len(filas) + data.PageSize - 1) / data.PageSize
-		if data.TotalPages < 1 {
-			data.TotalPages = 1
-		}
+	data.TotalPages = (len(filas) + data.PageSize - 1) / data.PageSize
+	if data.TotalPages < 1 {
+		data.TotalPages = 1
 	}
 
 	return data
@@ -385,7 +432,14 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 
 	data := make(map[string]interface{})
 	for _, col := range cfg.Columnas {
-		data[col] = r.FormValue(col)
+		v := r.FormValue(col)
+		if v == "" {
+			data[col] = nil
+		} else if columnasNumericas[col] && strings.Contains(v, ",") {
+			data[col] = parseSpanishNumber(v)
+		} else {
+			data[col] = v
+		}
 	}
 
 	idStr := r.FormValue(cfg.IDColumna)
@@ -788,7 +842,11 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
-	if err != nil || len(data) == 0 {
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(data) == 0 {
 		writeJSONError(w, "no hay datos", http.StatusBadRequest)
 		return
 	}
@@ -797,14 +855,11 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
-	if len(data) == 0 {
-		return
-	}
-
 	headers := make([]string, 0, len(data[0]))
 	for k := range data[0] {
 		headers = append(headers, k)
 	}
+	sort.Strings(headers)
 
 	csv := strings.Join(headers, ",") + "\n"
 	for _, row := range data {
@@ -815,7 +870,7 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 				vals[i] = ""
 			} else {
 				s := fmt.Sprintf("%v", v)
-				if strings.ContainsAny(s, ",\"\n") {
+				if strings.ContainsAny(s, ",\"\n\r") {
 					s = "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
 				}
 				vals[i] = s
@@ -863,34 +918,20 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	var paramToRowKey = map[string]string{
-		"id_gerencia":         "gerencia",
-		"id_superintendencia": "superintendencia",
-		"id_documento":        "documento",
-		"id_plan":             "plan_contrataciones",
-		"id_modalidad":        "modalidad_contratacion",
-		"id_art":              "art",
-		"id_tipo_contrato":    "tipo_contrato",
-		"id_estatus":          "estatus_detalle",
-		"id_resultado":        "resultados_proceso",
-		"id_empresa":          "empresa_adjudicada",
-		"id_emisor":           "emisor",
-		"id_receptor":         "receptor",
-	}
-
-	var paramToCatalogKey = map[string]string{
-		"id_gerencia":         "gerencia",
-		"id_superintendencia": "superintendencia",
-		"id_documento":        "documento",
-		"id_plan":             "plan_contratacion",
-		"id_modalidad":        "modalidad",
-		"id_art":              "art",
-		"id_tipo_contrato":    "tipo_contrato",
-		"id_estatus":          "estatus_detalle",
-		"id_resultado":        "resultado_proceso",
-		"id_empresa":          "empresas",
-		"id_emisor":           "responsables",
-		"id_receptor":         "responsables",
+	// Mapa unificado: param → { rowKey, catKey }
+	var filterColMap = map[string][2]string{
+		"id_gerencia":         {"gerencia", "gerencia"},
+		"id_superintendencia": {"superintendencia", "superintendencia"},
+		"id_documento":        {"documento", "documento"},
+		"id_plan":             {"plan_contrataciones", "plan_contratacion"},
+		"id_modalidad":        {"modalidad_contratacion", "modalidad"},
+		"id_art":              {"art", "art"},
+		"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
+		"id_estatus":          {"estatus_detalle", "estatus_detalle"},
+		"id_resultado":        {"resultados_proceso", "resultado_proceso"},
+		"id_empresa":          {"empresa_adjudicada", "empresas"},
+		"id_emisor":           {"emisor", "responsables"},
+		"id_receptor":         {"receptor", "responsables"},
 	}
 
 	// Load catalogs to translate IDs to names
@@ -935,15 +976,16 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 
 		match := true
 		for paramKey, paramVal := range filters {
-			rowKey := paramToRowKey[paramKey]
-			catKey := paramToCatalogKey[paramKey]
-			if rowKey != "" && catKey != "" {
-				expectedName := catMaps[catKey][paramVal]
-				rowValStr, _ := row[rowKey].(string)
-				if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
-					match = false
-					break
-				}
+			mapping, ok := filterColMap[paramKey]
+			if !ok {
+				continue
+			}
+			rowKey, catKey := mapping[0], mapping[1]
+			expectedName := catMaps[catKey][paramVal]
+			rowValStr, _ := row[rowKey].(string)
+			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
+				match = false
+				break
 			}
 		}
 		if !match {
@@ -998,6 +1040,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	}
 
 	f := excelize.NewFile()
+	defer f.Close()
 	sheetName := cfg.Nombre
 	if len(sheetName) > 31 {
 		sheetName = sheetName[:31]
@@ -1027,12 +1070,12 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	}
 
 	for i, k := range keysOrdered {
-		width := float64(len(labelOf(k))) + 4
+		width := float64(utf8.RuneCountInString(labelOf(k))) + 4
 		for _, row := range filtered {
 			if v := row[k]; v != nil {
 				s := fmt.Sprintf("%v", v)
-				if len(s) > int(width) {
-					width = float64(len(s)) + 2
+				if utf8.RuneCountInString(s) > int(width) {
+					width = float64(utf8.RuneCountInString(s)) + 2
 				}
 			}
 		}
@@ -1054,9 +1097,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	if err := f.Write(w); err != nil {
 		log.Printf("exportar-excel: error escribiendo: %v", err)
-		// El header ya se envió como 200, solo podemos loguear
 	}
-	f.Close()
 }
 
 func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Request) {

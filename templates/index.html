@@ -349,6 +349,11 @@
         const STORAGE_KEYS = { FRECUENTES: 'sidebarFrecuentes', RECIENTES: 'baseaccess_recientes' };
 
         // --- Toast ---
+        function esc(v) {
+            if (v == null) return '';
+            return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
         function toast(msg, tipo = 'info') {
             const el = document.createElement('div');
             el.className = 'toast ' + tipo;
@@ -426,17 +431,6 @@
             btn.innerHTML = sub.classList.contains('hidden') ? '<i class="fas fa-plus"></i>' : '<i class="fas fa-minus"></i>';
         }
 
-        // --- Sidebar frecuentes (localStorage) ---
-        function toggleFrecuente(id, solped) {
-            let favs = JSON.parse(localStorage.getItem('frecuentes') || '[]');
-            const idx = favs.findIndex(f => f.id == id);
-            if (idx !== -1) favs.splice(idx, 1);
-            else favs.push({ id, solped });
-            localStorage.setItem('frecuentes', JSON.stringify(favs));
-            const star = $('star-' + id);
-            if (star) star.classList.toggle('text-amber-300');
-        }
-
         // --- Stack de modales (cierre al clickear afuera con jerarquia) ---
         const MODAL_STACK = [];
         function pushModal(id) {
@@ -445,12 +439,16 @@
             el.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             MODAL_STACK.push(id);
-            el.addEventListener('click', function(e) {
-                if (e.target === el) {
-                    if (MODAL_STACK.length && MODAL_STACK[MODAL_STACK.length - 1] === id) cerrarModal(id);
-                }
-            });
         }
+
+        document.addEventListener('click', function(e) {
+            if (MODAL_STACK.length === 0) return;
+            const modal = e.target.closest('.modal');
+            if (!modal || e.target !== modal) return;
+            if (MODAL_STACK[MODAL_STACK.length - 1] === modal.id) {
+                cerrarModal(modal.id);
+            }
+        });
         function cerrarModal(id) {
             const el = $(id);
             if (!el) return;
@@ -582,10 +580,10 @@
             } else {
                 cont.innerHTML = '<div class="flex flex-col gap-2">' + recientes.map((r, i) => `
                     <div class="reciente-item flex items-center gap-2 px-4 py-3 cursor-pointer rounded-lg bg-gray-900/60 border border-gray-700/60 hover:border-teal-500/60 transition-all"
-                         onclick="abrirBaseDatosReciente('${r.path.replace(/'/g, "\\'")}')">
+                         data-df-path="${r.path}" onclick="abrirBaseDatosReciente(this.dataset.dfPath)">
                         <div class="min-w-0 flex-1">
-                            <div class="text-sm text-gray-200 truncate font-semibold">${r.nombre}</div>
-                            <div class="text-xs text-gray-500 truncate">${r.path}</div>
+                            <div class="text-sm text-gray-200 truncate font-semibold">${esc(r.nombre)}</div>
+                            <div class="text-xs text-gray-500 truncate">${esc(r.path)}</div>
                         </div>
                         <button onclick="event.stopPropagation(); eliminarRecienteIndex(${i})" class="text-xs text-gray-400 hover:text-red-400 shrink-0 p-1" title="Quitar de recientes"><i class="fas fa-times"></i></button>
                     </div>
@@ -596,7 +594,7 @@
         function cerrarRecientes() { cerrarModal('modal-recientes'); }
 
         // --- Acceso Rápido / Pinned items ---
-        function toggleFrecuente(id, solped) {
+        function toggleFrecuente(id, solped, modulo) {
             let list = [];
             try {
                 list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
@@ -605,7 +603,8 @@
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
-                list.push({ id: Number(id), solped });
+                modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+                list.push({ id: Number(id), solped: solped || '', modulo: modulo });
             }
             localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
             
@@ -647,13 +646,13 @@
                 return;
             }
             cont.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' + list.map(item => `
-                <div class="flex items-center justify-between bg-gray-900/60 hover:bg-gray-900 border border-gray-700/60 hover:border-teal-500/30 rounded-xl p-4 cursor-pointer transition-all duration-200"
-                     onclick="event.stopPropagation(); cerrarFrecuentes(); hxGetFormulario(${item.id})">
+                <div data-df-id="${item.id}" data-df-modulo="${item.modulo || 'expedientes'}" class="flex items-center justify-between bg-gray-900/60 hover:bg-gray-900 border border-gray-700/60 hover:border-teal-500/30 rounded-xl p-4 cursor-pointer transition-all duration-200"
+                     onclick="event.stopPropagation(); cerrarFrecuentes(); hxGetFormulario(this.dataset.dfId, this.dataset.dfModulo)">
                     <div class="min-w-0 flex-1">
                         <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">SOLPED</div>
-                        <div class="text-sm text-gray-200 font-bold truncate">${item.solped || 'SIN SOLPED'}</div>
+                        <div class="text-sm text-gray-200 font-bold truncate">${esc(item.solped) || 'SIN SOLPED'}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); toggleFrecuente(${item.id}, '${item.solped?.replace(/'/g, "\\'") || ''}')" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-gray-800 transition-all duration-200" title="Desanclar">
+                    <button data-df-id="${item.id}" data-df-solped="${item.solped || ''}" onclick="event.stopPropagation(); var d=this.dataset; toggleFrecuente(d.dfId, d.dfSolped)" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-gray-800 transition-all duration-200" title="Desanclar">
                         <i class="fas fa-times text-xs"></i>
                     </button>
                 </div>
@@ -801,8 +800,9 @@
             htmx.trigger('#sort-order', 'change');
         }
 
-        function hxGetFormulario(id) {
-            htmx.ajax('GET', '/api/cargar-expediente?id=' + id, {target: '#form-expediente'}).then(() => {
+        function hxGetFormulario(id, modulo) {
+            modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+            htmx.ajax('GET', '/api/cargar-expediente?modulo=' + encodeURIComponent(modulo) + '&id=' + id, {target: '#form-expediente'}).then(() => {
                 mostrarFormulario(id);
             });
         }
@@ -1092,21 +1092,20 @@
                     el.dataset.raw = val.toFixed(2);
                     el.dispatchEvent(new Event('blur', {bubbles: true}));
                 }
-                // Presupuesto
-                if (origen !== 'bs_presup') {
-                    var usd = getRaw('f-presupuesto_base_usd');
-                    if (usd) setVal('f-presupuesto_base_bs', usd * tc);
-                }
+                // Presupuesto: solo se convierte cuando se editan campos de presupuesto
                 if (origen === 'bs_presup') {
                     var bs = getRaw('f-presupuesto_base_bs');
                     if (bs) setVal('f-presupuesto_base_usd', bs / tc);
+                } else if (origen === undefined || origen === 'usd_presup' || origen === '') {
+                    var usd = getRaw('f-presupuesto_base_usd');
+                    if (usd) setVal('f-presupuesto_base_bs', usd * tc);
                 }
-                // Monto Adjudicado
-                var adjUsd = getRaw('f-monto_adjudicado_usd');
-                var adjBs = getRaw('f-monto_adjudicado_bs');
+                // Monto Adjudicado: solo se convierte cuando se editan campos de adjudicación
                 if (origen === 'bs_adj') {
+                    var adjBs = getRaw('f-monto_adjudicado_bs');
                     if (adjBs) setVal('f-monto_adjudicado_usd', adjBs / tc);
-                } else if (origen === 'usd_adj' || (adjUsd && !adjBs)) {
+                } else if (origen === 'usd_adj' || (origen === undefined && getRaw('f-monto_adjudicado_usd') && !getRaw('f-monto_adjudicado_bs'))) {
+                    var adjUsd = getRaw('f-monto_adjudicado_usd');
                     if (adjUsd) setVal('f-monto_adjudicado_bs', adjUsd * tc);
                 }
             } finally {

@@ -30,6 +30,11 @@
     const { Legend: legend, Columns: ganttColumns, Processes: processes } = data;
     var formVisible = false;
 
+    function esc(v) {
+        if (v == null) return '';
+        return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
     window.toggleFormProceso = function() {
         formVisible = !formVisible;
         document.getElementById('form-agregar-proceso').classList.toggle('hidden', !formVisible);
@@ -122,9 +127,9 @@
                 '<div class="flex items-start gap-2.5">' +
                 '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
                 '<span class="proceso-card-num">' + p.id + '</span></label>' +
-                '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + p.descripcion + '</p>' +
-                '<div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">' + (p.solped || 'SIN SOLPED') + '</strong></span>' +
-                '<span>Estatus: <span class="proceso-card-badge ' + ((p.estatus_detalle || '') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente') + '">' + (p.estatus_detalle || 'N/A') + '</span></span></div></div></div>' +
+                '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + esc(p.descripcion) + '</p>' +
+                '<div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
+                '<span>Estatus: <span class="proceso-card-badge ' + ((p.estatus_detalle || '') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente') + '">' + esc(p.estatus_detalle || 'N/A') + '</span></span></div></div></div>' +
                 '<button onclick="event.stopPropagation(); eliminarProceso(' + p.id + ')" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar"><i class="fas fa-trash"></i></button>' +
                 '</div>';
         });
@@ -138,11 +143,24 @@
             document.getElementById('gantt-process-content').innerHTML = '<p class="text-gray-500 text-sm italic text-center py-8">Selecciona procesos arriba para ver el cronograma.</p>';
             return;
         }
+
+        var weekHeaders = '', weekSubs = '', weekLabels = '';
+        var seenWeeks = [];
+        ganttColumns.forEach(function(c) {
+            if (seenWeeks.indexOf(c.week_label) === -1) {
+                seenWeeks.push(c.week_label);
+                var count = ganttColumns.filter(function(x) { return x.week_label === c.week_label; }).length;
+                weekHeaders += '<th colspan="' + count + '" class="gantt-week-header">' + esc(c.date_str) + '</th>';
+                weekSubs += '<th colspan="' + count + '" class="gantt-week-subheader">' + esc(c.date_str) + '</th>';
+                weekLabels += '<th colspan="' + count + '" class="gantt-week-label">' + esc(c.week_label) + '</th>';
+            }
+        });
+
         var html = '<div class="card mt-0"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
-            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th><th colspan="5" class="gantt-week-header">DEL 01/06/26</th><th colspan="5" class="gantt-week-header">DEL 05/06/26</th><th colspan="5" class="gantt-week-header">DEL 15/06/26</th><th colspan="5" class="gantt-week-header">DEL 22/06/26</th><th colspan="5" class="gantt-week-header">DEL 30/06/26</th><th colspan="5" class="gantt-week-header">DEL 6/07/26</th></tr>' +
-            '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-subheader">AL 05/06/26</th><th colspan="5" class="gantt-week-subheader">AL 12/06/26</th><th colspan="5" class="gantt-week-subheader">AL 19/06/26</th><th colspan="5" class="gantt-week-subheader">AL 26/06/26</th><th colspan="5" class="gantt-week-subheader">AL 03/07/26</th><th colspan="5" class="gantt-week-subheader">AL 10/07/26</th></tr>' +
-            '<tr class="bg-gray-800 uppercase font-bold"><th colspan="5" class="gantt-week-label">SEMANA 1</th><th colspan="5" class="gantt-week-label">SEMANA 2</th><th colspan="5" class="gantt-week-label">SEMANA 3</th><th colspan="5" class="gantt-week-label">SEMANA 4</th><th colspan="5" class="gantt-week-label">SEMANA 5</th><th colspan="5" class="gantt-week-label">SEMANA 6</th></tr>' +
-            '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + c.day_name + '</th>'; }).join('') + '</tr></thead><tbody>';
+            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th>' + weekHeaders + '</tr>' +
+            '<tr class="bg-gray-800 uppercase font-bold">' + weekSubs + '</tr>' +
+            '<tr class="bg-gray-800 uppercase font-bold">' + weekLabels + '</tr>' +
+            '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + esc(c.day_name) + '</th>'; }).join('') + '</tr></thead><tbody>';
 
         active.forEach(function(p) {
             html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10"><td class="gantt-col-num p-2 text-gray-400">' + p.id + '</td>';
@@ -153,9 +171,9 @@
                 var note = dayData.note || '';
                 if (color) {
                     var titleColor = color === '#000000' ? '#ffffff' : color;
-                    html += '<td style="background-color: ' + color + '" class="gantt-col-day gantt-cell-active"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + titleColor + '">' + statusName + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + note + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
+                    html += '<td style="background-color: ' + esc(color) + '" class="gantt-col-day gantt-cell-active"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + esc(titleColor) + '">' + esc(statusName) + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + esc(note) + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
                 } else {
-                    html += '<td class="gantt-col-day gantt-cell-empty"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + col.week_label + ' - ' + col.day_name + '</span><span class="gantt-tooltip-date">' + col.date_str + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada</div></div></td>';
+                    html += '<td class="gantt-col-day gantt-cell-empty"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada</div></div></td>';
                 }
             });
             html += '</tr>';
@@ -163,7 +181,7 @@
         html += '</tbody></table></div></div>';
 
         var leyendaHtml = '<div class="border-t border-gray-700 pt-4"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
-        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + leg.hex_color + '"></span><span class="gantt-legend-label">' + leg.status_name + '</span></div>'; });
+        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span><span class="gantt-legend-label">' + esc(leg.status_name) + '</span></div>'; });
         leyendaHtml += '</div></div>';
         html += leyendaHtml;
         document.getElementById('gantt-process-content').innerHTML = html;

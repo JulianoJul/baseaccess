@@ -216,7 +216,7 @@ type App struct {
 	ctx    context.Context
 	db     *sql.DB
 	dbPath string
-	mu     sync.Mutex
+	mu     sync.RWMutex
 }
 
 type Row map[string]interface{}
@@ -303,17 +303,7 @@ func (a *App) crearBackup() error {
 	base := filepath.Base(a.dbPath)
 	sep := string(filepath.Separator)
 	maxCopies := int(backupMaxCopies.Load())
-
-	oldest := dir + sep + base + ".bak." + strconv.Itoa(maxCopies)
-	os.Remove(oldest)
-
-	for i := maxCopies - 1; i >= 1; i-- {
-		src := dir + sep + base + ".bak." + strconv.Itoa(i)
-		dst := dir + sep + base + ".bak." + strconv.Itoa(i+1)
-		if _, err := os.Stat(src); err == nil {
-			os.Rename(src, dst)
-		}
-	}
+	tmpPath := dir + sep + base + ".bak.tmp"
 
 	srcFile, err := os.Open(a.dbPath)
 	if err != nil {
@@ -321,19 +311,39 @@ func (a *App) crearBackup() error {
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.Create(dir + sep + base + ".bak.1")
+	tmpFile, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("error creando backup: %w", err)
+		return fmt.Errorf("error creando backup temporal: %w", err)
 	}
-	defer dstFile.Close()
 
-	written, err := io.Copy(dstFile, srcFile)
+	written, err := io.Copy(tmpFile, srcFile)
+	tmpFile.Close()
 	if err != nil {
+		os.Remove(tmpPath)
 		return fmt.Errorf("error copiando backup: %w", err)
 	}
 	srcInfo, err := srcFile.Stat()
 	if err == nil && written != srcInfo.Size() {
+		os.Remove(tmpPath)
 		return fmt.Errorf("backup incompleto: copió %d de %d bytes", written, srcInfo.Size())
+	}
+
+	oldest := dir + sep + base + ".bak." + strconv.Itoa(maxCopies)
+	if err := os.Remove(oldest); err != nil && !os.IsNotExist(err) {
+		log.Printf("error removiendo backup antiguo %s: %v", oldest, err)
+	}
+	for i := maxCopies - 1; i >= 1; i-- {
+		src := dir + sep + base + ".bak." + strconv.Itoa(i)
+		dst := dir + sep + base + ".bak." + strconv.Itoa(i+1)
+		if _, err := os.Stat(src); err == nil {
+			if err := os.Rename(src, dst); err != nil {
+				log.Printf("error renombrando backup %s → %s: %v", src, dst, err)
+			}
+		}
+	}
+	if err := os.Rename(tmpPath, dir+sep+base+".bak.1"); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("error moviendo backup temporal: %w", err)
 	}
 	return nil
 }
@@ -405,7 +415,10 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 				row[col] = val
 			}
 		}
-		results = append(results, row)
+			results = append(results, row)
+	}
+	if err := rows.Err(); err != nil {
+		return results, err
 	}
 	return results, nil
 }
@@ -417,12 +430,24 @@ func (a *App) exec(query string, args ...interface{}) (sql.Result, error) {
 	return a.db.Exec(query, args...)
 }
 
-func sanitizarOrden(orden string, def string) string {
+func sanitizarOrden(orden string, def string, columnasValidas []string) string {
+	validMap := make(map[string]bool, len(columnasValidas)+len(columnasOrdenValidas)+1)
+	for _, c := range columnasValidas {
+		validMap[c] = true
+	}
+	for c := range columnasOrdenValidas {
+		validMap[c] = true
+	}
+	validMap[def] = true
+
 	partes := strings.Fields(orden)
 	if len(partes) == 0 {
 		return def + " DESC"
 	}
 	col := partes[0]
+	if !validMap[col] {
+		return def + " DESC"
+	}
 	dir := "DESC"
 	if len(partes) > 1 {
 		d := strings.ToUpper(partes[1])
@@ -430,35 +455,26 @@ func sanitizarOrden(orden string, def string) string {
 			dir = d
 		}
 	}
-	colClean := ""
-	for _, r := range col {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
-			colClean += string(r)
-		}
-	}
-	if colClean == "" {
-		return def + " DESC"
-	}
-	return colClean + " " + dir
+	return col + " " + dir
 }
 
 func (a *App) ObtenerFilas(moduloKey string, orden string) ([]Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	cfg, ok := Modulos[moduloKey]
 	if !ok {
 		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
 	}
 
-	orden = sanitizarOrden(orden, cfg.IDColumna)
+	orden = sanitizarOrden(orden, cfg.IDColumna, cfg.Columnas)
 	q := `SELECT * FROM ` + cfg.Vista + ` ORDER BY ` + orden
 	return a.queryRows(q)
 }
 
 func (a *App) ObtenerFilaPorId(moduloKey string, id int) (Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	cfg, ok := Modulos[moduloKey]
 	if !ok {
@@ -534,7 +550,7 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 			sets[i] = col + " = ?"
 		}
 		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
-			`, fecha_actualizacion = CURRENT_DATE WHERE ` + cfg.IDColumna + ` = ?`
+			`, fecha_actualizacion = CURRENT_TIMESTAMP WHERE ` + cfg.IDColumna + ` = ?`
 		_, err := a.exec(q, append(vals, id)...)
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
@@ -552,7 +568,11 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	if err != nil {
 		return 0, fmt.Errorf("error al insertar: %w", err)
 	}
-	return res.LastInsertId()
+	id, err = res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("error obteniendo id insertado: %w", err)
+	}
+	return id, nil
 }
 
 func (a *App) EliminarFila(moduloKey string, id int64) error {
@@ -590,6 +610,15 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 		}
 	}
 
+	if moduloKey == "expedientes" {
+		if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_expediente = ? OR id_proceso IN (SELECT id FROM ruta_procesos_procesos WHERE db_id = ?)", id, id); err != nil {
+			return err
+		}
+		if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE db_id = ?", id); err != nil {
+			return err
+		}
+	}
+
 	qDel := `DELETE FROM ` + cfg.Tabla + ` WHERE ` + cfg.IDColumna + ` = ?`
 	if _, err = tx.Exec(qDel, id); err != nil {
 		return err
@@ -603,8 +632,8 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 }
 
 func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	cfg, ok := Modulos[moduloKey]
 	if !ok {
@@ -619,8 +648,8 @@ func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
 }
 
 func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
@@ -646,14 +675,14 @@ func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {
 }
 
 func (a *App) ObtenerRutaProcesos() ([]Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.queryRows(queryObtenerRutaProcesos)
 }
 
 func (a *App) ObtenerDocumentosPendientes() ([]Row, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	return a.queryRows(queryObtenerDocsPendientes)
 }
 
@@ -681,8 +710,8 @@ type RutaProcesosGanttData struct {
 }
 
 func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
@@ -696,6 +725,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 	for legendRows.Next() {
 		var l RutaProcesosLegend
 		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan leyenda: %v", err)
 			continue
 		}
 		legend = append(legend, l)
@@ -722,6 +752,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		var p RutaProcesosProceso
 		var activo int
 		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan proceso: %v", err)
 			continue
 		}
 		p.Activo = activo == 1
@@ -733,24 +764,33 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}}, nil
 	}
 
-	idList := make([]string, 0, len(processes))
-	for _, p := range processes {
-		idList = append(idList, fmt.Sprintf("%d", p.ID))
-	}
-	cronoRows, err := a.db.Query(
-		"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(idList, ",")+")")
-	if err == nil {
+	if len(processes) > 0 {
+		args := make([]interface{}, len(processes))
+		placeholders := make([]string, len(processes))
+		for i, p := range processes {
+			args[i] = p.ID
+			placeholders[i] = "?"
+		}
+		cronoRows, err := a.db.Query(
+			"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
+			args...)
+		if err != nil {
+			return nil, err
+		}
 		defer cronoRows.Close()
 		for cronoRows.Next() {
 			var idProc int
-			var fecha, nota, statusName, hexColor string
+			var fecha, nota string
 			var statusNameNull, hexColorNull sql.NullString
 			if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
+				log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
 				continue
 			}
+			statusName := ""
 			if statusNameNull.Valid {
 				statusName = statusNameNull.String
 			}
+			hexColor := ""
 			if hexColorNull.Valid {
 				hexColor = hexColorNull.String
 			}
@@ -771,7 +811,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 }
 
 func buildGanttColumns() []map[string]string {
-	dayNames := []string{"L", "M", "M", "J", "V"}
+	dayNames := []string{"L", "M", "X", "J", "V"}
 	now := time.Now()
 	weekday := now.Weekday()
 	if weekday == time.Saturday {
@@ -779,7 +819,6 @@ func buildGanttColumns() []map[string]string {
 	} else if weekday == time.Sunday {
 		now = now.AddDate(0, 0, 1)
 	}
-	// Retroceder al lunes de la semana actual
 	offset := int(now.Weekday() - time.Monday)
 	if offset < 0 {
 		offset += 7
@@ -787,18 +826,20 @@ func buildGanttColumns() []map[string]string {
 	start := now.AddDate(0, 0, -offset)
 
 	columns := make([]map[string]string, 0, 30)
-	totalDays := 30
+	totalDays := 60
+	bizCount := 0
 	weekNum := 1
 	for i := 0; i < totalDays; i++ {
 		date := start.AddDate(0, 0, i)
 		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
 			continue
 		}
-		weekLabel := fmt.Sprintf("SEMANA %d", weekNum)
-		if i > 0 && i%5 == 0 {
+		bizCount++
+		if bizCount > 1 && bizCount%5 == 1 {
 			weekNum++
 		}
-		dayName := dayNames[i%5]
+		weekLabel := fmt.Sprintf("SEMANA %d", weekNum)
+		dayName := dayNames[(bizCount-1)%5]
 		columns = append(columns, map[string]string{
 			"day_name":   dayName,
 			"week_label": weekLabel,
@@ -836,8 +877,8 @@ func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
 }
 
 func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
@@ -876,12 +917,27 @@ func (a *App) EliminarRutaProceso(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("no hay BD abierta")
 	}
-	_, err := a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id)
+	tx, err := a.db.Begin()
 	if err != nil {
 		return err
 	}
-	_, err = a.db.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id)
-	return err
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+	if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 type CatalogoItem struct {
@@ -891,8 +947,8 @@ type CatalogoItem struct {
 }
 
 func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	a.mu.RLock()
+	defer a.mu.RUnlock()
 
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay base de datos abierta")
