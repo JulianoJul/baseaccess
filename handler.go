@@ -69,6 +69,16 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 
 const moduloDefault = "expedientes"
 
+func modulosSinQueries() map[string]ModuloConfig {
+	cc := make(map[string]ModuloConfig, len(Modulos))
+	for k, v := range Modulos {
+		copia := v
+		copia.QueryHistorial = ""
+		cc[k] = copia
+	}
+	return cc
+}
+
 func moduloDesdeRequest(r *http.Request) (string, ModuloConfig, bool) {
 	modulo := r.URL.Query().Get("modulo")
 	if modulo == "" {
@@ -289,17 +299,10 @@ type PageData struct {
 func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	modulo, cfg, _ := moduloDesdeRequest(r)
 
-	modulosLimpios := make(map[string]ModuloConfig, len(Modulos))
-	for k, v := range Modulos {
-		copia := v
-		copia.QueryHistorial = ""
-		modulosLimpios[k] = copia
-	}
-
 	data := &PageData{
 		Title:        "Control de Documentos",
 		ActiveModule: modulo,
-		Modulos:      modulosLimpios,
+		Modulos:      modulosSinQueries(),
 		PageSize:     10,
 		CurrentPage:  1,
 		SortColumn:   "fecha_creacion",
@@ -612,7 +615,7 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filtered,
-		"Modulos":      Modulos,
+		"Modulos":      modulosSinQueries(),
 		"HasDB":        hasDB,
 	}
 
@@ -643,7 +646,7 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filas,
-		"Modulos":      Modulos,
+		"Modulos":      modulosSinQueries(),
 		"HasDB":        hasDB,
 	}
 
@@ -883,211 +886,41 @@ func (h *TemplateHandler) filtrarPorGerencias(modulo string, filas []Row) []Row 
 	return filtered
 }
 
-func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
+var exportFilterColMap = map[string][2]string{
+	"id_gerencia":         {"gerencia", "gerencia"},
+	"id_superintendencia": {"superintendencia", "superintendencia"},
+	"id_documento":        {"documento", "documento"},
+	"id_plan":             {"plan_contrataciones", "plan_contratacion"},
+	"id_modalidad":        {"modalidad_contratacion", "modalidad"},
+	"id_art":              {"art", "art"},
+	"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
+	"id_estatus":          {"estatus_detalle", "estatus_detalle"},
+	"id_resultado":        {"resultados_proceso", "resultado_proceso"},
+	"id_empresa":          {"empresa_adjudicada", "empresas"},
+	"id_emisor":           {"emisor", "responsables"},
+	"id_receptor":         {"receptor", "responsables"},
+}
+
+func (h *TemplateHandler) filasParaExportar(r *http.Request) (cfg ModuloConfig, filas []Row, err error) {
 	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
-		http.Error(w, "modulo invalido", http.StatusBadRequest)
-		return
+		return cfg, nil, fmt.Errorf("modulo invalido")
 	}
 
-	fechaDesde := r.URL.Query().Get("fecha_desde")
-	fechaHasta := r.URL.Query().Get("fecha_hasta")
-
-	filters := make(map[string]string)
-	for k, v := range r.URL.Query() {
-		if strings.HasPrefix(k, "id_") && len(v) > 0 && v[0] != "" {
-			filters[k] = v[0]
-		}
-	}
-
-	var filterColMap = map[string][2]string{
-		"id_gerencia":         {"gerencia", "gerencia"},
-		"id_superintendencia": {"superintendencia", "superintendencia"},
-		"id_documento":        {"documento", "documento"},
-		"id_plan":             {"plan_contrataciones", "plan_contratacion"},
-		"id_modalidad":        {"modalidad_contratacion", "modalidad"},
-		"id_art":              {"art", "art"},
-		"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
-		"id_estatus":          {"estatus_detalle", "estatus_detalle"},
-		"id_resultado":        {"resultados_proceso", "resultado_proceso"},
-		"id_empresa":          {"empresa_adjudicada", "empresas"},
-		"id_emisor":           {"emisor", "responsables"},
-		"id_receptor":         {"receptor", "responsables"},
-	}
-
-	data, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	filas, err = h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
 	if err != nil {
-		writeJSONError(w, err.Error(), http.StatusInternalServerError)
-		return
+		return cfg, nil, err
 	}
 
 	catalogs, cerr := h.app.ObtenerCatalogos()
+	if cerr != nil {
+		return cfg, nil, cerr
+	}
 	catMaps := make(map[string]map[string]string)
-	if cerr == nil {
-		for catKey, items := range catalogs {
-			catMaps[catKey] = make(map[string]string)
-			for _, item := range items {
-				catMaps[catKey][strconv.Itoa(item.ID)] = item.Nombre
-			}
-		}
-	}
-
-	if cfg.GerenciasIDs != nil && len(cfg.GerenciasIDs) > 0 {
-		catGer := catMaps["gerencia"]
-		permitidasNames := map[string]bool{}
-		for _, id := range cfg.GerenciasIDs {
-			if name, ok := catGer[strconv.Itoa(id)]; ok {
-				permitidasNames[name] = true
-			}
-		}
-		filteredByGer := make([]Row, 0, len(data))
-		for _, row := range data {
-			gerName, _ := row["gerencia"].(string)
-			if gerName == "" || permitidasNames[gerName] {
-				filteredByGer = append(filteredByGer, row)
-			}
-		}
-		data = filteredByGer
-	}
-
-	var filtered []Row
-	for _, row := range data {
-		fr, _ := row["fecha_recibido"].(string)
-		if (fechaDesde != "" || fechaHasta != "") && fr == "" {
-			continue
-		}
-		if fechaDesde != "" && fr != "" && fr < fechaDesde {
-			continue
-		}
-		if fechaHasta != "" && fr != "" && fr > fechaHasta {
-			continue
-		}
-
-		match := true
-		for paramKey, paramVal := range filters {
-			mapping, ok := filterColMap[paramKey]
-			if !ok {
-				continue
-			}
-			rowKey, catKey := mapping[0], mapping[1]
-			expectedName := catMaps[catKey][paramVal]
-			if expectedName == "" {
-				continue
-			}
-			rowVal, exists := row[rowKey]
-			if !exists {
-				continue
-			}
-			rowValStr, _ := rowVal.(string)
-			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
-				match = false
-				break
-			}
-		}
-		if !match {
-			continue
-		}
-
-		filtered = append(filtered, row)
-	}
-
-	if len(filtered) == 0 {
-		writeJSONError(w, "no hay datos con los filtros aplicados", http.StatusBadRequest)
-		return
-	}
-
-	filename := "reporte_" + modulo + ".csv"
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-
-	headers := make([]string, 0, len(filtered[0]))
-	for k := range filtered[0] {
-		headers = append(headers, k)
-	}
-	sort.Strings(headers)
-	for i, k := range headers {
-		if k == cfg.IDColumna {
-			copy(headers[1:i+1], headers[0:i])
-			headers[0] = k
-			break
-		}
-	}
-
-	wr := csv.NewWriter(w)
-	wr.Write(headers)
-	for _, row := range filtered {
-		vals := make([]string, len(headers))
-		for i, h := range headers {
-			v := row[h]
-			if v == nil {
-				vals[i] = ""
-			} else {
-				vals[i] = fmt.Sprintf("%v", v)
-			}
-		}
-		wr.Write(vals)
-	}
-	wr.Flush()
-	if err := wr.Error(); err != nil {
-		log.Printf("csv: error escribiendo respuesta: %v", err)
-	}
-}
-
-func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
-	modulo, cfg, ok := moduloDesdeRequest(r)
-	if !ok {
-		http.Error(w, "modulo invalido", http.StatusBadRequest)
-		return
-	}
-
-	fechaDesde := r.URL.Query().Get("fecha_desde")
-	fechaHasta := r.URL.Query().Get("fecha_hasta")
-
-	columnasParam := r.URL.Query().Get("columnas")
-	var columnasSel []string
-	if columnasParam != "" {
-		columnasSel = strings.Split(columnasParam, ",")
-	}
-
-	// Capture all id_ filters
-	filters := make(map[string]string)
-	for k, v := range r.URL.Query() {
-		if strings.HasPrefix(k, "id_") && len(v) > 0 && v[0] != "" {
-			filters[k] = v[0]
-		}
-	}
-
-	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Mapa unificado: param → { rowKey, catKey }
-	var filterColMap = map[string][2]string{
-		"id_gerencia":         {"gerencia", "gerencia"},
-		"id_superintendencia": {"superintendencia", "superintendencia"},
-		"id_documento":        {"documento", "documento"},
-		"id_plan":             {"plan_contrataciones", "plan_contratacion"},
-		"id_modalidad":        {"modalidad_contratacion", "modalidad"},
-		"id_art":              {"art", "art"},
-		"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
-		"id_estatus":          {"estatus_detalle", "estatus_detalle"},
-		"id_resultado":        {"resultados_proceso", "resultado_proceso"},
-		"id_empresa":          {"empresa_adjudicada", "empresas"},
-		"id_emisor":           {"emisor", "responsables"},
-		"id_receptor":         {"receptor", "responsables"},
-	}
-
-	// Load catalogs to translate IDs to names
-	catalogs, err := h.app.ObtenerCatalogos()
-	catMaps := make(map[string]map[string]string)
-	if err == nil {
-		for catKey, items := range catalogs {
-			catMaps[catKey] = make(map[string]string)
-			for _, item := range items {
-				catMaps[catKey][strconv.Itoa(item.ID)] = item.Nombre
-			}
+	for catKey, items := range catalogs {
+		catMaps[catKey] = make(map[string]string)
+		for _, item := range items {
+			catMaps[catKey][strconv.Itoa(item.ID)] = item.Nombre
 		}
 	}
 
@@ -1109,6 +942,16 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		filas = filteredByGer
 	}
 
+	fechaDesde := r.URL.Query().Get("fecha_desde")
+	fechaHasta := r.URL.Query().Get("fecha_hasta")
+
+	filters := make(map[string]string)
+	for k, v := range r.URL.Query() {
+		if strings.HasPrefix(k, "id_") && len(v) > 0 && v[0] != "" {
+			filters[k] = v[0]
+		}
+	}
+
 	var filtered []Row
 	for _, row := range filas {
 		fr, _ := row["fecha_recibido"].(string)
@@ -1124,18 +967,21 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 
 		match := true
 		for paramKey, paramVal := range filters {
-			mapping, ok := filterColMap[paramKey]
+			mapping, ok := exportFilterColMap[paramKey]
 			if !ok {
-				continue
+				match = false
+				break
 			}
 			rowKey, catKey := mapping[0], mapping[1]
 			expectedName := catMaps[catKey][paramVal]
 			if expectedName == "" {
-				continue
+				match = false
+				break
 			}
 			rowVal, exists := row[rowKey]
 			if !exists {
-				continue
+				match = false
+				break
 			}
 			rowValStr, _ := rowVal.(string)
 			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
@@ -1150,13 +996,78 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		filtered = append(filtered, row)
 	}
 
-	if len(filtered) == 0 {
+	return cfg, filtered, nil
+}
+
+func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
+	cfg, filas, err := h.filasParaExportar(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if len(filas) == 0 {
+		http.Error(w, "no hay datos con los filtros aplicados", http.StatusBadRequest)
+		return
+	}
+	modulo, _, _ := moduloDesdeRequest(r)
+
+	filename := "reporte_" + modulo + ".csv"
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
+
+	headers := make([]string, 0, len(filas[0]))
+	for k := range filas[0] {
+		headers = append(headers, k)
+	}
+	sort.Strings(headers)
+	for i, k := range headers {
+		if k == cfg.IDColumna {
+			copy(headers[1:i+1], headers[0:i])
+			headers[0] = k
+			break
+		}
+	}
+
+	wr := csv.NewWriter(w)
+	wr.Write(headers)
+	for _, row := range filas {
+		vals := make([]string, len(headers))
+		for i, h := range headers {
+			v := row[h]
+			if v == nil {
+				vals[i] = ""
+			} else {
+				vals[i] = fmt.Sprintf("%v", v)
+			}
+		}
+		wr.Write(vals)
+	}
+	wr.Flush()
+	if err := wr.Error(); err != nil {
+		log.Printf("csv: error escribiendo respuesta: %v", err)
+	}
+}
+
+func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
+	cfg, filas, err := h.filasParaExportar(r)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	columnasParam := r.URL.Query().Get("columnas")
+	var columnasSel []string
+	if columnasParam != "" {
+		columnasSel = strings.Split(columnasParam, ",")
+	}
+
+	if len(filas) == 0 {
 		http.Error(w, "No hay datos para exportar con los filtros aplicados", http.StatusBadRequest)
 		return
 	}
 
-	keysOrdered := make([]string, 0, len(filtered[0]))
-	for k := range filtered[0] {
+	keysOrdered := make([]string, 0, len(filas[0]))
+	for k := range filas[0] {
 		keysOrdered = append(keysOrdered, k)
 	}
 	sort.Strings(keysOrdered)
@@ -1213,7 +1124,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	lastCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), 1)
 	f.SetCellStyle(sheetName, "A1", lastCell, styleID)
 
-	for ri, row := range filtered {
+	for ri, row := range filas {
 		for ci, k := range keysOrdered {
 			cell, _ := excelize.CoordinatesToCellName(ci+1, ri+2)
 			v := row[k]
@@ -1226,7 +1137,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 
 	for i, k := range keysOrdered {
 		width := float64(utf8.RuneCountInString(labelOf(k))) + 4
-		for _, row := range filtered {
+		for _, row := range filas {
 			if v := row[k]; v != nil {
 				s := fmt.Sprintf("%v", v)
 				if utf8.RuneCountInString(s) > int(width) {
@@ -1244,7 +1155,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		Freeze: true, YSplit: 1,
 		TopLeftCell: "A2", ActivePane: "bottomLeft",
 	})
-	endCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), len(filtered)+1)
+	endCell, _ := excelize.CoordinatesToCellName(len(keysOrdered), len(filas)+1)
 	f.AutoFilter(sheetName, "A1:"+endCell, []excelize.AutoFilterOptions{})
 
 	filename := cfg.Nombre + "_" + time.Now().Format("2006-01-02") + ".xlsx"
