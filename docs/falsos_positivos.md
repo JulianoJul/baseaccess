@@ -70,9 +70,6 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 ## Validación de id negativo
 - Si el id es inválido, devuelve formulario vacío (nuevo registro). Comportamiento esperado.
 
-## sql.NullString para fecha/nota en ObtenerRutaProcesosData
-- `fecha` y `nota` se escanean como `string`. Si la columna es NULL, `rows.Scan` devuelve error capturado con `continue` + `log.Printf`. El registro se omite (mejorable pero no es crash).
-
 ## Inconsistencia columnas tabla vs vista
 - Columnas de INSERT (`cfg.Columnas`) corresponden a la tabla real. La vista tiene columnas adicionales (joins) de solo lectura. Es correcto.
 

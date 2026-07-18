@@ -560,6 +560,8 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 			if vals[i] != nil {
 				sets = append(sets, col+" = ?")
 				setVals = append(setVals, vals[i])
+			} else {
+				sets = append(sets, col+" = NULL")
 			}
 		}
 		if len(sets) == 0 {
@@ -812,9 +814,9 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 	defer cronoRows.Close()
 	for cronoRows.Next() {
 		var idProc int
-		var fecha, nota string
-		var statusNameNull, hexColorNull sql.NullString
-		if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
+		var fecha string
+		var notaNull, statusNameNull, hexColorNull sql.NullString
+		if err := cronoRows.Scan(&idProc, &fecha, &notaNull, &statusNameNull, &hexColorNull); err != nil {
 			log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
 			continue
 		}
@@ -826,6 +828,10 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 			hexColor := ""
 			if hexColorNull.Valid {
 				hexColor = hexColorNull.String
+			}
+			nota := ""
+			if notaNull.Valid {
+				nota = notaNull.String
 			}
 			p.Timeline[fecha] = map[string]string{
 				"status_name": statusName,
