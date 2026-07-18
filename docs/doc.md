@@ -8,7 +8,7 @@
 
 | Capa | Tecnología |
 |------|-----------|
-| Backend | Go 1.25+, Wails v2 |
+| Backend | Go 1.21+, Wails v2 |
 | SQLite | mattn/go-sqlite3 (driver nativo) |
 | Frontend | Go `html/template` + HTMX + Tailwind CSS + Font Awesome |
 | Renderizado | `TemplateHandler` (http.Handler) intercepta AssetServer |
