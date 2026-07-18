@@ -497,7 +497,7 @@ func (a *App) CerrarBaseDatos() {
 }
 
 func (a *App) crearBackup() error {
-	if a.dbPath == "" {
+	if a.dbPath == "" || a.db == nil {
 		return nil
 	}
 
@@ -786,13 +786,24 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 		return id, nil
 	}
 
-	placeholders := make([]string, len(cfg.Columnas))
+	var insCols []string
+	var insVals []interface{}
+	for i, col := range cfg.Columnas {
+		if col == cfg.IDColumna {
+			continue
+		}
+		if vals[i] != nil {
+			insCols = append(insCols, col)
+			insVals = append(insVals, vals[i])
+		}
+	}
+	placeholders := make([]string, len(insCols))
 	for i := range placeholders {
 		placeholders[i] = "?"
 	}
-	q := `INSERT INTO ` + cfg.Tabla + ` (` + strings.Join(cfg.Columnas, ", ") +
+	q := `INSERT INTO ` + cfg.Tabla + ` (` + strings.Join(insCols, ", ") +
 		`) VALUES (` + strings.Join(placeholders, ", ") + `)`
-	res, err := a.exec(q, vals...)
+	res, err := a.exec(q, insVals...)
 	if err != nil {
 		return 0, fmt.Errorf("error al insertar: %w", err)
 	}
@@ -1097,7 +1108,11 @@ func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
 	if a.db == nil {
 		return 0, fmt.Errorf("no hay BD abierta")
 	}
-	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbID)
+	var dbIDVal interface{}
+	if dbID > 0 {
+		dbIDVal = dbID
+	}
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbIDVal)
 	if err != nil {
 		return 0, err
 	}
@@ -1336,7 +1351,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"estatusClass": estatusClass,
 		"formatNum":  formatNumGo,
 		"jsonEncode": jsonEncode,
-		"hasDB":      func() bool { return app.db != nil },
+		"hasDB":      func() bool { app.mu.RLock(); defer app.mu.RUnlock(); return app.db != nil },
 		"truncate":   truncate,
 		"isSelected": isSelected,
 		"default":    defaultVal,
@@ -1573,18 +1588,27 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 		modulo = "expedientes"
 	}
 
+	modulosLimpios := make(map[string]ModuloConfig, len(Modulos))
+	for k, v := range Modulos {
+		copia := v
+		copia.QueryHistorial = ""
+		modulosLimpios[k] = copia
+	}
+
 	data := &PageData{
 		Title:        "Control de Documentos",
 		ActiveModule: modulo,
-		Modulos:      Modulos,
+		Modulos:      modulosLimpios,
 		PageSize:     10,
 		CurrentPage:  1,
 		SortColumn:   "fecha_creacion",
 		SortDir:      "DESC",
 	}
 
+	h.app.mu.RLock()
 	data.HasDB = h.app.db != nil
 	data.DBPath = h.app.dbPath
+	h.app.mu.RUnlock()
 
 	if !data.HasDB {
 		return data
@@ -1899,11 +1923,15 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h.app.mu.RLock()
+	hasDB := h.app.db != nil
+	h.app.mu.RUnlock()
+
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filtered,
 		"Modulos":      Modulos,
-		"HasDB":        h.app.db != nil,
+		"HasDB":        hasDB,
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
@@ -1930,11 +1958,14 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	h.app.mu.RLock()
+	hasDB := h.app.db != nil
+	h.app.mu.RUnlock()
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filas,
 		"Modulos":      Modulos,
-		"HasDB":        h.app.db != nil,
+		"HasDB":        hasDB,
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
@@ -2257,10 +2288,10 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	var filtered []Row
 	for _, row := range filas {
 		fr, _ := row["fecha_recibido"].(string)
-		if fechaDesde != "" && fr < fechaDesde {
+		if fechaDesde != "" && fr != "" && fr < fechaDesde {
 			continue
 		}
-		if fechaHasta != "" && fr > fechaHasta {
+		if fechaHasta != "" && fr != "" && fr > fechaHasta {
 			continue
 		}
 
@@ -2272,7 +2303,11 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 			}
 			rowKey, catKey := mapping[0], mapping[1]
 			expectedName := catMaps[catKey][paramVal]
-			rowValStr, _ := row[rowKey].(string)
+			rowVal, exists := row[rowKey]
+			if !exists {
+				continue
+			}
+			rowValStr, _ := rowVal.(string)
 			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
 				match = false
 				break
@@ -2629,7 +2664,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     {{end}}
 
     <!-- Modal Formulario -->
-    <div id="form-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="form-modal" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Expediente</h2>
@@ -2640,7 +2675,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Modal Historial -->
-    <div id="historial-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="historial-modal" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
@@ -2654,7 +2689,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Modal Ruta Procesos -->
-    <div id="modal-ruta" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-ruta" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
@@ -2665,7 +2700,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Modal Pendientes -->
-    <div id="modal-pendientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-pendientes" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
@@ -2676,7 +2711,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Modal BD Recientes -->
-    <div id="modal-recientes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-recientes" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
@@ -2687,7 +2722,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Modal Fijados (Acceso Rápido) -->
-    <div id="modal-frecuentes" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="modal-frecuentes" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-thumbtack rotate-45 mr-2"></i>Acceso Rápido (Fijados)</h2>
@@ -2698,7 +2733,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Exportar Excel Modal -->
-    <div id="export-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="export-modal" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-2xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-file-excel mr-2"></i>Exportar a Excel</h2>
@@ -2735,7 +2770,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
     </div>
 
     <!-- Sumas Modal -->
-    <div id="sumas-modal" class="hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
+    <div id="sumas-modal" class="modal hidden fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto bg-black/70">
         <div class="relative modal-content w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-calculator mr-2"></i>Sumas</h2>
@@ -3934,7 +3969,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
 <script>
 (function() {
     const data = {{jsonEncode .}};
-    const { Legend: legend, Columns: ganttColumns, Processes: processes } = data;
+    const { legend, columns: ganttColumns, processes } = data;
     var formVisible = false;
 
     function esc(v) {

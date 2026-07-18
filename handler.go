@@ -44,7 +44,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"estatusClass": estatusClass,
 		"formatNum":  formatNumGo,
 		"jsonEncode": jsonEncode,
-		"hasDB":      func() bool { return app.db != nil },
+		"hasDB":      func() bool { app.mu.RLock(); defer app.mu.RUnlock(); return app.db != nil },
 		"truncate":   truncate,
 		"isSelected": isSelected,
 		"default":    defaultVal,
@@ -281,18 +281,27 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 		modulo = "expedientes"
 	}
 
+	modulosLimpios := make(map[string]ModuloConfig, len(Modulos))
+	for k, v := range Modulos {
+		copia := v
+		copia.QueryHistorial = ""
+		modulosLimpios[k] = copia
+	}
+
 	data := &PageData{
 		Title:        "Control de Documentos",
 		ActiveModule: modulo,
-		Modulos:      Modulos,
+		Modulos:      modulosLimpios,
 		PageSize:     10,
 		CurrentPage:  1,
 		SortColumn:   "fecha_creacion",
 		SortDir:      "DESC",
 	}
 
+	h.app.mu.RLock()
 	data.HasDB = h.app.db != nil
 	data.DBPath = h.app.dbPath
+	h.app.mu.RUnlock()
 
 	if !data.HasDB {
 		return data
@@ -607,11 +616,15 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h.app.mu.RLock()
+	hasDB := h.app.db != nil
+	h.app.mu.RUnlock()
+
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filtered,
 		"Modulos":      Modulos,
-		"HasDB":        h.app.db != nil,
+		"HasDB":        hasDB,
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
@@ -638,11 +651,14 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	h.app.mu.RLock()
+	hasDB := h.app.db != nil
+	h.app.mu.RUnlock()
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
 		"Filas":        filas,
 		"Modulos":      Modulos,
-		"HasDB":        h.app.db != nil,
+		"HasDB":        hasDB,
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
@@ -965,10 +981,10 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	var filtered []Row
 	for _, row := range filas {
 		fr, _ := row["fecha_recibido"].(string)
-		if fechaDesde != "" && fr < fechaDesde {
+		if fechaDesde != "" && fr != "" && fr < fechaDesde {
 			continue
 		}
-		if fechaHasta != "" && fr > fechaHasta {
+		if fechaHasta != "" && fr != "" && fr > fechaHasta {
 			continue
 		}
 
@@ -980,7 +996,11 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 			}
 			rowKey, catKey := mapping[0], mapping[1]
 			expectedName := catMaps[catKey][paramVal]
-			rowValStr, _ := row[rowKey].(string)
+			rowVal, exists := row[rowKey]
+			if !exists {
+				continue
+			}
+			rowValStr, _ := rowVal.(string)
 			if strings.ToLower(rowValStr) != strings.ToLower(expectedName) {
 				match = false
 				break

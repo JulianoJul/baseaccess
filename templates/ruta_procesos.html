@@ -27,7 +27,7 @@
 <script>
 (function() {
     const data = {{jsonEncode .}};
-    const { Legend: legend, Columns: ganttColumns, Processes: processes } = data;
+    const { legend, columns: ganttColumns, processes } = data;
     var formVisible = false;
 
     function esc(v) {

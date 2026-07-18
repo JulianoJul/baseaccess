@@ -286,7 +286,7 @@ func (a *App) CerrarBaseDatos() {
 }
 
 func (a *App) crearBackup() error {
-	if a.dbPath == "" {
+	if a.dbPath == "" || a.db == nil {
 		return nil
 	}
 
@@ -575,13 +575,24 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 		return id, nil
 	}
 
-	placeholders := make([]string, len(cfg.Columnas))
+	var insCols []string
+	var insVals []interface{}
+	for i, col := range cfg.Columnas {
+		if col == cfg.IDColumna {
+			continue
+		}
+		if vals[i] != nil {
+			insCols = append(insCols, col)
+			insVals = append(insVals, vals[i])
+		}
+	}
+	placeholders := make([]string, len(insCols))
 	for i := range placeholders {
 		placeholders[i] = "?"
 	}
-	q := `INSERT INTO ` + cfg.Tabla + ` (` + strings.Join(cfg.Columnas, ", ") +
+	q := `INSERT INTO ` + cfg.Tabla + ` (` + strings.Join(insCols, ", ") +
 		`) VALUES (` + strings.Join(placeholders, ", ") + `)`
-	res, err := a.exec(q, vals...)
+	res, err := a.exec(q, insVals...)
 	if err != nil {
 		return 0, fmt.Errorf("error al insertar: %w", err)
 	}
@@ -886,7 +897,11 @@ func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
 	if a.db == nil {
 		return 0, fmt.Errorf("no hay BD abierta")
 	}
-	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbID)
+	var dbIDVal interface{}
+	if dbID > 0 {
+		dbIDVal = dbID
+	}
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbIDVal)
 	if err != nil {
 		return 0, err
 	}

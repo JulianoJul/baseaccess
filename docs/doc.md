@@ -339,6 +339,22 @@ Se recibieron 3 auditorías externas (Qwen, Kimi, GLM) con un total de ~70 halla
 | 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` y luego `htmx` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD`. |
 | 4 | **HTMX** | ✅ Hecho | Integrado en plantillas y handler. Las vistas parciales renderizan HTML fragmentado reactivamente sin gluecode JS. |
 
+### Tercera ronda (Julio 2026)
+
+En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos combinados). De ellos, solo estos eran válidos (el resto eran falsos positivos o ya corregidos):
+
+| # | Hallazgo | Archivo | Fix |
+|---|----------|---------|-----|
+| 37 | JS destructuring con mayúsculas: `Legend`/`Processes` vs json tags `legend`/`processes` | `templates/ruta_procesos.html` | `const { legend, columns: ganttColumns, processes } = data;` |
+| 38 | INSERT con `id_estatus = NULL` explícito bypassa `DEFAULT 1` (registros nuevos sin estatus) | `app.go` | INSERT dinámico: solo incluye columnas con valor no-nulo |
+| 39 | `AgregarRutaProceso` inserta `db_id = 0` violando FK (no existe expediente 0) | `app.go` | `if dbID > 0 { dbIDVal = dbID }` — nil en caso contrario |
+| 40 | Race condition: `a.db`/`a.dbPath` leídos sin `a.mu` en handlers | `handler.go` | Adquirir `a.mu.RLock()` antes de leer `db`/`dbPath` |
+| 41 | `crearBackup` posible nil dereference: chequea `dbPath` pero no `db == nil` | `app.go` | `if a.dbPath == "" \|\| a.db == nil { return nil }` |
+| 42 | Click fuera del modal no cierra: `closest('.modal')` nunca encuentra clase | `templates/index.html` | Clase `.modal` agregada a todos los contenedores de modal |
+| 43 | `filterColMap` en exportar-excel solo cubre columnas de expedientes (otros módulos excluyen todas las filas) | `handler.go` | Si `row[rowKey]` no existe, saltar filtro |
+| 44 | `PAGE_DATA.modulos` filtra `QueryHistorial` (SQL interno) al cliente | `handler.go` | Copia de Modulos sin `QueryHistorial` para frontend |
+| 45 | `fecha_recibido` vacío comparado con fechas (`"" < "2024-01-01" = true`) | `handler.go` | `fr != ""` antes de comparar |
+
 ### Rutas API del handler
 
 | Ruta | Método | Descripción |
