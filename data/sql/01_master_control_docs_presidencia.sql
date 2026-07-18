@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS expedientes (
     id_resultado            INTEGER,
     nro_contrato_sicac      TEXT,
     nro_contrato_sap        TEXT,
+    punto_cuenta            TEXT,
     id_empresa              INTEGER,
     tiempo_ejecucion        TEXT,
     monto_adjudicado_bs     REAL,
