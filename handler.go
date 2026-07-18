@@ -67,6 +67,17 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 	}, nil
 }
 
+const moduloDefault = "expedientes"
+
+func moduloDesdeRequest(r *http.Request) (string, ModuloConfig, bool) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = moduloDefault
+	}
+	cfg, ok := Modulos[modulo]
+	return modulo, cfg, ok
+}
+
 // --- Funciones helper para templates ---
 
 func seq(n int) []int {
@@ -276,10 +287,7 @@ type PageData struct {
 }
 
 func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
+	modulo, cfg, _ := moduloDesdeRequest(r)
 
 	modulosLimpios := make(map[string]ModuloConfig, len(Modulos))
 	for k, v := range Modulos {
@@ -314,11 +322,6 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	}
 	data.Catalogs = catalogs
 
-	cfg, ok := Modulos[modulo]
-	if !ok {
-		modulo = "expedientes"
-		cfg = Modulos[modulo]
-	}
 	data.ActiveModule = modulo
 	data.SortColumn = cfg.IDColumna
 
@@ -427,11 +430,7 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 		return
 	}
 
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
 		return
@@ -471,11 +470,7 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 }
 
 func (h *TemplateHandler) handleEliminarExpediente(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
 		return
@@ -501,11 +496,8 @@ func (h *TemplateHandler) handleEliminarExpediente(w http.ResponseWriter, r *htt
 }
 
 func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	if _, ok := Modulos[modulo]; !ok {
+	modulo, _, ok := moduloDesdeRequest(r)
+	if !ok {
 		http.Error(w, "modulo invalido", http.StatusBadRequest)
 		return
 	}
@@ -566,19 +558,14 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 }
 
 func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		http.Error(w, "modulo invalido", http.StatusBadRequest)
 		return
 	}
-
 	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
 	sortCol := r.URL.Query().Get("sort")
-	dir := r.URL.Query().Get("dir")
+	dir := strings.ToUpper(r.URL.Query().Get("dir"))
 
 	if dir != "ASC" && dir != "DESC" {
 		dir = "DESC"
@@ -637,11 +624,7 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 }
 
 func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		http.Error(w, "modulo invalido", http.StatusBadRequest)
 		return
@@ -673,9 +656,10 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 }
 
 func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
+	modulo, _, ok := moduloDesdeRequest(r)
+	if !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
 	}
 
 	idStr := r.URL.Query().Get("id")
@@ -765,7 +749,12 @@ func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *htt
 	dbIDStr := r.FormValue("db_id")
 	dbID := 0
 	if dbIDStr != "" {
-		dbID, _ = strconv.Atoi(dbIDStr)
+		var err error
+		dbID, err = strconv.Atoi(dbIDStr)
+		if err != nil {
+			writeJSONError(w, "db_id inválido", http.StatusBadRequest)
+			return
+		}
 	}
 	id, err := h.app.AgregarRutaProceso(strings.TrimSpace(descripcion), dbID)
 	if err != nil {
@@ -819,7 +808,11 @@ func (h *TemplateHandler) handleGuardarCatalogo(w http.ResponseWriter, r *http.R
 	}
 
 	tabla := r.FormValue("tabla")
-	nombre := r.FormValue("nombre")
+	nombre := strings.TrimSpace(r.FormValue("nombre"))
+	if nombre == "" {
+		writeJSONError(w, "nombre requerido", http.StatusBadRequest)
+		return
+	}
 	extra := make(map[string]interface{})
 	if col := r.FormValue("extra_col"); col != "" {
 		extra["col"] = col
@@ -891,11 +884,7 @@ func (h *TemplateHandler) filtrarPorGerencias(modulo string, filas []Row) []Row 
 }
 
 func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		http.Error(w, "modulo invalido", http.StatusBadRequest)
 		return
@@ -954,7 +943,7 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 		filteredByGer := make([]Row, 0, len(data))
 		for _, row := range data {
 			gerName, _ := row["gerencia"].(string)
-			if permitidasNames[gerName] {
+			if gerName == "" || permitidasNames[gerName] {
 				filteredByGer = append(filteredByGer, row)
 			}
 		}
@@ -1045,11 +1034,7 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		http.Error(w, "modulo invalido", http.StatusBadRequest)
 		return
@@ -1117,7 +1102,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 		filteredByGer := make([]Row, 0, len(filas))
 		for _, row := range filas {
 			gerName, _ := row["gerencia"].(string)
-			if permitidasNames[gerName] {
+			if gerName == "" || permitidasNames[gerName] {
 				filteredByGer = append(filteredByGer, row)
 			}
 		}
@@ -1271,11 +1256,7 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 }
 
 func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Request) {
-	modulo := r.URL.Query().Get("modulo")
-	if modulo == "" {
-		modulo = "expedientes"
-	}
-	cfg, ok := Modulos[modulo]
+	_, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
 		writeJSONError(w, "modulo invalido", http.StatusBadRequest)
 		return

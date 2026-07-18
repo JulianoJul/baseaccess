@@ -144,21 +144,19 @@
             return;
         }
 
-        var weekHeaders = '', weekSubs = '', weekLabels = '';
+        var weekHeaders = '', weekLabels = '';
         var seenWeeks = [];
         ganttColumns.forEach(function(c) {
             if (seenWeeks.indexOf(c.week_label) === -1) {
                 seenWeeks.push(c.week_label);
                 var count = ganttColumns.filter(function(x) { return x.week_label === c.week_label; }).length;
                 weekHeaders += '<th colspan="' + count + '" class="gantt-week-header">' + esc(c.date_str) + '</th>';
-                weekSubs += '<th colspan="' + count + '" class="gantt-week-subheader">' + esc(c.date_str) + '</th>';
                 weekLabels += '<th colspan="' + count + '" class="gantt-week-label">' + esc(c.week_label) + '</th>';
             }
         });
 
         var html = '<div class="card mt-0"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
-            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="4" class="gantt-col-num p-2">N</th>' + weekHeaders + '</tr>' +
-            '<tr class="bg-gray-800 uppercase font-bold">' + weekSubs + '</tr>' +
+            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="3" class="gantt-col-num p-2">N</th>' + weekHeaders + '</tr>' +
             '<tr class="bg-gray-800 uppercase font-bold">' + weekLabels + '</tr>' +
             '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + esc(c.day_name) + '</th>'; }).join('') + '</tr></thead><tbody>';
 

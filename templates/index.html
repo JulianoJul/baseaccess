@@ -460,13 +460,13 @@
         }
 
         // --- Formulario ---
-        function mostrarFormulario(id) {
-            const moduloKey = (window.PAGE_DATA && window.PAGE_DATA.modulos && $('active-module-val'))
-                ? $('active-module-val').value
-                : 'expedientes';
-            const nombreModulo = (window.PAGE_DATA && window.PAGE_DATA.modulos && window.PAGE_DATA.modulos[moduloKey])
-                ? window.PAGE_DATA.modulos[moduloKey].Nombre
-                : 'Registro';
+		function mostrarFormulario(id, modulo) {
+			modulo = modulo || (window.PAGE_DATA && window.PAGE_DATA.modulos && $('active-module-val'))
+				? $('active-module-val').value
+				: 'expedientes';
+			const nombreModulo = (window.PAGE_DATA && window.PAGE_DATA.modulos && window.PAGE_DATA.modulos[modulo])
+				? window.PAGE_DATA.modulos[modulo].Nombre
+				: 'Registro';
             $('form-titulo').textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
             pushModal('form-modal');
             setTimeout(cargarSuperintendencias, 50);
@@ -595,16 +595,16 @@
         function cerrarRecientes() { cerrarModal('modal-recientes'); }
 
         // --- Acceso Rápido / Pinned items ---
-        function toggleFrecuente(id, solped, modulo) {
-            let list = [];
-            try {
-                list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
-            } catch(e) { list = []; }
-            const idx = list.findIndex(i => Number(i.id) === Number(id));
+		function toggleFrecuente(id, solped, modulo) {
+			modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+			let list = [];
+			try {
+				list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
+			} catch(e) { list = []; }
+			const idx = list.findIndex(i => Number(i.id) === Number(id) && i.modulo === modulo);
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
-                modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
                 list.push({ id: Number(id), solped: solped || '', modulo: modulo });
             }
             localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
@@ -801,23 +801,22 @@
             htmx.trigger('#sort-order', 'change');
         }
 
-        function hxGetFormulario(id, modulo) {
-            modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
-            htmx.ajax('GET', '/api/cargar-expediente?modulo=' + encodeURIComponent(modulo) + '&id=' + id, {target: '#form-expediente'}).then(() => {
-                mostrarFormulario(id);
-            });
-        }
+		function hxGetFormulario(id, modulo) {
+			modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+			htmx.ajax('GET', '/api/cargar-expediente?modulo=' + encodeURIComponent(modulo) + '&id=' + id, {target: '#form-expediente'}).then(() => {
+				mostrarFormulario(id, modulo);
+			});
+		}
 
         // --- Exportar Excel ---
-        function abrirModalExportar() {
-            $('export-modal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            cargarColumnasExportar();
-        }
-        function cerrarModalExportar() {
-            $('export-modal').classList.add('hidden');
-            document.body.style.overflow = '';
-        }
+		function abrirModalExportar() {
+			pushModal('export-modal');
+			cargarColumnasExportar();
+		}
+		function cerrarModalExportar() {
+			cerrarModal('export-modal');
+		}
+
         async function cargarColumnasExportar() {
             const modulo = $('exp-modulo').value;
             const contCols = $('exp-columnas');
@@ -1008,15 +1007,12 @@
             _initNumInput(div.querySelector('input'));
             div.querySelector('input').focus();
         }
-        function calcularSumas() {
-            let total = 0;
-            document.querySelectorAll('.suma-input').forEach(inp => {
-                const raw = _rawNum(inp);
-                if (!raw) return;
-                const n = parseFloat(raw);
-                if (!isNaN(n)) total += n;
-            });
-            $('sumas-resultado').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+		function calcularSumas() {
+			let total = 0;
+			document.querySelectorAll('.suma-input').forEach(inp => {
+				total += _parseValue(inp);
+			});
+			$('sumas-resultado').textContent = total.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
         function limpiarSumas() {
             $('sumas-filas').innerHTML = '';
@@ -1033,15 +1029,23 @@
         }
 
         // --- Campos numéricos: formato, separador miles, max 2 decimales ---
-        function _rawNum(input) {
-            if (input.dataset.raw !== undefined) return input.dataset.raw;
-            var v = input.value.replace(/,/g, '.').replace(/[^0-9.]/g, '');
-            if (v.endsWith('.')) v = v.slice(0, -1);
-            var lastDot = v.lastIndexOf('.');
-            if (lastDot >= 0) v = v.substring(0, lastDot).replace(/\./g, '') + v.substring(lastDot);
-            return v;
-        }
-        function _fmtNum(input) {
+		function _rawNum(input) {
+			if (input.dataset.raw !== undefined) return input.dataset.raw;
+			var v = input.value.replace(/,/g, '.').replace(/[^0-9.]/g, '');
+			if (v.endsWith('.')) v = v.slice(0, -1);
+			var lastDot = v.lastIndexOf('.');
+			if (lastDot >= 0) v = v.substring(0, lastDot).replace(/\./g, '') + v.substring(lastDot);
+			return v;
+		}
+		function _parseValue(input) {
+			var v = (input.value || '').replace(/,/g, '.').replace(/[^0-9.]/g, '');
+			if (v.endsWith('.')) v = v.slice(0, -1);
+			var lastDot = v.lastIndexOf('.');
+			if (lastDot >= 0) v = v.substring(0, lastDot).replace(/\./g, '') + v.substring(lastDot);
+			var n = parseFloat(v);
+			return isNaN(n) ? 0 : n;
+		}
+		function _fmtNum(input) {
             var raw = _rawNum(input);
             if (!raw || isNaN(parseFloat(raw))) return;
             var n = parseFloat(raw);
@@ -1082,11 +1086,11 @@
             if (!tc) return;
             _convLock = true;
             try {
-                function getRaw(id) {
-                    var el = document.getElementById(id);
-                    if (!el) return 0;
-                    return parseFloat(el.dataset.raw || '0') || 0;
-                }
+			function getRaw(id) {
+				var el = document.getElementById(id);
+				if (!el) return 0;
+				return _parseValue(el);
+			}
                 function setVal(id, val) {
                     var el = document.getElementById(id);
                     if (!el) return;

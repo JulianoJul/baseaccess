@@ -806,7 +806,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		placeholders[i] = "?"
 	}
 	cronoRows, err := a.db.Query(
-		"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
+		"SELECT c.id_proceso, strftime('%Y-%m-%d', c.fecha) AS fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
 		args...)
 	if err != nil {
 		return nil, err
@@ -933,9 +933,15 @@ func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, err
 	var result []map[string]interface{}
 	for rows.Next() {
 		var id int
-		var solped, desc string
-		if err := rows.Scan(&id, &solped, &desc); err != nil {
+		var solped string
+		var descNull sql.NullString
+		if err := rows.Scan(&id, &solped, &descNull); err != nil {
+			log.Printf("ObtenerExpedientesDisponiblesRuta: scan: %v", err)
 			continue
+		}
+		desc := ""
+		if descNull.Valid {
+			desc = descNull.String
 		}
 		result = append(result, map[string]interface{}{
 			"id":                 id,

@@ -150,6 +150,10 @@ CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 -- 🔹 6. TRIGGERS DE AUDITORÍA
 -- ==========================================
 
+-- Tabla temporal para evitar que trg_exp_auditoria se dispare
+-- durante las correcciones automáticas del trigger INSERT.
+CREATE TEMP TABLE IF NOT EXISTS _skip_audit (flag INTEGER);
+
 -- Snapshot inicial al crear expediente
 CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
@@ -184,18 +188,23 @@ BEGIN
         NEW.observaciones, NEW.notas
     );
 
+    INSERT INTO _skip_audit VALUES (1);
+
     UPDATE expedientes
-    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
+    SET id_estatus = 1  /* PENDIENTE (seed en cat_estatus_detalle id=1) */
     WHERE NEW.fecha_firma_contrato IS NULL
       AND id_expediente = NEW.id_expediente;
 
     UPDATE expedientes
-    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
+    SET id_estatus = 2  /* FIRMADO (seed en cat_estatus_detalle id=2) */
     WHERE NEW.fecha_firma_contrato IS NOT NULL
       AND id_expediente = NEW.id_expediente;
+
+    DELETE FROM _skip_audit;
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
+WHEN (SELECT COUNT(*) FROM _skip_audit) = 0
 BEGIN
     INSERT INTO historial_movimientos (
         id_expediente, solped, id_gerencia, id_superintendencia,
@@ -228,13 +237,13 @@ BEGIN
     );
 
     UPDATE expedientes
-    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
+    SET id_estatus = 1  /* PENDIENTE */
     WHERE NEW.fecha_firma_contrato IS NULL
       AND OLD.fecha_firma_contrato IS NOT NULL
       AND id_expediente = NEW.id_expediente;
 
     UPDATE expedientes
-    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
+    SET id_estatus = 2  /* FIRMADO */
     WHERE NEW.fecha_firma_contrato IS NOT NULL
       AND OLD.fecha_firma_contrato IS NULL
       AND id_expediente = NEW.id_expediente;
