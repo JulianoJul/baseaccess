@@ -1,181 +1,68 @@
 <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]">
-    <input type="hidden" id="f-id_expediente" name="id_expediente" value="{{if .Expediente}}{{rowGetStr .Expediente "id_expediente"}}{{end}}">
+    {{template "form_hidden_id" dict "Registro" .Expediente "IDColumna" "id_expediente"}}
 
     <fieldset class="card">
         <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div><label class="label">SOLPED</label><input type="text" id="f-solped" name="solped" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "solped"}}{{end}}"></div>
-            <div><label class="label">Nro. Proceso</label><input type="text" id="f-nro_proceso" name="nro_proceso" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_proceso"}}{{end}}"></div>
-            <div>
-                <label class="label">Documento</label>
-                <select id="f-id_documento" name="id_documento" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.documento}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_documento")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div class="md:col-span-2 lg:col-span-3">
-                <label class="label">Descripción del Proceso</label>
-                <textarea id="f-descripcion_proceso" name="descripcion_proceso" rows="2" class="input">{{if .Expediente}}{{rowGetStr .Expediente "descripcion_proceso"}}{{end}}</textarea>
-            </div>
-            <div>
-                <label class="label">Gerencia</label>
-                <select id="f-id_gerencia" name="id_gerencia" class="input" onchange="cargarSuperintendencias()">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.gerencia}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_gerencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Superintendencia</label>
-                <select id="f-id_superintendencia" name="id_superintendencia" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.superintendencia}}
-                    <option value="{{.ID}}" data-id-gerencia="{{.IDGerencia}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_superintendencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Plan Contratación</label>
-                <select id="f-id_plan" name="id_plan" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.plan_contratacion}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_plan")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Modalidad</label>
-                <select id="f-id_modalidad" name="id_modalidad" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.modalidad}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_modalidad")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Art. Normativa</label>
-                <select id="f-id_art" name="id_art" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.art}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_art")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Tipo Contrato</label>
-                <select id="f-id_tipo_contrato" name="id_tipo_contrato" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.tipo_contrato}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_tipo_contrato")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
+            {{template "form_input_text" dict "Label" "SOLPED" "Name" "solped" "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Nro. Proceso" "Name" "nro_proceso" "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Documento" "Name" "id_documento" "CatalogName" "documento" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_textarea" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Expediente "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3"}}
+            {{template "form_gerencia_superintendencia" dict "Registro" .Expediente "Catalogs" .Catalogs}}
+            {{template "form_select_catalog" dict "Label" "Plan Contratación" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Modalidad" "Name" "id_modalidad" "CatalogName" "modalidad" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Art. Normativa" "Name" "id_art" "CatalogName" "art" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Tipo Contrato" "Name" "id_tipo_contrato" "CatalogName" "tipo_contrato" "Catalogs" .Catalogs "Registro" .Expediente}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-            <div><label class="label">Fecha Presupuesto Base</label><input type="date" id="f-fecha_presupuesto_base" name="fecha_presupuesto_base" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_presupuesto_base"}}{{end}}"></div>
-            <div><label class="label">Presupuesto Base (USD)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_usd" name="presupuesto_base_usd" class="input num-field" oninput="convertirMoneda()" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_usd")}}{{end}}"></div>
-            <div><label class="label">Tipo de Cambio</label><input type="text" inputmode="decimal" id="f-tipo_cambio" name="tipo_cambio" class="input num-field" oninput="convertirMoneda()" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "tipo_cambio")}}{{end}}"></div>
-            <div><label class="label">Presupuesto Base (Bs)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_bs" name="presupuesto_base_bs" class="input num-field" oninput="convertirMoneda('bs_presup')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "presupuesto_base_bs")}}{{end}}"></div>
+            {{template "form_input_text" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base" "Type" "date" "Registro" .Expediente}}
+            {{template "form_input_number" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Registro" .Expediente "ExtraAttrs" "inputmode=\"decimal\" oninput=\"convertirMoneda()\""}}
+            {{template "form_input_number" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Expediente "ExtraAttrs" "inputmode=\"decimal\" oninput=\"convertirMoneda()\""}}
+            {{template "form_input_number" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Registro" .Expediente "ExtraAttrs" "inputmode=\"decimal\" oninput=\"convertirMoneda('bs_presup')\""}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Gestión y Firmas</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Emisor / Remitente</label>
-                <select id="f-id_emisor" name="id_emisor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_emisor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Receptor</label>
-                <select id="f-id_receptor" name="id_receptor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_receptor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Estatus Detalle</label>
-                <select id="f-id_estatus" name="id_estatus" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.estatus_detalle}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_estatus")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div><label class="label">Fecha Recibido</label><input type="date" id="f-fecha_recibido" name="fecha_recibido" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_recibido"}}{{end}}"></div>
-            <div><label class="label">Fecha Devuelto</label><input type="date" id="f-fecha_devuelto" name="fecha_devuelto" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_devuelto"}}{{end}}"></div>
-            <div><label class="label">Nro. Acta Apertura</label><input type="text" id="f-nro_acta_apertura" name="nro_acta_apertura" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_acta_apertura"}}{{end}}"></div>
-            <div><label class="label">Cant. Frentes</label><input type="number" step="1" min="0" id="f-cantidad_frentes" name="cantidad_frentes" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "cantidad_frentes"}}{{end}}"></div>
-            <div><label class="label">Nro. Resolución JD</label><input type="text" id="f-nro_resolucion_jd" name="nro_resolucion_jd" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_resolucion_jd"}}{{end}}"></div>
+            {{template "form_select_catalog" dict "Label" "Emisor / Remitente" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Type" "date" "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Nro. Acta Apertura" "Name" "nro_acta_apertura" "Registro" .Expediente}}
+            {{template "form_input_number" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Expediente "ExtraAttrs" "step=\"1\" min=\"0\""}}
+            {{template "form_input_text" dict "Label" "Nro. Resolución JD" "Name" "nro_resolucion_jd" "Registro" .Expediente}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Resultado Proceso</label>
-                <select id="f-id_resultado" name="id_resultado" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.resultado_proceso}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_resultado")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Empresa Adjudicada</label>
-                <select id="f-id_empresa" name="id_empresa" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.empresas}}
-                    <option value="{{.ID}}" {{if $.Expediente}}{{if isSelected .ID (rowGetStr $.Expediente "id_empresa")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div><label class="label">Nro. Contrato SICAC</label><input type="text" id="f-nro_contrato_sicac" name="nro_contrato_sicac" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_contrato_sicac"}}{{end}}"></div>
-            <div><label class="label">Nro. Contrato SAP</label><input type="text" id="f-nro_contrato_sap" name="nro_contrato_sap" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "nro_contrato_sap"}}{{end}}"></div>
-            <div><label class="label">Tiempo Ejecución</label><input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" placeholder="ej: 120" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "tiempo_ejecucion"}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado (USD)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_usd" name="monto_adjudicado_usd" class="input num-field" oninput="convertirMoneda('usd_adj')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_usd")}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado (Bs)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_bs" name="monto_adjudicado_bs" class="input num-field" oninput="convertirMoneda('bs_adj')" value="{{if .Expediente}}{{formatNum (rowGet .Expediente "monto_adjudicado_bs")}}{{end}}"></div>
-            <div><label class="label">Fecha Firma Contrato</label><input type="date" id="f-fecha_firma_contrato" name="fecha_firma_contrato" class="input" value="{{if .Expediente}}{{rowGetStr .Expediente "fecha_firma_contrato"}}{{end}}"></div>
+            {{template "form_select_catalog" dict "Label" "Resultado Proceso" "Name" "id_resultado" "CatalogName" "resultado_proceso" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_select_catalog" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Expediente}}
+            {{template "form_input_text" dict "Label" "Tiempo Ejecución" "Name" "tiempo_ejecucion" "Registro" .Expediente "ExtraAttrs" "placeholder=\"ej: 120\""}}
+            {{template "form_input_number" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Registro" .Expediente "ExtraAttrs" "inputmode=\"decimal\" oninput=\"convertirMoneda('usd_adj')\""}}
+            {{template "form_input_number" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Registro" .Expediente "ExtraAttrs" "inputmode=\"decimal\" oninput=\"convertirMoneda('bs_adj')\""}}
+            {{template "form_input_text" dict "Label" "Fecha Firma Contrato" "Name" "fecha_firma_contrato" "Type" "date" "Registro" .Expediente}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3"><label class="label">Observaciones</label><textarea id="f-observaciones" name="observaciones" rows="3" class="input">{{if .Expediente}}{{rowGetStr .Expediente "observaciones"}}{{end}}</textarea></div>
-        <div class="mt-2"><label class="label">Notas</label><textarea id="f-notas" name="notas" rows="2" class="input">{{if .Expediente}}{{rowGetStr .Expediente "notas"}}{{end}}</textarea></div>
+        <div class="mt-3">
+            {{template "form_textarea" dict "Label" "Observaciones" "Name" "observaciones" "Registro" .Expediente "Rows" "3"}}
+        </div>
+        <div class="mt-2">
+            {{template "form_textarea" dict "Label" "Notas" "Name" "notas" "Registro" .Expediente "Rows" "2"}}
+        </div>
     </fieldset>
 </div>
 
-<div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
-    <button type="button" onclick="cerrarFormulario()" class="btn btn-secondary">Cancelar</button>
-    {{if .Expediente}}
-    <button type="button" id="btn-eliminar"
-            hx-post="/api/eliminar-expediente?modulo=expedientes"
-            hx-include="#f-id_expediente"
-            hx-confirm="¿Confirmar eliminación final del expediente #{{rowGetStr .Expediente "id_expediente"}} y su historial?"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Expediente eliminado correctamente', 'success'); cerrarFormulario(); location.reload(); } else { alert('Error al eliminar'); }"
-            class="btn btn-danger">Eliminar</button>
-    {{end}}
-    <button type="button"
-            hx-post="/api/guardar-expediente?modulo=expedientes"
-            hx-include="#form-expediente"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Expediente guardado correctamente', 'success'); cerrarFormulario(); location.reload(); } else { alert(JSON.parse(event.detail.xhr.responseText).error || 'Error al guardar'); }"
-            class="btn btn-primary btn-lg">Guardar</button>
-</div>
+{{template "form_buttons" dict "Registro" .Expediente "Modulo" "expedientes" "IDColumna" "id_expediente"}}

@@ -21,20 +21,11 @@
             </thead>
             <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
             {{if eq (len .Filas) 0}}
-                <tr><td colspan="12" class="p-12 text-center text-gray-500">No hay registros en la base de datos o que coincidan con la búsqueda.</td></tr>
+                {{template "tabla_empty_row" dict "Colspan" "12"}}
             {{else}}
                 {{range $i, $r := .Filas}}
                 <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $r "id_certificacion_bdu"}})">
-                    <td class="p-3 text-center">
-                        <button class="btn-icon text-link" id="btn-{{rowGetStr $r "id_certificacion_bdu"}}"><i class="fas fa-plus"></i></button>
-                    </td>
-                    <td class="p-3 text-center space-x-1.5 whitespace-nowrap">
-                        <button onclick="event.stopPropagation();"
-                                hx-get="/api/cargar-expediente?modulo=certificacion_bdu&id={{rowGetStr $r "id_certificacion_bdu"}}"
-                                hx-target="#form-expediente"
-                                hx-on::after-request="mostrarFormulario({{rowGetStr $r "id_certificacion_bdu"}})"
-                                class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
-                    </td>
+                    {{template "tabla_action_buttons" dict "Registro" $r "Modulo" "certificacion_bdu" "IDColumna" "id_certificacion_bdu"}}
                     <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "gerencia"}}">{{default (rowGetStr $r "gerencia") "N/A"}}</td>
                     <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "superintendencia"}}">{{default (rowGetStr $r "superintendencia") "N/A"}}</td>
                     <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $r "emisor"}}">{{default (rowGetStr $r "emisor") "N/A"}}</td>
@@ -61,43 +52,9 @@
                                     <div><span class="text-gray-400">Monto Pagado:</span> <span class="text-gray-300 block font-mono">{{if rowGetNum $r "monto_pagado"}}${{formatNum (rowGet $r "monto_pagado")}}{{else}}N/A{{end}}</span></div>
                                 </div>
                             </div>
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-info-circle mr-1"></i> Trazabilidad y Fechas</h4>
-                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
-                                    <div><span class="text-gray-400">Receptor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $r "receptor") "N/A"}}</span></div>
-                                    <div><span class="text-gray-400">Estatus:</span> <span class="text-teal-300 block">{{default (rowGetStr $r "estatus_detalle") "N/A"}}</span></div>
-                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_recibido") "N/A"}}</span></div>
-                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_devuelto") "N/A"}}</span></div>
-                                    <div><span class="text-gray-400">Fecha Creación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_creacion") "N/A"}}</span></div>
-                                    <div><span class="text-gray-400">Última Modificación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $r "fecha_actualizacion") "N/A"}}</span></div>
-                                </div>
-                                <div class="pt-2 border-t border-gray-700/40 mt-2">
-                                    <button onclick="event.stopPropagation();"
-                                            hx-get="/api/historial?modulo=certificacion_bdu&id={{rowGetStr $r "id_certificacion_bdu"}}"
-                                            hx-target="#historial-cuerpo"
-                                            hx-on::before-request="pushModal('historial-modal'); $('historial-titulo').innerHTML = '<i class=\'fas fa-hourglass-half mr-1\'></i> Historial #{{rowGetStr $r "id_certificacion_bdu"}}';"
-                                            class="text-xs text-teal-400 hover:text-teal-300 font-semibold">
-                                        <i class="fas fa-clipboard-list mr-1"></i> Ver Historial
-                                    </button>
-                                </div>
-                            </div>
+                            {{template "tabla_subrow_trazabilidad" dict "Registro" $r "Modulo" "certificacion_bdu" "IDColumna" "id_certificacion_bdu"}}
                         </div>
-                        {{if rowGetStr $r "observaciones"}}
-                        <div class="mt-4 border-t border-gray-700/50 pt-4">
-                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
-                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
-                                <div class="text-gray-300 italic whitespace-pre-wrap">{{rowGetStr $r "observaciones"}}</div>
-                            </div>
-                        </div>
-                        {{end}}
-                        {{if rowGetStr $r "notas"}}
-                        <div class="mt-4 border-t border-gray-700/50 pt-4">
-                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
-                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
-                                <p class="text-gray-300 whitespace-pre-wrap">{{rowGetStr $r "notas"}}</p>
-                            </div>
-                        </div>
-                        {{end}}
+                        {{template "tabla_subrow_observaciones_notas" dict "Registro" $r}}
                     </td>
                 </tr>
                 {{end}}

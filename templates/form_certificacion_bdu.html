@@ -1,107 +1,36 @@
 <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]">
-    <input type="hidden" id="f-id_certificacion_bdu" name="id_certificacion_bdu" value="{{if .Registro}}{{rowGetStr .Registro "id_certificacion_bdu"}}{{end}}">
+    {{template "form_hidden_id" dict "Registro" .Registro "IDColumna" "id_certificacion_bdu"}}
 
     <fieldset class="card">
         <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información General</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Documento</label>
-                <select id="f-id_documento" name="id_documento" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.documento}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_documento")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Gerencia</label>
-                <select id="f-id_gerencia" name="id_gerencia" class="input" onchange="cargarSuperintendencias()">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.gerencia}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_gerencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Superintendencia</label>
-                <select id="f-id_superintendencia" name="id_superintendencia" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.superintendencia}}
-                    <option value="{{.ID}}" data-id-gerencia="{{.IDGerencia}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_superintendencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
+            {{template "form_select_catalog" dict "Label" "Documento" "Name" "id_documento" "CatalogName" "documento" "Catalogs" .Catalogs "Registro" .Registro}}
+            {{template "form_gerencia_superintendencia" .}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos Totales</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div><label class="label">Presupuesto Base Total ($)</label><input type="text" inputmode="decimal" id="f-presupuesto_base_total_usd" name="presupuesto_base_total_usd" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "presupuesto_base_total_usd")}}{{end}}"></div>
-            <div><label class="label">Monto Adjudicado Total ($)</label><input type="text" inputmode="decimal" id="f-monto_adjudicado_total_usd" name="monto_adjudicado_total_usd" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_adjudicado_total_usd")}}{{end}}"></div>
-            <div><label class="label">Monto del Contrato</label><input type="text" inputmode="decimal" id="f-monto_contrato" name="monto_contrato" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_contrato")}}{{end}}"></div>
-            <div><label class="label">Monto Ejecutado</label><input type="text" inputmode="decimal" id="f-monto_ejecutado" name="monto_ejecutado" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_ejecutado")}}{{end}}"></div>
-            <div><label class="label">Monto Pagado</label><input type="text" inputmode="decimal" id="f-monto_pagado" name="monto_pagado" class="input num-field" value="{{if .Registro}}{{formatNum (rowGet .Registro "monto_pagado")}}{{end}}"></div>
+            {{template "form_input_number" dict "Label" "Presupuesto Base Total ($)" "Name" "presupuesto_base_total_usd" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
+            {{template "form_input_number" dict "Label" "Monto Adjudicado Total ($)" "Name" "monto_adjudicado_total_usd" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
+            {{template "form_input_number" dict "Label" "Monto del Contrato" "Name" "monto_contrato" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
+            {{template "form_input_number" dict "Label" "Monto Ejecutado" "Name" "monto_ejecutado" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
+            {{template "form_input_number" dict "Label" "Monto Pagado" "Name" "monto_pagado" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Trazabilidad y Firmas</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Emisor</label>
-                <select id="f-id_emisor" name="id_emisor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_emisor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Receptor</label>
-                <select id="f-id_receptor" name="id_receptor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_receptor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Estatus Detalle</label>
-                <select id="f-id_estatus" name="id_estatus" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.estatus_detalle}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_estatus")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div><label class="label">Fecha Recibido</label><input type="date" id="f-fecha_recibido" name="fecha_recibido" class="input" value="{{if .Registro}}{{rowGetStr .Registro "fecha_recibido"}}{{end}}"></div>
-            <div><label class="label">Fecha Devuelto</label><input type="date" id="f-fecha_devuelto" name="fecha_devuelto" class="input" value="{{if .Registro}}{{rowGetStr .Registro "fecha_devuelto"}}{{end}}"></div>
+            {{template "form_emisor_receptor" .}}
+            {{template "form_select_catalog" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro}}
+            {{template "form_input_text" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_text" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Type" "date" "Registro" .Registro}}
         </div>
     </fieldset>
 
-    <fieldset class="card">
-        <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3"><label class="label">Observaciones</label><textarea id="f-observaciones" name="observaciones" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "observaciones"}}{{end}}</textarea></div>
-        <div class="mt-2"><label class="label">Notas</label><textarea id="f-notas" name="notas" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "notas"}}{{end}}</textarea></div>
-    </fieldset>
+    {{template "form_fieldset_observaciones" .}}
 </div>
 
-<div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
-    <button type="button" onclick="cerrarFormulario()" class="btn btn-secondary">Cancelar</button>
-    {{if .Registro}}
-    <button type="button" id="btn-eliminar"
-            hx-post="/api/eliminar-expediente?modulo=certificacion_bdu"
-            hx-include="#f-id_certificacion_bdu"
-            hx-confirm="¿Confirmar eliminación final de este registro de Certificación BDU #{{rowGetStr .Registro "id_certificacion_bdu"}}?"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Registro eliminado', 'success'); cerrarFormulario(); location.reload(); } else { alert('Error al eliminar'); }"
-            class="btn btn-danger">Eliminar</button>
-    {{end}}
-    <button type="button"
-            hx-post="/api/guardar-expediente?modulo=certificacion_bdu"
-            hx-include="#form-expediente"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Registro guardado', 'success'); cerrarFormulario(); location.reload(); } else { alert(JSON.parse(event.detail.xhr.responseText).error || 'Error al guardar'); }"
-            class="btn btn-primary btn-lg">Guardar</button>
-</div>
+{{template "form_buttons" dict "Registro" .Registro "Modulo" "certificacion_bdu" "IDColumna" "id_certificacion_bdu"}}

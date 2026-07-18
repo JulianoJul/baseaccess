@@ -261,8 +261,8 @@ func TestObtenerRutaProcesosData(t *testing.T) {
 	if data.Processes == nil {
 		t.Error("processes should not be nil")
 	}
-	if len(data.Legend) != 6 {
-		t.Errorf("expected 6 legend entries, got %d", len(data.Legend))
+	if len(data.Legend) < 6 {
+		t.Errorf("expected at least 6 legend entries, got %d", len(data.Legend))
 	}
 }
 

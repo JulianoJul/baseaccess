@@ -603,3 +603,51 @@ select.input option {
 .suma-fila {
   margin-bottom: 14px;
 }
+
+/* Modales, drag, bottom bar y otros extraídos de index.html */
+.drag-over {
+    outline: 3px dashed #2dd4bf;
+    outline-offset: -10px;
+    background-color: rgba(45, 212, 191, 0.05);
+}
+.campo-frecuente .label::after {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #f59e0b; border-radius: 50%;
+    margin-left: 4px; vertical-align: middle;
+}
+.campo-frecuente .label { border-left: 2px solid #f59e0b; padding-left: 6px; }
+#spinner-overlay.htmx-request {
+    display: flex !important;
+}
+.rotate-45 {
+    transform: rotate(45deg);
+    display: inline-block;
+}
+.bg-gray-850 {
+    background-color: #1e293b;
+}
+/* Bottom bar: flotante sin fondo */
+#bottom-bar { position: fixed; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; z-index: 20; }
+#bottom-bar .btn-mod { border-radius: 0; padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+#bottom-bar .inner-bar .btn-mod:first-child { border-radius: 0.5rem 0 0 0.5rem; }
+#bottom-bar .inner-bar .btn-mod:last-child { border-radius: 0 0.5rem 0.5rem 0; }
+#bottom-bar .inner-bar { border-radius: 0.5rem; overflow: hidden; }
+#bottom-bar .ruta-mod { border-radius: 0.5rem !important; border: 1px solid #f59e0b; }
+#bottom-bar .ml-3 { margin-left: 0.75rem; }
+body.has-db { padding-bottom: 3rem; }
+
+/* z-index fixes: Tailwind precompilado no incluye valores arbitrarios */
+.z-toast { z-index: 9999; }
+.z-spinner { z-index: 9998; }
+.bottom-4 { bottom: 1rem; }
+.right-4 { right: 1rem; }
+.pointer-events-none { pointer-events: none; }
+/* Contraer botones Abrir/Recientes a solo icono cuando hay BD */
+body.has-db #btn-abrir-bd .btn-label,
+body.has-db #btn-recientes .btn-label { display: none; }
+body.has-db #btn-abrir-bd .mr-1,
+body.has-db #btn-recientes .mr-1 { margin-right: 0; }
+.ml-auto { margin-left: auto; }
+

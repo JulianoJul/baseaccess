@@ -70,13 +70,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 const moduloDefault = "expedientes"
 
 func modulosSinQueries() map[string]ModuloConfig {
-	cc := make(map[string]ModuloConfig, len(Modulos))
-	for k, v := range Modulos {
-		copia := v
-		copia.QueryHistorial = ""
-		cc[k] = copia
-	}
-	return cc
+	return Modulos
 }
 
 func moduloDesdeRequest(r *http.Request) (string, ModuloConfig, bool) {
@@ -278,36 +272,62 @@ func defaultVal(val, def interface{}) interface{} {
 	return val
 }
 
+type CatalogFilter struct {
+	Label  string `json:"label"`
+	Key    string `json:"key"`
+	RowKey string `json:"-"`
+}
+
+var UnifiedCatalogFilters = map[string]CatalogFilter{
+	"id_gerencia":         {"Gerencia", "gerencia", "gerencia"},
+	"id_superintendencia": {"Superintendencia", "superintendencia", "superintendencia"},
+	"id_documento":        {"Documento", "documento", "documento"},
+	"id_plan":             {"Plan Contratación", "plan_contratacion", "plan_contrataciones"},
+	"id_modalidad":        {"Modalidad", "modalidad", "modalidad_contratacion"},
+	"id_art":              {"Art. Normativa", "art", "art"},
+	"id_tipo_contrato":    {"Tipo Contrato", "tipo_contrato", "tipo_contrato"},
+	"id_estatus":          {"Estatus Detalle", "estatus_detalle", "estatus_detalle"},
+	"id_resultado":        {"Resultado Proceso", "resultado_proceso", "resultados_proceso"},
+	"id_empresa":          {"Empresa", "empresas", "empresa_adjudicada"},
+	"id_emisor":           {"Emisor / Remitente", "responsables", "emisor"},
+	"id_receptor":         {"Receptor", "responsables", "receptor"},
+}
+
 // --- PageData ---
 
 type PageData struct {
-	Title        string
-	HasDB        bool
-	Catalogs     map[string][]CatalogoItem
-	ActiveModule string
-	Modulos      map[string]ModuloConfig
-	Filas        []Row
-	Error        string
-	PageSize     int
-	TotalPages   int
-	CurrentPage  int
-	SortColumn   string
-	SortDir      string
-	DBPath       string
-	Registro     Row
+	Title          string
+	HasDB          bool
+	Catalogs       map[string][]CatalogoItem
+	ActiveModule   string
+	Modulos        map[string]ModuloConfig
+	Filas          []Row
+	Error          string
+	PageSize       int
+	TotalPages     int
+	CurrentPage    int
+	SortColumn     string
+	SortDir        string
+	DBPath         string
+	Registro       Row
+	CatalogFilters map[string]CatalogFilter
 }
 
 func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	modulo, cfg, _ := moduloDesdeRequest(r)
 
 	data := &PageData{
-		Title:        "Control de Documentos",
-		ActiveModule: modulo,
-		Modulos:      modulosSinQueries(),
-		PageSize:     10,
-		CurrentPage:  1,
-		SortColumn:   "fecha_creacion",
-		SortDir:      "DESC",
+		Title:          "App Control Documentos Presidencia",
+		HasDB:          h.app.db != nil,
+		DBPath:         h.app.dbPath,
+		ActiveModule:   modulo,
+		Modulos:        Modulos,
+		PageSize:       10,
+		TotalPages:     1,
+		CurrentPage:    1,
+		SortColumn:     "fecha_creacion",
+		SortDir:        "DESC",
+		CatalogFilters: UnifiedCatalogFilters,
 	}
 
 	h.app.mu.RLock()
@@ -919,21 +939,6 @@ func (h *TemplateHandler) filtrarPorGerencias(modulo string, filas []Row) []Row 
 	return filtered
 }
 
-var exportFilterColMap = map[string][2]string{
-	"id_gerencia":         {"gerencia", "gerencia"},
-	"id_superintendencia": {"superintendencia", "superintendencia"},
-	"id_documento":        {"documento", "documento"},
-	"id_plan":             {"plan_contrataciones", "plan_contratacion"},
-	"id_modalidad":        {"modalidad_contratacion", "modalidad"},
-	"id_art":              {"art", "art"},
-	"id_tipo_contrato":    {"tipo_contrato", "tipo_contrato"},
-	"id_estatus":          {"estatus_detalle", "estatus_detalle"},
-	"id_resultado":        {"resultados_proceso", "resultado_proceso"},
-	"id_empresa":          {"empresa_adjudicada", "empresas"},
-	"id_emisor":           {"emisor", "responsables"},
-	"id_receptor":         {"receptor", "responsables"},
-}
-
 func (h *TemplateHandler) filasParaExportar(r *http.Request) (cfg ModuloConfig, filas []Row, err error) {
 	modulo, cfg, ok := moduloDesdeRequest(r)
 	if !ok {
@@ -987,7 +992,7 @@ func (h *TemplateHandler) filasParaExportar(r *http.Request) (cfg ModuloConfig, 
 
 	var filtered []Row
 	for _, row := range filas {
-		fr, _ := row["fecha_recibido"].(string)
+		fr, _ := row[cfg.FechaColumna].(string)
 		if (fechaDesde != "" || fechaHasta != "") && fr == "" {
 			continue
 		}
@@ -1000,12 +1005,12 @@ func (h *TemplateHandler) filasParaExportar(r *http.Request) (cfg ModuloConfig, 
 
 		match := true
 		for paramKey, paramVal := range filters {
-			mapping, ok := exportFilterColMap[paramKey]
+			mapping, ok := UnifiedCatalogFilters[paramKey]
 			if !ok {
 				match = false
 				break
 			}
-			rowKey, catKey := mapping[0], mapping[1]
+			rowKey, catKey := mapping.RowKey, mapping.Key
 			expectedName := catMaps[catKey][paramVal]
 			if expectedName == "" {
 				match = false

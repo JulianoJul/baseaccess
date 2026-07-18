@@ -31,7 +31,7 @@ type ModuloConfig struct {
 	IDColumna      string
 	HistorialTabla string
 	Columnas       []string
-	QueryHistorial string
+	FechaColumna   string
 	GerenciasIDs   []int
 }
 
@@ -53,7 +53,7 @@ var Modulos = map[string]ModuloConfig{
 			"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
 			"fecha_firma_contrato", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(tc.nombre, '-') AS tipo_contrato, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(d.nombre, '-') AS documento, COALESCE(em.nombre, '-') AS emisor, COALESCE(rec.nombre, '-') AS receptor, COALESCE(ed.nombre, '-') AS estatus, COALESCE(h.fecha_recibido, '-') AS fecha_recibido, COALESCE(h.fecha_devuelto, '-') AS fecha_devuelto, COALESCE(h.nro_proceso, '-') AS nro_proceso, h.presupuesto_base_usd, h.tipo_cambio, h.monto_adjudicado_usd, COALESCE(rp.nombre, '-') AS resultado, COALESCE(emp.nombre, '-') AS empresa, COALESCE(h.tiempo_ejecucion, '-') AS tiempo_ejecucion, COALESCE(h.fecha_firma_contrato, '-') AS fecha_firma_contrato, COALESCE(h.observaciones, '') AS observaciones, COALESCE(h.notas, '') AS notas FROM historial_movimientos h LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id 		WHERE h.id_expediente = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 	},
 	"requisiciones": {
@@ -68,7 +68,7 @@ var Modulos = map[string]ModuloConfig{
 			"observaciones_entrega", "fecha_recibido", "fecha_devuelto", "id_receptor",
 			"observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.descripcion_materiales, h.serial_equipo, h.pase_sicesma, COALESCE(ed.nombre, '-') AS estatus, h.observaciones_entrega, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_req_materiales h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_requisicion = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8, 11},
 	},
 	"memorandums": {
@@ -78,11 +78,11 @@ var Modulos = map[string]ModuloConfig{
 		IDColumna:      "id_memorandum",
 		HistorialTabla: "hist_memorandums",
 		Columnas: []string{
-			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
 			"asunto", "id_estatus", "fecha_recibido", "fecha_devuelto",
 			"id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_memorandums h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_memorandum = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 	},
 	"recobros": {
@@ -92,12 +92,12 @@ var Modulos = map[string]ModuloConfig{
 		IDColumna:      "id_recobro",
 		HistorialTabla: "hist_recobros",
 		Columnas: []string{
-			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
 			"asunto", "fecha_inicio", "fecha_final", "servicios", "beneficios",
 			"nota_debito_reverso", "costo_servicio_usd", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.asunto, h.fecha_inicio, h.fecha_final, h.servicios, h.beneficios, h.nota_debito_reverso, h.costo_servicio_usd, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_recobros h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_recobro = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"valuaciones": {
@@ -107,14 +107,14 @@ var Modulos = map[string]ModuloConfig{
 		IDColumna:      "id_valuacion",
 		HistorialTabla: "hist_valuaciones",
 		Columnas: []string{
-			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
 			"solped", "presupuesto_base_bs", "presupuesto_base_usd", "descripcion_proceso",
 			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "nro_proceso",
 			"nro_contrato_sicac", "nro_contrato_sap", "id_empresa", "tiempo_ejecucion",
 			"monto_adjudicado_bs", "monto_adjudicado_usd", "periodo_valuacion_desde",
 			"periodo_valuacion_hasta", "monto_valuacion", "nro_proforma", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.solped, h.presupuesto_base_bs, h.presupuesto_base_usd, h.descripcion_proceso, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.nro_proceso, h.nro_contrato_sicac, h.nro_contrato_sap, COALESCE(emp.nombre, '-') AS empresa, h.tiempo_ejecucion, h.monto_adjudicado_bs, h.monto_adjudicado_usd, h.periodo_valuacion_desde, h.periodo_valuacion_hasta, h.monto_valuacion, h.nro_proforma, h.observaciones, h.notas FROM hist_valuaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id 		WHERE h.id_valuacion = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"aprobacion_jd": {
@@ -130,7 +130,7 @@ var Modulos = map[string]ModuloConfig{
 			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "tiempo_ejecucion",
 			"observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.solped, h.fecha_presupuesto_base, h.presupuesto_base_bs, h.tipo_cambio, h.presupuesto_base_usd, COALESCE(p.nombre, '-') AS plan_contrataciones, h.descripcion_proceso, h.cantidad_frentes, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.tiempo_ejecucion, h.observaciones, h.notas FROM hist_aprobacion_jd h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_plan_contratacion p ON h.id_plan = p.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_aprobacion_jd = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 7, 8},
 	},
 	"certificacion_bdu": {
@@ -145,7 +145,7 @@ var Modulos = map[string]ModuloConfig{
 			"monto_ejecutado", "monto_pagado", "id_estatus", "fecha_recibido",
 			"fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, COALESCE(d.nombre, '-') AS documento, h.presupuesto_base_total_usd, h.monto_adjudicado_total_usd, h.monto_contrato, h.monto_ejecutado, h.monto_pagado, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_certificacion_bdu h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_documento d ON h.id_documento = d.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_certificacion_bdu = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{7},
 	},
 	"vacaciones": {
@@ -155,11 +155,11 @@ var Modulos = map[string]ModuloConfig{
 		IDColumna:      "id_vacacion",
 		HistorialTabla: "hist_vacaciones",
 		Columnas: []string{
-			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
 			"anio", "cantidad_dias", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.anio, h.cantidad_dias, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.fecha_devuelto, COALESCE(rec.nombre, '-') AS receptor, h.observaciones, h.notas FROM hist_vacaciones h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id 		WHERE h.id_vacacion = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12},
 	},
 	"reposos_medicos": {
@@ -169,13 +169,78 @@ var Modulos = map[string]ModuloConfig{
 		IDColumna:      "id_reposo_medico",
 		HistorialTabla: "hist_reposos_medicos",
 		Columnas: []string{
-			"id_gerencia", "id_superintendencia", "id_emisor", "documento",
+			"id_gerencia", "id_superintendencia", "id_emisor", "id_documento",
 			"dias_periodo", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "observaciones", "notas",
 		},
-		QueryHistorial: `SELECT h.id_movimiento, COALESCE(g.nombre, '-') AS gerencia, COALESCE(s.nombre, '-') AS superintendencia, COALESCE(em.nombre, '-') AS emisor, h.documento, h.dias_periodo, h.fecha_desde, h.fecha_hasta, COALESCE(ed.nombre, '-') AS estatus, h.fecha_recibido, h.observaciones, h.notas FROM hist_reposos_medicos h LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id LEFT JOIN cat_responsables em ON h.id_emisor = em.id LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id 		WHERE h.id_reposo_medico = ? ORDER BY h.id_movimiento DESC`,
+		FechaColumna:   "fecha_recibido",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13},
 	},
+}
+
+func (cfg ModuloConfig) buildQueryHistorial() string {
+	var selectCols []string
+	selectCols = append(selectCols, "h.id_movimiento")
+	var joins []string
+	joinMap := make(map[string]bool)
+
+	addJoin := func(join string) {
+		if !joinMap[join] {
+			joinMap[join] = true
+			joins = append(joins, join)
+		}
+	}
+
+	for _, col := range cfg.Columnas {
+		switch col {
+		case "id_gerencia":
+			selectCols = append(selectCols, "COALESCE(g.nombre, '-') AS gerencia")
+			addJoin("LEFT JOIN cat_gerencia g ON h.id_gerencia = g.id")
+		case "id_superintendencia":
+			selectCols = append(selectCols, "COALESCE(s.nombre, '-') AS superintendencia")
+			addJoin("LEFT JOIN cat_superintendencia s ON h.id_superintendencia = s.id")
+		case "id_emisor":
+			selectCols = append(selectCols, "COALESCE(em.nombre, '-') AS emisor")
+			addJoin("LEFT JOIN cat_responsables em ON h.id_emisor = em.id")
+		case "id_receptor":
+			selectCols = append(selectCols, "COALESCE(rec.nombre, '-') AS receptor")
+			addJoin("LEFT JOIN cat_responsables rec ON h.id_receptor = rec.id")
+		case "id_documento":
+			selectCols = append(selectCols, "COALESCE(d.nombre, '-') AS documento")
+			addJoin("LEFT JOIN cat_documento d ON h.id_documento = d.id")
+		case "id_estatus":
+			selectCols = append(selectCols, "COALESCE(ed.nombre, '-') AS estatus")
+			addJoin("LEFT JOIN cat_estatus_detalle ed ON h.id_estatus = ed.id")
+		case "id_plan":
+			selectCols = append(selectCols, "COALESCE(p.nombre, '-') AS plan_contrataciones")
+			addJoin("LEFT JOIN cat_plan_contratacion p ON h.id_plan = p.id")
+		case "id_resultado":
+			selectCols = append(selectCols, "COALESCE(rp.nombre, '-') AS resultado")
+			addJoin("LEFT JOIN cat_resultado_proceso rp ON h.id_resultado = rp.id")
+		case "id_empresa":
+			selectCols = append(selectCols, "COALESCE(emp.nombre, '-') AS empresa")
+			addJoin("LEFT JOIN cat_empresas emp ON h.id_empresa = emp.id")
+		case "id_tipo_contrato":
+			selectCols = append(selectCols, "COALESCE(tc.nombre, '-') AS tipo_contrato")
+			addJoin("LEFT JOIN cat_tipo_contrato tc ON h.id_tipo_contrato = tc.id")
+		case "id_modalidad":
+			selectCols = append(selectCols, "COALESCE(mo.nombre, '-') AS modalidad")
+			addJoin("LEFT JOIN cat_modalidad mo ON h.id_modalidad = mo.id")
+		case "id_art":
+			selectCols = append(selectCols, "COALESCE(a.nombre, '-') AS art")
+			addJoin("LEFT JOIN cat_art a ON h.id_art = a.id")
+		default:
+			selectCols = append(selectCols, fmt.Sprintf("h.%s", col))
+		}
+	}
+
+	query := fmt.Sprintf("SELECT %s FROM %s h %s WHERE h.%s = ? ORDER BY h.id_movimiento DESC",
+		strings.Join(selectCols, ", "),
+		cfg.HistorialTabla,
+		strings.Join(joins, " "),
+		cfg.IDColumna,
+	)
+	return query
 }
 
 const (
@@ -481,9 +546,9 @@ func (a *App) exec(query string, args ...interface{}) (sql.Result, error) {
 	return a.db.Exec(query, args...)
 }
 
-func sanitizarOrden(orden string, def string, columnasValidas []string) string {
-	validMap := make(map[string]bool, len(columnasValidas)+len(columnasOrdenValidas)+1)
-	for _, c := range columnasValidas {
+func sanitizarOrden(orden string, def string, columnasVista []string) string {
+	validMap := make(map[string]bool, len(columnasVista)+len(columnasOrdenValidas)+1)
+	for _, c := range columnasVista {
 		validMap[c] = true
 	}
 	for c := range columnasOrdenValidas {
@@ -510,15 +575,23 @@ func sanitizarOrden(orden string, def string, columnasValidas []string) string {
 }
 
 func (a *App) ObtenerFilas(moduloKey string, orden string) ([]Row, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
+	// Need to get columns before locking the main mutex if we use ObtenerColumnasVista
+	// But actually ObtenerColumnasVista only takes an RLock, which is safe.
+	// However, to avoid any lock issues, we just do the query first.
 	cfg, ok := Modulos[moduloKey]
 	if !ok {
 		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
 	}
 
-	orden = sanitizarOrden(orden, cfg.IDColumna, cfg.Columnas)
+	cols, err := a.ObtenerColumnasVista(cfg.Vista)
+	if err != nil {
+		cols = cfg.Columnas // Fallback
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	orden = sanitizarOrden(orden, cfg.IDColumna, cols)
 	q := `SELECT * FROM ` + cfg.Vista + ` ORDER BY ` + orden
 	return a.queryRows(q)
 }
@@ -720,11 +793,12 @@ func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
 		return nil, fmt.Errorf("modulo no soportado: %s", moduloKey)
 	}
 
-	if cfg.QueryHistorial == "" {
+	if cfg.HistorialTabla == "" {
 		return nil, fmt.Errorf("modulo %s no tiene soporte para historial", moduloKey)
 	}
 
-	return a.queryRows(cfg.QueryHistorial, id)
+	query := cfg.buildQueryHistorial()
+	return a.queryRows(query, id)
 }
 
 func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {

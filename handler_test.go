@@ -257,23 +257,15 @@ func TestModuloDesdeRequest_Invalid(t *testing.T) {
 	}
 }
 
-func TestModulosSinQueries(t *testing.T) {
-	clean := modulosSinQueries()
-	for k, v := range clean {
-		if v.QueryHistorial != "" {
-			t.Errorf("modulo %s: QueryHistorial should be empty, got %q", k, v.QueryHistorial)
-		}
-	}
-}
 
-func TestExportFilterColMap_Coverage(t *testing.T) {
-	if _, ok := exportFilterColMap["id_gerencia"]; !ok {
-		t.Error("exportFilterColMap missing id_gerencia")
+func TestUnifiedCatalogFilters_Coverage(t *testing.T) {
+	if _, ok := UnifiedCatalogFilters["id_gerencia"]; !ok {
+		t.Error("UnifiedCatalogFilters missing id_gerencia")
 	}
-	if _, ok := exportFilterColMap["id_estatus"]; !ok {
-		t.Error("exportFilterColMap missing id_estatus")
+	if _, ok := UnifiedCatalogFilters["id_estatus"]; !ok {
+		t.Error("UnifiedCatalogFilters missing id_estatus")
 	}
-	if len(exportFilterColMap) != 12 {
-		t.Errorf("exportFilterColMap has %d entries, expected 12", len(exportFilterColMap))
+	if len(UnifiedCatalogFilters) != 12 {
+		t.Errorf("UnifiedCatalogFilters has %d entries, expected 12", len(UnifiedCatalogFilters))
 	}
 }

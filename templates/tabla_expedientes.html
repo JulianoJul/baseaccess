@@ -18,7 +18,7 @@
             </thead>
             <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
             {{if eq (len .Filas) 0}}
-                <tr><td colspan="8" class="p-12 text-center text-gray-500">No hay registros en la base de datos o que coincidan con la búsqueda.</td></tr>
+                {{template "tabla_empty_row" dict "Colspan" "8"}}
             {{else}}
                 {{range $i, $exp := .Filas}}
                 <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700" onclick="toggleDesplegable({{rowGetStr $exp "id_expediente"}})">
@@ -97,22 +97,7 @@
                                 </div>
                             </div>
                         </div>
-                        {{if rowGetStr $exp "observaciones"}}
-                        <div class="mt-4 border-t border-gray-700/50 pt-4">
-                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
-                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
-                                <div class="text-gray-300 italic whitespace-pre-wrap">{{rowGetStr $exp "observaciones"}}</div>
-                            </div>
-                        </div>
-                        {{end}}
-                        {{if rowGetStr $exp "notas"}}
-                        <div class="mt-4 border-t border-gray-700/50 pt-4">
-                            <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
-                                <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
-                                <p class="text-gray-300 whitespace-pre-wrap">{{rowGetStr $exp "notas"}}</p>
-                            </div>
-                        </div>
-                        {{end}}
+                        {{template "tabla_subrow_observaciones_notas" dict "Registro" $exp}}
                     </td>
                 </tr>
                 {{end}}

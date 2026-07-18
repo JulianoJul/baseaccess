@@ -1,103 +1,39 @@
 <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]">
-    <input type="hidden" id="f-id_requisicion" name="id_requisicion" value="{{if .Registro}}{{rowGetStr .Registro "id_requisicion"}}{{end}}">
+    {{template "form_hidden_id" dict "Registro" .Registro "IDColumna" "id_requisicion"}}
 
     <fieldset class="card">
         <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información General</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Documento</label>
-                <select id="f-id_documento" name="id_documento" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.documento}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_documento")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Gerencia</label>
-                <select id="f-id_gerencia" name="id_gerencia" class="input" onchange="cargarSuperintendencias()">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.gerencia}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_gerencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Superintendencia</label>
-                <select id="f-id_superintendencia" name="id_superintendencia" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.superintendencia}}
-                    <option value="{{.ID}}" data-id-gerencia="{{.IDGerencia}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_superintendencia")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div class="md:col-span-2 lg:col-span-3">
-                <label class="label">Descripción de Materiales</label>
-                <textarea id="f-descripcion_materiales" name="descripcion_materiales" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "descripcion_materiales"}}{{end}}</textarea>
-            </div>
-            <div><label class="label">Serial del Equipo</label><input type="text" id="f-serial_equipo" name="serial_equipo" class="input" value="{{if .Registro}}{{rowGetStr .Registro "serial_equipo"}}{{end}}"></div>
-            <div><label class="label">Pase SICESMA</label><input type="text" id="f-pase_sicesma" name="pase_sicesma" class="input" value="{{if .Registro}}{{rowGetStr .Registro "pase_sicesma"}}{{end}}"></div>
+            {{template "form_select_catalog" dict "Label" "Documento" "Name" "id_documento" "CatalogName" "documento" "Catalogs" .Catalogs "Registro" .Registro}}
+            {{template "form_gerencia_superintendencia" .}}
+            {{template "form_textarea" dict "Label" "Descripción de Materiales" "Name" "descripcion_materiales" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3"}}
+            {{template "form_input_text" dict "Label" "Serial del Equipo" "Name" "serial_equipo" "Registro" .Registro}}
+            {{template "form_input_text" dict "Label" "Pase SICESMA" "Name" "pase_sicesma" "Registro" .Registro}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Control de Firmas y Entrega</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            <div>
-                <label class="label">Emisor</label>
-                <select id="f-id_emisor" name="id_emisor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_emisor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Receptor</label>
-                <select id="f-id_receptor" name="id_receptor" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.responsables}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_receptor")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div>
-                <label class="label">Estatus Detalle</label>
-                <select id="f-id_estatus" name="id_estatus" class="input">
-                    <option value=""></option>
-                    {{if .Catalogs}}{{range .Catalogs.estatus_detalle}}
-                    <option value="{{.ID}}" {{if $.Registro}}{{if isSelected .ID (rowGetStr $.Registro "id_estatus")}}selected{{end}}{{end}}>{{.Nombre}}</option>
-                    {{end}}{{end}}
-                </select>
-            </div>
-            <div><label class="label">Fecha Recibido</label><input type="date" id="f-fecha_recibido" name="fecha_recibido" class="input" value="{{if .Registro}}{{rowGetStr .Registro "fecha_recibido"}}{{end}}"></div>
-            <div><label class="label">Fecha Devuelto</label><input type="date" id="f-fecha_devuelto" name="fecha_devuelto" class="input" value="{{if .Registro}}{{rowGetStr .Registro "fecha_devuelto"}}{{end}}"></div>
+            {{template "form_emisor_receptor" .}}
+            {{template "form_select_catalog" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro}}
+            {{template "form_input_text" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_text" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Type" "date" "Registro" .Registro}}
         </div>
     </fieldset>
 
     <fieldset class="card">
         <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3"><label class="label">Observaciones de la Entrega</label><textarea id="f-observaciones_entrega" name="observaciones_entrega" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "observaciones_entrega"}}{{end}}</textarea></div>
-        <div class="mt-2"><label class="label">Observaciones</label><textarea id="f-observaciones" name="observaciones" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "observaciones"}}{{end}}</textarea></div>
-        <div class="mt-2"><label class="label">Notas</label><textarea id="f-notas" name="notas" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "notas"}}{{end}}</textarea></div>
+        <div class="mt-3">
+            {{template "form_textarea" dict "Label" "Observaciones de la Entrega" "Name" "observaciones_entrega" "Registro" .Registro "Rows" "2"}}
+        </div>
+        <div class="mt-2">
+            {{template "form_textarea" dict "Label" "Observaciones" "Name" "observaciones" "Registro" .Registro "Rows" "2"}}
+        </div>
+        <div class="mt-2">
+            {{template "form_textarea" dict "Label" "Notas" "Name" "notas" "Registro" .Registro "Rows" "2"}}
+        </div>
     </fieldset>
 </div>
 
-<div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
-    <button type="button" onclick="cerrarFormulario()" class="btn btn-secondary">Cancelar</button>
-    {{if .Registro}}
-    <button type="button" id="btn-eliminar"
-            hx-post="/api/eliminar-expediente?modulo=requisiciones"
-            hx-include="#f-id_requisicion"
-            hx-confirm="¿Confirmar eliminación final de la requisición #{{rowGetStr .Registro "id_requisicion"}}?"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Registro eliminado', 'success'); cerrarFormulario(); location.reload(); } else { alert('Error al eliminar'); }"
-            class="btn btn-danger">Eliminar</button>
-    {{end}}
-    <button type="button"
-            hx-post="/api/guardar-expediente?modulo=requisiciones"
-            hx-include="#form-expediente"
-            hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Registro guardado', 'success'); cerrarFormulario(); location.reload(); } else { alert(JSON.parse(event.detail.xhr.responseText).error || 'Error al guardar'); }"
-            class="btn btn-primary btn-lg">Guardar</button>
-</div>
+{{template "form_buttons" dict "Registro" .Registro "Modulo" "requisiciones" "IDColumna" "id_requisicion"}}
