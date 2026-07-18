@@ -183,6 +183,16 @@ BEGIN
         NEW.tiempo_ejecucion, NEW.cantidad_frentes,
         NEW.observaciones, NEW.notas
     );
+
+    UPDATE expedientes
+    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
+    WHERE NEW.fecha_firma_contrato IS NULL
+      AND id_expediente = NEW.id_expediente;
+
+    UPDATE expedientes
+    SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
+    WHERE NEW.fecha_firma_contrato IS NOT NULL
+      AND id_expediente = NEW.id_expediente;
 END;
 CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW

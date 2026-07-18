@@ -594,6 +594,8 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 		return
 	}
 
+	filas = h.filtrarPorGerencias(modulo, filas)
+
 	var filtered []Row
 	if q == "" {
 		filtered = filas
@@ -650,6 +652,7 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	filas = h.filtrarPorGerencias(modulo, filas)
 
 	h.app.mu.RLock()
 	hasDB := h.app.db != nil
@@ -847,6 +850,46 @@ func (h *TemplateHandler) handleOptimizarBD(w http.ResponseWriter, r *http.Reque
 	})
 }
 
+func (h *TemplateHandler) filtrarPorGerencias(modulo string, filas []Row) []Row {
+	cfg, ok := Modulos[modulo]
+	if !ok || cfg.GerenciasIDs == nil || len(cfg.GerenciasIDs) == 0 {
+		return filas
+	}
+
+	catalogs, err := h.app.ObtenerCatalogos()
+	if err != nil {
+		return filas
+	}
+
+	catGer := catalogs["gerencia"]
+	if catGer == nil {
+		return filas
+	}
+
+	permitidasNames := map[string]bool{}
+	for _, item := range catGer {
+		for _, gid := range cfg.GerenciasIDs {
+			if item.ID == gid {
+				permitidasNames[item.Nombre] = true
+				break
+			}
+		}
+	}
+
+	if len(permitidasNames) == 0 {
+		return filas
+	}
+
+	filtered := make([]Row, 0, len(filas))
+	for _, row := range filas {
+		gerName, _ := row["gerencia"].(string)
+		if gerName == "" || permitidasNames[gerName] {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered
+}
+
 func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	modulo := r.URL.Query().Get("modulo")
 	if modulo == "" {
@@ -921,6 +964,9 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	var filtered []Row
 	for _, row := range data {
 		fr, _ := row["fecha_recibido"].(string)
+		if (fechaDesde != "" || fechaHasta != "") && fr == "" {
+			continue
+		}
 		if fechaDesde != "" && fr != "" && fr < fechaDesde {
 			continue
 		}
@@ -936,6 +982,9 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 			}
 			rowKey, catKey := mapping[0], mapping[1]
 			expectedName := catMaps[catKey][paramVal]
+			if expectedName == "" {
+				continue
+			}
 			rowVal, exists := row[rowKey]
 			if !exists {
 				continue
@@ -967,6 +1016,13 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 		headers = append(headers, k)
 	}
 	sort.Strings(headers)
+	for i, k := range headers {
+		if k == cfg.IDColumna {
+			copy(headers[1:i+1], headers[0:i])
+			headers[0] = k
+			break
+		}
+	}
 
 	wr := csv.NewWriter(w)
 	wr.Write(headers)
@@ -1071,6 +1127,9 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	var filtered []Row
 	for _, row := range filas {
 		fr, _ := row["fecha_recibido"].(string)
+		if (fechaDesde != "" || fechaHasta != "") && fr == "" {
+			continue
+		}
 		if fechaDesde != "" && fr != "" && fr < fechaDesde {
 			continue
 		}
@@ -1086,6 +1145,9 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 			}
 			rowKey, catKey := mapping[0], mapping[1]
 			expectedName := catMaps[catKey][paramVal]
+			if expectedName == "" {
+				continue
+			}
 			rowVal, exists := row[rowKey]
 			if !exists {
 				continue

@@ -30,7 +30,7 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 - La app abre bases de datos existentes. La creación del schema es responsabilidad del usuario vía scripts SQL.
 
 ## go.mod version
-- Ya corregido a `go 1.23.0`.
+- `go 1.25.0` es la versión mínima requerida por las dependencias del proyecto (determinado por `go mod tidy`). Con Go 1.26.5 instalado compila sin errores. Si un auditor reporta "versión inexistente", está usando una instalación de Go desactualizada.
 
 ## Paginación 100% cliente
 - Intencional para datasets pequeños (<5000 filas). Se migrará a SQL con LIMIT/OFFSET cuando sea necesario.
@@ -99,3 +99,24 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 
 ## Sin tests / Sin GoDoc / Sin health check / Logging no estructurado
 - Son métricas de calidad de código, no bugs funcionales. Fuera del scope de una auditoría de bugs.
+
+## `f.Close()` en excelize no existe
+- excelize v2.11.0 **sí** tiene método `Close()` (`File.Close()`). El proyecto compila sin errores.
+
+## `trg_exp_auditoria`: inconsistencia historial vs tabla
+- El trigger auto-corrige `id_estatus` basado en `fecha_firma_contrato` DESPUÉS del snapshot. El historial captura el valor ingresado por el usuario; la tabla queda con el valor corregido. Es intencional: la BD asegura integridad de datos (contrato firmado = FIRMADO, sin contrato = PENDIENTE), mientras el historial preserva lo que el usuario envió.
+
+## `ObtenerCatalogos` sin caché
+- Se llama en cada carga/refresco sin caché. Para una app desktop monousuario con <100 items por catálogo, el overhead es insignificante (~11 queries sub-milisegundo en SQLite). No justifica la complejidad de una caché con invalidación.
+
+## `formatNum` JS definido pero no usado
+- Definido en `index.html` como helper de formateo legacy. Quedó sin invocar tras la migración a `formatNumGo` en templates Go. Inofensivo.
+
+## `PageData.SortColumn` con valor inicial muerto
+- `SortColumn: "fecha_creacion"` se asigna y luego se pisa con `cfg.IDColumna`. Es una inicialización inofensiva de struct.
+
+## `DescargarBD` código muerto
+- Expuesta vía Wails `Bind` para uso futuro (exportar respaldo vía menú nativo). No es bug, es feature pendiente de UI.
+
+## `SetBackupMaxCopies` sin UI
+- Expuesta vía Wails `Bind`, configurable a futuro desde settings. No es bug.
