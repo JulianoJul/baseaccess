@@ -3,21 +3,21 @@ PRAGMA foreign_keys = ON;
 -- ==========================================
 -- 🔹 1. CATÁLOGOS MAESTROS (Independientes)
 -- ==========================================
-CREATE TABLE cat_gerencia (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_plan_contratacion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_modalidad (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_art (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_tipo_contrato (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_estatus_detalle (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_resultado_proceso (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_empresas (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
-CREATE TABLE cat_responsables (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_gerencia (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_documento (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_plan_contratacion (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_modalidad (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_art (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_tipo_contrato (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_estatus_detalle (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_resultado_proceso (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_empresas (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
+CREATE TABLE IF NOT EXISTS cat_responsables (id INTEGER PRIMARY KEY, nombre TEXT UNIQUE);
 
 -- ==========================================
 -- 🔹 2. CATÁLOGOS CON RELACIONES
 -- ==========================================
-CREATE TABLE cat_superintendencia (
+CREATE TABLE IF NOT EXISTS cat_superintendencia (
     id INTEGER PRIMARY KEY,
     nombre TEXT UNIQUE,
     id_gerencia INTEGER,
@@ -27,7 +27,7 @@ CREATE TABLE cat_superintendencia (
 -- ==========================================
 -- 🔹 3. TABLA PRINCIPAL: EXPEDIENTES
 -- ==========================================
-CREATE TABLE expedientes (
+CREATE TABLE IF NOT EXISTS expedientes (
     id_expediente           INTEGER PRIMARY KEY AUTOINCREMENT,
     solped                  TEXT,
     id_gerencia             INTEGER,
@@ -80,7 +80,7 @@ CREATE TABLE expedientes (
 -- ==========================================
 -- 🔹 4. HISTORIAL DE MOVIMIENTOS (Snapshot Normalizado)
 -- ==========================================
-CREATE TABLE historial_movimientos (
+CREATE TABLE IF NOT EXISTS historial_movimientos (
     id_movimiento           INTEGER PRIMARY KEY AUTOINCREMENT,
     id_expediente           INTEGER NOT NULL,
     solped                  TEXT,
@@ -133,18 +133,18 @@ CREATE TABLE historial_movimientos (
 -- ==========================================
 -- 🔹 5. ÍNDICES PARA RENDIMIENTO
 -- ==========================================
-CREATE INDEX idx_exp_solped              ON expedientes(solped);
-CREATE INDEX idx_exp_gerencia            ON expedientes(id_gerencia);
-CREATE INDEX idx_exp_estatus             ON expedientes(id_estatus);
-CREATE INDEX idx_exp_empresa             ON expedientes(id_empresa);
-CREATE INDEX idx_exp_fecha_presup        ON expedientes(fecha_presupuesto_base);
-CREATE INDEX idx_exp_fecha_creacion      ON expedientes(fecha_creacion);
-CREATE INDEX idx_exp_fecha_actualizacion ON expedientes(fecha_actualizacion);
+CREATE INDEX IF NOT EXISTS idx_exp_solped              ON expedientes(solped);
+CREATE INDEX IF NOT EXISTS idx_exp_gerencia            ON expedientes(id_gerencia);
+CREATE INDEX IF NOT EXISTS idx_exp_estatus             ON expedientes(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_exp_empresa             ON expedientes(id_empresa);
+CREATE INDEX IF NOT EXISTS idx_exp_fecha_presup        ON expedientes(fecha_presupuesto_base);
+CREATE INDEX IF NOT EXISTS idx_exp_fecha_creacion      ON expedientes(fecha_creacion);
+CREATE INDEX IF NOT EXISTS idx_exp_fecha_actualizacion ON expedientes(fecha_actualizacion);
 
-CREATE INDEX idx_hist_mov_expediente     ON historial_movimientos(id_expediente);
-CREATE INDEX idx_hist_mov_estatus        ON historial_movimientos(id_estatus);
-CREATE INDEX idx_hist_mov_emisor         ON historial_movimientos(id_emisor);
-CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
+CREATE INDEX IF NOT EXISTS idx_hist_mov_expediente     ON historial_movimientos(id_expediente);
+CREATE INDEX IF NOT EXISTS idx_hist_mov_estatus        ON historial_movimientos(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_mov_emisor         ON historial_movimientos(id_emisor);
+CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 
 -- ==========================================
 -- 🔹 6. TRIGGERS DE AUDITORÍA
@@ -155,7 +155,7 @@ CREATE INDEX idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 CREATE TEMP TABLE IF NOT EXISTS _skip_audit (flag INTEGER);
 
 -- Snapshot inicial al crear expediente
-CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
+CREATE TRIGGER IF NOT EXISTS trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
 BEGIN
     INSERT INTO historial_movimientos (
@@ -202,7 +202,7 @@ BEGIN
 
     DELETE FROM _skip_audit;
 END;
-CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
+CREATE TRIGGER IF NOT EXISTS trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
 WHEN (SELECT COUNT(*) FROM _skip_audit) = 0
 BEGIN
@@ -256,7 +256,7 @@ END;
 -- ==========================================
 -- 🔹 7. VISTA PARA EXPORTAR A EXCEL
 -- ==========================================
-CREATE VIEW vw_reporte_excel_contrataciones AS
+CREATE VIEW IF NOT EXISTS vw_reporte_excel_contrataciones AS
 SELECT 
     e.id_expediente,
     COALESCE(e.solped, 'SIN_SOLPED')            AS solped,

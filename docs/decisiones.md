@@ -217,8 +217,24 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `templates/index.html`:
     - `dbPath` escapado con `jsonEncode` en vez de interpolación directa (XSS)
     - `convertirMoneda`: envuelto en `try/finally` (no queda lockeado en error)
-  - Archivos eliminados:
-    - `frontend/index.html`: frontend legacy con bindings a métodos Go inexistentes
-    - `frontend/schema-config.js`: solo referenciado por `frontend/index.html`
-    - `frontend/ruta-procesos-data.js`: datos Gantt hardcodeados (ahora generados server-side)
-    - Referencia a `ruta-procesos-data.js` removida de `templates/index.html`
+   - Archivos eliminados:
+     - `frontend/index.html`: frontend legacy con bindings a métodos Go inexistentes
+     - `frontend/schema-config.js`: solo referenciado por `frontend/index.html`
+     - `frontend/ruta-procesos-data.js`: datos Gantt hardcodeados (ahora generados server-side)
+     - Referencia a `ruta-procesos-data.js` removida de `templates/index.html`
+
+---
+
+## DEC-015: Refactor DRY y hardening (auditoría julio 2026)
+
+- **Origen:** `[Plan de correcciones]`
+- **Contexto y Causa:** Auditoría completa de 4 frentes (Go, HTML/JS, SQL, templates) reveló bugs críticos (Gantt invisible, conversión USD/Bs con stale-read, doble historial en INSERT), duplicación de código (pipeline de exportación, extracción de módulo, transacciones) y hardcode (strings mágicos, CURRENT_TIMESTAMP vs CURRENT_DATE).
+- **Alternativas evaluadas:** Corrección puntual de cada bug vs. refactor estructural. Elegido el refactor estructural para eliminar las causas raíz.
+- **Impacto:**
+  - `app.go`: `withTx()` helper unifica boilerplate de transacción (2→1); constantes `fechaLayout`, `estatusFirmado`, `dsnParams` reemplazan magic strings; `CURRENT_TIMESTAMP` → `CURRENT_DATE` en UPDATE de `GuardarFila`.
+  - `handler.go`: `moduloDesdeRequest(r)` helper elimina 11 copias de extracción+validación de módulo; `filasParaExportar(r)` unifica pipeline de filtrado de CSV y Excel (−89 LOC); `modulosSinQueries()` previene fugas de SQL al frontend; `exportFilterColMap` como package-level var (fuente única de verdad).
+  - `templates/index.html`: `_parseValue()` reemplaza `dataset.raw` en `convertirMoneda` y `calcularSumas` (elimina bug de keystroke atrás); `abrirModalExportar`/`cerrarModalExportar` usan `pushModal`/`cerrarModal` (entran al stack); `mostrarFormulario` recibe `modulo` como parámetro (título correcto); `toggleFrecuente` compara `(id, modulo)` (sin colisiones cross-módulo); parámetros muertos eliminados.
+  - `templates/ruta_procesos.html`: `weekSubs` duplicado eliminado (rowspan 4→3).
+  - `data/sql/*.sql`: `trg_exp_snapshot_inicial` ajustado con temp table `_skip_audit` + `WHEN` en `trg_exp_auditoria` (1 historial por INSERT); IDs literales (1=PENDIENTE, 2=FIRMADO) reemplazan subqueries por nombre; FK+UNIQUE en `ruta_procesos_cronograma`; `fecha_actualizacion` unificado a `CURRENT_DATE` en los 9 triggers; `IF NOT EXISTS` en todos los CREATEs; `Tablas8.sql` renombrado a `.legacy`.
+  - `app.go`: `strftime('%Y-%m-%d', c.fecha)` en query Gantt (fix de keys RFC3339 vs YYYY-MM-DD).
+  - `app.go`: `sql.NullString` para `descripcion_proceso` en `ObtenerExpedientesDisponiblesRuta`.

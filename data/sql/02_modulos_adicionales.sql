@@ -7,7 +7,7 @@ PRAGMA foreign_keys = ON;
 -- ==========================================
 -- 🔹 MÓDULO 1: REQUISICIÓN DE MATERIALES
 -- ==========================================
-CREATE TABLE req_materiales (
+CREATE TABLE IF NOT EXISTS req_materiales (
     id_requisicion        INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -33,7 +33,7 @@ CREATE TABLE req_materiales (
     CONSTRAINT fk_req_doc FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TABLE hist_req_materiales (
+CREATE TABLE IF NOT EXISTS hist_req_materiales (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_requisicion        INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -59,20 +59,20 @@ CREATE TABLE hist_req_materiales (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER trg_req_mat_inicial AFTER INSERT ON req_materiales
+CREATE TRIGGER IF NOT EXISTS trg_req_mat_inicial AFTER INSERT ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_req_mat_auditoria AFTER UPDATE ON req_materiales
+CREATE TRIGGER IF NOT EXISTS trg_req_mat_auditoria AFTER UPDATE ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE req_materiales SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_requisicion = NEW.id_requisicion;
+    UPDATE req_materiales SET fecha_actualizacion = CURRENT_DATE WHERE id_requisicion = NEW.id_requisicion;
 END;
 
-CREATE VIEW vw_reporte_req_materiales AS
+CREATE VIEW IF NOT EXISTS vw_reporte_req_materiales AS
 SELECT
     r.id_requisicion,
     g.nombre AS gerencia,
@@ -99,14 +99,14 @@ LEFT JOIN cat_responsables re ON r.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON r.id_estatus = ed.id
 LEFT JOIN cat_documento d ON r.id_documento = d.id;
 
-CREATE INDEX idx_req_mat_estatus ON req_materiales(id_estatus);
-CREATE INDEX idx_hist_req_mat_id ON hist_req_materiales(id_requisicion);
+CREATE INDEX IF NOT EXISTS idx_req_mat_estatus ON req_materiales(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_req_mat_id ON hist_req_materiales(id_requisicion);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 2: MEMORÁNDUM / DECISIÓN DE GERENCIA
 -- ==========================================
-CREATE TABLE memorandums (
+CREATE TABLE IF NOT EXISTS memorandums (
     id_memorandum         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -128,7 +128,7 @@ CREATE TABLE memorandums (
     CONSTRAINT fk_mem_est FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TABLE hist_memorandums (
+CREATE TABLE IF NOT EXISTS hist_memorandums (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_memorandum         INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -150,20 +150,20 @@ CREATE TABLE hist_memorandums (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER trg_mem_inicial AFTER INSERT ON memorandums
+CREATE TRIGGER IF NOT EXISTS trg_mem_inicial AFTER INSERT ON memorandums
 FOR EACH ROW BEGIN
     INSERT INTO hist_memorandums (id_memorandum, id_gerencia, id_superintendencia, id_emisor, documento, asunto, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_memorandum, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_mem_auditoria AFTER UPDATE ON memorandums
+CREATE TRIGGER IF NOT EXISTS trg_mem_auditoria AFTER UPDATE ON memorandums
 FOR EACH ROW BEGIN
     INSERT INTO hist_memorandums (id_memorandum, id_gerencia, id_superintendencia, id_emisor, documento, asunto, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_memorandum, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE memorandums SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_memorandum = NEW.id_memorandum;
+    UPDATE memorandums SET fecha_actualizacion = CURRENT_DATE WHERE id_memorandum = NEW.id_memorandum;
 END;
 
-CREATE VIEW vw_reporte_memorandums AS
+CREATE VIEW IF NOT EXISTS vw_reporte_memorandums AS
 SELECT
     m.id_memorandum,
     g.nombre AS gerencia,
@@ -186,14 +186,14 @@ LEFT JOIN cat_responsables em ON m.id_emisor = em.id
 LEFT JOIN cat_responsables re ON m.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON m.id_estatus = ed.id;
 
-CREATE INDEX idx_mem_estatus ON memorandums(id_estatus);
-CREATE INDEX idx_hist_mem_id ON hist_memorandums(id_memorandum);
+CREATE INDEX IF NOT EXISTS idx_mem_estatus ON memorandums(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_mem_id ON hist_memorandums(id_memorandum);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 3: RECOBROS
 -- ==========================================
-CREATE TABLE recobros (
+CREATE TABLE IF NOT EXISTS recobros (
     id_recobro            INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -221,7 +221,7 @@ CREATE TABLE recobros (
     CONSTRAINT fk_rec_est FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TABLE hist_recobros (
+CREATE TABLE IF NOT EXISTS hist_recobros (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_recobro            INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -249,20 +249,20 @@ CREATE TABLE hist_recobros (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER trg_rec_inicial AFTER INSERT ON recobros
+CREATE TRIGGER IF NOT EXISTS trg_rec_inicial AFTER INSERT ON recobros
 FOR EACH ROW BEGIN
     INSERT INTO hist_recobros (id_recobro, id_gerencia, id_superintendencia, id_emisor, documento, asunto, fecha_inicio, fecha_final, servicios, beneficios, nota_debito_reverso, costo_servicio_usd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_recobro, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.fecha_inicio, NEW.fecha_final, NEW.servicios, NEW.beneficios, NEW.nota_debito_reverso, NEW.costo_servicio_usd, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_rec_auditoria AFTER UPDATE ON recobros
+CREATE TRIGGER IF NOT EXISTS trg_rec_auditoria AFTER UPDATE ON recobros
 FOR EACH ROW BEGIN
     INSERT INTO hist_recobros (id_recobro, id_gerencia, id_superintendencia, id_emisor, documento, asunto, fecha_inicio, fecha_final, servicios, beneficios, nota_debito_reverso, costo_servicio_usd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_recobro, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.fecha_inicio, NEW.fecha_final, NEW.servicios, NEW.beneficios, NEW.nota_debito_reverso, NEW.costo_servicio_usd, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE recobros SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_recobro = NEW.id_recobro;
+    UPDATE recobros SET fecha_actualizacion = CURRENT_DATE WHERE id_recobro = NEW.id_recobro;
 END;
 
-CREATE VIEW vw_reporte_recobros AS
+CREATE VIEW IF NOT EXISTS vw_reporte_recobros AS
 SELECT
     r.id_recobro,
     g.nombre AS gerencia,
@@ -291,14 +291,14 @@ LEFT JOIN cat_responsables em ON r.id_emisor = em.id
 LEFT JOIN cat_responsables re ON r.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON r.id_estatus = ed.id;
 
-CREATE INDEX idx_rec_estatus ON recobros(id_estatus);
-CREATE INDEX idx_hist_rec_id ON hist_recobros(id_recobro);
+CREATE INDEX IF NOT EXISTS idx_rec_estatus ON recobros(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_rec_id ON hist_recobros(id_recobro);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 4: VALUACIONES
 -- ==========================================
-CREATE TABLE valuaciones (
+CREATE TABLE IF NOT EXISTS valuaciones (
     id_valuacion          INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -335,7 +335,7 @@ CREATE TABLE valuaciones (
     CONSTRAINT fk_val_emp FOREIGN KEY (id_empresa) REFERENCES cat_empresas(id)
 );
 
-CREATE TABLE hist_valuaciones (
+CREATE TABLE IF NOT EXISTS hist_valuaciones (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_valuacion          INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -372,20 +372,20 @@ CREATE TABLE hist_valuaciones (
     FOREIGN KEY (id_empresa) REFERENCES cat_empresas(id)
 );
 
-CREATE TRIGGER trg_val_inicial AFTER INSERT ON valuaciones
+CREATE TRIGGER IF NOT EXISTS trg_val_inicial AFTER INSERT ON valuaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_valuaciones (id_valuacion, id_gerencia, id_superintendencia, id_emisor, documento, solped, presupuesto_base_bs, presupuesto_base_usd, descripcion_proceso, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, periodo_valuacion_desde, periodo_valuacion_hasta, monto_valuacion, nro_proforma, observaciones, notas)
     VALUES (NEW.id_valuacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.solped, NEW.presupuesto_base_bs, NEW.presupuesto_base_usd, NEW.descripcion_proceso, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.nro_proceso, NEW.nro_contrato_sicac, NEW.nro_contrato_sap, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.monto_adjudicado_bs, NEW.monto_adjudicado_usd, NEW.periodo_valuacion_desde, NEW.periodo_valuacion_hasta, NEW.monto_valuacion, NEW.nro_proforma, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_val_auditoria AFTER UPDATE ON valuaciones
+CREATE TRIGGER IF NOT EXISTS trg_val_auditoria AFTER UPDATE ON valuaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_valuaciones (id_valuacion, id_gerencia, id_superintendencia, id_emisor, documento, solped, presupuesto_base_bs, presupuesto_base_usd, descripcion_proceso, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, periodo_valuacion_desde, periodo_valuacion_hasta, monto_valuacion, nro_proforma, observaciones, notas)
     VALUES (NEW.id_valuacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.solped, NEW.presupuesto_base_bs, NEW.presupuesto_base_usd, NEW.descripcion_proceso, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.nro_proceso, NEW.nro_contrato_sicac, NEW.nro_contrato_sap, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.monto_adjudicado_bs, NEW.monto_adjudicado_usd, NEW.periodo_valuacion_desde, NEW.periodo_valuacion_hasta, NEW.monto_valuacion, NEW.nro_proforma, NEW.observaciones, NEW.notas);
-    UPDATE valuaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_valuacion = NEW.id_valuacion;
+    UPDATE valuaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_valuacion = NEW.id_valuacion;
 END;
 
-CREATE VIEW vw_reporte_valuaciones AS
+CREATE VIEW IF NOT EXISTS vw_reporte_valuaciones AS
 SELECT
     v.id_valuacion,
     g.nombre AS gerencia,
@@ -423,15 +423,15 @@ LEFT JOIN cat_responsables re ON v.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON v.id_estatus = ed.id
 LEFT JOIN cat_empresas emp ON v.id_empresa = emp.id;
 
-CREATE INDEX idx_val_estatus ON valuaciones(id_estatus);
-CREATE INDEX idx_val_empresa ON valuaciones(id_empresa);
-CREATE INDEX idx_hist_val_id ON hist_valuaciones(id_valuacion);
+CREATE INDEX IF NOT EXISTS idx_val_estatus ON valuaciones(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_val_empresa ON valuaciones(id_empresa);
+CREATE INDEX IF NOT EXISTS idx_hist_val_id ON hist_valuaciones(id_valuacion);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 5: PARA APROBACIÓN JD
 -- ==========================================
-CREATE TABLE aprobacion_jd (
+CREATE TABLE IF NOT EXISTS aprobacion_jd (
     id_aprobacion_jd      INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -463,7 +463,7 @@ CREATE TABLE aprobacion_jd (
     CONSTRAINT fk_jd_doc FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TABLE hist_aprobacion_jd (
+CREATE TABLE IF NOT EXISTS hist_aprobacion_jd (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_aprobacion_jd      INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -495,20 +495,20 @@ CREATE TABLE hist_aprobacion_jd (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER trg_jd_inicial AFTER INSERT ON aprobacion_jd
+CREATE TRIGGER IF NOT EXISTS trg_jd_inicial AFTER INSERT ON aprobacion_jd
 FOR EACH ROW BEGIN
     INSERT INTO hist_aprobacion_jd (id_aprobacion_jd, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, fecha_presupuesto_base, presupuesto_base_bs, tipo_cambio, presupuesto_base_usd, id_plan, descripcion_proceso, cantidad_frentes, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, tiempo_ejecucion, observaciones, notas)
     VALUES (NEW.id_aprobacion_jd, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.fecha_presupuesto_base, NEW.presupuesto_base_bs, NEW.tipo_cambio, NEW.presupuesto_base_usd, NEW.id_plan, NEW.descripcion_proceso, NEW.cantidad_frentes, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.tiempo_ejecucion, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
+CREATE TRIGGER IF NOT EXISTS trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
 FOR EACH ROW BEGIN
     INSERT INTO hist_aprobacion_jd (id_aprobacion_jd, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, fecha_presupuesto_base, presupuesto_base_bs, tipo_cambio, presupuesto_base_usd, id_plan, descripcion_proceso, cantidad_frentes, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, tiempo_ejecucion, observaciones, notas)
     VALUES (NEW.id_aprobacion_jd, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.fecha_presupuesto_base, NEW.presupuesto_base_bs, NEW.tipo_cambio, NEW.presupuesto_base_usd, NEW.id_plan, NEW.descripcion_proceso, NEW.cantidad_frentes, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.tiempo_ejecucion, NEW.observaciones, NEW.notas);
-    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
+    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_DATE WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
 END;
 
-CREATE VIEW vw_reporte_aprobacion_jd AS
+CREATE VIEW IF NOT EXISTS vw_reporte_aprobacion_jd AS
 SELECT
     j.id_aprobacion_jd,
     g.nombre AS gerencia,
@@ -541,14 +541,14 @@ LEFT JOIN cat_estatus_detalle ed ON j.id_estatus = ed.id
 LEFT JOIN cat_plan_contratacion p ON j.id_plan = p.id
 LEFT JOIN cat_documento d ON j.id_documento = d.id;
 
-CREATE INDEX idx_jd_estatus ON aprobacion_jd(id_estatus);
-CREATE INDEX idx_hist_jd_id ON hist_aprobacion_jd(id_aprobacion_jd);
+CREATE INDEX IF NOT EXISTS idx_jd_estatus ON aprobacion_jd(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_jd_id ON hist_aprobacion_jd(id_aprobacion_jd);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 6: CERTIFICACIÓN BDU
 -- ==========================================
-CREATE TABLE certificacion_bdu (
+CREATE TABLE IF NOT EXISTS certificacion_bdu (
     id_certificacion_bdu  INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -575,7 +575,7 @@ CREATE TABLE certificacion_bdu (
     CONSTRAINT fk_bdu_doc FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TABLE hist_certificacion_bdu (
+CREATE TABLE IF NOT EXISTS hist_certificacion_bdu (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_certificacion_bdu  INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -602,20 +602,20 @@ CREATE TABLE hist_certificacion_bdu (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER trg_bdu_inicial AFTER INSERT ON certificacion_bdu
+CREATE TRIGGER IF NOT EXISTS trg_bdu_inicial AFTER INSERT ON certificacion_bdu
 FOR EACH ROW BEGIN
     INSERT INTO hist_certificacion_bdu (id_certificacion_bdu, id_gerencia, id_superintendencia, id_emisor, id_documento, presupuesto_base_total_usd, monto_adjudicado_total_usd, monto_contrato, monto_ejecutado, monto_pagado, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_certificacion_bdu, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.presupuesto_base_total_usd, NEW.monto_adjudicado_total_usd, NEW.monto_contrato, NEW.monto_ejecutado, NEW.monto_pagado, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
+CREATE TRIGGER IF NOT EXISTS trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
 FOR EACH ROW BEGIN
     INSERT INTO hist_certificacion_bdu (id_certificacion_bdu, id_gerencia, id_superintendencia, id_emisor, id_documento, presupuesto_base_total_usd, monto_adjudicado_total_usd, monto_contrato, monto_ejecutado, monto_pagado, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_certificacion_bdu, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.presupuesto_base_total_usd, NEW.monto_adjudicado_total_usd, NEW.monto_contrato, NEW.monto_ejecutado, NEW.monto_pagado, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
+    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_DATE WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
 END;
 
-CREATE VIEW vw_reporte_certificacion_bdu AS
+CREATE VIEW IF NOT EXISTS vw_reporte_certificacion_bdu AS
 SELECT
     b.id_certificacion_bdu,
     g.nombre AS gerencia,
@@ -643,14 +643,14 @@ LEFT JOIN cat_responsables re ON b.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON b.id_estatus = ed.id
 LEFT JOIN cat_documento d ON b.id_documento = d.id;
 
-CREATE INDEX idx_bdu_estatus ON certificacion_bdu(id_estatus);
-CREATE INDEX idx_hist_bdu_id ON hist_certificacion_bdu(id_certificacion_bdu);
+CREATE INDEX IF NOT EXISTS idx_bdu_estatus ON certificacion_bdu(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_bdu_id ON hist_certificacion_bdu(id_certificacion_bdu);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 7: VACACIONES
 -- ==========================================
-CREATE TABLE vacaciones (
+CREATE TABLE IF NOT EXISTS vacaciones (
     id_vacacion           INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -675,7 +675,7 @@ CREATE TABLE vacaciones (
     CONSTRAINT fk_vac_est FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TABLE hist_vacaciones (
+CREATE TABLE IF NOT EXISTS hist_vacaciones (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_vacacion           INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -700,20 +700,20 @@ CREATE TABLE hist_vacaciones (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER trg_vac_inicial AFTER INSERT ON vacaciones
+CREATE TRIGGER IF NOT EXISTS trg_vac_inicial AFTER INSERT ON vacaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_vacaciones (id_vacacion, id_gerencia, id_superintendencia, id_emisor, documento, anio, cantidad_dias, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_vacacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.anio, NEW.cantidad_dias, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_vac_auditoria AFTER UPDATE ON vacaciones
+CREATE TRIGGER IF NOT EXISTS trg_vac_auditoria AFTER UPDATE ON vacaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_vacaciones (id_vacacion, id_gerencia, id_superintendencia, id_emisor, documento, anio, cantidad_dias, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_vacacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.anio, NEW.cantidad_dias, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE vacaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_vacacion = NEW.id_vacacion;
+    UPDATE vacaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_vacacion = NEW.id_vacacion;
 END;
 
-CREATE VIEW vw_reporte_vacaciones AS
+CREATE VIEW IF NOT EXISTS vw_reporte_vacaciones AS
 SELECT
     v.id_vacacion,
     g.nombre AS gerencia,
@@ -739,14 +739,14 @@ LEFT JOIN cat_responsables em ON v.id_emisor = em.id
 LEFT JOIN cat_responsables re ON v.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON v.id_estatus = ed.id;
 
-CREATE INDEX idx_vac_estatus ON vacaciones(id_estatus);
-CREATE INDEX idx_hist_vac_id ON hist_vacaciones(id_vacacion);
+CREATE INDEX IF NOT EXISTS idx_vac_estatus ON vacaciones(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_vac_id ON hist_vacaciones(id_vacacion);
 
 
 -- ==========================================
 -- 🔹 MÓDULO 8: REPOSO MÉDICO
 -- ==========================================
-CREATE TABLE reposos_medicos (
+CREATE TABLE IF NOT EXISTS reposos_medicos (
     id_reposo_medico      INTEGER PRIMARY KEY AUTOINCREMENT,
     id_gerencia           INTEGER,
     id_superintendencia   INTEGER,
@@ -767,7 +767,7 @@ CREATE TABLE reposos_medicos (
     CONSTRAINT fk_rep_est FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TABLE hist_reposos_medicos (
+CREATE TABLE IF NOT EXISTS hist_reposos_medicos (
     id_movimiento         INTEGER PRIMARY KEY AUTOINCREMENT,
     id_reposo_medico      INTEGER NOT NULL,
     id_gerencia           INTEGER,
@@ -788,20 +788,20 @@ CREATE TABLE hist_reposos_medicos (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER trg_rep_inicial AFTER INSERT ON reposos_medicos
+CREATE TRIGGER IF NOT EXISTS trg_rep_inicial AFTER INSERT ON reposos_medicos
 FOR EACH ROW BEGIN
     INSERT INTO hist_reposos_medicos (id_reposo_medico, id_gerencia, id_superintendencia, id_emisor, documento, dias_periodo, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, observaciones, notas)
     VALUES (NEW.id_reposo_medico, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.dias_periodo, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER trg_rep_auditoria AFTER UPDATE ON reposos_medicos
+CREATE TRIGGER IF NOT EXISTS trg_rep_auditoria AFTER UPDATE ON reposos_medicos
 FOR EACH ROW BEGIN
     INSERT INTO hist_reposos_medicos (id_reposo_medico, id_gerencia, id_superintendencia, id_emisor, documento, dias_periodo, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, observaciones, notas)
     VALUES (NEW.id_reposo_medico, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.dias_periodo, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.observaciones, NEW.notas);
-    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_reposo_medico = NEW.id_reposo_medico;
+    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_DATE WHERE id_reposo_medico = NEW.id_reposo_medico;
 END;
 
-CREATE VIEW vw_reporte_reposos_medicos AS
+CREATE VIEW IF NOT EXISTS vw_reporte_reposos_medicos AS
 SELECT
     r.id_reposo_medico,
     g.nombre AS gerencia,
@@ -823,5 +823,5 @@ LEFT JOIN cat_superintendencia s ON r.id_superintendencia = s.id
 LEFT JOIN cat_responsables em ON r.id_emisor = em.id
 LEFT JOIN cat_estatus_detalle ed ON r.id_estatus = ed.id;
 
-CREATE INDEX idx_rep_estatus ON reposos_medicos(id_estatus);
-CREATE INDEX idx_hist_rep_id ON hist_reposos_medicos(id_reposo_medico);
+CREATE INDEX IF NOT EXISTS idx_rep_estatus ON reposos_medicos(id_estatus);
+CREATE INDEX IF NOT EXISTS idx_hist_rep_id ON hist_reposos_medicos(id_reposo_medico);

@@ -182,6 +182,9 @@ const (
 	queryObtenerRutaProcesos   = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso FROM vw_reporte_excel_contrataciones e ORDER BY e.estatus_detalle, e.id_expediente DESC`
 	queryObtenerDocsPendientes = `SELECT e.id_expediente, e.solped, e.descripcion_proceso, e.emisor, e.receptor, e.documento, e.estatus_detalle, e.fecha_recibido, e.fecha_devuelto, e.nro_proceso, e.empresa_adjudicada FROM vw_reporte_excel_contrataciones e WHERE e.estatus_detalle IS NOT NULL AND UPPER(e.estatus_detalle) != 'FIRMADO' ORDER BY e.estatus_detalle, e.id_expediente DESC`
 	queryVacuum                 = `VACUUM`
+	fechaLayout                 = "2006-01-02"         // usado en queryRows y buildGanttColumns
+	estatusFirmado              = "FIRMADO"            // seed cat_estatus_detalle id=2
+	dsnParams                   = "?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000"
 )
 
 var catalogosValidos = map[string]string{
@@ -260,7 +263,7 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 		a.db.Close()
 	}
 
-	db, err := sql.Open("sqlite3", filePath+"?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000")
+	db, err := sql.Open("sqlite3", filePath+dsnParams)
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir BD: %w", err)
 	}
@@ -411,7 +414,7 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 				if v.IsZero() {
 					row[col] = ""
 				} else {
-					row[col] = v.Format("2006-01-02")
+					row[col] = v.Format(fechaLayout)
 				}
 			default:
 				if val == nil {
@@ -569,7 +572,7 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 		}
 		setVals = append(setVals, id)
 		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
-			`, fecha_actualizacion = CURRENT_TIMESTAMP WHERE ` + cfg.IDColumna + ` = ?`
+			`, fecha_actualizacion = CURRENT_DATE WHERE ` + cfg.IDColumna + ` = ?`
 		_, err := a.exec(q, setVals...)
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
@@ -605,6 +608,27 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	return id, nil
 }
 
+func (a *App) withTx(fn func(tx *sql.Tx) error) error {
+	tx, err := a.db.Begin()
+	if err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+	if err := fn(tx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
+}
+
 func (a *App) EliminarFila(moduloKey string, id int64) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -622,43 +646,27 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 		log.Printf("Backup falló: %v", err)
 	}
 
-	tx, err := a.db.Begin()
-	if err != nil {
+	return a.withTx(func(tx *sql.Tx) error {
+		if cfg.HistorialTabla != "" {
+			qHist := `DELETE FROM ` + cfg.HistorialTabla + ` WHERE ` + cfg.IDColumna + ` = ?`
+			if _, err := tx.Exec(qHist, id); err != nil {
+				return err
+			}
+		}
+
+		if moduloKey == "expedientes" {
+			if _, err := tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_expediente = ? OR id_proceso IN (SELECT id FROM ruta_procesos_procesos WHERE db_id = ?)", id, id); err != nil {
+				return err
+			}
+			if _, err := tx.Exec("DELETE FROM ruta_procesos_procesos WHERE db_id = ?", id); err != nil {
+				return err
+			}
+		}
+
+		qDel := `DELETE FROM ` + cfg.Tabla + ` WHERE ` + cfg.IDColumna + ` = ?`
+		_, err := tx.Exec(qDel, id)
 		return err
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			tx.Rollback()
-		}
-	}()
-
-	if cfg.HistorialTabla != "" {
-		qHist := `DELETE FROM ` + cfg.HistorialTabla + ` WHERE ` + cfg.IDColumna + ` = ?`
-		if _, err = tx.Exec(qHist, id); err != nil {
-			return err
-		}
-	}
-
-	if moduloKey == "expedientes" {
-		if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_expediente = ? OR id_proceso IN (SELECT id FROM ruta_procesos_procesos WHERE db_id = ?)", id, id); err != nil {
-			return err
-		}
-		if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE db_id = ?", id); err != nil {
-			return err
-		}
-	}
-
-	qDel := `DELETE FROM ` + cfg.Tabla + ` WHERE ` + cfg.IDColumna + ` = ?`
-	if _, err = tx.Exec(qDel, id); err != nil {
-		return err
-	}
-
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	committed = true
-	return nil
+	})
 }
 
 func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
@@ -877,7 +885,7 @@ func buildGanttColumns() []map[string]string {
 		columns = append(columns, map[string]string{
 			"day_name":   dayName,
 			"week_label": weekLabel,
-			"date_str":   date.Format("2006-01-02"),
+			"date_str":   date.Format(fechaLayout),
 		})
 	}
 	return columns
@@ -964,27 +972,13 @@ func (a *App) EliminarRutaProceso(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("no hay BD abierta")
 	}
-	tx, err := a.db.Begin()
-	if err != nil {
-		return err
-	}
-	committed := false
-	defer func() {
-		if !committed {
-			tx.Rollback()
+	return a.withTx(func(tx *sql.Tx) error {
+		if _, err := tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id); err != nil {
+			return err
 		}
-	}()
-	if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id); err != nil {
+		_, err := tx.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id)
 		return err
-	}
-	if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id); err != nil {
-		return err
-	}
-	if err = tx.Commit(); err != nil {
-		return err
-	}
-	committed = true
-	return nil
+	})
 }
 
 type CatalogoItem struct {
@@ -1037,7 +1031,7 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 			return nil, loopErr
 		}
 		if err := rows.Err(); err != nil {
-			log.Printf("ObtenerCatalogos: iteración %s: %v", key, err)
+			return nil, fmt.Errorf("ObtenerCatalogos: iteración %s: %w", key, err)
 		}
 		result[key] = items
 	}

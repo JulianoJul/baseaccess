@@ -120,3 +120,21 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 
 ## `SetBackupMaxCopies` sin UI
 - Expuesta vía Wails `Bind`, configurable a futuro desde settings. No es bug.
+
+## `go.mod` usa Go 1.25.0 "inexistente"
+- `go 1.25.0` es la versión mínima requerida por las dependencias (`go mod tidy` lo confirma). Con Go 1.26.5 instalado compila sin error. No es bug.
+
+## `CURRENT_TIMESTAMP` vs `CURRENT_DATE` en triggers
+- Corregido: todos los triggers y el Go usan `CURRENT_DATE` consistente con el tipo `DATE` de la columna. Si aparece en una auditoría futura, se corrigió en commit posterior.
+
+## `handleCSV` sin caller en UI
+- La ruta `/api/csv` está registrada pero ningún botón la invoca (solo `/api/exportar-excel`). Si no se usa, puede eliminarse para reducir la superficie de mantenimiento. No es bug funcional.
+
+## Gantt: `weekHeaders` y `weekSubs` idénticos
+- Corregido: se eliminó la fila `weekSubs` duplicada (rowspan ajustado de 4 a 3). No era bug — era una fila duplicada que no causaba error de renderizado pero sí fila innecesaria.
+
+## `exportFilterColMap` duplicado entre handlers
+- Corregido: extraído a variable package-level `exportFilterColMap` compartida por `filasParaExportar`.
+
+## `modulosSinQueries` — `QueryHistorial` expuesto
+- Corregido: `modulosSinQueries()` helper blanquea `QueryHistorial` antes de pasar `Modulos` a templates.

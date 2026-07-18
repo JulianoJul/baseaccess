@@ -287,6 +287,7 @@ type PageData struct {
 	ActiveModule string
 	Modulos      map[string]ModuloConfig
 	Filas        []Row
+	Error        string
 	PageSize     int
 	TotalPages   int
 	CurrentPage  int
@@ -331,7 +332,9 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
 	if err != nil {
 		log.Printf("preparePageData: error filas: %v", err)
+		data.Error = "Error al cargar datos: " + err.Error()
 	}
+	data.Filas = filas
 	data.Filas = filas
 
 	data.TotalPages = (len(filas) + data.PageSize - 1) / data.PageSize

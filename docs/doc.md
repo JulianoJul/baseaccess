@@ -359,6 +359,17 @@ En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos c
 | 48 | `trg_exp_auditoria` no actualiza `fecha_actualizacion` (los otros 8 módulos sí) | `01_master_control_docs_presidencia.sql` | Agregado `UPDATE expedientes SET fecha_actualizacion = CURRENT_DATE` |
 | 49 | `handleCSV` ignora filtros: exporta dataset completo sin respetar fecha/catálogo/gerencia | `handler.go` | Misma lógica de filtrado que `handleExportarExcel` |
 | 50 | Templates legados `formulario.html` y `tabla_filas.html` cargados sin uso | `templates/`, `Makefile` | Eliminados |
+| 51 | Gantt timeline keys RFC3339 vs "YYYY-MM-DD": todas las celdas del cronograma vacías | `app.go` | `strftime('%Y-%m-%d', c.fecha)` en la query |
+| 52 | `convertirMoneda()` lee `dataset.raw` desactualizado (1 keystroke atrás) | `index.html` | `_parseValue()` lee desde `el.value` directamente |
+| 53 | Doble fila de historial en INSERT de expedientes | `01_*.sql` | Temp table `_skip_audit` + `WHEN` en trigger UPDATE |
+| 54 | Filas con `gerencia=""` se ven en pantalla pero desaparecen de CSV/Excel | `handler.go` | `gerName == "" \|\| permitidasNames[gerName]` en exports |
+| 55 | Falta FK y UNIQUE en `ruta_procesos_cronograma` | `03_ruta_procesos.sql` | FK `id_proceso` + `UNIQUE(id_proceso, fecha)` |
+| 56 | Estatus resuelto por `nombre` en triggers (vulnerable a rename) | `01_*.sql` | IDs literales: `1 = PENDIENTE`, `2 = FIRMADO` |
+| 57 | 11 handlers con extracción de módulo duplicada | `handler.go` | Helper `moduloDesdeRequest(r)` + const `moduloDefault` |
+| 58 | Export filter pipeline duplicado (-89 LOC) entre CSV y Excel | `handler.go` | Helper `filasParaExportar(r)` + `exportFilterColMap` |
+| 59 | `fecha_actualizacion`: CURRENT_TIMESTAMP vs CURRENT_DATE inconsistente (9 módulos vs Go) | SQL + `app.go` | Unificado a `CURRENT_DATE` en todos |
+| 60 | Scripts SQL no idempotentes; `Tablas8.sql` legado | `data/sql/` | `IF NOT EXISTS` en CREATEs; renombrado a `.legacy` |
+| 61 | `withTx` helper DRY: boilerplate de transacción duplicado | `app.go` | `withTx(func(tx *sql.Tx) error) error` |
 
 ### Rutas API del handler
 

@@ -1,6 +1,6 @@
 .PHONY: clean wails-install wails-build-linux wails-build-linux-prod wails-build-win wails-build wails-dev
 
-SQL_FILES := $(filter-out data/sql/Tablas8.sql,$(wildcard data/sql/*.sql))
+SQL_FILES := $(filter-out data/sql/Tablas8.sql%,$(wildcard data/sql/*.sql))
 
 combine:
 	{ \
