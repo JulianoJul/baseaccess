@@ -2,18 +2,41 @@
 
 combine:
 	{ \
-	  echo "=== index.html ===" && cat templates/index.html && \
+	  echo "=== go.mod ===" && cat go.mod && \
+	  echo "" && echo "=== go.sum ===" && cat go.sum && \
+	  echo "" && echo "=== wails.json ===" && cat wails.json && \
+	  echo "" && echo "=== main.go ===" && cat main.go && \
 	  echo "" && echo "=== app.go ===" && cat app.go && \
 	  echo "" && echo "=== handler.go ===" && cat handler.go && \
-	  echo "" && echo "=== main.go ===" && cat main.go && \
-	  echo "" && echo "=== go.mod ===" && cat go.mod && \
-	  echo "" && echo "=== wails.json ===" && cat wails.json && \
-	  echo "" && echo "=== doc.md ===" && cat docs/doc.md && \
-	  echo "" && echo "=== decisiones.md ===" && cat docs/decisiones.md && \
-	  echo "" && echo "=== ai-context.md ===" && cat docs/ai-context.md && \
-	  echo "" && echo "=== funciones.md ===" && cat docs/funciones.md; \
+	  echo "" && echo "=== templates/index.html ===" && cat templates/index.html && \
+	  echo "" && echo "=== templates/formulario.html ===" && cat templates/formulario.html && \
+	  echo "" && echo "=== templates/tabla_filas.html ===" && cat templates/tabla_filas.html && \
+	  echo "" && echo "=== templates/historial.html ===" && cat templates/historial.html && \
+	  echo "" && echo "=== templates/pendientes.html ===" && cat templates/pendientes.html && \
+	  echo "" && echo "=== templates/ruta_procesos.html ===" && cat templates/ruta_procesos.html && \
+	  echo "" && echo "=== templates/form_expedientes.html ===" && cat templates/form_expedientes.html && \
+	  echo "" && echo "=== templates/tabla_expedientes.html ===" && cat templates/tabla_expedientes.html && \
+	  echo "" && echo "=== templates/form_requisiciones.html ===" && cat templates/form_requisiciones.html && \
+	  echo "" && echo "=== templates/tabla_requisiciones.html ===" && cat templates/tabla_requisiciones.html && \
+	  echo "" && echo "=== templates/form_memorandums.html ===" && cat templates/form_memorandums.html && \
+	  echo "" && echo "=== templates/tabla_memorandums.html ===" && cat templates/tabla_memorandums.html && \
+	  echo "" && echo "=== templates/form_recobros.html ===" && cat templates/form_recobros.html && \
+	  echo "" && echo "=== templates/tabla_recobros.html ===" && cat templates/tabla_recobros.html && \
+	  echo "" && echo "=== templates/form_valuaciones.html ===" && cat templates/form_valuaciones.html && \
+	  echo "" && echo "=== templates/tabla_valuaciones.html ===" && cat templates/tabla_valuaciones.html && \
+	  echo "" && echo "=== templates/form_aprobacion_jd.html ===" && cat templates/form_aprobacion_jd.html && \
+	  echo "" && echo "=== templates/tabla_aprobacion_jd.html ===" && cat templates/tabla_aprobacion_jd.html && \
+	  echo "" && echo "=== templates/form_certificacion_bdu.html ===" && cat templates/form_certificacion_bdu.html && \
+	  echo "" && echo "=== templates/tabla_certificacion_bdu.html ===" && cat templates/tabla_certificacion_bdu.html && \
+	  echo "" && echo "=== templates/form_vacaciones.html ===" && cat templates/form_vacaciones.html && \
+	  echo "" && echo "=== templates/tabla_vacaciones.html ===" && cat templates/tabla_vacaciones.html && \
+	  echo "" && echo "=== templates/form_reposos_medicos.html ===" && cat templates/form_reposos_medicos.html && \
+	  echo "" && echo "=== templates/tabla_reposos_medicos.html ===" && cat templates/tabla_reposos_medicos.html && \
+	  echo "" && echo "=== frontend/index.html ===" && cat frontend/index.html && \
+	  echo "" && echo "=== frontend/schema-config.js ===" && cat frontend/schema-config.js && \
+	  echo "" && echo "=== frontend/ruta-procesos-data.js ===" && cat frontend/ruta-procesos-data.js; \
 	} > combined.txt
-	@echo "combined.txt generado"
+	@echo "combined.txt generado (solo codigo: go, templates, frontend)"
 
 clean:
 	rm -f combined.txt
