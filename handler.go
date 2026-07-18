@@ -385,12 +385,7 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 
 	data := make(map[string]interface{})
 	for _, col := range cfg.Columnas {
-		val := r.FormValue(col)
-		if val == "" {
-			data[col] = nil
-		} else {
-			data[col] = val
-		}
+		data[col] = r.FormValue(col)
 	}
 
 	idStr := r.FormValue(cfg.IDColumna)
@@ -425,7 +420,7 @@ func (h *TemplateHandler) handleEliminarExpediente(w http.ResponseWriter, r *htt
 		return
 	}
 
-	idStr := r.FormValue(cfg.IDColumna)
+	idStr := r.PostFormValue(cfg.IDColumna)
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		writeJSONError(w, "ID inválido", http.StatusBadRequest)
@@ -782,14 +777,25 @@ func (h *TemplateHandler) handleOptimizarBD(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
-	data, err := h.app.ObtenerFilas("expedientes", "id_expediente DESC")
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
+	cfg, ok := Modulos[modulo]
+	if !ok {
+		http.Error(w, "modulo invalido", http.StatusBadRequest)
+		return
+	}
+
+	data, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
 	if err != nil || len(data) == 0 {
 		writeJSONError(w, "no hay datos", http.StatusBadRequest)
 		return
 	}
 
+	filename := "reporte_" + modulo + ".csv"
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="reporte_expedientes.csv"`)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 
 	if len(data) == 0 {
 		return
@@ -818,7 +824,9 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 		csv += strings.Join(vals, ",") + "\n"
 	}
 
-	w.Write([]byte(csv))
+	if _, err := w.Write([]byte(csv)); err != nil {
+		log.Printf("csv: error escribiendo respuesta: %v", err)
+	}
 }
 
 func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
@@ -1046,7 +1054,9 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	if err := f.Write(w); err != nil {
 		log.Printf("exportar-excel: error escribiendo: %v", err)
+		// El header ya se envió como 200, solo podemos loguear
 	}
+	f.Close()
 }
 
 func (h *TemplateHandler) handleColumnasModulo(w http.ResponseWriter, r *http.Request) {

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -19,7 +20,9 @@ import (
 
 const DefaultBackupMaxCopies = 2
 
-var backupMaxCopies = DefaultBackupMaxCopies
+var backupMaxCopies atomic.Int64
+
+func init() { backupMaxCopies.Store(DefaultBackupMaxCopies) }
 
 type ModuloConfig struct {
 	Nombre         string
@@ -229,10 +232,10 @@ func (a *App) SetBackupMaxCopies(n int) {
 	if n > 20 {
 		n = 20
 	}
-	backupMaxCopies = n
+	backupMaxCopies.Store(int64(n))
 }
 
-func (a *App) GetBackupMaxCopies() int { return backupMaxCopies }
+func (a *App) GetBackupMaxCopies() int { return int(backupMaxCopies.Load()) }
 
 func (a *App) AbrirDialogoBD() (string, error) {
 	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
@@ -290,14 +293,21 @@ func (a *App) crearBackup() error {
 	if a.dbPath == "" {
 		return nil
 	}
+
+	// Forzar checkpoint WAL para que todos los cambios estén en el archivo principal
+	if _, err := a.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		log.Printf("WAL checkpoint falló (no crítico): %v", err)
+	}
+
 	dir := filepath.Dir(a.dbPath)
 	base := filepath.Base(a.dbPath)
 	sep := string(filepath.Separator)
+	maxCopies := int(backupMaxCopies.Load())
 
-	oldest := dir + sep + base + ".bak." + strconv.Itoa(backupMaxCopies)
+	oldest := dir + sep + base + ".bak." + strconv.Itoa(maxCopies)
 	os.Remove(oldest)
 
-	for i := backupMaxCopies - 1; i >= 1; i-- {
+	for i := maxCopies - 1; i >= 1; i-- {
 		src := dir + sep + base + ".bak." + strconv.Itoa(i)
 		dst := dir + sep + base + ".bak." + strconv.Itoa(i+1)
 		if _, err := os.Stat(src); err == nil {
@@ -317,8 +327,13 @@ func (a *App) crearBackup() error {
 	}
 	defer dstFile.Close()
 
-	if _, err := io.Copy(dstFile, srcFile); err != nil {
+	written, err := io.Copy(dstFile, srcFile)
+	if err != nil {
 		return fmt.Errorf("error copiando backup: %w", err)
+	}
+	srcInfo, err := srcFile.Stat()
+	if err == nil && written != srcInfo.Size() {
+		return fmt.Errorf("backup incompleto: copió %d de %d bytes", written, srcInfo.Size())
 	}
 	return nil
 }
@@ -481,18 +496,18 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	idVal, ok := data[cfg.IDColumna]
 	delete(data, cfg.IDColumna)
 
-	var id float64
+	var id int64
 	if ok && idVal != nil {
 		switch v := idVal.(type) {
 		case float64:
-			id = v
+			id = int64(v)
 		case int:
-			id = float64(v)
+			id = int64(v)
 		case int64:
-			id = float64(v)
+			id = v
 		case string:
 			if v != "" {
-				parsed, err := strconv.ParseFloat(v, 64)
+				parsed, err := strconv.ParseInt(v, 10, 64)
 				if err != nil {
 					return 0, fmt.Errorf("id inválido: %v", idVal)
 				}
@@ -520,11 +535,11 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 		}
 		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
 			`, fecha_actualizacion = CURRENT_DATE WHERE ` + cfg.IDColumna + ` = ?`
-		res, err := a.exec(q, append(vals, id)...)
+		_, err := a.exec(q, append(vals, id)...)
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
 		}
-		return res.LastInsertId()
+		return id, nil
 	}
 
 	placeholders := make([]string, len(cfg.Columnas))
@@ -561,7 +576,12 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
 
 	if cfg.HistorialTabla != "" {
 		qHist := `DELETE FROM ` + cfg.HistorialTabla + ` WHERE ` + cfg.IDColumna + ` = ?`
@@ -575,7 +595,11 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 		return err
 	}
 
-	return tx.Commit()
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 func (a *App) ObtenerHistorialFila(moduloKey string, id int) ([]Row, error) {
@@ -600,6 +624,19 @@ func (a *App) ObtenerColumnasVista(vista string) ([]string, error) {
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
+
+	// Validar que la vista esté en el whitelist de módulos conocidos
+	vistaValida := false
+	for _, cfg := range Modulos {
+		if cfg.Vista == vista {
+			vistaValida = true
+			break
+		}
+	}
+	if !vistaValida {
+		return nil, fmt.Errorf("vista no válida: %s", vista)
+	}
+
 	rows, err := a.db.Query("SELECT * FROM " + vista + " LIMIT 0")
 	if err != nil {
 		return nil, err
@@ -734,33 +771,39 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 }
 
 func buildGanttColumns() []map[string]string {
-	type weekDef struct{ label, sublabel, name string }
-	weeks := []weekDef{
-		{"DEL 01/06/26", "AL 05/06/26", "SEMANA 1"},
-		{"DEL 05/06/26", "AL 12/06/26", "SEMANA 2"},
-		{"DEL 15/06/26", "AL 19/06/26", "SEMANA 3"},
-		{"DEL 22/06/26", "AL 26/06/26", "SEMANA 4"},
-		{"DEL 30/06/26", "AL 03/07/26", "SEMANA 5"},
-		{"DEL 6/07/26", "AL 10/07/26", "SEMANA 6"},
-	}
 	dayNames := []string{"L", "M", "M", "J", "V"}
-	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Now()
+	weekday := now.Weekday()
+	if weekday == time.Saturday {
+		now = now.AddDate(0, 0, 2)
+	} else if weekday == time.Sunday {
+		now = now.AddDate(0, 0, 1)
+	}
+	// Retroceder al lunes de la semana actual
+	offset := int(now.Weekday() - time.Monday)
+	if offset < 0 {
+		offset += 7
+	}
+	start := now.AddDate(0, 0, -offset)
+
 	columns := make([]map[string]string, 0, 30)
-	dateIdx := 0
-	for _, w := range weeks {
-		for _, d := range dayNames {
-			date := start.AddDate(0, 0, dateIdx)
-			for date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
-				dateIdx++
-				date = start.AddDate(0, 0, dateIdx)
-			}
-			columns = append(columns, map[string]string{
-				"day_name":   d,
-				"week_label": w.name,
-				"date_str":   date.Format("2006-01-02"),
-			})
-			dateIdx++
+	totalDays := 30
+	weekNum := 1
+	for i := 0; i < totalDays; i++ {
+		date := start.AddDate(0, 0, i)
+		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
+			continue
 		}
+		weekLabel := fmt.Sprintf("SEMANA %d", weekNum)
+		if i > 0 && i%5 == 0 {
+			weekNum++
+		}
+		dayName := dayNames[i%5]
+		columns = append(columns, map[string]string{
+			"day_name":   dayName,
+			"week_label": weekLabel,
+			"date_str":   date.Format("2006-01-02"),
+		})
 	}
 	return columns
 }
@@ -869,6 +912,7 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 		}
 
 		var items []CatalogoItem
+		var loopErr error
 		for rows.Next() {
 			var item CatalogoItem
 			var extraVal sql.NullInt64
@@ -877,8 +921,8 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 				scanArgs = append(scanArgs, &extraVal)
 			}
 			if err := rows.Scan(scanArgs...); err != nil {
-				rows.Close()
-				return nil, err
+				loopErr = err
+				break
 			}
 			if extraCol != "" && extraVal.Valid {
 				item.IDGerencia = int(extraVal.Int64)
@@ -886,6 +930,9 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 			items = append(items, item)
 		}
 		rows.Close()
+		if loopErr != nil {
+			return nil, loopErr
+		}
 		result[key] = items
 	}
 	return result, nil

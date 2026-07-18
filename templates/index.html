@@ -59,7 +59,7 @@
     <script>
         window.PAGE_DATA = {
             hasDB: {{.HasDB}},
-            dbPath: "{{.DBPath}}",
+            dbPath: {{jsonEncode .DBPath}},
             catalogs: {{jsonEncode .Catalogs}},
             modulos: {{jsonEncode .Modulos}},
             filas: {{jsonEncode .Filas}},
@@ -1080,35 +1080,38 @@
             var tc = tcEl ? (parseFloat(tcEl.dataset.raw) || 0) : 0;
             if (!tc) return;
             _convLock = true;
-            function getRaw(id) {
-                var el = document.getElementById(id);
-                if (!el) return 0;
-                return parseFloat(el.dataset.raw || '0') || 0;
+            try {
+                function getRaw(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return 0;
+                    return parseFloat(el.dataset.raw || '0') || 0;
+                }
+                function setVal(id, val) {
+                    var el = document.getElementById(id);
+                    if (!el) return;
+                    el.dataset.raw = val.toFixed(2);
+                    el.dispatchEvent(new Event('blur', {bubbles: true}));
+                }
+                // Presupuesto
+                if (origen !== 'bs_presup') {
+                    var usd = getRaw('f-presupuesto_base_usd');
+                    if (usd) setVal('f-presupuesto_base_bs', usd * tc);
+                }
+                if (origen === 'bs_presup') {
+                    var bs = getRaw('f-presupuesto_base_bs');
+                    if (bs) setVal('f-presupuesto_base_usd', bs / tc);
+                }
+                // Monto Adjudicado
+                var adjUsd = getRaw('f-monto_adjudicado_usd');
+                var adjBs = getRaw('f-monto_adjudicado_bs');
+                if (origen === 'bs_adj') {
+                    if (adjBs) setVal('f-monto_adjudicado_usd', adjBs / tc);
+                } else if (origen === 'usd_adj' || (adjUsd && !adjBs)) {
+                    if (adjUsd) setVal('f-monto_adjudicado_bs', adjUsd * tc);
+                }
+            } finally {
+                _convLock = false;
             }
-            function setVal(id, val) {
-                var el = document.getElementById(id);
-                if (!el) return;
-                el.dataset.raw = val.toFixed(2);
-                el.dispatchEvent(new Event('blur', {bubbles: true}));
-            }
-            // Presupuesto
-            if (origen !== 'bs_presup') {
-                var usd = getRaw('f-presupuesto_base_usd');
-                if (usd) setVal('f-presupuesto_base_bs', usd * tc);
-            }
-            if (origen === 'bs_presup') {
-                var bs = getRaw('f-presupuesto_base_bs');
-                if (bs) setVal('f-presupuesto_base_usd', bs / tc);
-            }
-            // Monto Adjudicado
-            var adjUsd = getRaw('f-monto_adjudicado_usd');
-            var adjBs = getRaw('f-monto_adjudicado_bs');
-            if (origen === 'bs_adj') {
-                if (adjBs) setVal('f-monto_adjudicado_usd', adjBs / tc);
-            } else if (origen === 'usd_adj' || (adjUsd && !adjBs)) {
-                if (adjUsd) setVal('f-monto_adjudicado_bs', adjUsd * tc);
-            }
-            _convLock = false;
         }
     </script>
 </body>
