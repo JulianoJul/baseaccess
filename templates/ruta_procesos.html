@@ -81,7 +81,11 @@
                     list.forEach(function(ex) {
                         var opt = document.createElement('option');
                         opt.value = ex.id;
-                        opt.textContent = '#' + ex.id + ' - ' + ex.solped + ' - ' + (ex.descripcion_proceso || '').substring(0, 60);
+                        var s = ex.solped || 'NO APLICA';
+                        var d = ex.descripcion_proceso || '';
+                        opt.setAttribute('data-solped', s);
+                        opt.setAttribute('data-desc', d);
+                        opt.textContent = '#' + ex.id + ' - ' + s + ' - ' + d.substring(0, 60);
                         sel.appendChild(opt);
                     });
                 })
@@ -95,7 +99,10 @@
         var sel = document.getElementById('proc-exp-select');
         var dbId = parseInt(sel.value);
         if (!dbId) { alert('Selecciona un expediente'); return; }
-        var desc = sel.options[sel.selectedIndex].textContent;
+        var opt = sel.options[sel.selectedIndex];
+        var desc = opt.getAttribute('data-desc') || '';
+        var solped = opt.getAttribute('data-solped') || 'NO APLICA';
+        
         fetch('/api/ruta-procesos-agregar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -110,7 +117,7 @@
         })
         .then(json => {
             if (json.success) {
-                processes.push({ id: json.id, descripcion: desc, db_id: dbId, activo: true, solped: 'SIN SOLPED', estatus_detalle: 'N/A', receptor: 'N/A', timeline: {} });
+                processes.push({ id: json.id, descripcion: desc, db_id: dbId, activo: true, solped: solped, estatus_detalle: 'NO APLICA', receptor: 'NO APLICA', timeline: {} });
                 renderAll();
                 toggleFormProceso();
                 sel.value = '';

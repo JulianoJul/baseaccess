@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS expedientes (
     nro_acta_apertura       TEXT,
     cantidad_frentes        INTEGER,
     nro_resolucion_jd       TEXT,
-    id_estatus              INTEGER DEFAULT 1,
+    id_estatus              INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido          DATE,
     fecha_devuelto          DATE,
     id_receptor             INTEGER,
@@ -256,7 +256,7 @@ END;
 CREATE VIEW IF NOT EXISTS vw_reporte_excel_contrataciones AS
 SELECT 
     e.id_expediente,
-    COALESCE(e.solped, 'SIN_SOLPED')            AS solped,
+    COALESCE(e.solped, 'NO APLICA')              AS solped,
     g.nombre                                     AS gerencia,
     s.nombre                                     AS superintendencia,
     emisor.nombre                                AS emisor,
@@ -270,7 +270,7 @@ SELECT
     m.nombre                                     AS modalidad_contratacion,
     a.nombre                                     AS art,
     tc.nombre                                    AS tipo_contrato,
-    COALESCE(e.nro_acta_apertura, 'NO POSEE')    AS nro_acta_apertura,
+    COALESCE(e.nro_acta_apertura, 'NO APLICA')   AS nro_acta_apertura,
     e.cantidad_frentes,
     COALESCE(e.nro_resolucion_jd, 'NO APLICA')   AS nro_resolucion_jd,
     COALESCE(ed.nombre, 'NO APLICA')             AS estatus_detalle,
@@ -279,8 +279,8 @@ SELECT
     COALESCE(receptor.nombre, 'NO APLICA')       AS receptor,
     COALESCE(e.nro_proceso, 'NO APLICA')         AS nro_proceso,
     COALESCE(rp.nombre, 'NO APLICA')             AS resultados_proceso,
-    COALESCE(e.nro_contrato_sicac, 'NO POSEE')   AS nro_contrato_sicac,
-    e.nro_contrato_sap,
+    COALESCE(e.nro_contrato_sicac, 'NO APLICA')  AS nro_contrato_sicac,
+    COALESCE(e.nro_contrato_sap, 'NO APLICA')    AS nro_contrato_sap,
     COALESCE(emp.nombre, 'NO APLICA')            AS empresa_adjudicada,
     e.tiempo_ejecucion,
     e.monto_adjudicado_bs,

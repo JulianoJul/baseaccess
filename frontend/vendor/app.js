@@ -3,6 +3,12 @@ const $ = id => document.getElementById(id);
 // Claves de localStorage (migrado de schema-config.js)
 const STORAGE_KEYS = { FRECUENTES: 'sidebarFrecuentes', RECIENTES: 'baseaccess_recientes' };
 
+const CONFIG = {
+    pageSize: 10,
+    maxVisiblePages: 7,
+    timeouts: { toast: 3000, toastFade: 300, debounce: 200, initDelay: 50 }
+};
+
 // --- Toast ---
 function esc(v) {
     if (v == null) return '';
@@ -15,7 +21,7 @@ function toast(msg, tipo = 'info') {
     el.textContent = msg;
     $('toast-container').appendChild(el);
     requestAnimationFrame(() => el.classList.add('show'));
-    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 3000);
+    setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), CONFIG.timeouts.toastFade); }, CONFIG.timeouts.toast);
 }
 
 // Sobrescribir alert globalmente para redirigir a toast
@@ -128,7 +134,7 @@ function mostrarFormulario(id, modulo) {
         : 'Registro';
     $('form-titulo').textContent = id ? 'Editar ' + nombreModulo + ' #' + id : 'Nuevo ' + nombreModulo;
     pushModal('form-modal');
-    setTimeout(cargarSuperintendencias, 50);
+    setTimeout(cargarSuperintendencias, CONFIG.timeouts.initDelay);
 }
 
 function cerrarFormulario() { cerrarModal('form-modal'); }
@@ -343,7 +349,6 @@ function inicializarPines() {
 
 // --- Paginación del lado del cliente ---
 let currentPage = 1;
-const pageSize = 10;
 
 function irPagina(pagina) {
     currentPage = pagina;
@@ -354,12 +359,12 @@ function aplicarPaginacionDOM() {
     // Obtener todas las filas principales (omitir las subfilas de detalles)
     const filas = Array.from(document.querySelectorAll('#tabla-cuerpo > tr')).filter(tr => !tr.id.startsWith('subfila-'));
     const totalItems = filas.length;
-    const totalPages = Math.ceil(totalItems / pageSize);
+    const totalPages = Math.ceil(totalItems / CONFIG.pageSize);
 
     if (currentPage > totalPages) currentPage = Math.max(1, totalPages);
 
-    const startIdx = (currentPage - 1) * pageSize;
-    const endIdx = currentPage * pageSize;
+    const startIdx = (currentPage - 1) * CONFIG.pageSize;
+    const endIdx = currentPage * CONFIG.pageSize;
 
     // Ocultar o mostrar las filas principales
     filas.forEach((fila, idx) => {
@@ -396,11 +401,10 @@ function renderPaginacionControles(totalPages) {
     html += buildBtn('<i class="fas fa-angle-double-left text-[10px]"></i>', 'irPagina(1)', currentPage === 1, false);
     html += buildBtn('<i class="fas fa-chevron-left text-[10px]"></i>', `irPagina(${currentPage - 1})`, currentPage === 1, false);
 
-    const maxVisible = 7;
-    let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-    let endPage = Math.min(totalPages, startPage + maxVisible - 1);
-    if (endPage - startPage + 1 < maxVisible) {
-        startPage = Math.max(1, endPage - maxVisible + 1);
+    let startPage = Math.max(1, currentPage - Math.floor(CONFIG.maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + CONFIG.maxVisiblePages - 1);
+    if (endPage - startPage + 1 < CONFIG.maxVisiblePages) {
+        startPage = Math.max(1, endPage - CONFIG.maxVisiblePages + 1);
     }
 
     if (startPage > 1) {
@@ -427,7 +431,7 @@ function renderPaginacionControles(totalPages) {
 // Registrar evento htmx:afterSwap para colorear pines y paginar al recargar la tabla
 document.addEventListener('DOMContentLoaded', () => {
     document.body.addEventListener('htmx:afterSwap', function(evt) {
-        if (evt.detail.target.id === 'tabla-cuerpo' || evt.detail.target.id === 'vista-tabla') {
+        if (evt.detail.target.id === 'vista-tabla') {
             currentPage = 1;
             aplicarPaginacionDOM();
             inicializarPines();
@@ -751,7 +755,7 @@ function convertirMoneda(origen) {
         if (origen === 'bs_presup') {
             var bs = getRaw('f-presupuesto_base_bs');
             if (bs) setVal('f-presupuesto_base_usd', bs / tc);
-        } else if (origen === undefined || origen === 'usd_presup' || origen === '') {
+        } else if (origen === undefined) {
             var usd = getRaw('f-presupuesto_base_usd');
             if (usd) setVal('f-presupuesto_base_bs', usd * tc);
         }

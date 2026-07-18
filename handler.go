@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"encoding/csv"
 	"encoding/json"
@@ -30,6 +31,18 @@ type TemplateHandler struct {
 	tmpl   *template.Template
 	static http.Handler
 }
+
+func (h *TemplateHandler) renderTemplate(w http.ResponseWriter, tmplName string, data interface{}) {
+	var buf bytes.Buffer
+	if err := h.tmpl.ExecuteTemplate(&buf, tmplName, data); err != nil {
+		log.Printf("render error for %s: %v", tmplName, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	buf.WriteTo(w)
+}
+
 
 func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 	funcMap := template.FuncMap{
@@ -434,11 +447,7 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// --- Page routes ---
 	if p == "/" || p == "/index.html" {
 		data := h.preparePageData(r)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := h.tmpl.ExecuteTemplate(w, "index.html", data); err != nil {
-			log.Printf("template error: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
+	h.renderTemplate(w, "index.html", data)
 		return
 	}
 
@@ -579,11 +588,7 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 	}
 
 	tmplName := "form_" + modulo + ".html"
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
-		log.Printf("render error for %s: %v", tmplName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, tmplName, data)
 }
 
 func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *http.Request) {
@@ -646,10 +651,7 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
-	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
-		log.Printf("render error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, tmplName, data)
 }
 
 func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Request) {
@@ -677,11 +679,7 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 	}
 
 	tmplName := "tabla_" + modulo + ".html"
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
-		log.Printf("handleCambiarModulo: error rendering template %s: %v", tmplName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, tmplName, data)
 }
 
 func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request) {
@@ -714,10 +712,7 @@ func (h *TemplateHandler) handleHistorial(w http.ResponseWriter, r *http.Request
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	tmplName := "historial.html"
-	if err := h.tmpl.ExecuteTemplate(w, tmplName, data); err != nil {
-		log.Printf("render error for %s: %v", tmplName, err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, tmplName, data)
 }
 
 func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) {
@@ -746,11 +741,7 @@ func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "ruta_procesos.html", data); err != nil {
-		log.Printf("render error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, "ruta_procesos.html", data)
 }
 
 func (h *TemplateHandler) handleToggleRutaProceso(w http.ResponseWriter, r *http.Request) {
@@ -850,11 +841,7 @@ func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := h.tmpl.ExecuteTemplate(w, "pendientes.html", rows); err != nil {
-		log.Printf("render error: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	h.renderTemplate(w, "pendientes.html", rows)
 }
 
 func (h *TemplateHandler) handleGuardarCatalogo(w http.ResponseWriter, r *http.Request) {

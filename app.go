@@ -328,6 +328,9 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 		a.db.Close()
 	}
 
+	if strings.Contains(filePath, "?") {
+		return fmt.Errorf("el nombre del archivo no puede contener el carácter '?'")
+	}
 	db, err := sql.Open("sqlite3", filePath+dsnParams)
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir BD: %w", err)
@@ -405,38 +408,15 @@ func (a *App) crearBackup() error {
 		return nil
 	}
 
-	// Forzar checkpoint WAL para que todos los cambios estén en el archivo principal
-	if _, err := a.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
-		log.Printf("WAL checkpoint falló (no crítico): %v", err)
-	}
-
 	dir := filepath.Dir(a.dbPath)
 	base := filepath.Base(a.dbPath)
 	sep := string(filepath.Separator)
 	maxCopies := int(backupMaxCopies.Load())
 	tmpPath := dir + sep + base + ".bak.tmp"
 
-	srcFile, err := os.Open(a.dbPath)
-	if err != nil {
-		return fmt.Errorf("error abriendo BD para backup: %w", err)
-	}
-	defer srcFile.Close()
-
-	tmpFile, err := os.Create(tmpPath)
-	if err != nil {
+	if err := a.copyDBCheckpointed(a.dbPath, tmpPath); err != nil {
+		os.Remove(tmpPath)
 		return fmt.Errorf("error creando backup temporal: %w", err)
-	}
-
-	written, err := io.Copy(tmpFile, srcFile)
-	tmpFile.Close()
-	if err != nil {
-		os.Remove(tmpPath)
-		return fmt.Errorf("error copiando backup: %w", err)
-	}
-	srcInfo, err := srcFile.Stat()
-	if err == nil && written != srcInfo.Size() {
-		os.Remove(tmpPath)
-		return fmt.Errorf("backup incompleto: copió %d de %d bytes", written, srcInfo.Size())
 	}
 
 	oldest := dir + sep + base + ".bak." + strconv.Itoa(maxCopies)
@@ -459,19 +439,13 @@ func (a *App) crearBackup() error {
 	return nil
 }
 
-func (a *App) DescargarBD(destPath string) error {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	if a.dbPath == "" {
-		return fmt.Errorf("no hay base de datos abierta")
-	}
-
-	// Forzar checkpoint WAL para consistencia
+func (a *App) copyDBCheckpointed(srcPath, destPath string) error {
+	// Forzar checkpoint WAL para que todos los cambios estén en el archivo principal
 	if _, err := a.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
 		log.Printf("WAL checkpoint falló (no crítico): %v", err)
 	}
 
-	srcFile, err := os.Open(a.dbPath)
+	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return fmt.Errorf("error abriendo BD: %w", err)
 	}
@@ -487,6 +461,16 @@ func (a *App) DescargarBD(destPath string) error {
 		return fmt.Errorf("error copiando BD: %w", err)
 	}
 	return nil
+}
+
+func (a *App) DescargarBD(destPath string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.dbPath == "" {
+		return fmt.Errorf("no hay base de datos abierta")
+	}
+
+	return a.copyDBCheckpointed(a.dbPath, destPath)
 }
 
 func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
@@ -909,7 +893,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 
 	procRows, err := a.db.Query(`
 		SELECT p.id, p.descripcion, p.db_id, p.activo,
-			COALESCE(e.solped, 'SIN SOLPED'), COALESCE(e.estatus_detalle, 'N/A'), COALESCE(e.receptor, 'N/A'),
+			COALESCE(e.solped, 'NO APLICA'), COALESCE(e.estatus_detalle, 'NO APLICA'), COALESCE(e.receptor, 'NO APLICA'),
 			COALESCE(e.fecha_recibido, ''), COALESCE(e.fecha_devuelto, ''), COALESCE(e.fecha_firma_contrato, ''),
 			COALESCE(e.documento, ''), COALESCE(e.resultados_proceso, ''),
 			COALESCE(exp.id_documento, 0), COALESCE(exp.id_resultado, 0)

@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS req_materiales (
     descripcion_materiales TEXT,
     serial_equipo         TEXT,
     pase_sicesma          TEXT,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     observaciones_entrega TEXT,
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
@@ -115,7 +115,7 @@ CREATE TABLE IF NOT EXISTS memorandums (
     id_emisor             INTEGER,
     id_documento          INTEGER,
     asunto                TEXT,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS recobros (
     beneficios            TEXT,
     nota_debito_reverso   REAL,
     costo_servicio_usd    REAL,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS valuaciones (
     presupuesto_base_bs   REAL,
     presupuesto_base_usd  REAL,
     descripcion_proceso   TEXT,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -461,7 +461,7 @@ CREATE TABLE IF NOT EXISTS aprobacion_jd (
     id_plan               INTEGER,
     descripcion_proceso   TEXT,
     cantidad_frentes      INTEGER,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -577,7 +577,7 @@ CREATE TABLE IF NOT EXISTS certificacion_bdu (
     monto_contrato        REAL,
     monto_ejecutado       REAL,
     monto_pagado          REAL,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -680,7 +680,7 @@ CREATE TABLE IF NOT EXISTS vacaciones (
     cantidad_dias         INTEGER,
     fecha_desde           DATE,
     fecha_hasta           DATE,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     fecha_devuelto        DATE,
     id_receptor           INTEGER,
@@ -780,7 +780,7 @@ CREATE TABLE IF NOT EXISTS reposos_medicos (
     dias_periodo          INTEGER,
     fecha_desde           DATE,
     fecha_hasta           DATE,
-    id_estatus            INTEGER DEFAULT 1,
+    id_estatus            INTEGER DEFAULT 1, /* PENDIENTE (ver cat_estatus_detalle id=1) */
     fecha_recibido        DATE,
     observaciones         TEXT,
     notas                 TEXT,
