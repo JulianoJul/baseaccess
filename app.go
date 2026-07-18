@@ -203,12 +203,8 @@ var columnasExtraValidas = map[string]bool{
 }
 
 var columnasOrdenValidas = map[string]bool{
-	"id_expediente":       true,
 	"fecha_creacion":      true,
 	"fecha_actualizacion": true,
-	"solped":              true,
-	"gerencia":            true,
-	"estatus_detalle":     true,
 }
 
 
@@ -264,7 +260,7 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 		a.db.Close()
 	}
 
-	db, err := sql.Open("sqlite3", filePath+"?_journal_mode=WAL&_foreign_keys=on")
+	db, err := sql.Open("sqlite3", filePath+"?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000")
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir BD: %w", err)
 	}
@@ -354,6 +350,12 @@ func (a *App) DescargarBD(destPath string) error {
 	if a.dbPath == "" {
 		return fmt.Errorf("no hay base de datos abierta")
 	}
+
+	// Forzar checkpoint WAL para consistencia
+	if _, err := a.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		log.Printf("WAL checkpoint falló (no crítico): %v", err)
+	}
+
 	srcFile, err := os.Open(a.dbPath)
 	if err != nil {
 		return fmt.Errorf("error abriendo BD: %w", err)
@@ -412,7 +414,11 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 					row[col] = v.Format("2006-01-02")
 				}
 			default:
-				row[col] = val
+				if val == nil {
+					row[col] = ""
+				} else {
+					row[col] = val
+				}
 			}
 		}
 			results = append(results, row)
@@ -545,13 +551,24 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	}
 
 	if id > 0 {
-		sets := make([]string, len(cfg.Columnas))
+		var sets []string
+		var setVals []interface{}
 		for i, col := range cfg.Columnas {
-			sets[i] = col + " = ?"
+			if col == cfg.IDColumna {
+				continue
+			}
+			if vals[i] != nil {
+				sets = append(sets, col+" = ?")
+				setVals = append(setVals, vals[i])
+			}
 		}
+		if len(sets) == 0 {
+			return id, nil
+		}
+		setVals = append(setVals, id)
 		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
 			`, fecha_actualizacion = CURRENT_TIMESTAMP WHERE ` + cfg.IDColumna + ` = ?`
-		_, err := a.exec(q, append(vals, id)...)
+		_, err := a.exec(q, setVals...)
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
 		}
@@ -764,28 +781,33 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}}, nil
 	}
 
-	if len(processes) > 0 {
-		args := make([]interface{}, len(processes))
-		placeholders := make([]string, len(processes))
-		for i, p := range processes {
-			args[i] = p.ID
-			placeholders[i] = "?"
+	procMap := make(map[int]*RutaProcesosProceso, len(processes))
+	for i := range processes {
+		procMap[processes[i].ID] = &processes[i]
+	}
+
+	args := make([]interface{}, len(processes))
+	placeholders := make([]string, len(processes))
+	for i, p := range processes {
+		args[i] = p.ID
+		placeholders[i] = "?"
+	}
+	cronoRows, err := a.db.Query(
+		"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
+		args...)
+	if err != nil {
+		return nil, err
+	}
+	defer cronoRows.Close()
+	for cronoRows.Next() {
+		var idProc int
+		var fecha, nota string
+		var statusNameNull, hexColorNull sql.NullString
+		if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
+			continue
 		}
-		cronoRows, err := a.db.Query(
-			"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
-			args...)
-		if err != nil {
-			return nil, err
-		}
-		defer cronoRows.Close()
-		for cronoRows.Next() {
-			var idProc int
-			var fecha, nota string
-			var statusNameNull, hexColorNull sql.NullString
-			if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
-				log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
-				continue
-			}
+		if p, ok := procMap[idProc]; ok {
 			statusName := ""
 			if statusNameNull.Valid {
 				statusName = statusNameNull.String
@@ -794,15 +816,10 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 			if hexColorNull.Valid {
 				hexColor = hexColorNull.String
 			}
-			for i := range processes {
-				if processes[i].ID == idProc {
-					processes[i].Timeline[fecha] = map[string]string{
-						"status_name": statusName,
-						"hex_color":   hexColor,
-						"note":        nota,
-					}
-					break
-				}
+			p.Timeline[fecha] = map[string]string{
+				"status_name": statusName,
+				"hex_color":   hexColor,
+				"note":        nota,
 			}
 		}
 	}
@@ -825,11 +842,11 @@ func buildGanttColumns() []map[string]string {
 	}
 	start := now.AddDate(0, 0, -offset)
 
-	columns := make([]map[string]string, 0, 30)
-	totalDays := 60
+	columns := make([]map[string]string, 0, 60)
+	bizTarget := 60
 	bizCount := 0
 	weekNum := 1
-	for i := 0; i < totalDays; i++ {
+	for i := 0; bizCount < bizTarget; i++ {
 		date := start.AddDate(0, 0, i)
 		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
 			continue
@@ -904,6 +921,9 @@ func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, err
 			"solped":             solped,
 			"descripcion_proceso": desc,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		return result, err
 	}
 	if result == nil {
 		result = []map[string]interface{}{}
@@ -988,6 +1008,9 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 		rows.Close()
 		if loopErr != nil {
 			return nil, loopErr
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("ObtenerCatalogos: iteración %s: %v", key, err)
 		}
 		result[key] = items
 	}

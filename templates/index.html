@@ -57,7 +57,7 @@
 
     <!-- Datos Go inyectados al JS -->
     <script>
-        window.PAGE_DATA = {
+		window.PAGE_DATA = {
             hasDB: {{.HasDB}},
             dbPath: {{jsonEncode .DBPath}},
             catalogs: {{jsonEncode .Catalogs}},
@@ -65,7 +65,8 @@
             filas: {{jsonEncode .Filas}},
             totalPages: {{.TotalPages}},
             currentPage: {{.CurrentPage}},
-            pageSize: {{.PageSize}}
+            pageSize: {{.PageSize}},
+            ActiveModule: {{jsonEncode .ActiveModule}}
         };
     </script>
 

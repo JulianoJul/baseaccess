@@ -414,12 +414,8 @@ var columnasExtraValidas = map[string]bool{
 }
 
 var columnasOrdenValidas = map[string]bool{
-	"id_expediente":       true,
 	"fecha_creacion":      true,
 	"fecha_actualizacion": true,
-	"solped":              true,
-	"gerencia":            true,
-	"estatus_detalle":     true,
 }
 
 
@@ -475,7 +471,7 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 		a.db.Close()
 	}
 
-	db, err := sql.Open("sqlite3", filePath+"?_journal_mode=WAL&_foreign_keys=on")
+	db, err := sql.Open("sqlite3", filePath+"?_journal_mode=WAL&_foreign_keys=on&_busy_timeout=5000")
 	if err != nil {
 		return fmt.Errorf("no se pudo abrir BD: %w", err)
 	}
@@ -514,12 +510,35 @@ func (a *App) crearBackup() error {
 	base := filepath.Base(a.dbPath)
 	sep := string(filepath.Separator)
 	maxCopies := int(backupMaxCopies.Load())
+	tmpPath := dir + sep + base + ".bak.tmp"
+
+	srcFile, err := os.Open(a.dbPath)
+	if err != nil {
+		return fmt.Errorf("error abriendo BD para backup: %w", err)
+	}
+	defer srcFile.Close()
+
+	tmpFile, err := os.Create(tmpPath)
+	if err != nil {
+		return fmt.Errorf("error creando backup temporal: %w", err)
+	}
+
+	written, err := io.Copy(tmpFile, srcFile)
+	tmpFile.Close()
+	if err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("error copiando backup: %w", err)
+	}
+	srcInfo, err := srcFile.Stat()
+	if err == nil && written != srcInfo.Size() {
+		os.Remove(tmpPath)
+		return fmt.Errorf("backup incompleto: copió %d de %d bytes", written, srcInfo.Size())
+	}
 
 	oldest := dir + sep + base + ".bak." + strconv.Itoa(maxCopies)
 	if err := os.Remove(oldest); err != nil && !os.IsNotExist(err) {
 		log.Printf("error removiendo backup antiguo %s: %v", oldest, err)
 	}
-
 	for i := maxCopies - 1; i >= 1; i-- {
 		src := dir + sep + base + ".bak." + strconv.Itoa(i)
 		dst := dir + sep + base + ".bak." + strconv.Itoa(i+1)
@@ -529,26 +548,9 @@ func (a *App) crearBackup() error {
 			}
 		}
 	}
-
-	srcFile, err := os.Open(a.dbPath)
-	if err != nil {
-		return fmt.Errorf("error abriendo BD para backup: %w", err)
-	}
-	defer srcFile.Close()
-
-	dstFile, err := os.Create(dir + sep + base + ".bak.1")
-	if err != nil {
-		return fmt.Errorf("error creando backup: %w", err)
-	}
-	defer dstFile.Close()
-
-	written, err := io.Copy(dstFile, srcFile)
-	if err != nil {
-		return fmt.Errorf("error copiando backup: %w", err)
-	}
-	srcInfo, err := srcFile.Stat()
-	if err == nil && written != srcInfo.Size() {
-		return fmt.Errorf("backup incompleto: copió %d de %d bytes", written, srcInfo.Size())
+	if err := os.Rename(tmpPath, dir+sep+base+".bak.1"); err != nil {
+		os.Remove(tmpPath)
+		return fmt.Errorf("error moviendo backup temporal: %w", err)
 	}
 	return nil
 }
@@ -559,6 +561,12 @@ func (a *App) DescargarBD(destPath string) error {
 	if a.dbPath == "" {
 		return fmt.Errorf("no hay base de datos abierta")
 	}
+
+	// Forzar checkpoint WAL para consistencia
+	if _, err := a.db.Exec("PRAGMA wal_checkpoint(TRUNCATE)"); err != nil {
+		log.Printf("WAL checkpoint falló (no crítico): %v", err)
+	}
+
 	srcFile, err := os.Open(a.dbPath)
 	if err != nil {
 		return fmt.Errorf("error abriendo BD: %w", err)
@@ -617,7 +625,11 @@ func (a *App) queryRows(query string, args ...interface{}) ([]Row, error) {
 					row[col] = v.Format("2006-01-02")
 				}
 			default:
-				row[col] = val
+				if val == nil {
+					row[col] = ""
+				} else {
+					row[col] = val
+				}
 			}
 		}
 			results = append(results, row)
@@ -636,8 +648,11 @@ func (a *App) exec(query string, args ...interface{}) (sql.Result, error) {
 }
 
 func sanitizarOrden(orden string, def string, columnasValidas []string) string {
-	validMap := make(map[string]bool, len(columnasValidas)+1)
+	validMap := make(map[string]bool, len(columnasValidas)+len(columnasOrdenValidas)+1)
 	for _, c := range columnasValidas {
+		validMap[c] = true
+	}
+	for c := range columnasOrdenValidas {
 		validMap[c] = true
 	}
 	validMap[def] = true
@@ -747,13 +762,24 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	}
 
 	if id > 0 {
-		sets := make([]string, len(cfg.Columnas))
+		var sets []string
+		var setVals []interface{}
 		for i, col := range cfg.Columnas {
-			sets[i] = col + " = ?"
+			if col == cfg.IDColumna {
+				continue
+			}
+			if vals[i] != nil {
+				sets = append(sets, col+" = ?")
+				setVals = append(setVals, vals[i])
+			}
 		}
+		if len(sets) == 0 {
+			return id, nil
+		}
+		setVals = append(setVals, id)
 		q := `UPDATE ` + cfg.Tabla + ` SET ` + strings.Join(sets, ", ") +
 			`, fecha_actualizacion = CURRENT_TIMESTAMP WHERE ` + cfg.IDColumna + ` = ?`
-		_, err := a.exec(q, append(vals, id)...)
+		_, err := a.exec(q, setVals...)
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
 		}
@@ -770,7 +796,11 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	if err != nil {
 		return 0, fmt.Errorf("error al insertar: %w", err)
 	}
-	return res.LastInsertId()
+	id, err = res.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("error obteniendo id insertado: %w", err)
+	}
+	return id, nil
 }
 
 func (a *App) EliminarFila(moduloKey string, id int64) error {
@@ -804,6 +834,15 @@ func (a *App) EliminarFila(moduloKey string, id int64) error {
 	if cfg.HistorialTabla != "" {
 		qHist := `DELETE FROM ` + cfg.HistorialTabla + ` WHERE ` + cfg.IDColumna + ` = ?`
 		if _, err = tx.Exec(qHist, id); err != nil {
+			return err
+		}
+	}
+
+	if moduloKey == "expedientes" {
+		if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_expediente = ? OR id_proceso IN (SELECT id FROM ruta_procesos_procesos WHERE db_id = ?)", id, id); err != nil {
+			return err
+		}
+		if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE db_id = ?", id); err != nil {
 			return err
 		}
 	}
@@ -914,6 +953,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 	for legendRows.Next() {
 		var l RutaProcesosLegend
 		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan leyenda: %v", err)
 			continue
 		}
 		legend = append(legend, l)
@@ -940,6 +980,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		var p RutaProcesosProceso
 		var activo int
 		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan proceso: %v", err)
 			continue
 		}
 		p.Activo = activo == 1
@@ -951,27 +992,33 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}}, nil
 	}
 
-	if len(processes) > 0 {
-		args := make([]interface{}, len(processes))
-		placeholders := make([]string, len(processes))
-		for i, p := range processes {
-			args[i] = p.ID
-			placeholders[i] = "?"
+	procMap := make(map[int]*RutaProcesosProceso, len(processes))
+	for i := range processes {
+		procMap[processes[i].ID] = &processes[i]
+	}
+
+	args := make([]interface{}, len(processes))
+	placeholders := make([]string, len(processes))
+	for i, p := range processes {
+		args[i] = p.ID
+		placeholders[i] = "?"
+	}
+	cronoRows, err := a.db.Query(
+		"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
+		args...)
+	if err != nil {
+		return nil, err
+	}
+	defer cronoRows.Close()
+	for cronoRows.Next() {
+		var idProc int
+		var fecha, nota string
+		var statusNameNull, hexColorNull sql.NullString
+		if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
+			continue
 		}
-		cronoRows, err := a.db.Query(
-			"SELECT c.id_proceso, c.fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
-			args...)
-		if err != nil {
-			return nil, err
-		}
-		defer cronoRows.Close()
-		for cronoRows.Next() {
-			var idProc int
-			var fecha, nota string
-			var statusNameNull, hexColorNull sql.NullString
-			if err := cronoRows.Scan(&idProc, &fecha, &nota, &statusNameNull, &hexColorNull); err != nil {
-				continue
-			}
+		if p, ok := procMap[idProc]; ok {
 			statusName := ""
 			if statusNameNull.Valid {
 				statusName = statusNameNull.String
@@ -980,15 +1027,10 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 			if hexColorNull.Valid {
 				hexColor = hexColorNull.String
 			}
-			for i := range processes {
-				if processes[i].ID == idProc {
-					processes[i].Timeline[fecha] = map[string]string{
-						"status_name": statusName,
-						"hex_color":   hexColor,
-						"note":        nota,
-					}
-					break
-				}
+			p.Timeline[fecha] = map[string]string{
+				"status_name": statusName,
+				"hex_color":   hexColor,
+				"note":        nota,
 			}
 		}
 	}
@@ -997,7 +1039,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 }
 
 func buildGanttColumns() []map[string]string {
-	dayNames := []string{"L", "M", "M", "J", "V"}
+	dayNames := []string{"L", "M", "X", "J", "V"}
 	now := time.Now()
 	weekday := now.Weekday()
 	if weekday == time.Saturday {
@@ -1011,11 +1053,11 @@ func buildGanttColumns() []map[string]string {
 	}
 	start := now.AddDate(0, 0, -offset)
 
-	columns := make([]map[string]string, 0, 30)
-	totalDays := 60
+	columns := make([]map[string]string, 0, 60)
+	bizTarget := 60
 	bizCount := 0
 	weekNum := 1
-	for i := 0; i < totalDays; i++ {
+	for i := 0; bizCount < bizTarget; i++ {
 		date := start.AddDate(0, 0, i)
 		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
 			continue
@@ -1091,6 +1133,9 @@ func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, err
 			"descripcion_proceso": desc,
 		})
 	}
+	if err := rows.Err(); err != nil {
+		return result, err
+	}
 	if result == nil {
 		result = []map[string]interface{}{}
 	}
@@ -1103,12 +1148,27 @@ func (a *App) EliminarRutaProceso(id int) error {
 	if a.db == nil {
 		return fmt.Errorf("no hay BD abierta")
 	}
-	_, err := a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id)
+	tx, err := a.db.Begin()
 	if err != nil {
 		return err
 	}
-	_, err = a.db.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id)
-	return err
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+	if _, err = tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ?", id); err != nil {
+		return err
+	}
+	if _, err = tx.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id); err != nil {
+		return err
+	}
+	if err = tx.Commit(); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 type CatalogoItem struct {
@@ -1159,6 +1219,9 @@ func (a *App) ObtenerCatalogos() (map[string][]CatalogoItem, error) {
 		rows.Close()
 		if loopErr != nil {
 			return nil, loopErr
+		}
+		if err := rows.Err(); err != nil {
+			log.Printf("ObtenerCatalogos: iteración %s: %v", key, err)
 		}
 		result[key] = items
 	}
@@ -1231,11 +1294,13 @@ package main
 
 import (
 	"embed"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"sort"
 	"strconv"
@@ -1260,9 +1325,6 @@ type TemplateHandler struct {
 
 func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 	funcMap := template.FuncMap{
-		"safeHTML":   func(s string) template.HTML { return template.HTML(s) },
-		"safeURL":    func(s string) template.URL { return template.URL(s) },
-		"safeJS":     func(s string) template.JS { return template.JS(s) },
 		"add":        func(a, b int) int { return a + b },
 		"sub":        func(a, b int) int { return a - b },
 		"seq":        seq,
@@ -1416,15 +1478,14 @@ func formatNumGo(v interface{}) string {
 	default:
 		return fmt.Sprintf("%v", v)
 	}
-	intPart := int64(f)
-	decPart := int64((f - float64(intPart)) * 100)
-	if decPart < 0 {
-		decPart = -decPart
+	rounded := math.Round(f*100) / 100
+	isNegative := rounded < 0
+	if isNegative {
+		rounded = -rounded
 	}
+	intPart := int64(rounded)
+	decPart := int64((rounded-float64(intPart))*100 + 0.5)
 	intStr := strconv.FormatInt(intPart, 10)
-	if intPart < 0 {
-		intStr = intStr[1:]
-	}
 	var withDots strings.Builder
 	for i, c := range intStr {
 		if i > 0 && (len(intStr)-i)%3 == 0 {
@@ -1433,15 +1494,27 @@ func formatNumGo(v interface{}) string {
 		withDots.WriteByte(byte(c))
 	}
 	result := withDots.String()
-	if intPart < 0 {
+	if isNegative {
 		result = "-" + result
 	}
 	return result + "," + fmt.Sprintf("%02d", decPart)
 }
 
+var columnasNumericas = map[string]bool{
+	"presupuesto_base_usd": true, "presupuesto_base_bs": true, "tipo_cambio": true,
+	"monto_adjudicado_usd": true, "monto_adjudicado_bs": true, "monto_valuacion": true,
+	"presupuesto_base_total_usd": true, "monto_adjudicado_total_usd": true,
+	"monto_contrato": true, "monto_ejecutado": true, "monto_pagado": true,
+	"costo_servicio_usd": true, "nota_debito_reverso": true,
+	"cantidad_frentes": true, "cantidad_dias": true, "dias_periodo": true,
+	"tiempo_ejecucion": true, "anio": true,
+}
+
 func parseSpanishNumber(s string) string {
-	s = strings.ReplaceAll(s, ".", "")
-	s = strings.Replace(s, ",", ".", 1)
+	if strings.Contains(s, ",") {
+		s = strings.ReplaceAll(s, ".", "")
+		s = strings.Replace(s, ",", ".", 1)
+	}
 	return s
 }
 
@@ -1457,10 +1530,11 @@ func jsonEncode(v interface{}) template.JS {
 }
 
 func truncate(s string, n int) string {
-	if len(s) <= n {
+	if utf8.RuneCountInString(s) <= n {
 		return s
 	}
-	return s[:n] + "..."
+	runes := []rune(s)
+	return string(runes[:n]) + "..."
 }
 
 func isSelected(val interface{}, target string) bool {
@@ -1651,7 +1725,7 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 		v := r.FormValue(col)
 		if v == "" {
 			data[col] = nil
-		} else if strings.Contains(v, ",") {
+		} else if columnasNumericas[col] && strings.Contains(v, ",") {
 			data[col] = parseSpanishNumber(v)
 		} else {
 			data[col] = v
@@ -1724,7 +1798,10 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 	if idStr != "" && idStr != "null" {
 		id, err := strconv.Atoi(idStr)
 		if err == nil && id > 0 {
-			registro, _ = h.app.ObtenerFilaPorId(modulo, id)
+			registro, err = h.app.ObtenerFilaPorId(modulo, id)
+			if err != nil {
+				log.Printf("handleCargarExpediente: error obteniendo registro %d en %s: %v", id, modulo, err)
+			}
 		}
 	}
 
@@ -2075,8 +2152,10 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	for k := range data[0] {
 		headers = append(headers, k)
 	}
+	sort.Strings(headers)
 
-	csv := strings.Join(headers, ",") + "\n"
+	wr := csv.NewWriter(w)
+	wr.Write(headers)
 	for _, row := range data {
 		vals := make([]string, len(headers))
 		for i, h := range headers {
@@ -2084,17 +2163,13 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 			if v == nil {
 				vals[i] = ""
 			} else {
-				s := fmt.Sprintf("%v", v)
-				if strings.ContainsAny(s, ",\"\n\r") {
-					s = "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
-				}
-				vals[i] = s
+				vals[i] = fmt.Sprintf("%v", v)
 			}
 		}
-		csv += strings.Join(vals, ",") + "\n"
+		wr.Write(vals)
 	}
-
-	if _, err := w.Write([]byte(csv)); err != nil {
+	wr.Flush()
+	if err := wr.Error(); err != nil {
 		log.Printf("csv: error escribiendo respuesta: %v", err)
 	}
 }
@@ -2412,7 +2487,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
 
     <!-- Datos Go inyectados al JS -->
     <script>
-        window.PAGE_DATA = {
+		window.PAGE_DATA = {
             hasDB: {{.HasDB}},
             dbPath: {{jsonEncode .DBPath}},
             catalogs: {{jsonEncode .Catalogs}},
@@ -2420,7 +2495,8 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             filas: {{jsonEncode .Filas}},
             totalPages: {{.TotalPages}},
             currentPage: {{.CurrentPage}},
-            pageSize: {{.PageSize}}
+            pageSize: {{.PageSize}},
+            ActiveModule: {{jsonEncode .ActiveModule}}
         };
     </script>
 
@@ -2794,12 +2870,16 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             el.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
             MODAL_STACK.push(id);
-            el.addEventListener('click', function(e) {
-                if (e.target === el) {
-                    if (MODAL_STACK.length && MODAL_STACK[MODAL_STACK.length - 1] === id) cerrarModal(id);
-                }
-            });
         }
+
+        document.addEventListener('click', function(e) {
+            if (MODAL_STACK.length === 0) return;
+            const modal = e.target.closest('.modal');
+            if (!modal || e.target !== modal) return;
+            if (MODAL_STACK[MODAL_STACK.length - 1] === modal.id) {
+                cerrarModal(modal.id);
+            }
+        });
         function cerrarModal(id) {
             const el = $(id);
             if (!el) return;
@@ -2931,7 +3011,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             } else {
                 cont.innerHTML = '<div class="flex flex-col gap-2">' + recientes.map((r, i) => `
                     <div class="reciente-item flex items-center gap-2 px-4 py-3 cursor-pointer rounded-lg bg-gray-900/60 border border-gray-700/60 hover:border-teal-500/60 transition-all"
-                         onclick="abrirBaseDatosReciente('${esc(r.path).replace(/'/g, "\\'")}')">
+                         data-df-path="${r.path}" onclick="abrirBaseDatosReciente(this.dataset.dfPath)">
                         <div class="min-w-0 flex-1">
                             <div class="text-sm text-gray-200 truncate font-semibold">${esc(r.nombre)}</div>
                             <div class="text-xs text-gray-500 truncate">${esc(r.path)}</div>
@@ -2945,7 +3025,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
         function cerrarRecientes() { cerrarModal('modal-recientes'); }
 
         // --- Acceso Rápido / Pinned items ---
-        function toggleFrecuente(id, solped) {
+        function toggleFrecuente(id, solped, modulo) {
             let list = [];
             try {
                 list = JSON.parse(localStorage.getItem(STORAGE_KEYS.FRECUENTES) || '[]');
@@ -2954,7 +3034,8 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             if (idx !== -1) {
                 list.splice(idx, 1);
             } else {
-                list.push({ id: Number(id), solped });
+                modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+                list.push({ id: Number(id), solped: solped || '', modulo: modulo });
             }
             localStorage.setItem(STORAGE_KEYS.FRECUENTES, JSON.stringify(list));
             
@@ -2996,13 +3077,13 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
                 return;
             }
             cont.innerHTML = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3">' + list.map(item => `
-                <div class="flex items-center justify-between bg-gray-900/60 hover:bg-gray-900 border border-gray-700/60 hover:border-teal-500/30 rounded-xl p-4 cursor-pointer transition-all duration-200"
-                     onclick="event.stopPropagation(); cerrarFrecuentes(); hxGetFormulario(${item.id})">
+                <div data-df-id="${item.id}" data-df-modulo="${item.modulo || 'expedientes'}" class="flex items-center justify-between bg-gray-900/60 hover:bg-gray-900 border border-gray-700/60 hover:border-teal-500/30 rounded-xl p-4 cursor-pointer transition-all duration-200"
+                     onclick="event.stopPropagation(); cerrarFrecuentes(); hxGetFormulario(this.dataset.dfId, this.dataset.dfModulo)">
                     <div class="min-w-0 flex-1">
                         <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">SOLPED</div>
                         <div class="text-sm text-gray-200 font-bold truncate">${esc(item.solped) || 'SIN SOLPED'}</div>
                     </div>
-                    <button onclick="event.stopPropagation(); toggleFrecuente(${item.id}, '${esc(item.solped || '').replace(/'/g, "\\'")}')" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-gray-800 transition-all duration-200" title="Desanclar">
+                    <button data-df-id="${item.id}" data-df-solped="${item.solped || ''}" onclick="event.stopPropagation(); var d=this.dataset; toggleFrecuente(d.dfId, d.dfSolped)" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-gray-800 transition-all duration-200" title="Desanclar">
                         <i class="fas fa-times text-xs"></i>
                     </button>
                 </div>
@@ -3150,8 +3231,9 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             htmx.trigger('#sort-order', 'change');
         }
 
-        function hxGetFormulario(id) {
-            htmx.ajax('GET', '/api/cargar-expediente?id=' + id, {target: '#form-expediente'}).then(() => {
+        function hxGetFormulario(id, modulo) {
+            modulo = modulo || (window.PAGE_DATA ? window.PAGE_DATA.ActiveModule : 'expedientes') || 'expedientes';
+            htmx.ajax('GET', '/api/cargar-expediente?modulo=' + encodeURIComponent(modulo) + '&id=' + id, {target: '#form-expediente'}).then(() => {
                 mostrarFormulario(id);
             });
         }
@@ -3441,21 +3523,20 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
                     el.dataset.raw = val.toFixed(2);
                     el.dispatchEvent(new Event('blur', {bubbles: true}));
                 }
-                // Presupuesto
-                if (origen !== 'bs_presup') {
-                    var usd = getRaw('f-presupuesto_base_usd');
-                    if (usd) setVal('f-presupuesto_base_bs', usd * tc);
-                }
+                // Presupuesto: solo se convierte cuando se editan campos de presupuesto
                 if (origen === 'bs_presup') {
                     var bs = getRaw('f-presupuesto_base_bs');
                     if (bs) setVal('f-presupuesto_base_usd', bs / tc);
+                } else if (origen === undefined || origen === 'usd_presup' || origen === '') {
+                    var usd = getRaw('f-presupuesto_base_usd');
+                    if (usd) setVal('f-presupuesto_base_bs', usd * tc);
                 }
-                // Monto Adjudicado
-                var adjUsd = getRaw('f-monto_adjudicado_usd');
-                var adjBs = getRaw('f-monto_adjudicado_bs');
+                // Monto Adjudicado: solo se convierte cuando se editan campos de adjudicación
                 if (origen === 'bs_adj') {
+                    var adjBs = getRaw('f-monto_adjudicado_bs');
                     if (adjBs) setVal('f-monto_adjudicado_usd', adjBs / tc);
-                } else if (origen === 'usd_adj' || (adjUsd && !adjBs)) {
+                } else if (origen === 'usd_adj' || (origen === undefined && getRaw('f-monto_adjudicado_usd') && !getRaw('f-monto_adjudicado_bs'))) {
+                    var adjUsd = getRaw('f-monto_adjudicado_usd');
                     if (adjUsd) setVal('f-monto_adjudicado_bs', adjUsd * tc);
                 }
             } finally {
@@ -3761,6 +3842,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
         <thead>
             <tr class="bg-gray-700/60 text-teal-400 uppercase">
                 <th class="p-2">Fecha Recibido</th>
+                <th class="p-2">Fecha Devuelto</th>
                 <th class="p-2">Estatus</th>
                 <th class="p-2">Documento</th>
                 <th class="p-2">Emisor</th>
@@ -3773,6 +3855,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
             {{range .Rows}}
             <tr class="hover:bg-gray-700/20">
                 <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
+                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_devuelto") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
                 <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>
@@ -4232,7 +4315,8 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
                                 hx-target="#form-expediente"
                                 hx-on::after-request="mostrarFormulario({{rowGetStr $exp "id_expediente"}})"
                                 class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
-                        <button onclick="event.stopPropagation(); toggleFrecuente({{rowGetStr $exp "id_expediente"}}, '{{rowGetStr $exp "solped"}}')"
+                        <button data-df-id="{{rowGetStr $exp "id_expediente"}}" data-df-solped="{{rowGetStr $exp "solped"}}"
+                                onclick="event.stopPropagation(); var d=this.dataset; toggleFrecuente(d.dfId, d.dfSolped)"
                                 class="btn-icon text-blue-500 hover:text-blue-400" title="Anclar" id="pin-btn-{{rowGetStr $exp "id_expediente"}}">
                             <i class="fas fa-thumbtack rotate-45 text-xs"></i>
                         </button>
@@ -4745,7 +4829,7 @@ func writeJSONError(w http.ResponseWriter, msg string, code int) {
                 </select>
             </div>
             <div class="md:col-span-2 lg:col-span-3">
-                <label class="label">Asunto del Memorándum</label>
+                <label class="label">Asunto del Recobro</label>
                 <textarea id="f-asunto" name="asunto" rows="2" class="input">{{if .Registro}}{{rowGetStr .Registro "asunto"}}{{end}}</textarea>
             </div>
             <div><label class="label">Fecha de Inicio</label><input type="date" id="f-fecha_inicio" name="fecha_inicio" class="input" value="{{if .Registro}}{{rowGetStr .Registro "fecha_inicio"}}{{end}}"></div>
@@ -6255,6 +6339,7 @@ BEGIN
     UPDATE expedientes
     SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
     WHERE NEW.fecha_firma_contrato IS NOT NULL
+      AND OLD.fecha_firma_contrato IS NULL
       AND id_expediente = NEW.id_expediente;
 END;
 
@@ -6494,7 +6579,7 @@ CREATE TRIGGER trg_req_mat_auditoria AFTER UPDATE ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE req_materiales SET fecha_actualizacion = CURRENT_DATE WHERE id_requisicion = NEW.id_requisicion;
+    UPDATE req_materiales SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_requisicion = NEW.id_requisicion;
 END;
 
 CREATE VIEW vw_reporte_req_materiales AS
@@ -6585,7 +6670,7 @@ CREATE TRIGGER trg_mem_auditoria AFTER UPDATE ON memorandums
 FOR EACH ROW BEGIN
     INSERT INTO hist_memorandums (id_memorandum, id_gerencia, id_superintendencia, id_emisor, documento, asunto, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_memorandum, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE memorandums SET fecha_actualizacion = CURRENT_DATE WHERE id_memorandum = NEW.id_memorandum;
+    UPDATE memorandums SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_memorandum = NEW.id_memorandum;
 END;
 
 CREATE VIEW vw_reporte_memorandums AS
@@ -6684,7 +6769,7 @@ CREATE TRIGGER trg_rec_auditoria AFTER UPDATE ON recobros
 FOR EACH ROW BEGIN
     INSERT INTO hist_recobros (id_recobro, id_gerencia, id_superintendencia, id_emisor, documento, asunto, fecha_inicio, fecha_final, servicios, beneficios, nota_debito_reverso, costo_servicio_usd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_recobro, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.asunto, NEW.fecha_inicio, NEW.fecha_final, NEW.servicios, NEW.beneficios, NEW.nota_debito_reverso, NEW.costo_servicio_usd, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE recobros SET fecha_actualizacion = CURRENT_DATE WHERE id_recobro = NEW.id_recobro;
+    UPDATE recobros SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_recobro = NEW.id_recobro;
 END;
 
 CREATE VIEW vw_reporte_recobros AS
@@ -6807,7 +6892,7 @@ CREATE TRIGGER trg_val_auditoria AFTER UPDATE ON valuaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_valuaciones (id_valuacion, id_gerencia, id_superintendencia, id_emisor, documento, solped, presupuesto_base_bs, presupuesto_base_usd, descripcion_proceso, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, periodo_valuacion_desde, periodo_valuacion_hasta, monto_valuacion, nro_proforma, observaciones, notas)
     VALUES (NEW.id_valuacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.solped, NEW.presupuesto_base_bs, NEW.presupuesto_base_usd, NEW.descripcion_proceso, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.nro_proceso, NEW.nro_contrato_sicac, NEW.nro_contrato_sap, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.monto_adjudicado_bs, NEW.monto_adjudicado_usd, NEW.periodo_valuacion_desde, NEW.periodo_valuacion_hasta, NEW.monto_valuacion, NEW.nro_proforma, NEW.observaciones, NEW.notas);
-    UPDATE valuaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_valuacion = NEW.id_valuacion;
+    UPDATE valuaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_valuacion = NEW.id_valuacion;
 END;
 
 CREATE VIEW vw_reporte_valuaciones AS
@@ -6930,7 +7015,7 @@ CREATE TRIGGER trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
 FOR EACH ROW BEGIN
     INSERT INTO hist_aprobacion_jd (id_aprobacion_jd, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, fecha_presupuesto_base, presupuesto_base_bs, tipo_cambio, presupuesto_base_usd, id_plan, descripcion_proceso, cantidad_frentes, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, tiempo_ejecucion, observaciones, notas)
     VALUES (NEW.id_aprobacion_jd, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.fecha_presupuesto_base, NEW.presupuesto_base_bs, NEW.tipo_cambio, NEW.presupuesto_base_usd, NEW.id_plan, NEW.descripcion_proceso, NEW.cantidad_frentes, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.tiempo_ejecucion, NEW.observaciones, NEW.notas);
-    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_DATE WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
+    UPDATE aprobacion_jd SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_aprobacion_jd = NEW.id_aprobacion_jd;
 END;
 
 CREATE VIEW vw_reporte_aprobacion_jd AS
@@ -7037,7 +7122,7 @@ CREATE TRIGGER trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
 FOR EACH ROW BEGIN
     INSERT INTO hist_certificacion_bdu (id_certificacion_bdu, id_gerencia, id_superintendencia, id_emisor, id_documento, presupuesto_base_total_usd, monto_adjudicado_total_usd, monto_contrato, monto_ejecutado, monto_pagado, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_certificacion_bdu, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.presupuesto_base_total_usd, NEW.monto_adjudicado_total_usd, NEW.monto_contrato, NEW.monto_ejecutado, NEW.monto_pagado, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_DATE WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
+    UPDATE certificacion_bdu SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_certificacion_bdu = NEW.id_certificacion_bdu;
 END;
 
 CREATE VIEW vw_reporte_certificacion_bdu AS
@@ -7135,7 +7220,7 @@ CREATE TRIGGER trg_vac_auditoria AFTER UPDATE ON vacaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_vacaciones (id_vacacion, id_gerencia, id_superintendencia, id_emisor, documento, anio, cantidad_dias, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_vacacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.anio, NEW.cantidad_dias, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
-    UPDATE vacaciones SET fecha_actualizacion = CURRENT_DATE WHERE id_vacacion = NEW.id_vacacion;
+    UPDATE vacaciones SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_vacacion = NEW.id_vacacion;
 END;
 
 CREATE VIEW vw_reporte_vacaciones AS
@@ -7223,7 +7308,7 @@ CREATE TRIGGER trg_rep_auditoria AFTER UPDATE ON reposos_medicos
 FOR EACH ROW BEGIN
     INSERT INTO hist_reposos_medicos (id_reposo_medico, id_gerencia, id_superintendencia, id_emisor, documento, dias_periodo, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, observaciones, notas)
     VALUES (NEW.id_reposo_medico, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.documento, NEW.dias_periodo, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.observaciones, NEW.notas);
-    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_DATE WHERE id_reposo_medico = NEW.id_reposo_medico;
+    UPDATE reposos_medicos SET fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_reposo_medico = NEW.id_reposo_medico;
 END;
 
 CREATE VIEW vw_reporte_reposos_medicos AS

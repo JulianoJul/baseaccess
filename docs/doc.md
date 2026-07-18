@@ -312,6 +312,23 @@ Se recibieron 3 auditorías externas (Qwen, Kimi, GLM) con un total de ~70 halla
 | 18 | `dayNames` duplicado "M" para Lunes y Miércoles | `app.go` | "L", "M", **"X"**, "J", "V" |
 | 19 | `pushModal` fuga de event listeners por apertura | `templates/index.html` | Listener único global con delegación de eventos |
 | 20 | `crearBackup` corrupción de bak.1 si el sistema crashea durante la copia | `app.go` | Copia primero a `bak.tmp`, renombra solo si exitoso |
+| — | — | — | — |
+| 21 | `formatNumGo` pérdida de signo negativo en `-0.50` → `"0,50"` | `handler.go` | Signo capturado con `rounded < 0` antes de truncar a int64 |
+| 22 | `safeHTML`/`safeJS`/`safeURL` desactivaban escape automático (XSS) | `handler.go` | Eliminadas del FuncMap |
+| 23 | `id_estatus` se insertaba NULL al enviar vacío (bypasea DEFAULT 1) | `app.go` | UPDATE dinámico: solo incluye columnas con valor no-nulo |
+| 24 | UPDATE sobrescribía campos vacíos con NULL (pérdida de datos) | `app.go` | SET dinámico solo para columnas no-nulas |
+| 25 | `DescargarBD` sin WAL checkpoint → copia inconsistente | `app.go` | `PRAGMA wal_checkpoint(TRUNCATE)` antes de copiar |
+| 26 | `parseSpanishNumber` convertía `1.23` → `123` | `handler.go` | Solo procesa si contiene coma (formato español) |
+| 27 | `queryRows` devolvía `nil` en templates → `"<nil>"` visible | `app.go` | Default `nil` → `""` |
+| 28 | `rows.Err()` no chequeado en `ObtenerCatalogos`, `ObtenerExpedientesDisponiblesRuta` | `app.go` | `rows.Err()` post-iteración |
+| 29 | `window.PAGE_DATA.ActiveModule` no existía → JS siempre `'expedientes'` | `templates/index.html` | `ActiveModule` agregado al objeto JS |
+| 30 | `handleCSV` construía CSV manualmente (comillas/saltos de línea frágiles) | `handler.go` | Migrado a `encoding/csv` |
+| 31 | `columnasOrdenValidas` permitía `id_expediente` cross-module (error 500) | `app.go` | Reducido solo a `fecha_creacion`, `fecha_actualizacion` |
+| 32 | Gantt 60 días calendario (~42 hábiles) vs 60 hábiles esperados | `app.go` | `bizTarget=60` iteración hasta alcanzar |
+| 33 | `ObtenerRutaProcesosData` loop O(n×m) en match cronograma | `app.go` | `map[int]*Proceso` O(1) |
+| 34 | Falta `_busy_timeout` en DSN → posibles `database is locked` | `app.go` | `_busy_timeout=5000` |
+| 35 | `go 1.25.0` en go.mod (no existe como toolchain) | `go.mod` | `go 1.23.0` |
+| 36 | Error ignorado en `handleCargarExpediente` | `handler.go` | Log agregado |
 
 ## Migración a Go html/template — Estado
 

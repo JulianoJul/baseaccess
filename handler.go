@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -32,9 +33,6 @@ type TemplateHandler struct {
 
 func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 	funcMap := template.FuncMap{
-		"safeHTML":   func(s string) template.HTML { return template.HTML(s) },
-		"safeURL":    func(s string) template.URL { return template.URL(s) },
-		"safeJS":     func(s string) template.JS { return template.JS(s) },
 		"add":        func(a, b int) int { return a + b },
 		"sub":        func(a, b int) int { return a - b },
 		"seq":        seq,
@@ -189,15 +187,13 @@ func formatNumGo(v interface{}) string {
 		return fmt.Sprintf("%v", v)
 	}
 	rounded := math.Round(f*100) / 100
+	isNegative := rounded < 0
+	if isNegative {
+		rounded = -rounded
+	}
 	intPart := int64(rounded)
-	decPart := int64(math.Abs(rounded-float64(intPart))*100 + 0.5)
-	if decPart < 0 {
-		decPart = -decPart
-	}
+	decPart := int64((rounded-float64(intPart))*100 + 0.5)
 	intStr := strconv.FormatInt(intPart, 10)
-	if intPart < 0 {
-		intStr = intStr[1:]
-	}
 	var withDots strings.Builder
 	for i, c := range intStr {
 		if i > 0 && (len(intStr)-i)%3 == 0 {
@@ -206,7 +202,7 @@ func formatNumGo(v interface{}) string {
 		withDots.WriteByte(byte(c))
 	}
 	result := withDots.String()
-	if intPart < 0 {
+	if isNegative {
 		result = "-" + result
 	}
 	return result + "," + fmt.Sprintf("%02d", decPart)
@@ -223,8 +219,10 @@ var columnasNumericas = map[string]bool{
 }
 
 func parseSpanishNumber(s string) string {
-	s = strings.ReplaceAll(s, ".", "")
-	s = strings.Replace(s, ",", ".", 1)
+	if strings.Contains(s, ",") {
+		s = strings.ReplaceAll(s, ".", "")
+		s = strings.Replace(s, ",", ".", 1)
+	}
 	return s
 }
 
@@ -508,7 +506,10 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 	if idStr != "" && idStr != "null" {
 		id, err := strconv.Atoi(idStr)
 		if err == nil && id > 0 {
-			registro, _ = h.app.ObtenerFilaPorId(modulo, id)
+			registro, err = h.app.ObtenerFilaPorId(modulo, id)
+			if err != nil {
+				log.Printf("handleCargarExpediente: error obteniendo registro %d en %s: %v", id, modulo, err)
+			}
 		}
 	}
 
@@ -861,7 +862,8 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	sort.Strings(headers)
 
-	csv := strings.Join(headers, ",") + "\n"
+	wr := csv.NewWriter(w)
+	wr.Write(headers)
 	for _, row := range data {
 		vals := make([]string, len(headers))
 		for i, h := range headers {
@@ -869,17 +871,13 @@ func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
 			if v == nil {
 				vals[i] = ""
 			} else {
-				s := fmt.Sprintf("%v", v)
-				if strings.ContainsAny(s, ",\"\n\r") {
-					s = "\"" + strings.ReplaceAll(s, "\"", "\"\"") + "\""
-				}
-				vals[i] = s
+				vals[i] = fmt.Sprintf("%v", v)
 			}
 		}
-		csv += strings.Join(vals, ",") + "\n"
+		wr.Write(vals)
 	}
-
-	if _, err := w.Write([]byte(csv)); err != nil {
+	wr.Flush()
+	if err := wr.Error(); err != nil {
 		log.Printf("csv: error escribiendo respuesta: %v", err)
 	}
 }
