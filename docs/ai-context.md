@@ -16,7 +16,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + HTMX**, ahora **multi-modulo** (9 tipos de documentos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql` + `data/sql/03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar fija tipo hojas de cálculo con pestañas de módulos y Ruta Procesos a la derecha. Ruta Procesos permite agregar expedientes existentes como procesos mediante selector. Rama `wails-migration` activa. Archivos legacy de Electron/Tauri eliminados (~493 MB).
+App con **Wails v2 + Go html/template + HTMX**, ahora **multi-modulo** (9 tipos de documentos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql` + `data/sql/03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar fija tipo hojas de cálculo con pestañas de módulos y Ruta Procesos a la derecha. Ruta Procesos permite agregar expedientes existentes como procesos mediante selector. Rama `wails-migration` activa. Archivos legacy de Electron/Tauri eliminados (~493 MB). Auditoría completa aplicada: seguridad (SQLi, XSS, race conditions), concurrencia (sync/atomic), backup (WAL checkpoint), y correcciones de lógica (UPDATE devuelve id real, ids int64, transacciones seguras).
 
 ## Archivos Clave
 | Archivo | Para qué |
@@ -27,7 +27,6 @@ App con **Wails v2 + Go html/template + HTMX**, ahora **multi-modulo** (9 tipos 
 | `app.go` | Backend Go: App struct, 12 métodos CRUD SQLite |
 | `go.mod` | Dependencias Go (wails/v2 + go-sqlite3) |
 | `wails.json` | Config proyecto Wails |
-| `frontend/ruta-procesos-data.js` | Datos Gantt para Ruta Procesos (legacy, ya no se usa) |
 | `docs/doc.md` | Documentación + changelog |
 | `docs/decisiones.md` | ADR: historial de decisiones técnicas |
 | `docs/funciones.md` | Catálogo SPOT de funciones |

@@ -8,7 +8,7 @@
 
 | Capa | Tecnología |
 |------|-----------|
-| Backend | Go 1.21+, Wails v2 |
+| Backend | Go 1.25+, Wails v2 |
 | SQLite | mattn/go-sqlite3 (driver nativo) |
 | Frontend | Go `html/template` + HTMX + Tailwind CSS + Font Awesome |
 | Renderizado | `TemplateHandler` (http.Handler) intercepta AssetServer |
@@ -51,7 +51,6 @@
 │  └── ... Modulos map (9 modulos)                  │
 ├──────────────────────────────────────────────────┤
 │  frontend/ (estáticos embebidos)                  │
-│  ├── ruta-procesos-data.js (datos Gantt)          │
 │  └── vendor/ (Tailwind, FontAwesome, HTMX, styles)│
 └──────────────────────────────────────────────────┘
 ```
@@ -98,7 +97,6 @@ baseaccess/
 │   ├── ruta_procesos.html  # Ruta de procesos Gantt
 │   └── pendientes.html     # Docs pendientes
 ├── frontend/               # Estáticos embebidos (CSS, JS, fuentes)
-│   ├── ruta-procesos-data.js  # Datos Gantt para Ruta Procesos (legacy)
 │   └── vendor/             # Dependencias locales (sin CDN)
 │       ├── tailwind.min.css    # Tailwind CSS build estático
 │       ├── styles.css          # Estilos adicionales
@@ -199,6 +197,8 @@ El binario es 100% portable: copiar `build/bin/` a cualquier máquina y ejecutar
 
 **Norma:** Antes de cada `GuardarFila()`, `EliminarFila()`, `GuardarNuevoCatalogo()` y `OptimizarBD()`, Go crea una copia de seguridad del .db actual con rotación de N backups (`.bak.1` más reciente, `.bak.N` más antiguo). Implementado en `app.go`.
 
+**Importante modo WAL:** La BD opera en modo WAL (`_journal_mode=WAL`). Antes de copiar el archivo se ejecuta `PRAGMA wal_checkpoint(TRUNCATE)` para forzar el volcado del WAL al archivo principal, garantizando que el backup sea consistente.
+
 ### 2. SoC — Separation of Concerns
 
 Separar estrictamente:
@@ -265,6 +265,23 @@ Workflow: `.github/workflows/build.yml`
 | 32 | `data/sql/04_ruta_procesos_datos.sql` | **Eliminado**: seed data con IDs fijos (32-36) que podían no existir en la BD del usuario | Los procesos se agregan manualmente desde el selector |
 | 33 | `Makefile` | Limpiado: eliminados targets legacy de Electron y Tauri | Proyecto Wails-only |
 | 34 | `node_modules/`, `src/`, `src-tauri/`, `dist/`, `main.js`, `package.json`, `package-lock.json` | **Eliminados**: ~493 MB de archivos legacy de Electron/Tauri | Limpieza post-migración |
+| 35 | `frontend/index.html`, `frontend/schema-config.js`, `frontend/ruta-procesos-data.js` | **Eliminados**: frontend legacy con bindings a métodos Go inexistentes, schema-config solo usado por index.html, Gantt hardcodeado (ahora server-side) | Limpieza de zombies post-migración |
+| 36 | `app.go` | `backupMaxCopies` → `sync/atomic.Int64` | Race condition |
+| 37 | `app.go` | WAL checkpoint (`PRAGMA wal_checkpoint(TRUNCATE)`) antes de backup | Consistencia en modo WAL |
+| 38 | `app.go` | Backup verifica bytes copiados vs tamaño original | Detección de truncamiento |
+| 39 | `app.go` | `ObtenerColumnasVista`: validación contra whitelist de vistas conocidas | SQL injection |
+| 40 | `app.go` | `GuardarFila`: id `float64` → `int64`; UPDATE devuelve id real, no `LastInsertId()=0` | Precisión + lógica |
+| 41 | `app.go` | `GuardarFila`: valores vacíos como `""` en vez de `nil` | Violación NOT NULL |
+| 42 | `app.go` | `EliminarFila`: `defer Rollback` condicional post-commit | Transacción segura |
+| 43 | `app.go` | `ObtenerCatalogos`: error loop antes de `rows.Close()` | Resource leak |
+| 44 | `app.go` | `buildGanttColumns`: fechas dinámicas desde semana actual | Hardcode 2026 |
+| 45 | `handler.go` | `handleEliminarExpediente`: `r.FormValue` → `r.PostFormValue` | Seguridad (solo POST) |
+| 46 | `handler.go` | `handleCSV`: soporta `?modulo=...` | Hardcode a expedientes |
+| 47 | `handler.go` | `handleExportarExcel`: `f.Close()` + log error escritura | Resource leak |
+| 48 | `handler.go` | `handleCSV`: verifica error de `w.Write()` | Error silencioso |
+| 49 | `templates/index.html` | `dbPath` escapado con `jsonEncode` | XSS |
+| 50 | `templates/index.html` | `convertirMoneda`: `try/finally` para liberar lock | Lock infinito en error |
+| 51 | `templates/index.html` | Referencia a `ruta-procesos-data.js` eliminada | Archivo eliminado |
 
 
 ## Migración a Go html/template — Estado
@@ -295,4 +312,4 @@ Workflow: `.github/workflows/build.yml`
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
-| `/api/csv` | GET | Descarga CSV de expedientes |
+| `/api/csv` | GET | Descarga CSV del módulo indicado (`?modulo=...`) |

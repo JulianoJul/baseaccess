@@ -15,16 +15,17 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `ObtenerRutaProcesos()` | — | JOIN completo para ruta de procesos (especifico de expedientes) |
 | `ObtenerDocumentosPendientes()` | — | WHERE estatus <> FIRMADO (especifico de expedientes) |
 | `ObtenerHistorialFila(moduloKey, id)` | `moduloKey`, `id`: int | SELECT cfg.QueryHistorial (JOIN multi-tabla segun modulo) |
-| `GuardarFila(moduloKey, data)` | `moduloKey`, `data`: map[string]interface{} | INSERT o UPDATE segun presencia de cfg.IDColumna |
-| `EliminarFila(moduloKey, id)` | `moduloKey`, `id`: int64 | DELETE en transaccion (historial + modulo) |
+| `GuardarFila(moduloKey, data)` | `moduloKey`, `data`: map[string]interface{} | INSERT o UPDATE segun presencia de cfg.IDColumna. UPDATE devuelve el id real (no `LastInsertId()=0`). Id como `int64`. Backup WAL checkpoint automático |
+| `EliminarFila(moduloKey, id)` | `moduloKey`, `id`: int64 | DELETE en transacción (historial + modulo) con Rollback condicional post-Commit |
 | `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 catalogos) |
-| `OptimizarBD()` | — | Ejecuta VACUUM |
+| `OptimizarBD()` | — | Ejecuta VACUUM con backup WAL checkpoint previo |
 | `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catalogo (whitelist tabla/columna) |
-| `AbrirDialogoBD()` | — | Abre dialogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
-| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre dialogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
+| `AbrirDialogoBD()` | — | Abre diálogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
+| `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre diálogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
 | `ObtenerExpedientesDisponiblesRuta()` | — | Retorna JSON con expedientes no agregados aún a Ruta Procesos |
-| `SetBackupMaxCopies(n)` | `n`: int | Configura numero de backups rotativos (1-20) |
-| `GetBackupMaxCopies()` | — | Retorna numero actual de backups |
+| `ObtenerColumnasVista(vista)` | `vista`: string (validada contra whitelist) | Retorna nombres de columna de una vista SQL |
+| `SetBackupMaxCopies(n)` | `n`: int | Configura número de backups rotativos (1-20). Thread-safe via `atomic.Int64` |
+| `GetBackupMaxCopies()` | — | Retorna número actual de backups. Thread-safe |
 | `DescargarBD(destPath)` | `destPath`: string | Copia el .db actual a otra ruta |
 
 ## Data Layer — Frontend (HTMX + JS minimo)

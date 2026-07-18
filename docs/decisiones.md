@@ -186,4 +186,39 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `app.go`: `Modulos map[string]ModuloConfig` (9 entradas). API primaria renombrada: `ObtenerFilas/FilaPorId/GuardarFila/EliminarFila/ObtenerHistorialFila` con `moduloKey` como primer arg. Wrappers legacy `*Expediente*` eliminados.
   - `handler.go`: ruta nueva `/api/cambiar-modulo`. `handleCSV` migrado. `handleHistorial` pasa `ActiveModule` al template.
   - `templates/`: 18 nuevos templates (9 `tabla_<key>.html` + 9 `form_<key>.html`). `historial.html` condicional (`{{if ne .ActiveModule "reposos_medicos"}}` para columna Receptor) y muestra columna Notas. `index.html`: botonera inferior `{{range $key, $cfg := .Modulos}}`, titulo de modal dinamico via `window.PAGE_DATA.modulos`.
-  - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso (referencia a `formulario.html` en index.html removida).
+   - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso (referencia a `formulario.html` en index.html removida).
+
+---
+
+## DEC-015: Auditoría de seguridad y correcciones post-migración
+
+- **Origen:** `[Auditoría del código]`
+- **Contexto y Causa:** Tras la migración a Wails v2 y la limpieza de archivos legacy de Electron/Tauri, se realizó una auditoría exhaustiva del código que encontró vulnerabilidades críticas (XSS, SQLi potencial, race conditions) y errores de lógica.
+- **Alternativas evaluadas:**
+  - Dejar sin corregir — descartado: riesgo de seguridad en producción
+  - Corrección selectiva — se corrigieron todos los hallazgos críticos y altos
+- **Impacto:**
+  - `app.go`:
+    - `backupMaxCopies` migrado de `var` global a `sync/atomic.Int64` (race condition)
+    - Backup ahora ejecuta `PRAGMA wal_checkpoint(TRUNCATE)` antes de copiar (consistencia en modo WAL)
+    - Backup verifica bytes copiados vs tamaño original (detección de truncamiento)
+    - `ObtenerColumnasVista`: validación contra whitelist de vistas conocidas (SQLi)
+    - `GuardarFila`: id cambiado de `float64` a `int64` (precisión >2^53)
+    - `GuardarFila`: UPDATEs devuelven el id real, no `res.LastInsertId()=0`
+    - `GuardarFila`: valores vacíos se envían como `""` en vez de `nil` (evita violación NOT NULL)
+    - `EliminarFila`: `defer tx.Rollback()` condicional post-commit (rollback solo si error)
+    - `ObtenerCatalogos`: manejo correcto de error del loop antes de `rows.Close()`
+    - `buildGanttColumns`: fechas dinámicas desde la semana actual (no hardcodeadas a 2026)
+  - `handler.go`:
+    - `handleEliminarExpediente`: `r.FormValue` → `r.PostFormValue` (solo POST body)
+    - `handleCSV`: soporta parámetro `?modulo=...` (ya no hardcodeado a expedientes)
+    - `handleExportarExcel`: `f.Close()` al final + log de error de escritura
+    - `handleCSV`: verifica error de `w.Write()`
+  - `templates/index.html`:
+    - `dbPath` escapado con `jsonEncode` en vez de interpolación directa (XSS)
+    - `convertirMoneda`: envuelto en `try/finally` (no queda lockeado en error)
+  - Archivos eliminados:
+    - `frontend/index.html`: frontend legacy con bindings a métodos Go inexistentes
+    - `frontend/schema-config.js`: solo referenciado por `frontend/index.html`
+    - `frontend/ruta-procesos-data.js`: datos Gantt hardcodeados (ahora generados server-side)
+    - Referencia a `ruta-procesos-data.js` removida de `templates/index.html`
