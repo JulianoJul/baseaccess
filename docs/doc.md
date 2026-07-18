@@ -354,6 +354,11 @@ En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos c
 | 43 | `filterColMap` en exportar-excel solo cubre columnas de expedientes (otros módulos excluyen todas las filas) | `handler.go` | Si `row[rowKey]` no existe, saltar filtro |
 | 44 | `PAGE_DATA.modulos` filtra `QueryHistorial` (SQL interno) al cliente | `handler.go` | Copia de Modulos sin `QueryHistorial` para frontend |
 | 45 | `fecha_recibido` vacío comparado con fechas (`"" < "2024-01-01" = true`) | `handler.go` | `fr != ""` antes de comparar |
+| 46 | Campos `nil` omitidos en UPDATE: usuario no puede limpiar/borrar campos | `app.go` | `col = NULL` incluido en SET cuando `vals[i] == nil` |
+| 47 | `nota` NULL en cronograma causa `rows.Scan` fail → fila descartada (pérdida silenciosa) | `app.go` | `nota` cambiado de `string` a `sql.NullString` |
+| 48 | `trg_exp_auditoria` no actualiza `fecha_actualizacion` (los otros 8 módulos sí) | `01_master_control_docs_presidencia.sql` | Agregado `UPDATE expedientes SET fecha_actualizacion = CURRENT_DATE` |
+| 49 | `handleCSV` ignora filtros: exporta dataset completo sin respetar fecha/catálogo/gerencia | `handler.go` | Misma lógica de filtrado que `handleExportarExcel` |
+| 50 | Templates legados `formulario.html` y `tabla_filas.html` cargados sin uso | `templates/`, `Makefile` | Eliminados |
 
 ### Rutas API del handler
 

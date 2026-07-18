@@ -186,7 +186,7 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `app.go`: `Modulos map[string]ModuloConfig` (9 entradas). API primaria renombrada: `ObtenerFilas/FilaPorId/GuardarFila/EliminarFila/ObtenerHistorialFila` con `moduloKey` como primer arg. Wrappers legacy `*Expediente*` eliminados.
   - `handler.go`: ruta nueva `/api/cambiar-modulo`. `handleCSV` migrado. `handleHistorial` pasa `ActiveModule` al template.
   - `templates/`: 18 nuevos templates (9 `tabla_<key>.html` + 9 `form_<key>.html`). `historial.html` condicional (`{{if ne .ActiveModule "reposos_medicos"}}` para columna Receptor) y muestra columna Notas. `index.html`: botonera inferior `{{range $key, $cfg := .Modulos}}`, titulo de modal dinamico via `window.PAGE_DATA.modulos`.
-   - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso (referencia a `formulario.html` en index.html removida).
+   - `templates/formulario.html` y `templates/tabla_filas.html`: legados sin uso; eliminados en commit posterior.
 
 ---
 
