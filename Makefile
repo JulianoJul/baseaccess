@@ -33,10 +33,11 @@ combine:
 	  echo "" && echo "=== templates/form_vacaciones.html ===" && cat templates/form_vacaciones.html && \
 	  echo "" && echo "=== templates/tabla_vacaciones.html ===" && cat templates/tabla_vacaciones.html && \
 	  echo "" && echo "=== templates/form_reposos_medicos.html ===" && cat templates/form_reposos_medicos.html && \
-	  echo "" && echo "=== templates/tabla_reposos_medicos.html ===" && cat templates/tabla_reposos_medicos.html; \
+	  echo "" && echo "=== templates/tabla_reposos_medicos.html ===" && cat templates/tabla_reposos_medicos.html && \
+	  echo "" && echo "=== docs/falsos_positivos.md ===" && cat docs/falsos_positivos.md; \
 	  $(foreach f,$(SQL_FILES), echo "" && echo "=== $(f) ===" && cat $(f) &&) :; \
 	} > combined.txt
-	@echo "combined.txt generado (codigo + templates + SQL)"
+	@echo "combined.txt generado (codigo + templates + SQL + falsos_positivos)"
 
 clean:
 	rm -f combined.txt
