@@ -370,6 +370,7 @@ En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos c
 | 59 | `fecha_actualizacion`: CURRENT_TIMESTAMP vs CURRENT_DATE inconsistente (9 módulos vs Go) | SQL + `app.go` | Unificado a `CURRENT_DATE` en todos |
 | 60 | Scripts SQL no idempotentes; `Tablas8.sql` legado | `data/sql/` | `IF NOT EXISTS` en CREATEs; renombrado a `.legacy` |
 | 61 | `withTx` helper DRY: boilerplate de transacción duplicado | `app.go` | `withTx(func(tx *sql.Tx) error) error` |
+| 62 | `_skip_audit` TEMP TABLE: conexiones del pool no comparten tablas TEMP → INSERT falla en producción | `01_*.sql` | Cambiado de `CREATE TEMP TABLE` a `CREATE TABLE` regular |
 
 ### Rutas API del handler
 

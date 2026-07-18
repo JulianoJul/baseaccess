@@ -326,12 +326,46 @@ Los 9 módulos tienen: tabla + hist + AFTER INSERT + AFTER UPDATE + vista + índ
 
 ## Orden sugerido de ejecución
 
-1. **P0-1** (Gantt vacío) — una línea de SQL; recupera 95 registros invisibles
-2. **P0-3** (doble historial) — revertir/rediseñar el UPDATE interno del trigger INSERT
-3. **P0-2 + P1-2** (conversión stale) — mismo fix en dos funciones JS
-4. **P0-4 + P1-6 + P1-7** (semántica de filtros) — sale gratis con **P2-1** (extracción del pipeline de export; evaluar eliminar `/api/csv` que no tiene caller)
-5. **P0-5 + P0-6** (constraints cronograma) — dos líneas de DDL
-6. **P1-1 + P3-2** (estatus por nombre) — decidir IDs literales vs guard
-7. **P2-2 + P3-1 + P3-5** (helper de módulo + constantes) — fundación para el resto
-8. **P2-3** (templates `{{define}}`) — refactor grande, hacer al final con todo lo demás estable
-9. Resto P1/P3/P4 en cualquier orden
+1. **P0-1** ✅ (Gantt vacío) — `strftime` en query
+2. **P0-3** ✅ (doble historial) — temp table `_skip_audit` + `WHEN`
+3. **P0-2 + P1-2** ✅ (conversión stale) — `_parseValue()` desde `el.value`
+4. **P0-4 + P1-6 + P1-7** ✅ (semántica de filtros) — `filasParaExportar(r)` unificado
+5. **P0-5 + P0-6** ✅ (constraints cronograma) — FK + UNIQUE
+6. **P1-1 + P3-2** ✅ (estatus por nombre→ID) — IDs 1/2 literales + `estatusFirmado` const
+7. **P2-2 + P3-1 + P3-5** ✅ (helper de módulo + constantes) — `moduloDesdeRequest`, `fechaLayout`, `dsnParams`
+8. **P2-3** (templates `{{define}}`) — pendiente, refactor grande
+9. **P1-16 + P1-17 + P2-6 + P3-3 + P3-9 + P1-20 + P4-10** ✅ — lote final
+
+---
+
+## Pendientes (no implementados aún)
+
+### 🔴 ALTA — Deuda funcional
+
+- **P1-12**: `documento` como TEXT libre en 5 módulos vs FK en 4. Mismo concepto, dos modelos. Requiere migración de datos.
+- **P2-3**: Templates forms 72% / tablas 71% de duplicación (392 + 523 líneas idénticas). Extraer `{{define "form_footer"}}`, `{{define "select_catalogo"}}`, `{{define "tabla_shell"}}`. Estimado: -60% líneas por template.
+- **P2-4**: 10 `QueryHistorial` casi idénticos. Requiere query builder desde spec por módulo.
+
+### 🟡 MEDIA — Hardcode / Robustez
+
+- **P1-11**: Triggers de auditoría insertan en UPDATEs no-op. Agregar `WHEN` comparando OLD vs NEW.
+- **P1-9**: `sanitizarOrden` whitelist valida columnas de tabla pero ORDER BY corre contra vista. Whitelist de columnas de vista real.
+- **P2-7**: Backup path+copia duplicados entre `crearBackup` y `DescargarBD`. `backupPath(i)` + `copyDBCheckpointed(dst)`.
+- **P3-4**: Comentario junto a `DEFAULT 1` en 9 tablas declarando contrato del seed `id_estatus`.
+- **P3-5**: `row["fecha_recibido"]` como columna de filtro universal → `const colFechaFiltro` o `FechaColumna` en `ModuloConfig`.
+- **P3-6**: Magic numbers JS (pageSize 10, maxVisible 7, timeouts, 76 widths inline). `const CONFIG` o CSS.
+- **P3-7**: Tres fuentes de verdad para `columna→catálogo`: JS `catalogKeys`, Go `filterColMap`, Go `catalogosValidos`. Servir desde Go vía `PAGE_DATA`.
+- **P3-8**: Placeholders COALESCE inconsistentes (`SIN_SOLPED`, `NO POSEE`, `NO APLICA`) + `nro_contrato_sap` sin COALESCE.
+- **P3-10**: Dos vocabularios de estatus paralelos sin mapeo (leyenda Gantt vs `cat_estatus_detalle`).
+
+### ⚪ BAJA — Nicho / Cosmético
+
+- **P4-1**: `http.Error` después de `ExecuteTemplate` — doble write. Render a `bytes.Buffer`.
+- **P4-2**: Formato de error inconsistente: JSON vs texto plano para fallos idénticos.
+- **P4-3**: Rama muerta JS: `tabla-cuerpo` en `htmx:afterSwap`.
+- **P4-4**: Proceso Ruta recién agregado: "SIN SOLPED" + descripción redundante hasta recargar.
+- **P4-5**: Valores muertos `'usd_presup'`/`''` en `convertirMoneda`.
+- **P4-6**: DSN: `filePath+"?..."` rompe con `?` en nombre de archivo (diálogo nativo podría darlo). Escapar/rechazar.
+- **P4-7**: Sin CHECK constraints (fechas, montos, cantidades). Defense-in-depth.
+- **P4-8**: `reposos_medicos` rompe el set común de columnas (sin `id_receptor`/`fecha_devuelto`). Alinear si el flujo lo requiere.
+- **P4-9**: `ruta_procesos_*` sin historial/trigger → `cronograma` es la única tabla sin audit trail.

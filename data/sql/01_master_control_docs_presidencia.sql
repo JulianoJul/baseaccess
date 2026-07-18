@@ -150,9 +150,9 @@ CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(
 -- 🔹 6. TRIGGERS DE AUDITORÍA
 -- ==========================================
 
--- Tabla temporal para evitar que trg_exp_auditoria se dispare
+-- Tabla para evitar que trg_exp_auditoria se dispare
 -- durante las correcciones automáticas del trigger INSERT.
-CREATE TEMP TABLE IF NOT EXISTS _skip_audit (flag INTEGER);
+CREATE TABLE IF NOT EXISTS _skip_audit (flag INTEGER);
 
 -- Snapshot inicial al crear expediente
 CREATE TRIGGER IF NOT EXISTS trg_exp_snapshot_inicial AFTER INSERT ON expedientes

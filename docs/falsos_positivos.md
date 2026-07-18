@@ -136,5 +136,8 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 ## `exportFilterColMap` duplicado entre handlers
 - Corregido: extraído a variable package-level `exportFilterColMap` compartida por `filasParaExportar`.
 
+## `_skip_audit` como TEMP TABLE (conexión perdida entre pool y trigger)
+- Corregido: la tabla era `CREATE TEMP TABLE` (por-conexión, se perdía al cambiar de conexión en el pool). Cambiada a tabla regular. Si un auditor reporta que las conexiones del pool no ven la tabla, fue corregido.
+
 ## `modulosSinQueries` — `QueryHistorial` expuesto
 - Corregido: `modulosSinQueries()` helper blanquea `QueryHistorial` antes de pasar `Modulos` a templates.
