@@ -1,4 +1,33 @@
 <div id="gantt-chart-container" class="space-y-6">
+    <!-- Hojas y Navegación -->
+    <div class="card bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group"></i> Hoja Actual:</h3>
+            <select id="gantt-hoja-select" class="input w-48 text-sm py-1 h-8" onchange="cambiarHoja()">
+                {{ if .Hojas }}
+                    {{ range .Hojas }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.CurrentHoja.ID }}selected{{ end }}>{{ .Nombre }}</option>
+                    {{ end }}
+                {{ else }}
+                    <option value="0">Sin hojas</option>
+                {{ end }}
+            </select>
+            <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-teal-400" title="Nueva Hoja">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button onclick="eliminarHojaActual()" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar Hoja">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="cambiarSemanas(-4)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-double-left mr-1"></i> -4 Semanas</button>
+            <button onclick="cambiarSemanas(-1)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-left"></i></button>
+            <span class="text-gray-400 text-sm font-mono bg-gray-900 px-3 py-1 rounded" id="gantt-offset-display">Offset: {{ .OffsetWeeks }}</span>
+            <button onclick="cambiarSemanas(1)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-right"></i></button>
+            <button onclick="cambiarSemanas(4)" class="btn btn-secondary py-1 px-3 text-xs">+4 Semanas <i class="fas fa-angle-double-right ml-1"></i></button>
+        </div>
+    </div>
+
     <div class="card">
         <div class="flex items-center justify-between mb-4">
             <h3 class="legend legend-teal flex items-center gap-1.5">
@@ -24,6 +53,57 @@
     </div>
     <div id="gantt-process-content"></div>
 
+    <div class="flex justify-end mt-4">
+        <button onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary text-sm">
+            <i class="fas fa-palette mr-1"></i> Añadir Leyenda Personalizada
+        </button>
+    </div>
+
+    <!-- Modal Crear Hoja -->
+    <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group mr-2"></i>Nueva Hoja</h3>
+                <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="label">Nombre de la Hoja</label>
+                    <input type="text" id="nueva-hoja-nombre" class="input" placeholder="Ej: Trimestre 1">
+                </div>
+                <div>
+                    <label class="label">Fecha Inicio</label>
+                    <input type="date" id="nueva-hoja-inicio" class="input">
+                </div>
+                <div>
+                    <label class="label">Fecha Fin</label>
+                    <input type="date" id="nueva-hoja-fin" class="input">
+                </div>
+                <button onclick="crearHoja()" class="btn btn-primary w-full mt-4">Crear Hoja</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Leyenda -->
+    <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Nueva Leyenda</h3>
+                <button onclick="toggleModal('crear-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="label">Nombre (Estatus)</label>
+                    <input type="text" id="nueva-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
+                </div>
+                <div>
+                    <label class="label">Color HEX</label>
+                    <input type="color" id="nueva-leyenda-color" class="input h-10 w-full" value="#FFFFFF">
+                </div>
+                <button onclick="crearLeyenda()" class="btn btn-primary w-full mt-4">Guardar Leyenda</button>
+            </div>
+        </div>
+    </div>
     <!-- Modal Editar Cronograma -->
     <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
         <div class="relative modal-content w-full max-w-sm">
@@ -56,8 +136,87 @@
 <script>
 (function() {
     const data = {{jsonEncode .}};
-    const { legend, columns: ganttColumns, processes } = data;
+    const { legend, columns: ganttColumns, processes, offset_weeks } = data;
     var formVisible = false;
+
+    window.toggleModal = function(id) {
+        document.getElementById(id).classList.toggle('hidden');
+    };
+
+    window.cambiarHoja = function() {
+        var idHoja = document.getElementById('gantt-hoja-select').value;
+        if (!idHoja || idHoja == "0") return;
+        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=0', '#main-content');
+    };
+
+    window.cambiarSemanas = function(delta) {
+        var idHoja = document.getElementById('gantt-hoja-select').value;
+        if (!idHoja || idHoja == "0") return;
+        var newOffset = (offset_weeks || 0) + delta;
+        if (newOffset < 0) newOffset = 0;
+        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + newOffset, '#main-content');
+    };
+
+    window.eliminarHojaActual = function() {
+        var idHoja = document.getElementById('gantt-hoja-select').value;
+        if (!idHoja || idHoja == "0") return;
+        if (!confirm('¿Seguro que deseas eliminar esta hoja y TODOS sus procesos?')) return;
+        fetch('/api/ruta-procesos-hoja-eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + idHoja
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                htmx.ajax('GET', '/api/ruta-procesos', '#main-content');
+            } else {
+                alert(res.error || 'Error eliminando hoja');
+            }
+        });
+    };
+
+    window.crearHoja = function() {
+        var nombre = document.getElementById('nueva-hoja-nombre').value;
+        var inicio = document.getElementById('nueva-hoja-inicio').value;
+        var fin = document.getElementById('nueva-hoja-fin').value;
+        if (!nombre || !inicio || !fin) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-hoja-crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'nombre=' + encodeURIComponent(nombre) + '&fecha_inicio=' + inicio + '&fecha_fin=' + fin
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('crear-hoja-modal');
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + res.id, '#main-content');
+            } else {
+                alert(res.error || 'Error creando hoja');
+            }
+        });
+    };
+
+    window.crearLeyenda = function() {
+        var nombre = document.getElementById('nueva-leyenda-nombre').value;
+        var color = document.getElementById('nueva-leyenda-color').value;
+        if (!nombre || !color) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-leyenda-crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'nombre=' + encodeURIComponent(nombre) + '&color=' + encodeURIComponent(color)
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('crear-leyenda-modal');
+                var idHoja = document.getElementById('gantt-hoja-select').value;
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#main-content');
+            } else {
+                alert(res.error || 'Error creando leyenda');
+            }
+        });
+    };
 
     function esc(v) {
         if (v == null) return '';
@@ -103,10 +262,12 @@
         var desc = opt.getAttribute('data-desc') || '';
         var solped = opt.getAttribute('data-solped') || 'NO APLICA';
         
+        var idHoja = document.getElementById('gantt-hoja-select') ? document.getElementById('gantt-hoja-select').value : 0;
+        
         fetch('/api/ruta-procesos-agregar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
+            body: 'id_hoja=' + idHoja + '&descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
         })
         .then(async function(res) {
             if (!res.ok) {

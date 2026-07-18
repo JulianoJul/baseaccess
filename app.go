@@ -846,28 +846,28 @@ type RutaProcesosProceso struct {
 	Timeline    map[string]interface{} `json:"timeline"`
 }
 
-type RutaProcesosGanttData struct {
-	Legend    []RutaProcesosLegend   `json:"legend"`
-	Columns   []map[string]string    `json:"columns"`
-	Processes []RutaProcesosProceso  `json:"processes"`
+type RutaProcesosHoja struct {
+	ID          int    `json:"id"`
+	Nombre      string `json:"nombre"`
+	FechaInicio string `json:"fecha_inicio"`
+	FechaFin    string `json:"fecha_fin"`
 }
 
-func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
+type RutaProcesosGanttData struct {
+	Legend      []RutaProcesosLegend    `json:"legend"`
+	Columns     []map[string]string     `json:"columns"`
+	Processes   []RutaProcesosProceso   `json:"processes"`
+	Hojas       []RutaProcesosHoja      `json:"hojas"`
+	CurrentHoja *RutaProcesosHoja       `json:"current_hoja"`
+	OffsetWeeks int                     `json:"offset_weeks"`
+}
+
+func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProcesosGanttData, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	if a.db == nil {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
-
-	// Primero, sincronizar los catálogos con la leyenda
-	a.db.Exec(`
-		INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color)
-		SELECT nombre, '#6B7280' FROM cat_documento
-	`)
-	a.db.Exec(`
-		INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color)
-		SELECT nombre, '#EF4444' FROM cat_resultado_proceso
-	`)
 
 	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY id")
 	if err != nil {
@@ -889,33 +889,70 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		legend = []RutaProcesosLegend{}
 	}
 
-	columns := buildGanttColumns()
-
-	procRows, err := a.db.Query(`
-		SELECT p.id, p.descripcion, p.db_id, p.activo,
-			COALESCE(e.solped, 'NO APLICA'), COALESCE(e.estatus_detalle, 'NO APLICA'), COALESCE(e.receptor, 'NO APLICA'),
-			COALESCE(e.fecha_recibido, ''), COALESCE(e.fecha_devuelto, ''), COALESCE(e.fecha_firma_contrato, ''),
-			COALESCE(e.documento, ''), COALESCE(e.resultados_proceso, ''),
-			COALESCE(exp.id_documento, 0), COALESCE(exp.id_resultado, 0)
-		FROM ruta_procesos_procesos p
-		LEFT JOIN vw_reporte_excel_contrataciones e ON p.db_id = e.id_expediente
-		LEFT JOIN expedientes exp ON p.db_id = exp.id_expediente
-		ORDER BY p.id
-	`)
+	// Obtener hojas
+	hojasRows, err := a.db.Query("SELECT id, nombre, fecha_inicio, fecha_fin FROM ruta_procesos_hojas ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
-	defer procRows.Close()
-	var processes []RutaProcesosProceso
-	for procRows.Next() {
-		var p RutaProcesosProceso
-		var activo int
-		var fRecibido, fDevuelto, fFirma string
-		var doc, resProc string
-		var idDoc, idRes int
-		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor, &fRecibido, &fDevuelto, &fFirma, &doc, &resProc, &idDoc, &idRes); err != nil {
+	defer hojasRows.Close()
+	var hojas []RutaProcesosHoja
+	for hojasRows.Next() {
+		var h RutaProcesosHoja
+		if err := hojasRows.Scan(&h.ID, &h.Nombre, &h.FechaInicio, &h.FechaFin); err != nil {
+			log.Printf("ObtenerRutaProcesosData: scan hoja: %v", err)
 			continue
 		}
+		hojas = append(hojas, h)
+	}
+	if hojas == nil {
+		hojas = []RutaProcesosHoja{}
+	}
+
+	var currentHoja *RutaProcesosHoja
+	if len(hojas) > 0 {
+		if idHoja == 0 {
+			currentHoja = &hojas[0]
+			idHoja = currentHoja.ID
+		} else {
+			for i := range hojas {
+				if hojas[i].ID == idHoja {
+					currentHoja = &hojas[i]
+					break
+				}
+			}
+		}
+	}
+
+	var columns []map[string]string
+	var processes []RutaProcesosProceso
+	if currentHoja != nil {
+		columns = buildGanttColumns(currentHoja.FechaInicio, currentHoja.FechaFin, offsetWeeks)
+
+		procRows, err := a.db.Query(`
+			SELECT p.id, p.descripcion, p.db_id, p.activo,
+				COALESCE(e.solped, 'NO APLICA'), COALESCE(e.estatus_detalle, 'NO APLICA'), COALESCE(e.receptor, 'NO APLICA'),
+				COALESCE(e.fecha_recibido, ''), COALESCE(e.fecha_devuelto, ''), COALESCE(e.fecha_firma_contrato, ''),
+				COALESCE(e.documento, ''), COALESCE(e.resultados_proceso, ''),
+				COALESCE(exp.id_documento, 0), COALESCE(exp.id_resultado, 0)
+			FROM ruta_procesos_procesos p
+			LEFT JOIN vw_reporte_excel_contrataciones e ON p.db_id = e.id_expediente
+			LEFT JOIN expedientes exp ON p.db_id = exp.id_expediente
+			WHERE p.id_hoja = ?
+			ORDER BY p.id`, currentHoja.ID)
+		if err != nil {
+			return nil, err
+		}
+		defer procRows.Close()
+
+		for procRows.Next() {
+			var p RutaProcesosProceso
+			var activo int
+			var fRecibido, fDevuelto, fFirma string
+			var doc, resProc string
+			var idDoc, idRes int
+			if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor, &fRecibido, &fDevuelto, &fFirma, &doc, &resProc, &idDoc, &idRes); err != nil {
+				continue
+			}
 		p.Activo = activo == 1
 		p.Timeline = map[string]interface{}{}
 		
@@ -970,9 +1007,10 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		}
 		processes = append(processes, p)
 	}
+	} // Cierra el if currentHoja != nil
 
 	if len(processes) == 0 {
-		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}}, nil
+		return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: []RutaProcesosProceso{}, Hojas: hojas, CurrentHoja: currentHoja, OffsetWeeks: offsetWeeks}, nil
 	}
 
 	procMap := make(map[int]*RutaProcesosProceso, len(processes))
@@ -1022,30 +1060,50 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		}
 	}
 
-	return &RutaProcesosGanttData{Legend: legend, Columns: columns, Processes: processes}, nil
+	return &RutaProcesosGanttData{
+		Legend:      legend,
+		Columns:     columns,
+		Processes:   processes,
+		Hojas:       hojas,
+		CurrentHoja: currentHoja,
+		OffsetWeeks: offsetWeeks,
+	}, nil
 }
 
-func buildGanttColumns() []map[string]string {
+func buildGanttColumns(inicioStr string, finStr string, offsetWeeks int) []map[string]string {
 	dayNames := []string{"L", "M", "X", "J", "V"}
-	now := time.Now()
-	weekday := now.Weekday()
-	if weekday == time.Saturday {
-		now = now.AddDate(0, 0, 2)
-	} else if weekday == time.Sunday {
-		now = now.AddDate(0, 0, 1)
+	inicio, err := time.Parse("2006-01-02", inicioStr)
+	if err != nil {
+		inicio = time.Now()
 	}
-	offset := int(now.Weekday() - time.Monday)
+	fin, err := time.Parse("2006-01-02", finStr)
+	if err != nil {
+		fin = inicio.AddDate(0, 3, 0)
+	}
+
+	// Calculate the actual start considering offsetWeeks
+	start := inicio
+	if offsetWeeks > 0 {
+		start = start.AddDate(0, 0, offsetWeeks*7)
+	}
+
+	// Adjust start to Monday
+	offset := int(start.Weekday() - time.Monday)
 	if offset < 0 {
 		offset += 7
 	}
-	start := now.AddDate(0, 0, -offset)
+	start = start.AddDate(0, 0, -offset)
 
 	columns := make([]map[string]string, 0, 60)
 	bizTarget := 60
 	bizCount := 0
 	weekNum := 1
+
 	for i := 0; bizCount < bizTarget; i++ {
 		date := start.AddDate(0, 0, i)
+		if date.After(fin) {
+			break
+		}
 		if date.Weekday() == time.Saturday || date.Weekday() == time.Sunday {
 			continue
 		}
@@ -1078,7 +1136,7 @@ func (a *App) ToggleRutaProceso(id int, activo bool) error {
 	return err
 }
 
-func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
+func (a *App) AgregarRutaProceso(idHoja int, descripcion string, dbID int) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.db == nil {
@@ -1088,7 +1146,7 @@ func (a *App) AgregarRutaProceso(descripcion string, dbID int) (int64, error) {
 	if dbID > 0 {
 		dbIDVal = dbID
 	}
-	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (descripcion, db_id, activo) VALUES (?, ?, 1)", descripcion, dbIDVal)
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (id_hoja, descripcion, db_id, activo) VALUES (?, ?, ?, 1)", idHoja, descripcion, dbIDVal)
 	if err != nil {
 		return 0, err
 	}
@@ -1152,6 +1210,54 @@ func (a *App) EliminarRutaProceso(id int) error {
 		_, err := tx.Exec("DELETE FROM ruta_procesos_procesos WHERE id = ?", id)
 		return err
 	})
+}
+
+func (a *App) EliminarRutaCronogramaCelda(idProceso int, fechaStr string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	return a.withTx(func(tx *sql.Tx) error {
+		_, err := tx.Exec("DELETE FROM ruta_procesos_cronograma WHERE id_proceso = ? AND fecha = ?", idProceso, fechaStr)
+		return err
+	})
+}
+
+func (a *App) CrearRutaProcesosHoja(nombre, inicioStr, finStr string) (int64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return 0, fmt.Errorf("no hay BD abierta")
+	}
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_hojas (nombre, fecha_inicio, fecha_fin) VALUES (?, ?, ?)", nombre, inicioStr, finStr)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+func (a *App) EliminarRutaProcesosHoja(id int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	_, err := a.db.Exec("DELETE FROM ruta_procesos_hojas WHERE id = ?", id)
+	return err
+}
+
+func (a *App) CrearRutaProcesosLeyenda(nombre, color string) (int64, error) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return 0, fmt.Errorf("no hay BD abierta")
+	}
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_leyenda (status_name, hex_color) VALUES (?, ?)", nombre, color)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
 }
 
 type CatalogoItem struct {

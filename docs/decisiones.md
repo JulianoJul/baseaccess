@@ -238,3 +238,27 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `data/sql/*.sql`: `trg_exp_snapshot_inicial` ajustado con temp table `_skip_audit` + `WHEN` en `trg_exp_auditoria` (1 historial por INSERT); IDs literales (1=PENDIENTE, 2=FIRMADO) reemplazan subqueries por nombre; FK+UNIQUE en `ruta_procesos_cronograma`; `fecha_actualizacion` unificado a `CURRENT_DATE` en los 9 triggers; `IF NOT EXISTS` en todos los CREATEs; `Tablas8.sql` renombrado a `.legacy`.
   - `app.go`: `strftime('%Y-%m-%d', c.fecha)` en query Gantt (fix de keys RFC3339 vs YYYY-MM-DD).
   - `app.go`: `sql.NullString` para `descripcion_proceso` en `ObtenerExpedientesDisponiblesRuta`.
+
+## DEC-016: Finalización de Refactor, Fases 4 y 5 (julio 2026)
+
+- **Origen:** Continuación del `[Plan de correcciones]`
+- **Contexto y Causa:** Tras las correcciones iniciales, quedaba pendiente centralizar hardcodes de JavaScript, optimizar plantillas, solventar incoherencias de strings en `COALESCE`, eliminar bugs de exportación residual (filas sin gerencia) y prevenir respuestas HTTP corruptas.
+- **Alternativas evaluadas:** Mantener deuda técnica vs liquidar el plan completo.
+- **Impacto:**
+  - `app.js`: Extracción de magic numbers (páginas visibles, timeouts) a un único objeto `CONFIG`. Eliminación de validaciones muertas (`tabla-cuerpo` swap) e inputs huérfanos.
+  - `templates/ruta_procesos.html`: Bug visual de "SIN SOLPED" arreglado usando atributos `data-solped` y `data-desc` desde el HTML dinámico.
+  - `handler.go`: Renderizado seguro a `bytes.Buffer` en todos los `ExecuteTemplate` para prevenir respuestas 200 con cuerpo 500 parcial; filtros de gerencia nulos ahora soportados consistentemente.
+  - `data/sql/*.sql`: Estandarización de `COALESCE` para devolver siempre `'NO APLICA'`, y documentación clara en los esquemas SQL para los defaults de estatus (`DEFAULT 1 /* PENDIENTE */`).
+  - `app.go`: Secuencia de copias de respaldo (backups) refactorizada y centralizada en un único método `copyDBCheckpointed`, resolviendo el P2-7. Bug de ruta con signo de interrogación en DSN de SQLite mitigado por escape/validación.
+
+## DEC-017: Sistema de Hojas y Leyenda estricta en Gantt (julio 2026)
+
+- **Origen:** Requerimiento del usuario para mejorar la visualización y personalización del diagrama Gantt.
+- **Contexto y Causa:** El diagrama de Gantt mostraba estatus combinados automáticamente desde otros catálogos y obligaba a usar un marco temporal rígido (siempre comenzando 12 semanas a partir de la fecha actual), limitando la creación de planificaciones o proyectos aislados (hojas) y la revisión del pasado o futuro lejano.
+- **Alternativas evaluadas:** Simular vistas solo con filtros de fecha (Opción A) vs crear entidades persistentes en la BD (Hojas) para agrupar procesos (Opción B).
+- **Impacto:**
+  - `03_ruta_procesos.sql`: Creada tabla `ruta_procesos_hojas` y columna `id_hoja` en `ruta_procesos_procesos`. Leyenda base reiniciada con 10 opciones requeridas por el usuario.
+  - `app.go`: Paginación lógica con `offsetWeeks`. Endpoints CRUD de Hojas y Leyenda. Desvinculación de inserciones automáticas para `cat_documento` y `cat_resultado_proceso`.
+  - `handler.go`: Nuevos endpoints de Hojas y Leyenda. Parseo de variables URL para paginación de semanas.
+  - `templates/ruta_procesos.html`: Controles agregados para paginar, cambiar y crear hojas, así como un modal de creación de leyendas con color picker.
+

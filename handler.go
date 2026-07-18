@@ -429,6 +429,12 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/api/ruta-procesos-expedientes" && r.Method == http.MethodGet:
 		h.handleRutaProcesosExpedientes(w, r)
+	case p == "/api/ruta-procesos-hoja-crear" && r.Method == http.MethodPost:
+		h.handleCrearRutaProcesoHoja(w, r)
+	case p == "/api/ruta-procesos-hoja-eliminar" && r.Method == http.MethodPost:
+		h.handleEliminarRutaProcesoHoja(w, r)
+	case p == "/api/ruta-procesos-leyenda-crear" && r.Method == http.MethodPost:
+		h.handleCrearLeyenda(w, r)
 		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
@@ -735,7 +741,10 @@ func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Request) {
-	data, err := h.app.ObtenerRutaProcesosData()
+	idHoja, _ := strconv.Atoi(r.URL.Query().Get("hoja"))
+	offsetWeeks, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	data, err := h.app.ObtenerRutaProcesosData(idHoja, offsetWeeks)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -761,6 +770,12 @@ func (h *TemplateHandler) handleToggleRutaProceso(w http.ResponseWriter, r *http
 }
 
 func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *http.Request) {
+	idHojaStr := r.FormValue("id_hoja")
+	idHoja, err := strconv.Atoi(idHojaStr)
+	if err != nil {
+		writeJSONError(w, "id_hoja invalido", http.StatusBadRequest)
+		return
+	}
 	descripcion := r.FormValue("descripcion")
 	if strings.TrimSpace(descripcion) == "" {
 		writeJSONError(w, "descripcion requerida", http.StatusBadRequest)
@@ -769,14 +784,57 @@ func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *htt
 	dbIDStr := r.FormValue("db_id")
 	dbID := 0
 	if dbIDStr != "" {
-		var err error
 		dbID, err = strconv.Atoi(dbIDStr)
 		if err != nil {
 			writeJSONError(w, "db_id inválido", http.StatusBadRequest)
 			return
 		}
 	}
-	id, err := h.app.AgregarRutaProceso(strings.TrimSpace(descripcion), dbID)
+	id, err := h.app.AgregarRutaProceso(idHoja, strings.TrimSpace(descripcion), dbID)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true, "id": id})
+}
+
+func (h *TemplateHandler) handleCrearRutaProcesoHoja(w http.ResponseWriter, r *http.Request) {
+	nombre := r.FormValue("nombre")
+	inicio := r.FormValue("fecha_inicio")
+	fin := r.FormValue("fecha_fin")
+	if strings.TrimSpace(nombre) == "" || inicio == "" || fin == "" {
+		writeJSONError(w, "Faltan campos (nombre, fecha_inicio, fecha_fin)", http.StatusBadRequest)
+		return
+	}
+	id, err := h.app.CrearRutaProcesosHoja(nombre, inicio, fin)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true, "id": id})
+}
+
+func (h *TemplateHandler) handleEliminarRutaProcesoHoja(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		writeJSONError(w, "id_hoja inválido", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.EliminarRutaProcesosHoja(id); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleCrearLeyenda(w http.ResponseWriter, r *http.Request) {
+	nombre := r.FormValue("nombre")
+	color := r.FormValue("color")
+	if strings.TrimSpace(nombre) == "" || color == "" {
+		writeJSONError(w, "Faltan campos (nombre, color)", http.StatusBadRequest)
+		return
+	}
+	id, err := h.app.CrearRutaProcesosLeyenda(nombre, color)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return

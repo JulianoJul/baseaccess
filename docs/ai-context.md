@@ -16,8 +16,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + HTMX**, ahora **multi-modulo** (9 tipos de documentos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql` + `data/sql/03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar fija tipo hojas de cálculo con pestañas de módulos y Ruta Procesos a la derecha. Ruta Procesos permite agregar expedientes existentes como procesos mediante selector. Rama `wails-migration` activa. Archivos legacy de Electron/Tauri eliminados (~493 MB). Auditoría completa aplicada: seguridad (SQLi, XSS, race conditions), concurrencia (sync/atomic), backup (WAL checkpoint), y correcciones de lógica (UPDATE devuelve id real, ids int64, transacciones seguras).
-
+App con **Wails v2 + Go html/template + HTMX**, ahora **multi-modulo** (9 tipos de documentos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql` + `data/sql/03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar fija tipo hojas de cálculo con pestañas de módulos y Ruta Procesos a la derecha. Ruta Procesos ahora incluye soporte para **Hojas** (ventanas de tiempo persistentes con paginación independiente de semanas) y una leyenda de colores estricta e independiente, lo que permite cronogramas y visualizaciones más versátiles (DEC-017). Rama `wails-migration` activa. Archivos legacy de Electron/Tauri eliminados (~493 MB). Auditoría completa aplicada: seguridad, concurrencia, backup (WAL checkpoint) y correcciones. El código está totalmente refactorizado garantizando pleno DRY y robustez.
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|

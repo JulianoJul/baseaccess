@@ -7,6 +7,23 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_leyenda (
     hex_color   TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS ruta_procesos_hojas (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre       TEXT NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin    DATE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ruta_procesos_procesos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_hoja     INTEGER NOT NULL,
+    descripcion TEXT NOT NULL,
+    db_id       INTEGER,
+    activo      INTEGER DEFAULT 1,
+    CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente),
+    CONSTRAINT fk_proc_hoja FOREIGN KEY (id_hoja) REFERENCES ruta_procesos_hojas(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     id_proceso    INTEGER NOT NULL,
@@ -20,19 +37,15 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
     CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 );
 
-CREATE TABLE IF NOT EXISTS ruta_procesos_procesos (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    descripcion TEXT NOT NULL,
-    db_id       INTEGER,
-    activo      INTEGER DEFAULT 1,
-    CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente)
-);
-
 -- Leyenda base
 INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
-('PENDIENTE', '#FFA500'),
-('EN REVISION', '#3B82F6'),
-('FIRMADO', '#10B981'),
-('DEVUELTO', '#EF4444'),
-('SIN NOVEDAD', '#6B7280'),
-('OTRO', '#000000');
+('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FFA500'),
+('INICIO (CONTRATACIÓN)', '#3B82F6'),
+('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#8B5CF6'),
+('INICIO (COMISIÓN)', '#10B981'),
+('APERTURA DE OFERTAS', '#F59E0B'),
+('ANÁLISIS TÉCNICO', '#06B6D4'),
+('ANÁLISIS ECONÓMICO', '#14B8A6'),
+('RESULTADOS', '#6366F1'),
+('APROBACIÓN PRESIDENCIA', '#EC4899'),
+('CONTROL DE DOCUMENTOS PRESIDENCIA', '#6B7280');
