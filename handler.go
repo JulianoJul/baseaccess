@@ -429,10 +429,13 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/api/ruta-procesos-expedientes" && r.Method == http.MethodGet:
 		h.handleRutaProcesosExpedientes(w, r)
+		return
 	case p == "/api/ruta-procesos-hoja-crear" && r.Method == http.MethodPost:
 		h.handleCrearRutaProcesoHoja(w, r)
+		return
 	case p == "/api/ruta-procesos-hoja-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarRutaProcesoHoja(w, r)
+		return
 	case p == "/api/ruta-procesos-leyenda-crear" && r.Method == http.MethodPost:
 		h.handleCrearLeyenda(w, r)
 		return
