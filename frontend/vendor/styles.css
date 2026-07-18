@@ -339,10 +339,10 @@ select.input option {
 .gantt-tooltip {
   display: none;
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 8px;
+  margin-top: 16px; /* Moved down to prevent clipping */
   width: 220px;
   padding: 10px;
   background-color: var(--bg-surface-900);
@@ -436,14 +436,16 @@ select.input option {
 
 /* Proceso tarjeta */
 .proceso-card {
-  background-color: rgba(31, 41, 55, 0.4);
-  border: 1px solid rgba(55, 65, 81, 0.5);
-  border-radius: 8px;
-  padding: 12px;
+  background-color: var(--bg-surface-800);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
-  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  gap: 16px;
+  transition: all 0.15s ease;
 }
 .proceso-card:hover {
   border-color: rgba(20, 184, 166, 0.3);
@@ -546,3 +548,58 @@ select.input option {
 .border-gray-800 { border-color: #1f2937; }
 .border-red-700 { border-color: #b91c1c; }
 .border-red-700\/60 { border-color: rgba(185, 28, 28, 0.60); }
+
+/* Custom premium checkboxes for Export Modal */
+.exp-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--bg-surface-800);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  font-size: 11px;
+  color: var(--text-light);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+.exp-checkbox-label:hover {
+  border-color: var(--primary);
+  background-color: rgba(20, 184, 166, 0.08);
+}
+.exp-col {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--border-default);
+  border-radius: 6px;
+  background-color: var(--bg-surface-900);
+  cursor: pointer;
+  display: inline-grid;
+  place-content: center;
+  position: relative;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+.exp-col:hover {
+  border-color: var(--primary);
+}
+.exp-col:checked {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+.exp-col:checked::before {
+  content: "";
+  width: 12px;
+  height: 6px;
+  border-left: 3px solid white;
+  border-bottom: 3px solid white;
+  transform: rotate(-45deg) translate(1px, -2px);
+}
+
+/* Calculator/Sumas fila gap */
+.suma-fila {
+  margin-bottom: 14px;
+}

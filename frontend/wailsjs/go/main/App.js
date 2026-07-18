@@ -34,6 +34,10 @@ export function GetBackupMaxCopies() {
   return window['go']['main']['App']['GetBackupMaxCopies']();
 }
 
+export function GuardarCronogramaDia(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['GuardarCronogramaDia'](arg1, arg2, arg3, arg4);
+}
+
 export function GuardarDialogoBD(arg1) {
   return window['go']['main']['App']['GuardarDialogoBD'](arg1);
 }

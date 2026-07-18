@@ -31,18 +31,15 @@
         .bg-gray-850 {
             background-color: #1e293b;
         }
-        /* Bottom bar tipo hojas de calculo */
-        #app-root { display: flex; flex-direction: column; min-height: 100vh; }
-        #vista-tabla { flex: 1; }
-        #bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 20; }
-        #bottom-bar .sheet-tab { padding: 0.5rem 1rem; font-size: 0.75rem; border-radius: 0; border-top: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
-        #bottom-bar .sheet-tab:hover { background: rgba(45,212,191,0.08); }
-        #bottom-bar .sheet-tab.active { border-top-color: #2dd4bf; background: rgba(45,212,191,0.12); color: #2dd4bf; }
-        #bottom-bar .sheet-tab.inactive { color: #9ca3af; }
-        #bottom-bar .sheet-tab.inactive:hover { color: #d1d5db; }
-        #bottom-bar .sheet-tab.ruta-tab { color: #f59e0b; border-top-color: rgba(245,158,11,0.3); border-left: 1px solid rgba(75,85,99,0.5); }
-        #bottom-bar .sheet-tab.ruta-tab:hover { background: rgba(245,158,11,0.1); }
-        body.has-db { padding-bottom: 3.5rem; }
+        /* Bottom bar: flotante sin fondo */
+        #bottom-bar { position: fixed; bottom: 0.5rem; left: 0.5rem; right: 0.5rem; z-index: 20; }
+        #bottom-bar .btn-mod { border-radius: 0; padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+        #bottom-bar .inner-bar .btn-mod:first-child { border-radius: 0.5rem 0 0 0.5rem; }
+        #bottom-bar .inner-bar .btn-mod:last-child { border-radius: 0 0.5rem 0.5rem 0; }
+        #bottom-bar .inner-bar { border-radius: 0.5rem; overflow: hidden; }
+        #bottom-bar .ruta-mod { border-radius: 0.5rem !important; border: 1px solid #f59e0b; }
+        #bottom-bar .ml-3 { margin-left: 0.75rem; }
+        body.has-db { padding-bottom: 3rem; }
 
         /* z-index fixes: Tailwind precompilado no incluye valores arbitrarios */
         .z-toast { z-index: 9999; }
@@ -50,6 +47,12 @@
         .bottom-4 { bottom: 1rem; }
         .right-4 { right: 1rem; }
         .pointer-events-none { pointer-events: none; }
+        /* Contraer botones Abrir/Recientes a solo icono cuando hay BD */
+        body.has-db #btn-abrir-bd .btn-label,
+        body.has-db #btn-recientes .btn-label { display: none; }
+        body.has-db #btn-abrir-bd .mr-1,
+        body.has-db #btn-recientes .mr-1 { margin-right: 0; }
+        .ml-auto { margin-left: auto; }
     </style>
     <script src="vendor/htmx.min.js"></script>
 </head>
@@ -74,34 +77,30 @@
         <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
             <div class="flex items-center gap-2 flex-wrap">
                 <input type="file" id="dbfile" accept=".db,.sqlite" style="display:none;">
-                <button onclick="abrirBaseDatos()" class="btn btn-primary">
-                    <i class="fas fa-folder-open mr-1"></i> Abrir Base de Datos
+                <button onclick="abrirBaseDatos()" class="btn btn-primary" id="btn-abrir-bd" title="Abrir Base de Datos">
+                    <i class="fas fa-folder-open mr-1"></i> <span class="btn-label">Abrir Base de Datos</span>
                 </button>
+                <button onclick="abrirRecientes()" class="btn btn-primary" id="btn-recientes" title="BD Recientes">
+                    <i class="fas fa-history mr-1"></i> <span class="btn-label">Recientes</span>
+                </button>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap ml-auto">
                 <button id="btn-nuevo"
                         hx-get="/api/cargar-expediente"
                         hx-target="#form-expediente"
                         hx-include="#active-module-val"
                         hx-on::after-request="mostrarFormulario(null)"
                         {{if not .HasDB}}disabled{{end}} class="btn btn-primary">
-                    + Nuevo Registro
-                </button>
-                <button hx-get="/api/ruta-procesos"
-                        hx-target="#ruta-contenido"
-                        hx-on::after-request="pushModal('modal-ruta');"
-                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-ruta">
-                    <i class="fas fa-route mr-1"></i> Ruta Procesos
+                    <i class="fas fa-plus mr-1"></i> Nuevo Registro
                 </button>
                 <button hx-get="/api/pendientes"
                         hx-target="#pendientes-contenido"
                         hx-on::after-request="pushModal('modal-pendientes');"
-                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes">
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes" style="border:1px solid #f59e0b">
                     <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
                 <button onclick="abrirModalExportar()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
                     <i class="fas fa-file-excel mr-1"></i> Exportar Excel
-                </button>
-                <button onclick="abrirRecientes()" class="btn btn-primary" id="btn-recientes">
-                    <i class="fas fa-history mr-1"></i> Recientes
                 </button>
                 <button onclick="abrirFrecuentes()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-frecuentes">
                     <i class="fas fa-thumbtack rotate-45 mr-1"></i> Fijados
@@ -109,9 +108,6 @@
                 <button onclick="abrirSumas()" {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-sumas">
                     <i class="fas fa-calculator mr-1"></i> Sumas
                 </button>
-                <span id="estado-bd" class="text-xs text-gray-500 italic">
-                    {{if .HasDB}}<i class="fas fa-check"></i> {{.DBPath}}{{end}}
-                </span>
             </div>
         </header>
 
@@ -141,7 +137,6 @@
                                hx-trigger="input changed delay:200ms, search"
                                hx-target="#vista-tabla"
                                hx-include="#sort-order, #sort-dir-val, #active-module-val"
-                               hx-indicator="#spinner-overlay"
                                {{if not .HasDB}}disabled{{end}}>
                     </div>
                 </div>
@@ -173,25 +168,27 @@
 
     {{if .HasDB}}
     <!-- Bottom Bar tipo hojas de calculo -->
-    <div id="bottom-bar" class="bg-gray-850 border-t border-gray-700">
-        <div class="flex items-center overflow-x-auto" id="modulo-botones">
-            <div class="flex items-center">
-                {{range $key, $config := .Modulos}}
-                <button hx-get="/api/cambiar-modulo?modulo={{$key}}"
-                        hx-target="#vista-tabla"
-                        hx-include="#search, #sort-order, #sort-dir-val"
-                        hx-indicator="#spinner-overlay"
-                        hx-on::after-request="document.querySelectorAll('#modulo-botones .sheet-tab').forEach(b => { b.classList.remove('active'); b.classList.add('inactive'); }); this.classList.remove('inactive'); this.classList.add('active');"
-                        class="sheet-tab {{if eq $.ActiveModule $key}}active{{else}}inactive{{end}}"
-                        {{if not $.HasDB}}disabled{{end}}>
-                    {{$config.Nombre}}
-                </button>
-                {{end}}
+    <div id="bottom-bar">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center inner-bar" id="modulo-botones">
+                <div class="flex">
+                    {{range $key, $config := .Modulos}}
+                    <button hx-get="/api/cambiar-modulo?modulo={{$key}}"
+                            hx-target="#vista-tabla"
+                            hx-include="#search, #sort-order, #sort-dir-val"
+                            hx-indicator="#spinner-overlay"
+                            hx-on::after-request="document.querySelectorAll('#modulo-botones .btn-mod').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); }); this.classList.remove('btn-secondary'); this.classList.add('btn-primary')"
+                            class="btn btn-mod {{if eq $.ActiveModule $key}}btn-primary{{else}}btn-secondary{{end}}"
+                            {{if not $.HasDB}}disabled{{end}}>
+                        {{$config.Nombre}}
+                    </button>
+                    {{end}}
+                </div>
             </div>
             <button hx-get="/api/ruta-procesos"
                     hx-target="#ruta-contenido"
-                    hx-on::after-request="pushModal('modal-ruta');"
-                    class="sheet-tab ruta-tab ml-auto">
+                    hx-on::after-request="pushModal('modal-ruta')"
+                    class="btn btn-mod btn-secondary ruta-mod ml-3">
                 <i class="fas fa-route mr-1"></i> Ruta Procesos
             </button>
         </div>
@@ -784,6 +781,15 @@
             currentPage = 1;
             aplicarPaginacionDOM();
             if (window.PAGE_DATA && window.PAGE_DATA.hasDB) inicializarPines();
+
+            // Auto-abrir si no hay BD y solo hay una reciente
+            if (!window.PAGE_DATA || !window.PAGE_DATA.hasDB) {
+                let recientes = [];
+                try { recientes = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECIENTES) || '[]'); } catch(e) {}
+                if (recientes.length === 1) {
+                    abrirBaseDatosReciente(recientes[0].path);
+                }
+            }
         })();
 
         function toggleSortDir() {
@@ -837,7 +843,7 @@
             contCols.innerHTML = '';
             viewCols.forEach(c => {
                 const lbl = document.createElement('label');
-                lbl.className = 'flex items-center gap-2 text-xs text-gray-300 cursor-pointer';
+                lbl.className = 'exp-checkbox-label';
                 lbl.innerHTML = '<input type="checkbox" value="' + c + '" class="exp-col"> ' + c.replace(/_/g, ' ');
                 contCols.appendChild(lbl);
             });

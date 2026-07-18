@@ -275,6 +275,48 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 
 	a.db = db
 	a.dbPath = filePath
+
+	if err := a.initRutaProcesosSchema(); err != nil {
+		return fmt.Errorf("no se pudo inicializar schema ruta procesos: %w", err)
+	}
+
+	return nil
+}
+
+func (a *App) initRutaProcesosSchema() error {
+	statements := []string{
+		`CREATE TABLE IF NOT EXISTS ruta_procesos_leyenda (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			status_name TEXT NOT NULL UNIQUE,
+			hex_color   TEXT NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS ruta_procesos_procesos (
+			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			descripcion TEXT NOT NULL,
+			db_id       INTEGER,
+			activo      INTEGER DEFAULT 1
+		)`,
+		`CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
+			id            INTEGER PRIMARY KEY AUTOINCREMENT,
+			id_proceso    INTEGER NOT NULL,
+			id_expediente INTEGER,
+			fecha         DATE NOT NULL,
+			id_leyenda    INTEGER,
+			nota          TEXT
+		)`,
+		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
+			('PENDIENTE', '#FFA500'),
+			('EN REVISION', '#3B82F6'),
+			('FIRMADO', '#10B981'),
+			('DEVUELTO', '#EF4444'),
+			('SIN NOVEDAD', '#6B7280'),
+			('OTRO', '#000000')`,
+	}
+	for _, s := range statements {
+		if _, err := a.db.Exec(s); err != nil {
+			return fmt.Errorf("error ejecutando: %s: %w", s[:60], err)
+		}
+	}
 	return nil
 }
 
@@ -754,12 +796,23 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
 
+	// Primero, sincronizar los catálogos con la leyenda
+	a.db.Exec(`
+		INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color)
+		SELECT nombre, '#6B7280' FROM cat_documento
+	`)
+	a.db.Exec(`
+		INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color)
+		SELECT nombre, '#EF4444' FROM cat_resultado_proceso
+	`)
+
 	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
 	defer legendRows.Close()
 	var legend []RutaProcesosLegend
+	legendMap := make(map[string]string) // Map to quickly find colors
 	for legendRows.Next() {
 		var l RutaProcesosLegend
 		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor); err != nil {
@@ -767,6 +820,7 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 			continue
 		}
 		legend = append(legend, l)
+		legendMap[l.StatusName] = l.HexColor
 	}
 	if legend == nil {
 		legend = []RutaProcesosLegend{}
@@ -776,9 +830,13 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 
 	procRows, err := a.db.Query(`
 		SELECT p.id, p.descripcion, p.db_id, p.activo,
-			COALESCE(e.solped, 'SIN SOLPED'), COALESCE(e.estatus_detalle, 'N/A'), COALESCE(e.receptor, 'N/A')
+			COALESCE(e.solped, 'SIN SOLPED'), COALESCE(e.estatus_detalle, 'N/A'), COALESCE(e.receptor, 'N/A'),
+			COALESCE(e.fecha_recibido, ''), COALESCE(e.fecha_devuelto, ''), COALESCE(e.fecha_firma_contrato, ''),
+			COALESCE(e.documento, ''), COALESCE(e.resultados_proceso, ''),
+			COALESCE(exp.id_documento, 0), COALESCE(exp.id_resultado, 0)
 		FROM ruta_procesos_procesos p
 		LEFT JOIN vw_reporte_excel_contrataciones e ON p.db_id = e.id_expediente
+		LEFT JOIN expedientes exp ON p.db_id = exp.id_expediente
 		ORDER BY p.id
 	`)
 	if err != nil {
@@ -789,12 +847,64 @@ func (a *App) ObtenerRutaProcesosData() (*RutaProcesosGanttData, error) {
 	for procRows.Next() {
 		var p RutaProcesosProceso
 		var activo int
-		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor); err != nil {
-			log.Printf("ObtenerRutaProcesosData: scan proceso: %v", err)
+		var fRecibido, fDevuelto, fFirma string
+		var doc, resProc string
+		var idDoc, idRes int
+		if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor, &fRecibido, &fDevuelto, &fFirma, &doc, &resProc, &idDoc, &idRes); err != nil {
 			continue
 		}
 		p.Activo = activo == 1
 		p.Timeline = map[string]interface{}{}
+		
+		// Auto-populate timeline based on database dates and catalogs
+		if fRecibido != "" && len(fRecibido) >= 10 {
+			dateKey := fRecibido[:10]
+			stName := "PENDIENTE"
+			if doc != "" {
+				stName = doc
+			}
+			hexColor := "#FFA500"
+			if c, ok := legendMap[stName]; ok {
+				hexColor = c
+			}
+			p.Timeline[dateKey] = map[string]string{
+				"status_name": stName,
+				"hex_color":   hexColor,
+				"note":        "Recibido: " + doc,
+			}
+		}
+		if fDevuelto != "" && len(fDevuelto) >= 10 {
+			dateKey := fDevuelto[:10]
+			stName := "DEVUELTO"
+			if resProc != "" && idRes != 0 {
+				stName = resProc // Explicit link to what the actual result is!
+			}
+			hexColor := "#EF4444"
+			if c, ok := legendMap[stName]; ok {
+				hexColor = c
+			}
+			p.Timeline[dateKey] = map[string]string{
+				"status_name": stName,
+				"hex_color":   hexColor,
+				"note":        "Devuelto: " + stName,
+			}
+		}
+		if fFirma != "" && len(fFirma) >= 10 {
+			dateKey := fFirma[:10]
+			stName := "FIRMADO"
+			if resProc != "" && idRes != 0 {
+				stName = resProc + " (FIRMADO)" // If there's a result, we show it
+			}
+			hexColor := "#10B981"
+			if c, ok := legendMap[stName]; ok {
+				hexColor = c
+			}
+			p.Timeline[dateKey] = map[string]string{
+				"status_name": stName,
+				"hex_color":   hexColor,
+				"note":        "Fecha de firma de contrato",
+			}
+		}
 		processes = append(processes, p)
 	}
 
@@ -1097,4 +1207,40 @@ func (a *App) GuardarNuevoCatalogo(tabla, nombre string, extra map[string]interf
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func (a *App) GuardarCronogramaDia(idProceso int, fecha string, idLeyenda int, nota string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+
+	if err := a.crearBackup(); err != nil {
+		log.Printf("Backup falló: %v", err)
+	}
+
+	// Check if entry exists
+	var id int
+	err := a.db.QueryRow("SELECT id FROM ruta_procesos_cronograma WHERE id_proceso = ? AND fecha = ?", idProceso, fecha).Scan(&id)
+	if err == sql.ErrNoRows {
+		if idLeyenda == 0 {
+			// Nothing to save/delete
+			return nil
+		}
+		_, err = a.db.Exec("INSERT INTO ruta_procesos_cronograma (id_proceso, fecha, id_leyenda, nota) VALUES (?, ?, ?, ?)", idProceso, fecha, idLeyenda, nota)
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	if idLeyenda == 0 {
+		// Clear/delete cell
+		_, err = a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id = ?", id)
+		return err
+	}
+
+	// Update existing
+	_, err = a.db.Exec("UPDATE ruta_procesos_cronograma SET id_leyenda = ?, nota = ? WHERE id = ?", idLeyenda, nota, id)
+	return err
 }

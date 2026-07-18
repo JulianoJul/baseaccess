@@ -18,6 +18,8 @@ export function EliminarRutaProceso(arg1:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
 
+export function GuardarCronogramaDia(arg1:number,arg2:string,arg3:number,arg4:string):Promise<void>;
+
 export function GuardarDialogoBD(arg1:string):Promise<string>;
 
 export function GuardarFila(arg1:string,arg2:Record<string, any>):Promise<number>;

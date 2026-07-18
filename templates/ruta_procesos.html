@@ -23,6 +23,35 @@
         <div class="procesos-grid" id="procesos-checkboxes"></div>
     </div>
     <div id="gantt-process-content"></div>
+
+    <!-- Modal Editar Cronograma -->
+    <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-check mr-2"></i>Programar Día</h3>
+                <button onclick="cerrarCronoModal()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <input type="hidden" id="crono-proc-id">
+                <input type="hidden" id="crono-fecha">
+                
+                <div>
+                    <label class="label">Estatus / Color</label>
+                    <select id="crono-status-select" class="input">
+                        <option value="">(Limpiar casilla / Sin actividad)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label">Detalle / Nota</label>
+                    <textarea id="crono-nota" class="input" rows="2" placeholder="Ej: Enviado a firma..."></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-700 flex justify-end gap-2 rounded-b-xl bg-gray-800/40">
+                <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cancelar</button>
+                <button onclick="guardarCronoDia()" class="btn btn-primary text-xs"><i class="fas fa-check mr-1"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
 (function() {
@@ -72,7 +101,13 @@
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: 'descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
         })
-        .then(r => r.json())
+        .then(async function(res) {
+            if (!res.ok) {
+                var text = await res.text();
+                throw new Error(text || 'Error en el servidor');
+            }
+            return res.json();
+        })
         .then(json => {
             if (json.success) {
                 processes.push({ id: json.id, descripcion: desc, db_id: dbId, activo: true, solped: 'SIN SOLPED', estatus_detalle: 'N/A', receptor: 'N/A', timeline: {} });
@@ -80,10 +115,10 @@
                 toggleFormProceso();
                 sel.value = '';
             } else {
-                alert('Error al agregar proceso');
+                alert(json.error || 'Error al agregar proceso');
             }
         })
-        .catch(() => alert('Error de conexion'));
+        .catch(err => alert(err.message || 'Error de conexion'));
     };
 
     window.toggleProceso = function(id, checked) {
@@ -125,7 +160,7 @@
         else processes.forEach(p => {
             html += '<div class="proceso-card flex items-center justify-between">' +
                 '<div class="flex items-start gap-2.5">' +
-                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
+                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="exp-col" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
                 '<span class="proceso-card-num">' + p.id + '</span></label>' +
                 '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + esc(p.descripcion) + '</p>' +
                 '<div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
@@ -167,11 +202,13 @@
                 var color = dayData.hex_color;
                 var statusName = dayData.status_name || '';
                 var note = dayData.note || '';
+                var cleanNote = (note || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                
                 if (color) {
                     var titleColor = color === '#000000' ? '#ffffff' : color;
-                    html += '<td style="background-color: ' + esc(color) + '" class="gantt-col-day gantt-cell-active"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + esc(titleColor) + '">' + esc(statusName) + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + esc(note) + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
+                    html += '<td style="background-color: ' + esc(color) + '; cursor: pointer;" class="gantt-col-day gantt-cell-active" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'' + esc(statusName) + '\', \'' + cleanNote + '\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + esc(titleColor) + '">' + esc(statusName) + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + esc(note) + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
                 } else {
-                    html += '<td class="gantt-col-day gantt-cell-empty"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada</div></div></td>';
+                    html += '<td style="cursor: pointer;" class="gantt-col-day gantt-cell-empty" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'\', \'\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada (Haz clic para programar)</div></div></td>';
                 }
             });
             html += '</tr>';
@@ -184,6 +221,73 @@
         html += leyendaHtml;
         document.getElementById('gantt-process-content').innerHTML = html;
     }
+
+    window.abrirEditarCronograma = function(procId, fecha, statusName, note) {
+        document.getElementById('crono-proc-id').value = procId;
+        document.getElementById('crono-fecha').value = fecha;
+        document.getElementById('crono-nota').value = note || '';
+        
+        const select = document.getElementById('crono-status-select');
+        select.innerHTML = '<option value="">(Limpiar casilla / Sin actividad)</option>';
+        legend.forEach(leg => {
+            const opt = document.createElement('option');
+            opt.value = leg.id;
+            opt.textContent = leg.status_name;
+            if (leg.status_name === statusName) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+        
+        document.getElementById('crono-modal').classList.remove('hidden');
+    };
+    
+    window.cerrarCronoModal = function() {
+        document.getElementById('crono-modal').classList.add('hidden');
+    };
+    
+    window.guardarCronoDia = function() {
+        const procId = document.getElementById('crono-proc-id').value;
+        const fecha = document.getElementById('crono-fecha').value;
+        const leyId = document.getElementById('crono-status-select').value;
+        const nota = document.getElementById('crono-nota').value;
+        
+        fetch('/api/ruta-procesos-cronograma-guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id_proceso=' + procId + '&fecha=' + fecha + '&id_leyenda=' + leyId + '&nota=' + encodeURIComponent(nota)
+        })
+        .then(async function(res) {
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Error en el servidor');
+            }
+            return res.json();
+        })
+        .then(json => {
+            if (json.success) {
+                // Update local processes timeline
+                const p = processes.find(pr => pr.id === parseInt(procId));
+                if (p) {
+                    if (leyId) {
+                        const leg = legend.find(l => l.id === parseInt(leyId));
+                        p.timeline[fecha] = {
+                            status_name: leg ? leg.status_name : '',
+                            hex_color: leg ? leg.hex_color : '',
+                            note: nota
+                        };
+                    } else {
+                        delete p.timeline[fecha];
+                    }
+                }
+                renderGantt();
+                cerrarCronoModal();
+            } else {
+                alert(json.error || 'Error al guardar');
+            }
+        })
+        .catch(err => alert(err.message || 'Error de conexión'));
+    };
 
     renderAll();
 })();

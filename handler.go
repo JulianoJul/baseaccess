@@ -388,6 +388,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-agregar" && r.Method == http.MethodPost:
 		h.handleAgregarRutaProceso(w, r)
 		return
+	case p == "/api/ruta-procesos-cronograma-guardar" && r.Method == http.MethodPost:
+		h.handleGuardarCronogramaDia(w, r)
+		return
 	case p == "/api/ruta-procesos-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarRutaProceso(w, r)
 		return
@@ -768,6 +771,33 @@ func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *htt
 		return
 	}
 	writeJSON(w, map[string]interface{}{"success": true, "id": id})
+}
+
+func (h *TemplateHandler) handleGuardarCronogramaDia(w http.ResponseWriter, r *http.Request) {
+	idProcesoStr := r.FormValue("id_proceso")
+	idProceso, err := strconv.Atoi(idProcesoStr)
+	if err != nil {
+		writeJSONError(w, "id_proceso inválido", http.StatusBadRequest)
+		return
+	}
+	fecha := r.FormValue("fecha")
+	if fecha == "" {
+		writeJSONError(w, "fecha requerida", http.StatusBadRequest)
+		return
+	}
+	idLeyendaStr := r.FormValue("id_leyenda")
+	idLeyenda := 0
+	if idLeyendaStr != "" {
+		idLeyenda, _ = strconv.Atoi(idLeyendaStr)
+	}
+	nota := r.FormValue("nota")
+
+	err = h.app.GuardarCronogramaDia(idProceso, fecha, idLeyenda, nota)
+	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
 }
 
 func (h *TemplateHandler) handleEliminarRutaProceso(w http.ResponseWriter, r *http.Request) {

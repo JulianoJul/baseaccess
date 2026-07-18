@@ -17,6 +17,7 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `ObtenerHistorialFila(moduloKey, id)` | `moduloKey`, `id`: int | SELECT cfg.QueryHistorial (JOIN multi-tabla segun modulo) |
 | `GuardarFila(moduloKey, data)` | `moduloKey`, `data`: map[string]interface{} | INSERT o UPDATE segun presencia de cfg.IDColumna. UPDATE devuelve el id real (no `LastInsertId()=0`). Id como `int64`. Backup WAL checkpoint automático |
 | `EliminarFila(moduloKey, id)` | `moduloKey`, `id`: int64 | DELETE en transacción (historial + modulo) con Rollback condicional post-Commit |
+| `GuardarCronogramaDia(idProceso, fecha, idLeyenda, nota)` | `idProceso`: int; `fecha`: string; `idLeyenda`: int; `nota`: string | Guarda/actualiza/elimina un día en el cronograma Gantt |
 | `ObtenerCatalogos()` | — | Retorna map[string][]CatalogoItem (11 catalogos) |
 | `OptimizarBD()` | — | Ejecuta VACUUM con backup WAL checkpoint previo |
 | `GuardarNuevoCatalogo(tabla, nombre, extra)` | `extra`: map con col/val opcional | INSERT en tabla catalogo (whitelist tabla/columna) |
@@ -69,6 +70,9 @@ La mayoria de las funciones JS previas (cargarCatalogos, obtenerExpedientes, gua
 | `agregarProceso()` | — | Agrega expediente seleccionado como proceso en la ruta |
 | `toggleProceso(id, checked)` | `id`, `checked` | Activa/desactiva proceso en la ruta |
 | `eliminarProceso(id)` | `id` | Elimina proceso de la ruta |
+| `abrirEditarCronograma(procId, fecha, statusName, note)` | `procId`, `fecha`, `statusName`, `note` | Abre el modal para programar un día en el Gantt con estatus y notas |
+| `cerrarCronoModal()` | — | Cierra el modal de programación del día |
+| `guardarCronoDia()` | — | Guarda los cambios de la celda del Gantt llamando al backend |
 | `abrirDocumentosPendientes()` | — | Modal con expedientes no FIRMADOS |
 | `cerrarPendientes()` | — | Cierra modal pendientes |
 | `abrirHistorialCompleto(id)` | `id`: ID | Modal historial de snapshots |
