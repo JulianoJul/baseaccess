@@ -299,6 +299,7 @@ FROM recobros r
 LEFT JOIN cat_gerencia g ON r.id_gerencia = g.id
 LEFT JOIN cat_superintendencia s ON r.id_superintendencia = s.id
 LEFT JOIN cat_responsables em ON r.id_emisor = em.id
+LEFT JOIN cat_documento d ON r.id_documento = d.id
 LEFT JOIN cat_responsables re ON r.id_receptor = re.id
 LEFT JOIN cat_estatus_detalle ed ON r.id_estatus = ed.id;
 

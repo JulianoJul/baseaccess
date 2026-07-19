@@ -248,7 +248,12 @@ func TestObtenerRutaProcesosData(t *testing.T) {
 	app := testApp(t)
 	m := app
 
-	data, err := m.ObtenerRutaProcesosData()
+	hojaID, err := m.CrearRutaProcesosHoja("Test", "2024-01-01", "2024-12-31")
+	if err != nil {
+		t.Fatalf("CrearRutaProcesosHoja: %v", err)
+	}
+
+	data, err := m.ObtenerRutaProcesosData(int(hojaID), 0)
 	if err != nil {
 		t.Fatalf("ObtenerRutaProcesosData: %v", err)
 	}
@@ -263,6 +268,48 @@ func TestObtenerRutaProcesosData(t *testing.T) {
 	}
 	if len(data.Legend) < 6 {
 		t.Errorf("expected at least 6 legend entries, got %d", len(data.Legend))
+	}
+}
+
+func TestActualizarRutaProcesosLeyenda(t *testing.T) {
+	app := testApp(t)
+	m := app
+
+	legID, err := m.CrearRutaProcesosLeyenda("TEST", "#123456")
+	if err != nil {
+		t.Fatalf("CrearRutaProcesosLeyenda: %v", err)
+	}
+
+	err = m.ActualizarRutaProcesosLeyenda(int(legID), "TEST-UPDATED", "#654321")
+	if err != nil {
+		t.Fatalf("ActualizarRutaProcesosLeyenda: %v", err)
+	}
+
+	hojaID, err := m.CrearRutaProcesosHoja("Test", "2024-01-01", "2024-12-31")
+	if err != nil {
+		t.Fatalf("CrearRutaProcesosHoja: %v", err)
+	}
+
+	data, err := m.ObtenerRutaProcesosData(int(hojaID), 0)
+	if err != nil {
+		t.Fatalf("ObtenerRutaProcesosData: %v", err)
+	}
+
+	var found bool
+	for _, leg := range data.Legend {
+		if leg.ID == int(legID) {
+			found = true
+			if leg.StatusName != "TEST-UPDATED" {
+				t.Errorf("expected status_name TEST-UPDATED, got %s", leg.StatusName)
+			}
+			if leg.HexColor != "#654321" {
+				t.Errorf("expected hex_color #654321, got %s", leg.HexColor)
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("updated legend not found in ObtenerRutaProcesosData")
 	}
 }
 

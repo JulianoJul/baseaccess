@@ -24,6 +24,8 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `AbrirDialogoBD()` | — | Abre diálogo nativo Wails (`runtime.OpenFileDialog`) para seleccionar .db |
 | `GuardarDialogoBD(nombreDefault)` | `nombreDefault`: string | Abre diálogo nativo Wails (`runtime.SaveFileDialog`) para guardar copia |
 | `ObtenerExpedientesDisponiblesRuta()` | — | Retorna JSON con expedientes no agregados aún a Ruta Procesos |
+| `ObtenerRegistrosDisponiblesRuta(modulo)` | `modulo`: string | Retorna JSON con registros disponibles del módulo indicado para agregar como procesos |
+| `ActualizarRutaProcesosLeyenda(id, nombre, color)` | `id`: int, `nombre`, `color`: string | Actualiza nombre y color de una leyenda existente |
 | `ObtenerColumnasVista(vista)` | `vista`: string (validada contra whitelist) | Retorna nombres de columna de una vista SQL |
 | `SetBackupMaxCopies(n)` | `n`: int | Configura número de backups rotativos (1-20). Thread-safe via `atomic.Int64` |
 | `GetBackupMaxCopies()` | — | Retorna número actual de backups. Thread-safe |
@@ -66,13 +68,16 @@ La mayoria de las funciones JS previas (cargarCatalogos, obtenerExpedientes, gua
 |---------|-----------|-------------|
 | `abrirRutaProcesos()` | — | Modal Gantt-chart de ruta de procesos |
 | `cerrarRutaProcesos()` | — | Cierra modal ruta |
-| `toggleFormProceso()` | — | Muestra/oculta formulario para agregar proceso con selector de expedientes |
-| `agregarProceso()` | — | Agrega expediente seleccionado como proceso en la ruta |
+| `toggleFormProceso()` | — | Muestra/oculta formulario para agregar proceso con selector de módulo y registro |
+| `cargarRegistrosModulo()` | — | Carga registros del módulo seleccionado en el selector |
+| `agregarProceso()` | — | Agrega registro seleccionado como proceso en la ruta (incluye módulo) |
 | `toggleProceso(id, checked)` | `id`, `checked` | Activa/desactiva proceso en la ruta |
 | `eliminarProceso(id)` | `id` | Elimina proceso de la ruta |
 | `abrirEditarCronograma(procId, fecha, statusName, note)` | `procId`, `fecha`, `statusName`, `note` | Abre el modal para programar un día en el Gantt con estatus y notas |
 | `cerrarCronoModal()` | — | Cierra el modal de programación del día |
 | `guardarCronoDia()` | — | Guarda los cambios de la celda del Gantt llamando al backend |
+| `editarLeyenda(id, nombre, color)` | `id`, `nombre`, `color` | Abre modal para editar nombre y color de una leyenda existente |
+| `guardarEditarLeyenda()` | — | Guarda los cambios de la leyenda editada y recarga el Gantt |
 | `abrirDocumentosPendientes()` | — | Modal con expedientes no FIRMADOS |
 | `cerrarPendientes()` | — | Cierra modal pendientes |
 | `abrirHistorialCompleto(id)` | `id`: ID | Modal historial de snapshots |

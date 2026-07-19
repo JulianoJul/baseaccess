@@ -1,7 +1,26 @@
 export namespace main {
 	
+	export class RutaProcesosHoja {
+	    id: number;
+	    nombre: string;
+	    fecha_inicio: string;
+	    fecha_fin: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new RutaProcesosHoja(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.nombre = source["nombre"];
+	        this.fecha_inicio = source["fecha_inicio"];
+	        this.fecha_fin = source["fecha_fin"];
+	    }
+	}
 	export class RutaProcesosProceso {
 	    id: number;
+	    modulo: string;
 	    descripcion: string;
 	    db_id: number;
 	    activo: boolean;
@@ -17,6 +36,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.id = source["id"];
+	        this.modulo = source["modulo"];
 	        this.descripcion = source["descripcion"];
 	        this.db_id = source["db_id"];
 	        this.activo = source["activo"];
@@ -46,6 +66,9 @@ export namespace main {
 	    legend: RutaProcesosLegend[];
 	    columns: any[];
 	    processes: RutaProcesosProceso[];
+	    hojas: RutaProcesosHoja[];
+	    current_hoja?: RutaProcesosHoja;
+	    offset_weeks: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new RutaProcesosGanttData(source);
@@ -56,6 +79,9 @@ export namespace main {
 	        this.legend = this.convertValues(source["legend"], RutaProcesosLegend);
 	        this.columns = source["columns"];
 	        this.processes = this.convertValues(source["processes"], RutaProcesosProceso);
+	        this.hojas = this.convertValues(source["hojas"], RutaProcesosHoja);
+	        this.current_hoja = this.convertValues(source["current_hoja"], RutaProcesosHoja);
+	        this.offset_weeks = source["offset_weeks"];
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -76,6 +102,7 @@ export namespace main {
 		    return a;
 		}
 	}
+	
 	
 
 }

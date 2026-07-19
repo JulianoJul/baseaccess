@@ -130,7 +130,7 @@
                             hx-target="#vista-tabla"
                             hx-include="#search, #sort-order, #sort-dir-val"
                             hx-indicator="#spinner-overlay"
-                            hx-on::after-request="document.querySelectorAll('#modulo-botones .btn-mod').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); }); this.classList.remove('btn-secondary'); this.classList.add('btn-primary')"
+                            hx-on::after-request="document.querySelectorAll('#modulo-botones .btn-mod').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); }); this.classList.remove('btn-secondary'); this.classList.add('btn-primary'); history.replaceState(null, '', '?modulo={{$key}}')"
                             class="btn btn-mod {{if eq $.ActiveModule $key}}btn-primary{{else}}btn-secondary{{end}}"
                             {{if not $.HasDB}}disabled{{end}}>
                         {{$config.Nombre}}

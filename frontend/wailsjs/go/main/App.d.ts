@@ -6,15 +6,25 @@ export function AbrirBaseDatos(arg1:string):Promise<void>;
 
 export function AbrirDialogoBD():Promise<string>;
 
-export function AgregarRutaProceso(arg1:string,arg2:number):Promise<number>;
+export function ActualizarRutaProcesosLeyenda(arg1:number,arg2:string,arg3:string):Promise<void>;
+
+export function AgregarRutaProceso(arg1:number,arg2:string,arg3:string,arg4:number):Promise<number>;
 
 export function CerrarBaseDatos():Promise<void>;
+
+export function CrearRutaProcesosHoja(arg1:string,arg2:string,arg3:string):Promise<number>;
+
+export function CrearRutaProcesosLeyenda(arg1:string,arg2:string):Promise<number>;
 
 export function DescargarBD(arg1:string):Promise<void>;
 
 export function EliminarFila(arg1:string,arg2:number):Promise<void>;
 
+export function EliminarRutaCronogramaCelda(arg1:number,arg2:string):Promise<void>;
+
 export function EliminarRutaProceso(arg1:number):Promise<void>;
+
+export function EliminarRutaProcesosHoja(arg1:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
 
@@ -40,9 +50,11 @@ export function ObtenerFilas(arg1:string,arg2:string):Promise<Array<main.Row>>;
 
 export function ObtenerHistorialFila(arg1:string,arg2:number):Promise<Array<main.Row>>;
 
+export function ObtenerRegistrosDisponiblesRuta(arg1:string):Promise<Array<Record<string, any>>>;
+
 export function ObtenerRutaProcesos():Promise<Array<main.Row>>;
 
-export function ObtenerRutaProcesosData():Promise<main.RutaProcesosGanttData>;
+export function ObtenerRutaProcesosData(arg1:number,arg2:number):Promise<main.RutaProcesosGanttData>;
 
 export function OptimizarBD():Promise<void>;
 

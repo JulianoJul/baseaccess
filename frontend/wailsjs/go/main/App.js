@@ -10,12 +10,24 @@ export function AbrirDialogoBD() {
   return window['go']['main']['App']['AbrirDialogoBD']();
 }
 
-export function AgregarRutaProceso(arg1, arg2) {
-  return window['go']['main']['App']['AgregarRutaProceso'](arg1, arg2);
+export function ActualizarRutaProcesosLeyenda(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ActualizarRutaProcesosLeyenda'](arg1, arg2, arg3);
+}
+
+export function AgregarRutaProceso(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['AgregarRutaProceso'](arg1, arg2, arg3, arg4);
 }
 
 export function CerrarBaseDatos() {
   return window['go']['main']['App']['CerrarBaseDatos']();
+}
+
+export function CrearRutaProcesosHoja(arg1, arg2, arg3) {
+  return window['go']['main']['App']['CrearRutaProcesosHoja'](arg1, arg2, arg3);
+}
+
+export function CrearRutaProcesosLeyenda(arg1, arg2) {
+  return window['go']['main']['App']['CrearRutaProcesosLeyenda'](arg1, arg2);
 }
 
 export function DescargarBD(arg1) {
@@ -26,8 +38,16 @@ export function EliminarFila(arg1, arg2) {
   return window['go']['main']['App']['EliminarFila'](arg1, arg2);
 }
 
+export function EliminarRutaCronogramaCelda(arg1, arg2) {
+  return window['go']['main']['App']['EliminarRutaCronogramaCelda'](arg1, arg2);
+}
+
 export function EliminarRutaProceso(arg1) {
   return window['go']['main']['App']['EliminarRutaProceso'](arg1);
+}
+
+export function EliminarRutaProcesosHoja(arg1) {
+  return window['go']['main']['App']['EliminarRutaProcesosHoja'](arg1);
 }
 
 export function GetBackupMaxCopies() {
@@ -78,12 +98,16 @@ export function ObtenerHistorialFila(arg1, arg2) {
   return window['go']['main']['App']['ObtenerHistorialFila'](arg1, arg2);
 }
 
+export function ObtenerRegistrosDisponiblesRuta(arg1) {
+  return window['go']['main']['App']['ObtenerRegistrosDisponiblesRuta'](arg1);
+}
+
 export function ObtenerRutaProcesos() {
   return window['go']['main']['App']['ObtenerRutaProcesos']();
 }
 
-export function ObtenerRutaProcesosData() {
-  return window['go']['main']['App']['ObtenerRutaProcesosData']();
+export function ObtenerRutaProcesosData(arg1, arg2) {
+  return window['go']['main']['App']['ObtenerRutaProcesosData'](arg1, arg2);
 }
 
 export function OptimizarBD() {

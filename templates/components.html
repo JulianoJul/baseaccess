@@ -14,7 +14,7 @@
             hx-post="/api/guardar-expediente?modulo={{.Modulo}}"
             hx-include="#form-expediente"
             hx-swap="none"
-            hx-on::after-request="if(event.detail.successful) { toast('Registro guardado', 'success'); cerrarFormulario(); location.reload(); } else { alert(JSON.parse(event.detail.xhr.responseText).error || 'Error al guardar'); }"
+            hx-on::after-request="if(event.detail.successful) { toast('Registro guardado', 'success'); cerrarFormulario(); location.reload(); } else { let errText = 'Error al guardar'; try { errText = JSON.parse(event.detail.xhr.responseText).error || errText; } catch(e) {} alert(errText); }"
             class="btn btn-primary btn-lg">Guardar</button>
 </div>
 {{end}}
@@ -46,7 +46,7 @@
 {{define "form_input_number"}}
 <div>
     <label class="label">{{.Label}}</label>
-    <input type="number" step="any" id="f-{{.Name}}" name="{{.Name}}" class="input" value="{{if .Registro}}{{rowGetNum .Registro .Name}}{{end}}" {{if .ExtraAttrs}}{{.ExtraAttrs}}{{end}}>
+    <input type="text" inputmode="decimal" id="f-{{.Name}}" name="{{.Name}}" class="input num-field" value="{{if .Registro}}{{rowGetNum .Registro .Name}}{{end}}" {{if .ExtraAttrs}}{{.ExtraAttrs}}{{end}}>
 </div>
 {{end}}
 

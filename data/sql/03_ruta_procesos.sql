@@ -17,10 +17,10 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_hojas (
 CREATE TABLE IF NOT EXISTS ruta_procesos_procesos (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     id_hoja     INTEGER NOT NULL,
+    modulo      TEXT NOT NULL DEFAULT 'expedientes',
     descripcion TEXT NOT NULL,
     db_id       INTEGER,
     activo      INTEGER DEFAULT 1,
-    CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente),
     CONSTRAINT fk_proc_hoja FOREIGN KEY (id_hoja) REFERENCES ruta_procesos_hojas(id) ON DELETE CASCADE
 );
 
@@ -37,15 +37,15 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
     CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 );
 
--- Leyenda base
+-- Leyenda base (orden alfabético)
 INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
-('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FFA500'),
-('INICIO (CONTRATACIÓN)', '#3B82F6'),
-('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#8B5CF6'),
-('INICIO (COMISIÓN)', '#10B981'),
-('APERTURA DE OFERTAS', '#F59E0B'),
-('ANÁLISIS TÉCNICO', '#06B6D4'),
-('ANÁLISIS ECONÓMICO', '#14B8A6'),
-('RESULTADOS', '#6366F1'),
-('APROBACIÓN PRESIDENCIA', '#EC4899'),
-('CONTROL DE DOCUMENTOS PRESIDENCIA', '#6B7280');
+('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757'),
+('ANÁLISIS ECONÓMICO', '#1E90FF'),
+('ANÁLISIS TÉCNICO', '#2ED573'),
+('APERTURA DE OFERTAS', '#FFA502'),
+('APROBACIÓN PRESIDENCIA', '#A855F7'),
+('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3'),
+('INICIO (COMISIÓN)', '#FF6B81'),
+('INICIO (CONTRATACIÓN)', '#2BCBBA'),
+('RESULTADOS', '#FDCB6E'),
+('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7');

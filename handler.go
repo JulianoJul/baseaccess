@@ -383,6 +383,13 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p := r.URL.Path
 
+	// Prevenir cache para rutas dinámicas (API y páginas HTML)
+	if p == "/" || p == "/index.html" || strings.HasPrefix(p, "/api/") {
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+	}
+
 	// --- API routes ---
 	switch {
 	case p == "/api/guardar-expediente" && r.Method == http.MethodPost:
@@ -427,8 +434,8 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarRutaProceso(w, r)
 		return
-	case p == "/api/ruta-procesos-expedientes" && r.Method == http.MethodGet:
-		h.handleRutaProcesosExpedientes(w, r)
+	case p == "/api/ruta-procesos-registros" && r.Method == http.MethodGet:
+		h.handleRutaProcesosRegistros(w, r)
 		return
 	case p == "/api/ruta-procesos-hoja-crear" && r.Method == http.MethodPost:
 		h.handleCrearRutaProcesoHoja(w, r)
@@ -438,6 +445,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	case p == "/api/ruta-procesos-leyenda-crear" && r.Method == http.MethodPost:
 		h.handleCrearLeyenda(w, r)
+		return
+	case p == "/api/ruta-procesos-leyenda-actualizar" && r.Method == http.MethodPost:
+		h.handleActualizarLeyenda(w, r)
 		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
@@ -779,6 +789,10 @@ func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *htt
 		writeJSONError(w, "id_hoja invalido", http.StatusBadRequest)
 		return
 	}
+	modulo := r.FormValue("modulo")
+	if modulo == "" {
+		modulo = "expedientes"
+	}
 	descripcion := r.FormValue("descripcion")
 	if strings.TrimSpace(descripcion) == "" {
 		writeJSONError(w, "descripcion requerida", http.StatusBadRequest)
@@ -793,7 +807,7 @@ func (h *TemplateHandler) handleAgregarRutaProceso(w http.ResponseWriter, r *htt
 			return
 		}
 	}
-	id, err := h.app.AgregarRutaProceso(idHoja, strings.TrimSpace(descripcion), dbID)
+	id, err := h.app.AgregarRutaProceso(idHoja, modulo, strings.TrimSpace(descripcion), dbID)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -845,6 +859,26 @@ func (h *TemplateHandler) handleCrearLeyenda(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, map[string]interface{}{"success": true, "id": id})
 }
 
+func (h *TemplateHandler) handleActualizarLeyenda(w http.ResponseWriter, r *http.Request) {
+	idStr := r.FormValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSONError(w, "id inválido", http.StatusBadRequest)
+		return
+	}
+	nombre := r.FormValue("nombre")
+	color := r.FormValue("color")
+	if strings.TrimSpace(nombre) == "" || color == "" {
+		writeJSONError(w, "Faltan campos (nombre, color)", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.ActualizarRutaProcesosLeyenda(id, nombre, color); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
 func (h *TemplateHandler) handleGuardarCronogramaDia(w http.ResponseWriter, r *http.Request) {
 	idProcesoStr := r.FormValue("id_proceso")
 	idProceso, err := strconv.Atoi(idProcesoStr)
@@ -886,13 +920,18 @@ func (h *TemplateHandler) handleEliminarRutaProceso(w http.ResponseWriter, r *ht
 	writeJSON(w, map[string]interface{}{"success": true})
 }
 
-func (h *TemplateHandler) handleRutaProcesosExpedientes(w http.ResponseWriter, r *http.Request) {
-	expedientes, err := h.app.ObtenerExpedientesDisponiblesRuta()
+func (h *TemplateHandler) handleRutaProcesosRegistros(w http.ResponseWriter, r *http.Request) {
+	modulo := r.URL.Query().Get("modulo")
+	if modulo == "" {
+		writeJSONError(w, "modulo requerido", http.StatusBadRequest)
+		return
+	}
+	registros, err := h.app.ObtenerRegistrosDisponiblesRuta(modulo)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	writeJSON(w, expedientes)
+	writeJSON(w, registros)
 }
 
 func (h *TemplateHandler) handlePendientes(w http.ResponseWriter, r *http.Request) {

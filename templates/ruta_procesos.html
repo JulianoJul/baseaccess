@@ -19,13 +19,7 @@
                 <i class="fas fa-trash"></i>
             </button>
         </div>
-        <div class="flex items-center gap-2">
-            <button onclick="cambiarSemanas(-4)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-double-left mr-1"></i> -4 Semanas</button>
-            <button onclick="cambiarSemanas(-1)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-left"></i></button>
-            <span class="text-gray-400 text-sm font-mono bg-gray-900 px-3 py-1 rounded" id="gantt-offset-display">Offset: {{ .OffsetWeeks }}</span>
-            <button onclick="cambiarSemanas(1)" class="btn btn-secondary py-1 px-3 text-xs"><i class="fas fa-angle-right"></i></button>
-            <button onclick="cambiarSemanas(4)" class="btn btn-secondary py-1 px-3 text-xs">+4 Semanas <i class="fas fa-angle-double-right ml-1"></i></button>
-        </div>
+        <div class="flex items-center gap-2"></div>
     </div>
 
     <div class="card">
@@ -39,12 +33,26 @@
         </div>
         <div id="form-agregar-proceso" class="hidden border border-gray-700 rounded-lg p-4 mb-4 space-y-4">
             <div>
-                <label class="label">Expediente existente</label>
-                <select id="proc-exp-select" class="input" size="8">
-                    <option value="" disabled selected>Cargando expedientes...</option>
+                <label class="label">Módulo</label>
+                <select id="proc-mod-select" class="input" onchange="cargarRegistrosModulo()">
+                    <option value="expedientes">Control Docs. Presidencia</option>
+                    <option value="requisiciones">Requisición de Materiales</option>
+                    <option value="memorandums">Memorándums</option>
+                    <option value="recobros">Recobros</option>
+                    <option value="valuaciones">Valuaciones</option>
+                    <option value="aprobacion_jd">Aprobación JD</option>
+                    <option value="certificacion_bdu">Certificación BDU</option>
+                    <option value="vacaciones">Vacaciones</option>
+                    <option value="reposos_medicos">Reposos Médicos</option>
                 </select>
             </div>
-            <div class="flex justify-end gap-3">
+            <div>
+                <label class="label">Registro existente</label>
+                <select id="proc-exp-select" class="input" size="6">
+                    <option value="" disabled selected>Selecciona un módulo primero...</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-3 border-t border-gray-700">
                 <button onclick="toggleFormProceso()" class="btn btn-secondary">Cancelar</button>
                 <button onclick="agregarProceso()" class="btn btn-primary"><i class="fas fa-check mr-1"></i> Agregar</button>
             </div>
@@ -54,7 +62,7 @@
     <div id="gantt-process-content"></div>
 
     <div class="flex justify-end mt-4">
-        <button onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary text-sm">
+        <button id="btn-crear-leyenda" onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary text-sm hidden">
             <i class="fas fa-palette mr-1"></i> Añadir Leyenda Personalizada
         </button>
     </div>
@@ -97,10 +105,35 @@
                     <input type="text" id="nueva-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
                 </div>
                 <div>
-                    <label class="label">Color HEX</label>
-                    <input type="color" id="nueva-leyenda-color" class="input h-10 w-full" value="#FFFFFF">
+                    <label class="label">Color</label>
+                    <div class="leyenda-color-wrap">
+                        <input type="color" id="nueva-leyenda-color" class="input" value="#FFFFFF">
+                    </div>
                 </div>
                 <button onclick="crearLeyenda()" class="btn btn-primary w-full mt-4">Guardar Leyenda</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Editar Leyenda -->
+    <div id="editar-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Editar Leyenda</h3>
+                <button onclick="toggleModal('editar-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <input type="hidden" id="editar-leyenda-id">
+                <div>
+                    <label class="label">Nombre (Estatus)</label>
+                    <input type="text" id="editar-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
+                </div>
+                <div>
+                    <label class="label">Color</label>
+                    <div class="leyenda-color-wrap">
+                        <input type="color" id="editar-leyenda-color" class="input">
+                    </div>
+                </div>
+                <button onclick="guardarEditarLeyenda()" class="btn btn-primary w-full mt-4">Actualizar Leyenda</button>
             </div>
         </div>
     </div>
@@ -146,15 +179,7 @@
     window.cambiarHoja = function() {
         var idHoja = document.getElementById('gantt-hoja-select').value;
         if (!idHoja || idHoja == "0") return;
-        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=0', '#main-content');
-    };
-
-    window.cambiarSemanas = function(delta) {
-        var idHoja = document.getElementById('gantt-hoja-select').value;
-        if (!idHoja || idHoja == "0") return;
-        var newOffset = (offset_weeks || 0) + delta;
-        if (newOffset < 0) newOffset = 0;
-        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + newOffset, '#main-content');
+        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=0', '#ruta-contenido');
     };
 
     window.eliminarHojaActual = function() {
@@ -167,7 +192,7 @@
             body: 'id=' + idHoja
         }).then(r => r.json()).then(res => {
             if (res.success) {
-                htmx.ajax('GET', '/api/ruta-procesos', '#main-content');
+                htmx.ajax('GET', '/api/ruta-procesos', '#ruta-contenido');
             } else {
                 alert(res.error || 'Error eliminando hoja');
             }
@@ -189,11 +214,41 @@
         }).then(r => r.json()).then(res => {
             if (res.success) {
                 toggleModal('crear-hoja-modal');
-                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + res.id, '#main-content');
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + res.id, '#ruta-contenido');
             } else {
                 alert(res.error || 'Error creando hoja');
             }
         });
+    };
+
+    window.editarLeyenda = function(id, nombre, color) {
+        document.getElementById('editar-leyenda-id').value = id;
+        document.getElementById('editar-leyenda-nombre').value = nombre;
+        document.getElementById('editar-leyenda-color').value = color;
+        toggleModal('editar-leyenda-modal');
+    };
+
+    window.guardarEditarLeyenda = function() {
+        var id = document.getElementById('editar-leyenda-id').value;
+        var nombre = document.getElementById('editar-leyenda-nombre').value;
+        var color = document.getElementById('editar-leyenda-color').value;
+        if (!nombre || !color) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-leyenda-actualizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id + '&nombre=' + encodeURIComponent(nombre) + '&color=' + encodeURIComponent(color)
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('editar-leyenda-modal');
+                var idHoja = document.getElementById('gantt-hoja-select').value;
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+            } else {
+                alert(res.error || 'Error actualizando leyenda');
+            }
+        }).catch(function() { alert('Error de conexion'); });
     };
 
     window.crearLeyenda = function() {
@@ -211,7 +266,7 @@
             if (res.success) {
                 toggleModal('crear-leyenda-modal');
                 var idHoja = document.getElementById('gantt-hoja-select').value;
-                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#main-content');
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
             } else {
                 alert(res.error || 'Error creando leyenda');
             }
@@ -223,34 +278,38 @@
         return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
     }
 
+    window.cargarRegistrosModulo = function() {
+        var mod = document.getElementById('proc-mod-select').value;
+        var sel = document.getElementById('proc-exp-select');
+        sel.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+        fetch('/api/ruta-procesos-registros?modulo=' + encodeURIComponent(mod))
+            .then(function(r) { return r.json(); })
+            .then(function(list) {
+                if (!list || !list.length) {
+                    sel.innerHTML = '<option value="" disabled>No hay registros disponibles</option>';
+                    return;
+                }
+                sel.innerHTML = '';
+                list.forEach(function(ex) {
+                    var opt = document.createElement('option');
+                    opt.value = ex.id;
+                    var label = ex.label || '';
+                    opt.setAttribute('data-label', label);
+                    opt.setAttribute('data-modulo', mod);
+                    opt.textContent = '#' + ex.id + ' - ' + label;
+                    sel.appendChild(opt);
+                });
+            })
+            .catch(function() {
+                sel.innerHTML = '<option value="" disabled>Error al cargar</option>';
+            });
+    };
+
     window.toggleFormProceso = function() {
         formVisible = !formVisible;
         document.getElementById('form-agregar-proceso').classList.toggle('hidden', !formVisible);
         if (formVisible) {
-            var sel = document.getElementById('proc-exp-select');
-            sel.innerHTML = '<option value="" disabled selected>Cargando...</option>';
-            fetch('/api/ruta-procesos-expedientes')
-                .then(function(r) { return r.json(); })
-                .then(function(list) {
-                    if (!list || !list.length) {
-                        sel.innerHTML = '<option value="" disabled>No hay expedientes disponibles</option>';
-                        return;
-                    }
-                    sel.innerHTML = '';
-                    list.forEach(function(ex) {
-                        var opt = document.createElement('option');
-                        opt.value = ex.id;
-                        var s = ex.solped || 'NO APLICA';
-                        var d = ex.descripcion_proceso || '';
-                        opt.setAttribute('data-solped', s);
-                        opt.setAttribute('data-desc', d);
-                        opt.textContent = '#' + ex.id + ' - ' + s + ' - ' + d.substring(0, 60);
-                        sel.appendChild(opt);
-                    });
-                })
-                .catch(function() {
-                    sel.innerHTML = '<option value="" disabled>Error al cargar</option>';
-                });
+            cargarRegistrosModulo();
         }
     };
 
@@ -259,15 +318,17 @@
         var dbId = parseInt(sel.value);
         if (!dbId) { alert('Selecciona un expediente'); return; }
         var opt = sel.options[sel.selectedIndex];
-        var desc = opt.getAttribute('data-desc') || '';
-        var solped = opt.getAttribute('data-solped') || 'NO APLICA';
+        var modulo = opt.getAttribute('data-modulo') || 'expedientes';
+        var label = opt.getAttribute('data-label') || '';
+        var desc = label || '#' + dbId;
+        var solped = label || 'NO APLICA';
         
         var idHoja = document.getElementById('gantt-hoja-select') ? document.getElementById('gantt-hoja-select').value : 0;
         
         fetch('/api/ruta-procesos-agregar', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'id_hoja=' + idHoja + '&descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
+            body: 'id_hoja=' + idHoja + '&modulo=' + encodeURIComponent(modulo) + '&descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
         })
         .then(async function(res) {
             if (!res.ok) {
@@ -278,7 +339,7 @@
         })
         .then(json => {
             if (json.success) {
-                processes.push({ id: json.id, descripcion: desc, db_id: dbId, activo: true, solped: solped, estatus_detalle: 'NO APLICA', receptor: 'NO APLICA', timeline: {} });
+                processes.push({ id: json.id, modulo: modulo, descripcion: desc, db_id: dbId, activo: true, solped: solped, estatus_detalle: 'NO APLICA', receptor: 'NO APLICA', timeline: {} });
                 renderAll();
                 toggleFormProceso();
                 sel.value = '';
@@ -331,12 +392,14 @@
                 '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="exp-col" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
                 '<span class="proceso-card-num">' + p.id + '</span></label>' +
                 '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + esc(p.descripcion) + '</p>' +
-                '<div class="proceso-card-meta"><span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
+                '<div class="proceso-card-meta"><span class="proceso-card-mod">' + esc(p.modulo || 'expedientes') + '</span>' +
+                '<span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
                 '<span>Estatus: <span class="proceso-card-badge ' + ((p.estatus_detalle || '') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente') + '">' + esc(p.estatus_detalle || 'N/A') + '</span></span></div></div></div>' +
                 '<button onclick="event.stopPropagation(); eliminarProceso(' + p.id + ')" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar"><i class="fas fa-trash"></i></button>' +
                 '</div>';
         });
         document.getElementById('procesos-checkboxes').innerHTML = html;
+        document.getElementById('btn-crear-leyenda').classList.toggle('hidden', !processes.length);
         renderGantt();
     }
 
@@ -384,7 +447,7 @@
         html += '</tbody></table></div></div>';
 
         var leyendaHtml = '<div class="border-t border-gray-700 pt-4"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
-        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item"><span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span><span class="gantt-legend-label">' + esc(leg.status_name) + '</span></div>'; });
+        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item cursor-pointer" onclick="editarLeyenda(' + leg.id + ', \'' + esc(leg.status_name) + '\', \'' + esc(leg.hex_color) + '\')"><span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span><span class="gantt-legend-label">' + esc(leg.status_name) + '</span></div>'; });
         leyendaHtml += '</div></div>';
         html += leyendaHtml;
         document.getElementById('gantt-process-content').innerHTML = html;

@@ -157,7 +157,7 @@ CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(
 CREATE TRIGGER IF NOT EXISTS trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
 BEGIN
-    INSERT INTO historial_movimientos (
+    INSERT OR IGNORE INTO historial_movimientos (
         id_expediente, solped, id_gerencia, id_superintendencia,
         id_emisor, id_receptor, id_documento, id_plan,
         id_modalidad, id_art, id_tipo_contrato, id_estatus,
@@ -203,7 +203,7 @@ CREATE TRIGGER IF NOT EXISTS trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
 WHEN (OLD.solped IS NOT NEW.solped OR OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.id_plan IS NOT NEW.id_plan OR OLD.id_modalidad IS NOT NEW.id_modalidad OR OLD.id_art IS NOT NEW.id_art OR OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.id_resultado IS NOT NEW.id_resultado OR OLD.id_empresa IS NOT NEW.id_empresa OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.fecha_presupuesto_base IS NOT NEW.fecha_presupuesto_base OR OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR OLD.nro_proceso IS NOT NEW.nro_proceso OR OLD.nro_acta_apertura IS NOT NEW.nro_acta_apertura OR OLD.nro_resolucion_jd IS NOT NEW.nro_resolucion_jd OR OLD.nro_contrato_sicac IS NOT NEW.nro_contrato_sicac OR OLD.nro_contrato_sap IS NOT NEW.nro_contrato_sap OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.tipo_cambio IS NOT NEW.tipo_cambio OR OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR OLD.monto_adjudicado_bs IS NOT NEW.monto_adjudicado_bs OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.cantidad_frentes IS NOT NEW.cantidad_frentes OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas)
 BEGIN
-    INSERT INTO historial_movimientos (
+    INSERT OR IGNORE INTO historial_movimientos (
         id_expediente, solped, id_gerencia, id_superintendencia,
         id_emisor, id_receptor, id_documento, id_plan,
         id_modalidad, id_art, id_tipo_contrato, id_estatus,
@@ -309,13 +309,13 @@ LEFT JOIN cat_responsables receptor ON e.id_receptor       = receptor.id;
 -- ==========================================
 
 -- 1. GERENCIAS
-INSERT INTO cat_gerencia (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_gerencia (id, nombre) VALUES
 (1, 'SIHO-A'), (2, 'TÉCNICA'), (3, 'OPERACIONES'), (4, 'SSGG'), (5, 'JURÍDICO'),
 (6, 'FINANZAS'), (7, 'CONTRATACIÓN'), (8, 'RRHH'), (9, 'ASUNTOS GUBERNAMENTALES'), (10, 'COMISIÓN'),
 (11, 'PROCURA'), (12, 'CONTROL DE DOCUMENTOS'), (13, 'ASUNTOS PÚBLICOS');
 
 -- 2. SUPERINTENDENCIAS
-INSERT INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
+INSERT OR IGNORE INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
 (1, 'SIHO-A', 1),
 (2, 'INFRAESTRUCTURA', 2), (3, 'PERFORACIÓN', 2), (4, 'YACIMIENTOS', 2), (5, 'OPTIMIZACIÓN', 2),
 (6, 'OPERACIÓN DE PRODUCCIÓN', 3), (7, 'MANTENIMIENTO', 3),
@@ -325,7 +325,7 @@ INSERT INTO cat_superintendencia (id, nombre, id_gerencia) VALUES
 (15, 'PROCURA', 11), (16, 'CONTROL DE DOCUMENTOS', 12), (17, 'ASUNTOS PÚBLICOS', 13);
 
 -- 3. DOCUMENTOS
-INSERT INTO cat_documento (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_documento (id, nombre) VALUES
 (1,  'ACTA DE INICIO SOLICITUD (A)'),
 (2,  'ACTA DE MODIFICACIÓN DEL CONTRATO (A)'),
 (3,  'ACTA DE OTRAS CONSIDERACIONES (A)'),
@@ -356,24 +356,24 @@ INSERT INTO cat_documento (id, nombre) VALUES
 (28, 'SOLPED / PRESUPUESTO BASE / DESCRIPCIÓN DEL PROCESO / JUSTIFICACIÓN / INFORME TÉCNICO DE PRECALIFICACIÓN / ESPECIFICACIONES TÉCNICAS');
 
 -- 4. PLANES DE CONTRATACIÓN
-INSERT INTO cat_plan_contratacion (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_plan_contratacion (id, nombre) VALUES
 (1, 'ARRASTRE 2025'), (2, 'PLAN 2026'), (3, 'ADICIONAL (DIRECTOS) 2026'), (4, 'PLAN-ADICIONAL 2026');
 
 -- 5. MODALIDADES
-INSERT INTO cat_modalidad (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_modalidad (id, nombre) VALUES
 (1, 'CONCURSO ABIERTO'), (2, 'CONCURSO CERRADO'), (3, 'CONSULTA DE PRECIOS'), (4, 'CONTRATACIÓN DIRECTA');
 
 -- 6. ARTÍCULOS NORMATIVA INTERNA
-INSERT INTO cat_art (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_art (id, nombre) VALUES
 (1, '5 N - 08'), (2, '77 N - 01'), (3, '77 N - 02'), (4, '77 N - 03'),
 (5, '101 N - 01'), (6, '101 N - 02'), (7, '101 N - 03'), (8, '101 N - 04'), (9, '5 N - 06');
 
 -- 7. TIPO DE CONTRATO
-INSERT INTO cat_tipo_contrato (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_tipo_contrato (id, nombre) VALUES
 (1, 'PU'), (2, 'SG'), (3, 'MIXTO');
 
 -- 8. ESTATUS DETALLE (fusionado con antiguo cat_estado_accion)
-INSERT INTO cat_estatus_detalle (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_estatus_detalle (id, nombre) VALUES
 (1, 'PENDIENTE'),
 (2, 'FIRMADO'),
 (3, 'DEVUELTO PARA CORRECCIÓN'),
@@ -386,13 +386,13 @@ INSERT INTO cat_estatus_detalle (id, nombre) VALUES
 (10, 'SE ENTREGA PARA LA FIRMA');
 
 -- 9. RESULTADOS DEL PROCESO
-INSERT INTO cat_resultado_proceso (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_resultado_proceso (id, nombre) VALUES
 (1, 'ADJUDICADO'),
 (2, 'DESIERTO 113 # 1'), (3, 'DESIERTO 113 # 2'), (4, 'DESIERTO 113 # 3'),
 (5, 'DESIERTO 113 # 4'), (6, 'DESIERTO 113 # 5'), (7, 'DAR POR TERMINADO');
 
 -- 10. EMPRESAS ADJUDICADAS
-INSERT INTO cat_empresas (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_empresas (id, nombre) VALUES
 (1, 'PRODUCTORA Y DISTRIBUIDORA VENEZOLANA DE ALIMENTOS, S.A (PDVAL)'),
 (2, 'TRANSPORTE ROJAS GARCÍA,C.A.'),
 (3, 'CRANE & HEAVY SERVICE DE VENEZUELA'),
@@ -408,7 +408,7 @@ INSERT INTO cat_empresas (id, nombre) VALUES
 (13, 'POWERLINE CONSTRUCCIONES, C.A');
 
 -- 11. RESPONSABLES
-INSERT INTO cat_responsables (id, nombre) VALUES
+INSERT OR IGNORE INTO cat_responsables (id, nombre) VALUES
 (1, 'SIN IDENTIFICAR');
 
 -- PRAGMA user_version = 8;

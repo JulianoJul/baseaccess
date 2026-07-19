@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"embed"
 	"fmt"
 	"io"
 	"log"
@@ -17,6 +18,9 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+//go:embed data/sql/*.sql
+var sqlFS embed.FS
 
 const DefaultBackupMaxCopies = 2
 
@@ -348,6 +352,20 @@ func (a *App) AbrirBaseDatos(filePath string) error {
 		return fmt.Errorf("no se pudo inicializar schema ruta procesos: %w", err)
 	}
 
+	for _, f := range []string{
+		"data/sql/01_master_control_docs_presidencia.sql",
+		"data/sql/02_modulos_adicionales.sql",
+		"data/sql/03_ruta_procesos.sql",
+	} {
+		content, err := sqlFS.ReadFile(f)
+		if err != nil {
+			return fmt.Errorf("error leyendo %s: %w", f, err)
+		}
+		if _, err := db.Exec(string(content)); err != nil {
+			return fmt.Errorf("error ejecutando %s: %w", f, err)
+		}
+	}
+
 	return nil
 }
 
@@ -358,12 +376,20 @@ func (a *App) initRutaProcesosSchema() error {
 			status_name TEXT NOT NULL UNIQUE,
 			hex_color   TEXT NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS ruta_procesos_hojas (
+			id           INTEGER PRIMARY KEY AUTOINCREMENT,
+			nombre       TEXT NOT NULL,
+			fecha_inicio DATE NOT NULL,
+			fecha_fin    DATE NOT NULL
+		)`,
 		`CREATE TABLE IF NOT EXISTS ruta_procesos_procesos (
 			id          INTEGER PRIMARY KEY AUTOINCREMENT,
+			id_hoja     INTEGER NOT NULL,
+			modulo      TEXT NOT NULL DEFAULT 'expedientes',
 			descripcion TEXT NOT NULL,
 			db_id       INTEGER,
 			activo      INTEGER DEFAULT 1,
-			CONSTRAINT fk_proc_exp FOREIGN KEY (db_id) REFERENCES expedientes(id_expediente)
+			CONSTRAINT fk_proc_hoja FOREIGN KEY (id_hoja) REFERENCES ruta_procesos_hojas(id) ON DELETE CASCADE
 		)`,
 		`CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
 			id            INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -378,12 +404,17 @@ func (a *App) initRutaProcesosSchema() error {
 			CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 		)`,
 		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
-			('PENDIENTE', '#FFA500'),
-			('EN REVISION', '#3B82F6'),
-			('FIRMADO', '#10B981'),
-			('DEVUELTO', '#EF4444'),
-			('SIN NOVEDAD', '#6B7280'),
-			('OTRO', '#000000')`,
+			('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757'),
+			('ANÁLISIS ECONÓMICO', '#1E90FF'),
+			('ANÁLISIS TÉCNICO', '#2ED573'),
+			('APERTURA DE OFERTAS', '#FFA502'),
+			('APROBACIÓN PRESIDENCIA', '#A855F7'),
+			('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3'),
+			('INICIO (COMISIÓN)', '#FF6B81'),
+			('INICIO (CONTRATACIÓN)', '#2BCBBA'),
+			('RESULTADOS', '#FDCB6E'),
+			('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7')`,
+		`INSERT OR IGNORE INTO ruta_procesos_hojas (id, nombre, fecha_inicio, fecha_fin) VALUES (1, 'Default', '2024-01-01', '2024-12-31')`,
 	}
 	for _, s := range statements {
 		if _, err := a.db.Exec(s); err != nil {
@@ -837,6 +868,7 @@ type RutaProcesosLegend struct {
 
 type RutaProcesosProceso struct {
 	ID          int                    `json:"id"`
+	Modulo      string                 `json:"modulo"`
 	Descripcion string                 `json:"descripcion"`
 	DbID        int                    `json:"db_id"`
 	Activo      bool                   `json:"activo"`
@@ -869,7 +901,7 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
 
-	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY id")
+	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY status_name COLLATE NOCASE")
 	if err != nil {
 		return nil, err
 	}
@@ -929,14 +961,14 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 		columns = buildGanttColumns(currentHoja.FechaInicio, currentHoja.FechaFin, offsetWeeks)
 
 		procRows, err := a.db.Query(`
-			SELECT p.id, p.descripcion, p.db_id, p.activo,
+			SELECT p.id, p.modulo, p.descripcion, p.db_id, p.activo,
 				COALESCE(e.solped, 'NO APLICA'), COALESCE(e.estatus_detalle, 'NO APLICA'), COALESCE(e.receptor, 'NO APLICA'),
 				COALESCE(e.fecha_recibido, ''), COALESCE(e.fecha_devuelto, ''), COALESCE(e.fecha_firma_contrato, ''),
 				COALESCE(e.documento, ''), COALESCE(e.resultados_proceso, ''),
 				COALESCE(exp.id_documento, 0), COALESCE(exp.id_resultado, 0)
 			FROM ruta_procesos_procesos p
-			LEFT JOIN vw_reporte_excel_contrataciones e ON p.db_id = e.id_expediente
-			LEFT JOIN expedientes exp ON p.db_id = exp.id_expediente
+			LEFT JOIN vw_reporte_excel_contrataciones e ON p.modulo = 'expedientes' AND p.db_id = e.id_expediente
+			LEFT JOIN expedientes exp ON p.modulo = 'expedientes' AND p.db_id = exp.id_expediente
 			WHERE p.id_hoja = ?
 			ORDER BY p.id`, currentHoja.ID)
 		if err != nil {
@@ -950,11 +982,13 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 			var fRecibido, fDevuelto, fFirma string
 			var doc, resProc string
 			var idDoc, idRes int
-			if err := procRows.Scan(&p.ID, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor, &fRecibido, &fDevuelto, &fFirma, &doc, &resProc, &idDoc, &idRes); err != nil {
+			if err := procRows.Scan(&p.ID, &p.Modulo, &p.Descripcion, &p.DbID, &activo, &p.Solped, &p.Estatus, &p.Receptor, &fRecibido, &fDevuelto, &fFirma, &doc, &resProc, &idDoc, &idRes); err != nil {
 				continue
 			}
 		p.Activo = activo == 1
 		p.Timeline = map[string]interface{}{}
+		
+		if p.Modulo == "expedientes" {
 		
 		// Auto-populate timeline based on database dates and catalogs
 		if fRecibido != "" && len(fRecibido) >= 10 {
@@ -1004,6 +1038,7 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 				"hex_color":   hexColor,
 				"note":        "Fecha de firma de contrato",
 			}
+		}
 		}
 		processes = append(processes, p)
 	}
@@ -1136,7 +1171,7 @@ func (a *App) ToggleRutaProceso(id int, activo bool) error {
 	return err
 }
 
-func (a *App) AgregarRutaProceso(idHoja int, descripcion string, dbID int) (int64, error) {
+func (a *App) AgregarRutaProceso(idHoja int, modulo, descripcion string, dbID int) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.db == nil {
@@ -1146,7 +1181,7 @@ func (a *App) AgregarRutaProceso(idHoja int, descripcion string, dbID int) (int6
 	if dbID > 0 {
 		dbIDVal = dbID
 	}
-	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (id_hoja, descripcion, db_id, activo) VALUES (?, ?, ?, 1)", idHoja, descripcion, dbIDVal)
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_procesos (id_hoja, modulo, descripcion, db_id, activo) VALUES (?, ?, ?, ?, 1)", idHoja, modulo, descripcion, dbIDVal)
 	if err != nil {
 		return 0, err
 	}
@@ -1162,7 +1197,6 @@ func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, err
 	rows, err := a.db.Query(`
 		SELECT e.id_expediente, e.solped, e.descripcion_proceso
 		FROM vw_reporte_excel_contrataciones e
-		WHERE e.id_expediente NOT IN (SELECT COALESCE(db_id, 0) FROM ruta_procesos_procesos WHERE db_id IS NOT NULL)
 		ORDER BY e.id_expediente DESC
 	`)
 	if err != nil {
@@ -1186,6 +1220,64 @@ func (a *App) ObtenerExpedientesDisponiblesRuta() ([]map[string]interface{}, err
 			"id":                 id,
 			"solped":             solped,
 			"descripcion_proceso": desc,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return result, err
+	}
+	if result == nil {
+		result = []map[string]interface{}{}
+	}
+	return result, nil
+}
+
+func (a *App) ObtenerRegistrosDisponiblesRuta(modulo string) ([]map[string]interface{}, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	if a.db == nil {
+		return nil, fmt.Errorf("no hay BD abierta")
+	}
+
+	type moduleQuery struct {
+		vista    string
+		idCol    string
+		labelCol string
+	}
+	queries := map[string]moduleQuery{
+		"expedientes":     {"vw_reporte_excel_contrataciones", "id_expediente", "solped"},
+		"requisiciones":   {"vw_reporte_req_materiales", "id_requisicion", "descripcion_materiales"},
+		"memorandums":     {"vw_reporte_memorandums", "id_memorandum", "asunto"},
+		"recobros":        {"vw_reporte_recobros", "id_recobro", "asunto"},
+		"valuaciones":     {"vw_reporte_valuaciones", "id_valuacion", "solped"},
+		"aprobacion_jd":   {"vw_reporte_aprobacion_jd", "id_aprobacion", "solped"},
+		"certificacion_bdu": {"vw_reporte_certificacion_bdu", "id_certificacion", "nro_certificacion"},
+		"vacaciones":      {"vw_reporte_vacaciones", "id_vacacion", "nombre_empleado"},
+		"reposos_medicos": {"vw_reporte_reposos_medicos", "id_reposo", "nombre_empleado"},
+	}
+
+	q, ok := queries[modulo]
+	if !ok {
+		return nil, fmt.Errorf("módulo inválido: %s", modulo)
+	}
+
+	rows, err := a.db.Query(fmt.Sprintf("SELECT %s, %s FROM %s ORDER BY %s DESC", q.idCol, q.labelCol, q.vista, q.idCol))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []map[string]interface{}
+	for rows.Next() {
+		var id int
+		var label string
+		if err := rows.Scan(&id, &label); err != nil {
+			log.Printf("ObtenerRegistrosDisponiblesRuta (%s): scan: %v", modulo, err)
+			continue
+		}
+		result = append(result, map[string]interface{}{
+			"id":     id,
+			"label":  label,
+			"modulo": modulo,
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -1258,6 +1350,16 @@ func (a *App) CrearRutaProcesosLeyenda(nombre, color string) (int64, error) {
 		return 0, err
 	}
 	return res.LastInsertId()
+}
+
+func (a *App) ActualizarRutaProcesosLeyenda(id int, nombre, color string) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	_, err := a.db.Exec("UPDATE ruta_procesos_leyenda SET status_name = ?, hex_color = ? WHERE id = ?", nombre, color, id)
+	return err
 }
 
 type CatalogoItem struct {

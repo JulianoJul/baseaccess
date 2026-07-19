@@ -1,6 +1,7 @@
 :root {
   color-scheme: dark;
   --bg-body: #111827;
+
   --bg-card: rgba(17, 24, 39, 0.4);
   --bg-input: #1f2937;
   --bg-hover: #374151;
@@ -650,4 +651,21 @@ body.has-db #btn-recientes .btn-label { display: none; }
 body.has-db #btn-abrir-bd .mr-1,
 body.has-db #btn-recientes .mr-1 { margin-right: 0; }
 .ml-auto { margin-left: auto; }
+
+/* Color preview circular */
+input[type="color"] { cursor: pointer; }
+.leyenda-color-wrap input[type="color"] { width: 3rem; height: 3rem; border-radius: 9999px; padding: 0; border: 2px solid #4b5563; -webkit-appearance: none; appearance: none; }
+.leyenda-color-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.leyenda-color-wrap input[type="color"]::-webkit-color-swatch { border: none; border-radius: 9999px; }
+
+/* Estética general Ruta Procesos */
+#form-agregar-proceso .input[multiple], 
+#form-agregar-proceso select[size] { background: var(--bg-input); border-color: var(--border-default); color: var(--text-body); font-size: 0.8rem; }
+#form-agregar-proceso select[size] option { padding: 0.35rem 0.5rem; border-bottom: 1px solid rgba(55,65,81,0.3); }
+#form-agregar-proceso select[size] option:last-child { border-bottom: none; }
+#form-agregar-proceso select[size] option:hover { background-color: rgba(20,184,166,0.1); }
+
+.proceso-card-mod { display: inline-block; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 4px; background-color: rgba(20,184,166,0.15); color: var(--primary-text); }
+
+.gantt-col-num { position: sticky; left: 0; z-index: 2; }
 

@@ -262,3 +262,20 @@ Registro cronológico de decisiones técnicas tomadas en el proyecto.
   - `handler.go`: Nuevos endpoints de Hojas y Leyenda. Parseo de variables URL para paginación de semanas.
   - `templates/ruta_procesos.html`: Controles agregados para paginar, cambiar y crear hojas, así como un modal de creación de leyendas con color picker.
 
+## DEC-018: Procesos multi-modulo en Ruta Procesos + SQL embebido + fixes (julio 2026)
+
+- **Origen:** `[Instrucción Explícita del Usuario]`
+- **Contexto y Causa:** Ruta Procesos solo permitía agregar expedientes como procesos. El usuario necesitaba agregar procesos de cualquier módulo (memorandums, recobros, valuaciones, etc.). Además, al eliminar la BD para regenerar el schema, la app fallaba porque los SQL files no estaban embebidos y usaban `INSERT INTO` sin `OR IGNORE`.
+- **Alternativas evaluadas:**
+  - Seguir con solo expedientes en Ruta Procesos — descartado
+  - UNION de vistas para registros disponibles — elegido: consulta por módulo vía `/api/ruta-procesos-registros?modulo=xxx`
+  - `os.ReadFile` vs `embed.FS` — elegido embed para portabilidad del binario
+- **Impacto:**
+  - `app.go`: columna `modulo` añadida a `ruta_procesos_procesos`, FK a expedientes eliminada. Nueva función `ObtenerRegistrosDisponiblesRuta(modulo)`. SQL files embebidos via `//go:embed`.
+  - `data/sql/01_master_control_docs_presidencia.sql`: todos los INSERT cambiados a `INSERT OR IGNORE`.
+  - `data/sql/02_modulos_adicionales.sql`: fix `LEFT JOIN cat_documento` faltante en `vw_reporte_recobros`.
+  - `handler.go`: nuevo endpoint `/api/ruta-procesos-registros`, `/api/ruta-procesos-leyenda-actualizar`.
+  - `templates/`: selector de módulo en "Añadir Proceso", leyendas clickeables con modal de edición.
+  - Fix bug "Nuevo Registro": `hx-include` reemplazado por `hx-vals='js:{...}'`.
+  - Fix bug `location.reload()` después de guardar/eliminar: cambiado a `htmx.ajax` recargando solo la tabla del módulo activo.
+

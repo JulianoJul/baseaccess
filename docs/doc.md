@@ -282,6 +282,19 @@ Workflow: `.github/workflows/build.yml`
 | 49 | `templates/index.html` | `dbPath` escapado con `jsonEncode` | XSS |
 | 50 | `templates/index.html` | `convertirMoneda`: `try/finally` para liberar lock | Lock infinito en error |
 | 51 | `templates/index.html` | Referencia a `ruta-procesos-data.js` eliminada | Archivo eliminado |
+| 52 | `app.go`, `handler.go`, `templates/*` | **Multi-modulo en Ruta Procesos**: columna `modulo` en `ruta_procesos_procesos`. Nuevo endpoint `/api/ruta-procesos-registros?modulo=xxx`. Selector de módulo en "Añadir Proceso". | Se pueden agregar procesos de cualquier módulo al Gantt |
+| 53 | `handler.go`, `index.html` | **Fix botón Nuevo Registro**: `hx-include` reemplazado por `hx-vals='js:{...}'` y `location.reload()` cambiado a `htmx.ajax` recargando solo la tabla del módulo activo | El formulario se carga y guarda en el módulo correcto sin recargar toda la página |
+| 54 | `data/sql/01_master_control_docs_presidencia.sql` | Todos los `INSERT INTO` cambiados a `INSERT OR IGNORE INTO` | Idempotencia al reabrir BD desde Recientes |
+| 55 | `data/sql/02_modulos_adicionales.sql` | Fix: `vw_reporte_recobros` faltaba `LEFT JOIN cat_documento` | Vista de recobros ahora funciona |
+| 56 | `app.go` | SQL files embebidos via `//go:embed data/sql/*.sql` en vez de `os.ReadFile` | Portabilidad: no depende del directorio de trabajo |
+| 57 | `templates/ruta_procesos.html`, `handler.go`, `app.go` | Leyendas clickeables: modal de edición de nombre y color. Nuevo endpoint `/api/ruta-procesos-leyenda-actualizar` | El usuario puede editar leyendas existentes |
+| 58 | `app.go`, `data/sql/03_ruta_procesos.sql` | Leyendas ordenadas alfabéticamente con colores distintivos de alto contraste | Mejor legibilidad del Gantt |
+| 59 | `handler.go` | Cache-Control headers añadidos a rutas `/` y `/api/*` | Prevenir caché de respuestas HTML/JSON |
+| 60 | `templates/index.html` | `hx-indicator="#spinner-overlay"` y `history.replaceState(null, '', '?modulo={{$key}}')` en botones de módulo | Mostrar spinner al cambiar módulo + persistir módulo en URL |
+| 61 | `frontend/vendor/styles.css` | Clases `.w-8`, `.h-8`, `.rounded-full`, `.border-gray-600`, `.shrink-0` añadidas | Preview de color en modales de leyenda |
+| 62 | `templates/ruta_procesos.html` | Labels "Color HEX" → "Color" + preview circular con actualización en vivo | UX editor/creador de leyendas |
+| 63 | `docs/doc.md`, `docs/ai-context.md` | Sección "Bugs Conocidos" documentada | Transparencia sobre bugs de frontend |
+| 64 | `templates/components.html` | Revertido `htmx.ajax` → `location.reload()` para guardar/eliminar | `htmx.ajax` rompía persistencia de datos |
 
 
 ## Auditorías de Código (Julio 2026)
@@ -384,11 +397,35 @@ En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos c
 | `/api/historial` | GET | Devuelve fragmento HTML del historial de un registro (multi-módulo) |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
 | `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos |
-| `/api/ruta-procesos-agregar` | POST | Agrega un proceso a la ruta (vinculado a un expediente existente) |
+| `/api/ruta-procesos-agregar` | POST | Agrega un proceso a la ruta (vinculado a un registro existente de cualquier módulo) |
 | `/api/ruta-procesos-toggle` | POST | Activa/desactiva un proceso en la ruta |
 | `/api/ruta-procesos-eliminar` | POST | Elimina un proceso de la ruta |
-| `/api/ruta-procesos-expedientes` | GET | Devuelve JSON con expedientes disponibles para agregar como procesos |
+| `/api/ruta-procesos-registros` | GET | Devuelve JSON con registros disponibles para agregar como procesos (`?modulo=xxx`) |
+| `/api/ruta-procesos-leyenda-crear` | POST | Crea una leyenda personalizada |
+| `/api/ruta-procesos-leyenda-actualizar` | POST | Actualiza nombre y color de una leyenda existente |
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
-| `/api/csv` | GET | Descarga CSV del módulo indicado (`?modulo=...`) |
+| `/api/csv` | GET | Descarga CSV del módulo indicado (`?modulo=...`)
+
+## Bugs Conocidos (Julio 2026)
+
+### 1. `location.reload()` después de guardar/eliminar vuelve a expedientes
+
+Al guardar o eliminar un registro en un módulo que no sea "Control Docs. Presidencia" (expedientes), la página se recarga completamente y muestra el módulo por defecto (expedientes). El usuario debe volver a hacer clic en el módulo deseado en la barra inferior para ver los cambios.
+
+**Causa**: `components.html` usa `location.reload()` después de guardar/eliminar. Un intento de reemplazarlo con `htmx.ajax()` para recargar solo `#vista-tabla` manteniendo el módulo activo rompió la persistencia de datos (los registros reaparecían después de navegar entre módulos). Se prefirió mantener `location.reload()` con el bug UX menor.
+
+### 2. Botón "Nuevo Registro" no siempre pasa el módulo correcto
+
+El botón "Nuevo Registro" en `index.html:41-48` usa `hx-include="#active-module-val"` para pasar el módulo activo al servidor. En la práctica, este mecanismo es frágil y a veces no incluye el valor, causando que se cargue el formulario de expedientes en lugar del módulo activo.
+
+**Causa**: `hx-include` con un elemento fuera del contexto del botón puede fallar intermitentemente.
+
+### 3. `location.reload()` causa parpadeo
+
+La recarga completa de la página después de guardar/eliminar causa un flash visual (pantalla blanca breve) antes de que el contenido se renderice nuevamente.
+
+### Nota
+
+El backend (Go) funciona correctamente en todos los casos: los datos se guardan, eliminan y consultan correctamente. Los bugs son exclusivamente de frontend/UX relacionados con `location.reload()` y `hx-include`. |
