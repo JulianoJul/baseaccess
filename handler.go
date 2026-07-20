@@ -63,7 +63,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"default":    defaultVal,
 	}
 
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html", "templates/new/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -353,6 +353,13 @@ type PageData struct {
 func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	modulo, cfg, _ := moduloDesdeRequest(r)
 
+	pagina := 1
+	if p := r.URL.Query().Get("pagina"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 {
+			pagina = n
+		}
+	}
+
 	data := &PageData{
 		Title:          "App Control Documentos Presidencia",
 		HasDB:          h.app.db != nil,
@@ -360,8 +367,8 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 		ActiveModule:   modulo,
 		Modulos:        Modulos,
 		PageSize:       10,
+		CurrentPage:    pagina,
 		TotalPages:     1,
-		CurrentPage:    1,
 		SortColumn:     "fecha_creacion",
 		SortDir:        "DESC",
 		CatalogFilters: UnifiedCatalogFilters,
@@ -386,18 +393,14 @@ func (h *TemplateHandler) preparePageData(r *http.Request) *PageData {
 	data.ActiveModule = modulo
 	data.SortColumn = cfg.IDColumna
 
-	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	filas, totalPages, err := h.app.ObtenerFilasPaginado(modulo, cfg.IDColumna+" DESC", pagina, data.PageSize)
 	if err != nil {
 		log.Printf("preparePageData: error filas: %v", err)
 		data.Error = "Error al cargar datos: " + err.Error()
 	}
 	data.Filas = filas
-	data.Filas = filas
-
-	data.TotalPages = (len(filas) + data.PageSize - 1) / data.PageSize
-	if data.TotalPages < 1 {
-		data.TotalPages = 1
-	}
+	data.CurrentPage = pagina
+	data.TotalPages = totalPages
 
 	return data
 }
@@ -627,7 +630,7 @@ func (h *TemplateHandler) handleCargarExpediente(w http.ResponseWriter, r *http.
 		"ActiveModule": modulo,
 	}
 
-	tmplName := "form_" + modulo + ".html"
+	tmplName := "form.html"
 	h.renderTemplate(w, tmplName, data)
 }
 
@@ -640,12 +643,24 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 	q := strings.TrimSpace(strings.ToLower(r.URL.Query().Get("q")))
 	sortCol := r.URL.Query().Get("sort")
 	dir := strings.ToUpper(r.URL.Query().Get("dir"))
+	pagina := 1
+	pageSize := 10
 
 	if dir != "ASC" && dir != "DESC" {
 		dir = "DESC"
 	}
 	if sortCol == "" {
 		sortCol = cfg.IDColumna
+	}
+	if p := r.URL.Query().Get("pagina"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 {
+			pagina = n
+		}
+	}
+	if ps := r.URL.Query().Get("page_size"); ps != "" {
+		if n, err := strconv.Atoi(ps); err == nil && n > 0 && n <= 100 {
+			pageSize = n
+		}
 	}
 
 	filas, err := h.app.ObtenerFilas(modulo, sortCol+" "+dir)
@@ -678,6 +693,25 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 		}
 	}
 
+	total := len(filtered)
+	totalPages := (total + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if pagina > totalPages {
+		pagina = totalPages
+	}
+
+	start := (pagina - 1) * pageSize
+	end := start + pageSize
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+	pageRows := filtered[start:end]
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	h.app.mu.RLock()
 	hasDB := h.app.db != nil
@@ -685,12 +719,18 @@ func (h *TemplateHandler) handleFiltrarExpedientes(w http.ResponseWriter, r *htt
 
 	data := map[string]interface{}{
 		"ActiveModule": modulo,
-		"Filas":        filtered,
+		"Filas":        pageRows,
 		"Modulos":      modulosSinQueries(),
 		"HasDB":        hasDB,
+		"Q":            q,
+		"SortColumn":   sortCol,
+		"SortDir":      dir,
+		"CurrentPage":  pagina,
+		"TotalPages":   totalPages,
+		"PageSize":     pageSize,
 	}
 
-	tmplName := "tabla_" + modulo + ".html"
+	tmplName := "tabla.html"
 	h.renderTemplate(w, tmplName, data)
 }
 
@@ -701,7 +741,15 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	filas, err := h.app.ObtenerFilas(modulo, cfg.IDColumna+" DESC")
+	pagina := 1
+	pageSize := 10
+	if p := r.URL.Query().Get("pagina"); p != "" {
+		if n, err := strconv.Atoi(p); err == nil && n > 0 {
+			pagina = n
+		}
+	}
+
+	filas, totalPages, err := h.app.ObtenerFilasPaginado(modulo, cfg.IDColumna+" DESC", pagina, pageSize)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -716,9 +764,15 @@ func (h *TemplateHandler) handleCambiarModulo(w http.ResponseWriter, r *http.Req
 		"Filas":        filas,
 		"Modulos":      modulosSinQueries(),
 		"HasDB":        hasDB,
+		"Q":            "",
+		"SortColumn":   cfg.IDColumna,
+		"SortDir":      "DESC",
+		"CurrentPage":  pagina,
+		"TotalPages":   totalPages,
+		"PageSize":     pageSize,
 	}
 
-	tmplName := "tabla_" + modulo + ".html"
+	tmplName := "tabla.html"
 	h.renderTemplate(w, tmplName, data)
 }
 

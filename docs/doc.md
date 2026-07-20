@@ -291,16 +291,26 @@ templates/new/
 - **Go**: se introdujo el método `ObtenerFilasPaginado` en `app.go` y la función helper `pagRange` en `handler.go` para dar soporte a la paginación desde el servidor.
 - JS residual mínimo: apertura de BD (Wails dialog, no reemplazable por Alpine)
 
-### Lo que falta para el swap
+### Cómo revertir al sistema viejo
 
-1. **handler.go**: cambiar `template.ParseFS(templateFS, "templates/*.html")` → agregar `"templates/new/*.html"` (o reemplazar) y habilitar los cambios del backend preparados en `backend/new/handler.go` (que implementan `ObtenerFilasPaginado` y pasan parámetros de paginación a los templates)
-2. **handleCargarExpediente**: cambiar `tmplName := "form_" + modulo + ".html"` → `"form.html"`
-3. **handleFiltrarExpedientes** y **handleCambiarModulo**: cambiar `"tabla_" + modulo + ".html"` → `"tabla.html"`
-4. **index.html**: cambiar referencias de tabla del viejo `{{template "tabla_expedientes.html" .}}` → `{{template "tabla.html" .}}`
-5. Copiar Alpine JS de `frontend/new/vendor/` a `frontend/vendor/` (o servir desde `/new/vendor/`)
-6. Eliminar `frontend/vendor/app.js` y referencias viejas
-7. Eliminar los 18 templates modulares viejos (`form_*.html`, `tabla_*.html`)
-8. Probar todos los módulos: carga inicial, filtro, cambio de módulo, CRUD, exportar, sumas, fijados, recientes, Gantt
+Si el nuevo sistema falla, se puede volver al anterior con estos pasos:
+
+1. **handler.go**: cambiar `ParseFS(templateFS, "templates/*.html", "templates/new/*.html")` → `ParseFS(templateFS, "templates/*.html")`
+2. **handleCargarExpediente**: cambiar `"form.html"` → `"form_" + modulo + ".html"`
+3. **handleFiltrarExpedientes** y **handleCambiarModulo**: cambiar `"tabla.html"` → `"tabla_" + modulo + ".html"` y eliminar la lógica de paginación (`pagina`, `TotalPages`, `CurrentPage`, etc.)
+4. **app.go**: eliminar el método `ObtenerFilasPaginado` (o mantenerlo, no interfiere)
+5. Revertir `preparePageData` a `ObtenerFilas` en vez de `ObtenerFilasPaginado`
+6. Los archivos viejos (`form_*.html`, `tabla_*.html`, `app.js`) nunca se borraron — siguen en disco intactos
+
+### Swap completado
+
+Los cambios ya están aplicados en `handler.go` y `app.go` raíz:
+- ParseFS carga ambos: `templates/*.html` (viejos) + `templates/new/*.html` (nuevos)
+- `handleCargarExpediente` renderiza `"form.html"` (unificado)
+- `handleFiltrarExpedientes` y `handleCambiarModulo` renderizan `"tabla.html"` (unificado + paginación)
+- `preparePageData` usa `ObtenerFilasPaginado` con `?pagina=` del request
+- `app.go` tiene nuevo método `ObtenerFilasPaginado` (COUNT + LIMIT/OFFSET)
+- Alpine JS se sirve desde `/new/vendor/` (embebido en `frontend/new/`)
 
 ### Notas técnicas
 

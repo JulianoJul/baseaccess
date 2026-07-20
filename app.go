@@ -616,6 +616,53 @@ func (a *App) ObtenerFilas(moduloKey string, orden string) ([]Row, error) {
 	return a.queryRows(q)
 }
 
+func (a *App) ObtenerFilasPaginado(moduloKey, orden string, pagina, pageSize int) ([]Row, int, error) {
+	cfg, ok := Modulos[moduloKey]
+	if !ok {
+		return nil, 0, fmt.Errorf("modulo no soportado: %s", moduloKey)
+	}
+
+	cols, err := a.ObtenerColumnasVista(cfg.Vista)
+	if err != nil {
+		cols = cfg.Columnas
+	}
+
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+
+	if pagina < 1 {
+		pagina = 1
+	}
+	if pageSize < 1 {
+		pageSize = 10
+	}
+
+	orden = sanitizarOrden(orden, cfg.IDColumna, cols)
+
+	var total int
+	countQ := `SELECT COUNT(*) FROM ` + cfg.Vista
+	if err := a.db.QueryRow(countQ).Scan(&total); err != nil {
+		return nil, 0, fmt.Errorf("contar filas: %w", err)
+	}
+
+	totalPages := (total + pageSize - 1) / pageSize
+	if totalPages < 1 {
+		totalPages = 1
+	}
+	if pagina > totalPages {
+		pagina = totalPages
+	}
+
+	offset := (pagina - 1) * pageSize
+	q := `SELECT * FROM ` + cfg.Vista + ` ORDER BY ` + orden + ` LIMIT ? OFFSET ?`
+	filas, err := a.queryRows(q, pageSize, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return filas, totalPages, nil
+}
+
 func (a *App) ObtenerFilaPorId(moduloKey string, id int) (Row, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
