@@ -1,23 +1,23 @@
-# Contexto: Proyecto Web HTML/JS (sql.js + Tailwind CSS + SQLite)
+# Contexto: App Wails (Go backend + SQLite + Go html/template + HTMX)
 
-App web 100% cliente-side para gestión de expedientes de contrataciones con historial de movimientos. SQLite en el navegador vía sql.js (WASM), UI con Tailwind CSS, sin backend ni servidor. Se ejecuta en navegador (file:/// con Electron) o en Termux (Android) para desarrollo.
+App de escritorio con **Wails v2** (Go backend nativo, frontend web embebido) para gestión de expedientes de contrataciones con historial de movimientos. Backend Go con SQLite vía mattn/go-sqlite3, UI con Go `html/template` + HTMX + Tailwind CSS. Sin backend externo, sin Electron, sin Tauri.
 
 ---
 
 ## ⚠️ RESTRICCIONES DE ENTORNO
 
-**No intentes compilar ni ejecutar la app.** No hay servidor. Todo corre en el navegador del usuario.
+**No intentes compilar ni ejecutar la app.** Wails requiere Go + WebView2/WebKitGTK. Solo audita el código.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE ÚNICAMENTE:** `combined.txt` (src/index.html + src/schema-config.js + data/sql/Tablas8.sql + docs/doc.md + docs/decisiones.md + docs/ai-context.md + main.js + src/preload.js + src/tauri-preload.js + package.json)
-- ❌ **NO LEAS:** Archivos individuales (index.html, schema-config.js, Tablas8.sql, decisiones.md, ai-context.md por separado)
-- Todo el código fuente está consolidado en `combined.txt`. Leer archivos individuales es redundante y consume tokens innecesariamente.
+- ✅ **LEE:** `main.go`, `app.go`, `handler.go`, `templates/index.html`, `templates/components.html`, `templates/form_*.html`, `templates/tabla_*.html`, `frontend/vendor/app.js`, `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql`, `data/sql/03_ruta_procesos.sql`, `docs/doc.md`, `docs/ai-context.md`, `docs/funciones.md`
+- ❌ **NO LEAS:** Archivos legacy en `docs/legacy/` (históricos, no reflejan el código actual)
+- Lee los archivos individuales, NO hay un consolidated file.
 
 ---
 
 ## Rol
 
-Eres un **auditor/planificador**. Lees `combined.txt` (que contiene el código fuente completo y la documentación) y generas un archivo `plan_modificaciones.md` con las tareas a implementar, priorizadas y detalladas.
+Eres un **auditor/planificador**. Lees los archivos del proyecto y generas un archivo `plan_modificaciones.md` con las tareas a implementar, priorizadas y detalladas.
 
 **Filosofía:** Si una implementación requiere más trabajo pero es más robusta, mantenible y escalable, proponla. Estamos en etapa de mejora interna del código, no en parches rápidos.
 
@@ -46,7 +46,7 @@ Prioridad: Alta > Media > Baja
 
 Cada entrada debe incluir:
 - **Archivo:** ruta relativa
-- **Línea:** número aproximado (basado en `combined.txt`)
+- **Línea:** número aproximado
 - **Descripción del problema:** claro y específico
 - **Fix sugerido:** acción concreta implementable
 - **Esfuerzo:** Bajo | Medio | Alto
@@ -56,11 +56,11 @@ Al terminar, **NO ejecutes ningún comando**, solo genera el contenido del archi
 
 ---
 
-## ENTREGABLE 2: decisiones.md (ADR - Architecture Decision Records)
+## ENTREGABLE 2: docs/legacy/decisiones.md (ADR)
 
-**Mantener actualizado** el archivo `decisiones.md` en la raíz del proyecto. Cada vez que analices el repositorio o propongas cambios, debes registrar cronológicamente cada decisión técnica nueva bajo esta estructura:
+**Mantener actualizado** el archivo `docs/legacy/decisiones.md`. Cada vez que analices el repositorio o propongas cambios, debes registrar cronológicamente cada decisión técnica nueva bajo esta estructura:
 
-- **[ID-Título Corto]** (Ej: `DEC-004: Uso de PRAGMA user_version`)
+- **[ID-Título Corto]** (Ej: `DEC-019: ...`)
 - **Origen:** `[Instrucción Explícita del Usuario]` | `[Suposición/Iniciativa de la IA]` | `[Norma del Proyecto]`
 - **Contexto y Causa:** ¿Por qué se tomó esta decisión? Si fue suposición, explica el razonamiento lógico o estándar de la industria usado como base.
 - **Alternativas evaluadas:** Qué otra opción había y por qué se descartó.
@@ -73,132 +73,119 @@ Para decisiones ya registradas, solo añadir nuevas entradas al final. No modifi
 ## NORMAS DE CÓDIGO LIMPIO (auditar contra estas reglas)
 
 ### A. Anti-Hardcoding
-> Queda prohibido escribir valores fijos (rutas, nombres de BD, selectores CSS repetidos, mensajes de error literales) dentro de funciones de lógica. Todo valor variable debe ir en un objeto `CONFIG` o constantes al inicio.
+> Queda prohibido escribir valores fijos (rutas, nombres de BD, selectores CSS repetidos, mensajes de error literales) dentro de funciones de lógica. Todo valor variable debe ir en constantes con nombre.
 
 **Mal:** `if (file.size > 104857600)`
 **Bien:** `if (file.size > CONFIG.MAX_FILE_SIZE_BYTES)`
 
 ### B. DRY (Don't Repeat Yourself)
-> Si la misma lógica JS, validación o consulta SQL aparece más de dos veces en distintas partes, es obligatorio abstraerla en una función utilitaria pura y reutilizable.
+> Si la misma lógica Go, JS, validación o consulta SQL aparece más de dos veces en distintas partes, es obligatorio abstraerla en una función utilitaria.
 
 ### C. SPOT — Single Point of Truth
-> Un dato o lógica debe existir en un solo lugar. Si cambia, se actualiza en ese único punto y el resto del sistema lo refleja automáticamente. `schema-config.js` es el SPOT del schema. `CATALOGO_POR_SELECT` es el SPOT de los mapeos select→catálogo.
+> Un dato o lógica debe existir en un solo lugar. `app.go` (var `Modulos`) es el SPOT de la configuración de módulos. `exportFilterColMap` es el SPOT del mapeo columna→catálogo para exportación.
 
 ### D. KISS — Keep It Simple, Stupid
-> La solución más simple que cumpla el requerimiento. Sin over-engineering. Modales > SPA routing. localStorage > tabla app_config. Una línea > append con separadores.
+> La solución más simple que cumpla el requerimiento. Sin over-engineering. Plantillas Go > SPA routing. localStorage > tabla app_config.
 
 ### E. Sin Números/Textos Mágicos
-> Cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe ser una constante con nombre (`CONFIG.MAX_FILE_SIZE_BYTES`, `MSG_ERROR_GUARDADO`, etc.).
+> Cero literales numéricos o strings de mensaje dentro de funciones de lógica. Todo debe ser una constante con nombre.
 
 ### F. YAGNI — You Aren't Gonna Need It
-> Resolver única y exclusivamente lo solicitado en el prompt actual. No agregar funcionalidades "por si acaso" (filtros avanzados, exportaciones múltiples, ordenamientos extra que no se pidieron).
+> Resolver única y exclusivamente lo solicitado en el prompt actual. No agregar funcionalidades "por si acaso".
 
 ### G. SoC — Separation of Concerns
-> Separar estrictamente la lógica de acceso a datos (SQL/SQLite) de la lógica de renderizado (DOM/HTML). Ninguna función de UI debe contener strings SQL. `dbToObjects()` aísla la ejecución SQL; `renderizarTabla()` solo recibe datos y pinta filas.
+> Separar estrictamente: Go (app.go) = acceso a datos SQLite. handler.go = HTTP/ruteo. Templates = presentación. JS (mínimo) = modales, localStorage. Ninguna función de UI debe contener strings SQL.
 
 ### H. Principio de Menor Sorpresa (Least Astonishment)
-> Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre. `obtenerExpediente()` solo obtiene y devuelve; no debe limpiar formularios ni modificar variables globales. Sin efectos secundarios ocultos.
+> Las funciones deben ser predecibles y hacer una sola tarea asociada a su nombre. Sin efectos secundarios ocultos.
 
-### I. Cohesión Alta, Acoplamiento Bajo (High Cohesion, Low Coupling)
-> Lo que está dentro de una función coopera para el mismo fin (cohesión alta). Si cambia la BD, el módulo que dibuja tablas no debe romperse (bajo acoplamiento). La UI no conoce la estructura interna de las tablas; eso está en `schema-config.js`.
+### I. Cohesión Alta, Acoplamiento Bajo
+> Si cambia la BD, el módulo que dibuja tablas no debe romperse. Las plantillas no conocen la estructura interna de las tablas; eso está en `Modulos` (app.go).
 
 ### J. Makefile Único
-> El Makefile es la única fuente de verdad para automatización local. Cualquier comando nuevo de build/preprocesado/limpieza debe registrarse como target en el Makefile, no darse como comando suelto.
+> El Makefile es la única fuente de verdad para automatización local.
 
 ---
 
 ## REGLAS DEL PROYECTO (priorizadas)
 
 ### 1. Cero hardcodeo de schema
-No debe haber strings literales que dependan del schema en index.html. Todo lo específico del schema debe estar en `schema-config.js` (el objeto global `SCHEMA_CONFIG`). Nombres de catálogos, columnas, formato de observaciones, colores de estatus, orden de campos, etc.
+No debe haber strings literales que dependan del schema en templates HTML. Todo lo específico del schema debe estar en `var Modulos map[string]ModuloConfig` en `app.go` (columnas, vistas, tablas, queries de historial).
 
 ### 2. DRY + Reutilización
-Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer a funciones. Si un patrón aparece en más de un lugar, crear función reutilizable.
-
-**Funciones ya extraídas (usar sin crear duplicados):**
-- `dbToObjects` — convierte resultado SQL a array de objetos
-- `sanitizeNull` — sanitiza valores nulos/vacíos
-- `cargarCatalogos` — carga todos los catálogos de una vez desde `SCHEMA_CONFIG.catalogoPorSelect`
-- `poblarSelectores` — llena todos los `<select>` con opciones
-- `cargarSuperintendencias` — filtro dependiente de gerencia
-- `toggleDesplegable` — expande/colapsa detalle de expediente
-- `calcularBs` — convierte USD a Bs con tipo de cambio
-- `getEstatusClass` — delega en `SCHEMA_CONFIG.estatusClass()`
-- `generarObservacionAutomatica` — delega en `SCHEMA_CONFIG.generarObservacion()`
-- `previewObservacion` — usa `SCHEMA_CONFIG.extraerTextoLibre()` y `SCHEMA_CONFIG.generarObservacion()`
+Toda lógica debe tener representación única. No copiar-pegar bloques. Extraer a funciones compartidas.
 
 ### 3. SQL correcto
 - Sin CAST innecesarios
 - ORDER BY en consultas paginadas
 - GROUP BY consistente con SELECT
-- Bound parameters o sanitizeNull (nunca interpolación directa de user input)
-- JOINs en vez de subqueries correlacionadas cuando sea práctico
+- Bound parameters o whitelist (nunca interpolación directa de user input)
+- JOINs en vez de subqueries correlacionadas
 
 ### 4. Manejo de errores
-- Sin `console.log` en producción (solo debugging temporal)
-- Errores de BD deben mostrarse al usuario (alert o div de error), no silenciarse
+- Errores de BD deben mostrarse al usuario (toast o mensaje), no silenciarse
 - Validar existencia de `db` antes de ejecutar consultas
-- Manejar casos donde `db.exec()` devuelva resultados vacíos
+- Errores de scan deben loguearse con `log.Printf`
 
 ---
 
-## SCHEMA (Tablas8.sql)
+## SCHEMA (3 archivos SQL en `data/sql/`)
 
+### 01_master_control_docs_presidencia.sql
 - **11 catálogos:** `cat_gerencia`, `cat_documento`, `cat_plan_contratacion`, `cat_modalidad`, `cat_art`, `cat_tipo_contrato`, `cat_estatus_detalle`, `cat_resultado_proceso`, `cat_empresas`, `cat_responsables`, `cat_superintendencia` (FK a gerencia)
-- **Tabla principal:** `expedientes` (PK `id_expediente AUTOINCREMENT`, columnas: solped, id_gerencia, id_superintendencia, id_emisor, id_documento, fecha_presupuesto_base, presupuesto_base_usd, tipo_cambio, presupuesto_base_bs, id_plan, descripcion_proceso, id_modalidad, id_art, id_tipo_contrato, nro_acta_apertura, cantidad_frentes, nro_resolucion_jd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, id_resultado, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, fecha_firma_contrato, observaciones, notas, fecha_creacion, fecha_actualizacion)
-- **Historial:** `historial_movimientos` (snapshot completo de columnas clave al cambiar)
-- **Triggers:** `trg_exp_auditoria` AFTER UPDATE — inserta en historial + actualiza `fecha_actualizacion`
+- **Tabla principal:** `expedientes` (~30 columnas)
+- **Historial:** `historial_movimientos` con triggers de auditoría
 - **Vista:** `vw_reporte_excel_contrataciones` (JOIN completo)
+
+### 02_modulos_adicionales.sql
+- **8 módulos adicionales:** req_materiales, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos
+- Cada uno con su tabla, historial, vista, triggers
+
+### 03_ruta_procesos.sql
+- **Ruta de Procesos (Gantt):** hojas, procesos, cronograma, leyenda
 
 ---
 
 ## FUNCIONALIDAD YA IMPLEMENTADA
 
-- Carga de archivo .db / .sqlite vía input file + drag & drop + Electron
-- Catálogos cargados dinámicamente, selectores poblados desde BD
-- Tabla principal con vista, 8 columnas (Ver, Acción, SOLPED, Gerencia, Documento, Descripción, Estatus, Nro Proceso)
+- Apertura de BD SQLite vía diálogo nativo Wails o input HTML
+- Catálogos cargados dinámicamente, selectores poblados desde Go
+- **9 módulos** con tabla + formulario + historial, navegables por bottom bar
+- Tabla con filtro instantáneo, ordenamiento, paginación cliente
 - Filas desplegables con detalle completo + historial + notas
-- Modal de formulario para crear/editar con 5 secciones + toggle "Orden Excel"
-- Historial de movimientos: modal expandible, snapshot completo por movimiento
-- Observaciones auto-generadas (una línea, sin acumular) con extracción de texto libre
-- Notas como campo separado y persistente
-- Conversión USD→Bs automática
-- Filtro instantáneo por texto
-- Selector de orden: Reciente / Fecha Creación / Fecha Modificación
-- CRUD completo: INSERT/UPDATE/DELETE
-- Botón "Ruta Procesos": modal con tabla de procesos ordenados por estatus
-- Botón "Documentos Pendientes": listado de expedientes no firmados
-- Sidebar de documentos frecuentes (localStorage, colapsable, estrella en tabla)
-- Búsqueda sticky
-- schema-config.js con toda la configuración específica del schema
-- Exportación BD (Electron: saveDb vía IPC, navegador: download)
+- CRUD completo: INSERT/UPDATE/DELETE con backup rotativo automático
+- Conversión USD→Bs bidireccional
+- Botón "Ruta Procesos": diagrama Gantt con hojas, leyenda, cronograma
+- Botón "Documentos Pendientes": listado de documentos no firmados
+- Fijados (pins) con localStorage, modal de acceso rápido
+- Exportación a Excel con filtros por catálogo y rango de fechas
+- Botón Sumas (calculadora inline)
 
 ---
 
 ## 🎨 REVISIÓN UI/UX — Responsive y Consistencia Visual
 
-Al auditar el frontend, verificar:
+Al auditar el frontend (templates HTML), verificar:
 
 ### A. Responsive layout
-- La UI debe adaptarse al redimensionar la ventana (estrechar/ensanchar). Verificar que contenedores, tablas y modales usen unidades relativas y no tengan anchos fijos que rompan el layout.
-- Prestar atención al `#app` container, `#vista-tabla`, y la tabla principal.
-- La tabla no debe tener un espacio a la derecha mayor que a la izquierda (asimetría horizontal).
+- La UI debe adaptarse al redimensionar la ventana. Verificar que contenedores, tablas y modales usen unidades relativas.
+- Prestar atención a `#app`, `#vista-tabla`, y la tabla principal.
+- La tabla no debe tener asimetría horizontal (espacio diferente a izquierda/derecha).
 
 ### B. Estado inicial vs estado con datos
-- La UI no debe verse "angosta/vacía" antes de cargar una BD. El layout debe mantenerse consistente: sidebar oculta ocupa 0 espacio, la tabla principal ocupa el ancho completo disponible desde el inicio.
+- La UI no debe verse "angosta/vacía" antes de cargar una BD. Layout consistente.
 
 ### C. DRY para UI (CSS/Tailwind)
-- Las clases Tailwind no deben repetirse en patrones idénticos. Si un mismo conjunto de clases (ej. `bg-gray-800 rounded-xl border border-gray-700`) aparece en más de 2 lugares, extraer a una clase utilitaria en `styles.css`.
-- Revisar que componentes similares (modales, tarjetas, botones, inputs) compartan las mismas clases en lugar de tener variaciones inconsistentes.
-- Botones con la misma función visual deben tener las mismas clases. No duplicar estilos con variaciones menores sin justificación.
+- Clases Tailwind no deben repetirse en patrones idénticos. Extraer a clases utilitarias en `styles.css`.
+- Componentes similares (modales, tarjetas, botones, inputs) deben compartir las mismas clases.
 
 ### D. Padding y márgenes consistentes
-- Todos los modales deben usar el mismo padding (verificar `p-4` vs `px-5 py-4` vs otros).
-- La tabla y sus contenedores deben tener padding simétrico (izquierda = derecha).
+- Todos los modales deben usar el mismo padding.
+- La tabla y contenedores deben tener padding simétrico.
 
 ### E. Overflow y scroll
-- Modales con contenido largo deben manejar overflow correctamente sin romper el layout.
-- El body scroll debe bloquearse al abrir cualquier modal y restaurarse al cerrarlo.
+- Modales con contenido largo deben manejar overflow sin romper el layout.
+- Body scroll debe bloquearse al abrir modal y restaurarse al cerrarlo.
 
 ---
 
@@ -206,40 +193,42 @@ Al auditar el frontend, verificar:
 
 | Archivo | Propósito |
 |---------|-----------|
-| `src/index.html` | App completa (HTML + CSS + JS) |
-| `src/schema-config.js` | Config específica del schema (catálogos, columnas, formato observaciones, estatus, orden Excel) |
-| `main.js` | Electron main process |
-| `src/preload.js` | contextBridge para IPC (Electron) |
-| `src/tauri-preload.js` | Puente invoke para Tauri (seguro en ambos runtimes) |
-| `src-tauri/` | Backend Rust Tauri (lib.rs, Cargo.toml, tauri.conf.json) |
-| `package.json` | Electron + Tauri devDeps combinados |
-| `data/sql/Tablas8.sql` | Schema SQLite v8 |
-| `data/importar_datos.py` | Script de importación desde Excel |
-| `src/vendor/` | Dependencias locales (tailwind.min.css, sql-wasm.js, fontawesome, styles.css) |
-| `docs/doc.md` | Documentación + pendientes + changelog |
-| `docs/decisiones.md` | ADR: Architecture Decision Records (historial de decisiones técnicas) |
-| `docs/funciones.md` | Catálogo SPOT de funciones (verificar antes de proponer crear nuevas) |
-| `docs/ai-context.md` | Anchor file: stack, líneas rojas, estado actual (lee esto primero) |
-| `.clinerules` | Skill de Opencode (protocolo de modificación para la IA de código) |
-| `combined.txt` | Consolidado para sesiones (make combine) |
-| `Makefile` | combine / clean / commit / push / github / serve / electron-build / tauri-build / build-all |
+| `main.go` | Entry point Wails (Handler en AssetServer, bind App) |
+| `handler.go` | TemplateHandler: http.Handler con 20+ rutas API + renderizado templates Go |
+| `app.go` | Backend Go: App struct, CRUD SQLite, catálogos, backup, backup rotativo |
+| `go.mod` | Dependencias Go (wails/v2, go-sqlite3, excelize) |
+| `wails.json` | Config proyecto Wails |
+| `templates/index.html` | Template principal (layout, modales, HTMX) |
+| `templates/components.html` | Componentes reutilizables (form_footer, select_catalogo, input_text, etc.) |
+| `templates/form_*.html` (9) | Formularios por módulo |
+| `templates/tabla_*.html` (9) | Tablas por módulo |
+| `templates/historial.html` | Historial de movimientos |
+| `templates/ruta_procesos.html` | Diagrama Gantt de procesos |
+| `templates/pendientes.html` | Documentos pendientes |
+| `frontend/vendor/` | Estáticos: Tailwind, FontAwesome, HTMX, app.js, styles.css |
+| `data/sql/01_*.sql` | Schema: catálogos + expedientes |
+| `data/sql/02_*.sql` | Schema: 8 módulos adicionales |
+| `data/sql/03_*.sql` | Schema: ruta procesos (Gantt) |
+| `docs/doc.md` | Documentación estructural |
+| `docs/ai-context.md` | Anchor IA: stack, líneas rojas, estado actual |
+| `docs/funciones.md` | Catálogo de funciones (DRY) |
+| `docs/legacy/` | Documentación histórica (archivada) |
+| `Makefile` | wails-build, wails-dev, combine |
 
 ---
 
 ## INSTRUCCIONES FINALES
 
-1. **ai-context.md**: leerlo primero para orientarte en 10 segundos
-2. **doc.md**: revisar estado actual de pendientes
-3. **decisiones.md**: revisar y actualizar con nuevas decisiones. Si no existe, crearlo analizando commits/changelog
+1. **docs/ai-context.md**: leerlo primero para orientarte en 10 segundos
+2. **docs/doc.md**: documentación estructural del proyecto
+3. **docs/funciones.md**: ver qué funciones Go/JS ya existen (no duplicar)
 4. **Auditar**: detectar violaciones a las normas (hardcodeo, DRY, SoC, YAGNI, números mágicos, etc.)
 5. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
-6. **No ejecutar nada**: solo generar contenido de `plan_modificaciones.md`, presentarlo, y actualizar `decisiones.md` si corresponde
+6. **No ejecutar nada**: solo generar contenido de `plan_modificaciones.md`, presentarlo, y actualizar `docs/legacy/decisiones.md` si corresponde
 
 ---
 
 ## FORMATO DE COMMITS (para auditar)
-
-La IA de código (DeepSeek/Opencode) debe estructurar cada commit así:
 
 ```
 feat/fix: [Descripción breve del cambio]
