@@ -257,7 +257,7 @@ Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de c
 
 ### Estado actual
 
-El frontend está siendo migrado de JS vainilla (app.js, ~765 líneas) + 18 templates modulares a Alpine.js + templates unificados. Todo el código nuevo se construye en subcarpetas `frontend/new/` y `templates/new/` sin alterar los originales.
+La migración a Alpine.js y templates unificados concluyó con éxito. Los documentos de análisis y planificación de la migración (`promptjs.md`, `docs_legacy_js_analysis_diff.md`, `plan_migracion_alpine_diff.md`) han sido archivados en `docs/legacy/`.
 
 ### Archivos nuevos
 
@@ -272,7 +272,7 @@ templates/new/
 ├── components.html            # Sub-templates Alpine (form_*_alpine, tabla_*_alpine, filtro superintendencias)
 ├── form.html                  # Formulario unificado (9 módulos en 1 archivo, Go if/eq)
 ├── tabla.html                 # Tabla unificada (9 módulos en 1 archivo, Go if/eq)
-└── ruta_procesos.html         # Sin cambios (IIFE Gantt encapsulada)
+└── ruta_procesos.html         # IIFE Gantt (corregido cálculo dinámico de columnas y scroll horizontal)
 ```
 
 ### Lo que reemplazan
@@ -290,17 +290,6 @@ templates/new/
 - **HTMX** maneja toda comunicación servidor (fetch, POST, GET)
 - **Go**: se introdujo el método `ObtenerFilasPaginado` en `app.go` y la función helper `pagRange` en `handler.go` para dar soporte a la paginación desde el servidor.
 - JS residual mínimo: apertura de BD (Wails dialog, no reemplazable por Alpine)
-
-### Cómo revertir al sistema viejo
-
-Si el nuevo sistema falla, se puede volver al anterior con estos pasos:
-
-1. **handler.go**: cambiar `ParseFS(templateFS, "templates/*.html", "templates/new/*.html")` → `ParseFS(templateFS, "templates/*.html")`
-2. **handleCargarExpediente**: cambiar `"form.html"` → `"form_" + modulo + ".html"`
-3. **handleFiltrarExpedientes** y **handleCambiarModulo**: cambiar `"tabla.html"` → `"tabla_" + modulo + ".html"` y eliminar la lógica de paginación (`pagina`, `TotalPages`, `CurrentPage`, etc.)
-4. **app.go**: eliminar el método `ObtenerFilasPaginado` (o mantenerlo, no interfiere)
-5. Revertir `preparePageData` a `ObtenerFilas` en vez de `ObtenerFilasPaginado`
-6. Los archivos viejos (`form_*.html`, `tabla_*.html`, `app.js`) nunca se borraron — siguen en disco intactos
 
 ### Swap completado
 
@@ -320,11 +309,12 @@ Los cambios ya están aplicados en `handler.go` y `app.go` raíz:
 - `x-currency` es directiva Alpine custom que reemplaza `_initNumInput`/`_fmtNum`/`_parseValue`
 - El `formularioModulo` component maneja la conversión USD↔Bs con reactividad bidireccional
 - **Paginación en Servidor:** Se migró completamente al servidor. Los controles de navegación en `tabla.html` se generan dinámicamente usando el helper `pagRange` de Go y realizan peticiones HTMX que envían la página y tamaño de página actuales.
+- **Ruta de Procesos (Gantt):** Se corrigió `buildGanttColumns` en `app.go` para usar `strftime('%Y-%m-%d', ...)` y `parseDateFlex`, permitiendo rangos de fechas personalizados ilimitados, y se configuró `.gantt-table` con `width: max-content` y anchos de columna fijos (`32px` día, `44px` N) con `overflow-x-auto` en el contenedor para scroll horizontal fluido.
 
 ---
 
 
 > **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo (historial de decisiones técnicas, incluyendo era sql.js legacy).
-> **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
+> **Anchor IA:** [`docs/legacy/ai-context.md`](legacy/ai-context.md) — stack, líneas rojas, estado actual.
 > **Changelog:** [`docs/legacy/CHANGELOG.md`](legacy/CHANGELOG.md) — historial completo de cambios.
 > **Catálogo:** [`funciones.md`](funciones.md) — SPOT de funciones (DRY: verificar antes de crear).

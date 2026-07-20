@@ -36,7 +36,7 @@ combine:
 	  echo "" && echo "=== docs/doc.md ===" && cat docs/doc.md && \
 	  echo "" && echo "=== docs/funciones.md ===" && cat docs/funciones.md && \
 	  echo "" && echo "=== prompt.md ===" && cat prompt.md && \
-	  echo "" && echo "=== promptjs.md ===" && cat promptjs.md; \
+	  echo "" && echo "=== docs/legacy/promptjs.md ===" && cat docs/legacy/promptjs.md; \
 	  $(foreach f,$(SQL_FILES), echo "" && echo "=== $(f) ===" && cat $(f) &&) :; \
 	} > combined.txt
 	@echo "combined.txt generado"

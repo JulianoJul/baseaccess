@@ -968,8 +968,8 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 		legend = []RutaProcesosLegend{}
 	}
 
-	// Obtener hojas
-	hojasRows, err := a.db.Query("SELECT id, nombre, fecha_inicio, fecha_fin FROM ruta_procesos_hojas ORDER BY id")
+	// Obtener hojas (strftime ensures YYYY-MM-DD format, avoiding RFC3339 from DATE columns)
+	hojasRows, err := a.db.Query("SELECT id, nombre, strftime('%Y-%m-%d', fecha_inicio), strftime('%Y-%m-%d', fecha_fin) FROM ruta_procesos_hojas ORDER BY id")
 	if err != nil {
 		return nil, err
 	}
@@ -1152,14 +1152,29 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 	}, nil
 }
 
+// parseDateFlex tries YYYY-MM-DD first, then RFC3339 (from SQLite DATE columns)
+func parseDateFlex(s string) (time.Time, error) {
+	t, err := time.Parse("2006-01-02", s)
+	if err == nil {
+		return t, nil
+	}
+	t, err = time.Parse(time.RFC3339, s)
+	if err == nil {
+		return t, nil
+	}
+	// Try also the T-separated without timezone
+	t, err = time.Parse("2006-01-02T15:04:05Z", s)
+	return t, err
+}
+
 func buildGanttColumns(inicioStr string, finStr string, offsetWeeks int) []map[string]string {
 	dayNames := []string{"L", "M", "X", "J", "V"}
-	inicio, err := time.Parse("2006-01-02", inicioStr)
+	inicio, err := parseDateFlex(inicioStr)
 	if err != nil {
 		inicio = time.Now()
 	}
-	fin, err := time.Parse("2006-01-02", finStr)
-	if err != nil {
+	fin, err := parseDateFlex(finStr)
+	if err != nil || fin.Before(inicio) {
 		fin = inicio.AddDate(0, 3, 0)
 	}
 
@@ -1176,12 +1191,12 @@ func buildGanttColumns(inicioStr string, finStr string, offsetWeeks int) []map[s
 	}
 	start = start.AddDate(0, 0, -offset)
 
-	columns := make([]map[string]string, 0, 60)
-	bizTarget := 60
+	columns := make([]map[string]string, 0)
+	maxBizDays := 365
 	bizCount := 0
 	weekNum := 1
 
-	for i := 0; bizCount < bizTarget; i++ {
+	for i := 0; bizCount < maxBizDays; i++ {
 		date := start.AddDate(0, 0, i)
 		if date.After(fin) {
 			break

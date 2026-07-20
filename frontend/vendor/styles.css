@@ -272,7 +272,8 @@ select.input option {
 .gantt-table {
   table-layout: fixed;
   border-collapse: collapse;
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
 }
 .gantt-table th,
 .gantt-table td {
@@ -280,23 +281,25 @@ select.input option {
   text-align: center;
   vertical-align: middle;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .gantt-col-num {
-  width: 36px;
-  min-width: 36px;
-  max-width: 36px;
+  width: 44px;
+  min-width: 44px;
+  max-width: 44px;
   position: sticky;
   left: 0;
   z-index: var(--z-sticky);
-  background-color: rgba(31, 41, 55, 0.9);
+  background-color: rgba(31, 41, 55, 0.95);
   font-weight: bold;
 }
 .gantt-col-day {
-  width: 28px;
-  min-width: 28px;
-  max-width: 28px;
+  width: 32px;
+  min-width: 32px;
+  max-width: 32px;
   height: 40px;
   padding: 0;
+  box-sizing: border-box;
 }
 .gantt-week-header,
 .gantt-week-subheader,
