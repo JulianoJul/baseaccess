@@ -208,7 +208,7 @@
                             {{template "tabla_subrow_trazabilidad" dict "Registro" $row "Modulo" $modulo "IDColumna" $IDColumna}}
                             {{end}}
                         </div>
-                        {{template "tabla_subrow_observaciones_notas" dict "Registro" $row}}
+                        {{template "tabla_subrow_observaciones_notas" dict "Registro" $row "Modulo" $modulo "IDColumna" $IDColumna "IDVal" $idVal}}
                     </td>
                 </tr>
                 {{end}}

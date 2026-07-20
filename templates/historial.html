@@ -4,6 +4,7 @@
     <table class="w-full text-left text-xs border-collapse">
         <thead>
             <tr class="bg-gray-700/60 text-teal-400 uppercase">
+                <th class="p-2"></th>
                 <th class="p-2">Fecha Recibido</th>
                 <th class="p-2">Fecha Devuelto</th>
                 <th class="p-2">Estatus</th>
@@ -15,16 +16,34 @@
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-700">
-            {{range .Rows}}
-            <tr class="hover:bg-gray-700/20">
-                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_recibido") "-"}}</td>
-                <td class="p-2 font-mono">{{default (rowGetStr . "fecha_devuelto") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "estatus") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "documento") "-"}}</td>
-                <td class="p-2">{{default (rowGetStr . "emisor") "-"}}</td>
-                {{if ne $.ActiveModule "reposos_medicos"}}<td class="p-2">{{default (rowGetStr . "receptor") "-"}}</td>{{end}}
-                <td class="p-2 text-gray-400">{{default (rowGetStr . "observaciones") "-"}}</td>
-                <td class="p-2 text-gray-400">{{default (rowGetStr . "notas") "-"}}</td>
+            {{range $i, $row := .Rows}}
+            <tr class="hover:bg-gray-700/20 cursor-pointer" @click="
+                    const detail = document.getElementById('hist-detalle-{{$i}}');
+                    if (detail) { detail.classList.toggle('hidden'); }
+                ">
+                <td class="p-2 text-center">
+                    <i class="fas fa-chevron-right text-gray-500 text-xs"></i>
+                </td>
+                <td class="p-2 font-mono">{{default (rowGetStr $row "fecha_recibido") "-"}}</td>
+                <td class="p-2 font-mono">{{default (rowGetStr $row "fecha_devuelto") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr $row "estatus") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr $row "documento") "-"}}</td>
+                <td class="p-2">{{default (rowGetStr $row "emisor") "-"}}</td>
+                {{if ne $.ActiveModule "reposos_medicos"}}<td class="p-2">{{default (rowGetStr $row "receptor") "-"}}</td>{{end}}
+                <td class="p-2 text-gray-400 max-w-[200px] truncate" title="{{rowGetStr $row "observaciones"}}">{{default (rowGetStr $row "observaciones") "-"}}</td>
+                <td class="p-2 text-gray-400 max-w-[150px] truncate" title="{{rowGetStr $row "notas"}}">{{default (rowGetStr $row "notas") "-"}}</td>
+            </tr>
+            <tr id="hist-detalle-{{$i}}" class="hidden bg-gray-900/60">
+                <td colspan="10" class="p-4">
+                    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-2 text-xs" x-data="{ row: {{jsonEncode $row}} }">
+                        <template x-for="(val, key) in row" :key="key">
+                            <div x-show="val && !key.startsWith('id_') && key !== 'observaciones' && key !== 'notas'">
+                                <span class="text-gray-500 uppercase text-[10px] tracking-wider" x-text="key.replace(/_/g, ' ')"></span>
+                                <span class="text-gray-200 block truncate" x-text="val"></span>
+                            </div>
+                        </template>
+                    </div>
+                </td>
             </tr>
             {{end}}
         </tbody>

@@ -17,4 +17,7 @@ skills-lock.json
 build/bin/
 build/*.app
 baseaccess
+test_build
+combined.txt
+prompt.md
 Microsoft.WebView2.FixedVersionRuntime.*

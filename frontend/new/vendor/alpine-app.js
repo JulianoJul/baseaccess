@@ -128,7 +128,15 @@ document.addEventListener('alpine:init', () => {
 
     init() {
       this.cargar();
-      if (this.lista.length === 1 && !(window.PAGE_DATA && window.PAGE_DATA.hasDB)) {
+      if (window.PAGE_DATA && window.PAGE_DATA.hasDB && window.PAGE_DATA.dbPath) {
+        const path = window.PAGE_DATA.dbPath;
+        const nombre = path.split('/').pop().split('\\').pop() || path;
+        const idx = this.lista.findIndex(r => r.path === path);
+        if (idx >= 0) this.lista.splice(idx, 1);
+        this.lista.unshift({ nombre, path, timestamp: Date.now() });
+        if (this.lista.length > 5) this.lista = this.lista.slice(0, 5);
+        this.guardar();
+      } else if (this.lista.length === 1 && !(window.PAGE_DATA && window.PAGE_DATA.hasDB)) {
         this.abrir(this.lista[0].path);
       }
     },
@@ -188,6 +196,7 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('calculadoraSumas', () => ({
     filas: [{ valor: '' }],
     resultado: 0,
+    fijados: [],
 
     onInput(idx, event) {
       const input = event.target;
@@ -261,11 +270,28 @@ document.addEventListener('alpine:init', () => {
       this.resultado = 0;
     },
 
-    formatearResultado() {
-      return this.resultado.toLocaleString('es-ES', {
+    fijarResultado() {
+      if (!this.resultado) return;
+      this.fijados.push(this.resultado);
+    },
+
+    quitarFijado(idx) {
+      this.fijados.splice(idx, 1);
+    },
+
+    get totalFijados() {
+      return this.fijados.reduce((s, v) => s + v, 0);
+    },
+
+    formatearNum(v) {
+      return v.toLocaleString('es-ES', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
       });
+    },
+
+    formatearResultado() {
+      return this.formatearNum(this.resultado);
     }
   }));
 
@@ -440,10 +466,82 @@ document.addEventListener('alpine:init', () => {
   Alpine.data('formularioModulo', (modulo, registroInicial) => ({
     modulo: modulo || 'expedientes',
     registro: registroInicial || {},
+    autoObs: '',
+    autoHistorial: '',
     lastSource: {},
+    _obsReady: false,
+    _pendingObs: {},
 
     init() {
+      if (!this.registro.id_estatus) this.registro.id_estatus = '1';
+      const obs = String(this.registro.observaciones || '');
+      const sepIdx = obs.indexOf('\n---\n');
+      if (sepIdx >= 0) {
+        this.autoHistorial = obs.slice(0, sepIdx);
+        this.registro.observaciones = obs.slice(sepIdx + 5);
+      }
+      this._trackInicial = {
+        id_documento: this.registro.id_documento,
+        fecha_recibido: this.registro.fecha_recibido,
+        fecha_devuelto: this.registro.fecha_devuelto,
+        id_estatus: this.registro.id_estatus
+      };
+      this._obsReady = true;
       this.$watch('registro.tipo_cambio', () => this._syncAll());
+      this.$watch('registro.id_documento', (v, old) => this._obsCambio('Documento', old, v));
+      this.$watch('registro.fecha_recibido', (v, old) => this._obsCambio('Fecha Recibido', old, v));
+      this.$watch('registro.fecha_devuelto', (v, old) => this._obsCambio('Fecha Devuelto', old, v));
+      this.$watch('registro.id_estatus', (v, old) => this._obsCambio('Estatus', old, v));
+    },
+
+    _obsLineaCompleta() {
+      const doc = this._obsLabel('Documento', String(this.registro.id_documento || ''));
+      const est = this._obsLabel('Estatus', String(this.registro.id_estatus || ''));
+      const dev = this.registro.fecha_devuelto;
+      const rec = this.registro.fecha_recibido;
+      const parts = [];
+      if (dev) parts.push(`Fecha Devuelto: ${dev}`);
+      else if (rec) parts.push(`Fecha Recibido: ${rec}`);
+      if (doc) parts.push(`Documento: ${doc}`);
+      if (est) parts.push(`Estatus: ${est}`);
+      return parts.length ? parts.join(', ') : '';
+    },
+
+    _obsCambio(label, oldVal, newVal) {
+      if (!this._obsReady) return;
+      const old = String(oldVal || '').trim();
+      const nw = String(newVal || '').trim();
+      if (old === nw) return;
+      this._pendingObs[label] = true;
+      const linea = this._obsLineaCompleta();
+      if (!linea) return;
+      this.autoObs = this.autoHistorial ? this.autoHistorial + '\n' + linea : linea;
+    },
+
+    _obsLabel(label, val) {
+      if (!val) return '(vacío)';
+      const cats = window.PAGE_DATA?.catalogs || {};
+      if (label === 'Documento') {
+        const item = (cats.documento || []).find(i => i.id == val);
+        if (item) return item.nombre;
+      }
+      if (label === 'Estatus') {
+        const item = (cats.estatus_detalle || []).find(i => i.id == val);
+        if (item) return item.nombre;
+      }
+      return val;
+    },
+
+    prepararObservaciones() {
+      const manual = String(this.registro.observaciones || '').trim();
+      const auto = this.autoObs;
+      const combinado = auto ? (manual ? auto + '\n---\n' + manual : auto) : manual;
+      this.registro.observaciones = combinado;
+      const el = document.getElementById('f-observaciones');
+      if (el) el.value = combinado;
+      this._pendingObs = {};
+      this.autoHistorial = this.autoObs;
+      this.autoObs = '';
     },
 
     _syncAll() {

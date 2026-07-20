@@ -386,12 +386,31 @@
                 <button @click="añadirFila()" class="btn btn-secondary">
                     <i class="fas fa-plus mr-1"></i> Añadir número
                 </button>
-                <div class="border-t border-gray-700 pt-4">
-                    <div class="flex justify-between items-center text-lg font-bold">
-                        <span class="text-gray-300">Resultado:</span>
-                        <span class="text-teal-400" x-text="formatearResultado()">0.00</span>
+                <div class="flex items-center justify-between gap-2 pt-4 border-t border-gray-700">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center text-lg font-bold">
+                            <span class="text-gray-300">Resultado:</span>
+                            <span class="text-teal-400" x-text="formatearResultado()">0,00</span>
+                        </div>
                     </div>
+                    <button @click="fijarResultado()" :disabled="!resultado" class="btn btn-secondary text-xs shrink-0" :class="resultado ? '' : 'opacity-40'">
+                        <i class="fas fa-thumbtack mr-1"></i> Fijar
+                    </button>
                 </div>
+                <template x-if="fijados.length > 0">
+                    <div class="border-t border-gray-700 pt-3 space-y-2">
+                        <div class="flex items-center justify-between text-xs text-gray-400 uppercase tracking-wider">
+                            <span><i class="fas fa-thumbtack mr-1"></i> Fijados</span>
+                            <span class="text-teal-400 font-bold" x-text="'Total: ' + formatearNum(totalFijados)"></span>
+                        </div>
+                        <template x-for="(val, idx) in fijados" :key="idx">
+                            <div class="flex items-center justify-between bg-gray-900/60 rounded-lg px-3 py-2 text-sm">
+                                <span class="text-gray-300" x-text="formatearNum(val)"></span>
+                                <button @click="quitarFijado(idx)" class="text-gray-500 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
             </div>
             <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end gap-3">
                 <button @click="limpiar()" class="btn btn-secondary"><i class="fas fa-eraser mr-1"></i> Limpiar todo</button>
@@ -459,16 +478,6 @@
                     }
                 });
             }
-
-            if (window.PAGE_DATA && window.PAGE_DATA.hasDB && window.PAGE_DATA.dbPath) {
-                const path = window.PAGE_DATA.dbPath;
-                const nombre = path.split('/').pop().split('\\').pop() || path;
-                const recientesEl = document.querySelector('[x-data="bdRecientes"]');
-                if (recientesEl && recientesEl.__x) {
-                    recientesEl.__x.$data.registrar(nombre, path);
-                }
-            }
-
 
         });
 

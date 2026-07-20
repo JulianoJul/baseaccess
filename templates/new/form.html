@@ -110,10 +110,10 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Servicios</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-            {{template "form_input_number_alpine" dict "Label" "Costo del Servicio ($)" "Name" "costo_servicio_usd" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
-            {{template "form_input_number_alpine" dict "Label" "(-) Nota de Débito (Reverso)" "Name" "nota_debito_reverso" "Registro" .Registro "ExtraAttrs" "inputmode=\"decimal\""}}
-            {{template "form_textarea_alpine" dict "Label" "Servicios" "Name" "servicios" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2"}}
-            {{template "form_textarea_alpine" dict "Label" "Beneficios" "Name" "beneficios" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2"}}
+            {{template "form_input_monto_alpine" dict "Label" "Costo del Servicio ($)" "Name" "costo_servicio_usd" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "(-) Nota de Débito (Reverso)" "Name" "nota_debito_reverso" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Servicios" "Name" "servicios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2"}}
+            {{template "form_input_monto_alpine" dict "Label" "Beneficios" "Name" "beneficios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2"}}
         </div>
     </fieldset>
     {{end}}
@@ -138,11 +138,11 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos Totales</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base Total ($)" "Name" "presupuesto_base_total_usd" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Adjudicado Total ($)" "Name" "monto_adjudicado_total_usd" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto del Contrato" "Name" "monto_contrato" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Ejecutado" "Name" "monto_ejecutado" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Pagado" "Name" "monto_pagado" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base Total ($)" "Name" "presupuesto_base_total_usd" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado Total ($)" "Name" "monto_adjudicado_total_usd" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto del Contrato" "Name" "monto_contrato" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Ejecutado" "Name" "monto_ejecutado" "Origen" "" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Pagado" "Name" "monto_pagado" "Origen" "" "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}
@@ -237,30 +237,26 @@
     {{end}}
 
     <!-- Observaciones (todos los módulos) -->
-    {{if eq $modulo "requisiciones"}}
     <fieldset class="card">
         <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
         <div class="mt-3">
-            {{template "form_textarea_alpine" dict "Label" "Observaciones de la Entrega" "Name" "observaciones_entrega" "Registro" .Registro "Rows" "2"}}
+            <label class="label">Cambios automáticos</label>
+            <textarea class="input text-xs text-gray-400 bg-gray-900/40 cursor-default" rows="3" readonly
+                      x-show="autoObs" x-model="autoObs"></textarea>
         </div>
         <div class="mt-2">
-            {{template "form_textarea_alpine" dict "Label" "Observaciones" "Name" "observaciones" "Registro" .Registro "Rows" "2"}}
+            {{if eq $modulo "requisiciones"}}
+            <label class="label">Observaciones de la Entrega</label>
+            <textarea id="f-observaciones_entrega" name="observaciones_entrega" rows="2" class="input" x-model="registro.observaciones_entrega"></textarea>
+            {{end}}
+            <label class="label">Observaciones (libre)</label>
+            <textarea id="f-observaciones" name="observaciones" rows="2" class="input" x-model="registro.observaciones"></textarea>
         </div>
         <div class="mt-2">
-            {{template "form_textarea_alpine" dict "Label" "Notas" "Name" "notas" "Registro" .Registro "Rows" "2"}}
+            <label class="label">Notas</label>
+            <textarea id="f-notas" name="notas" rows="2" class="input" x-model="registro.notas"></textarea>
         </div>
     </fieldset>
-    {{else}}
-    <fieldset class="card">
-        <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3">
-            {{template "form_textarea_alpine" dict "Label" "Observaciones" "Name" "observaciones" "Registro" .Registro "Rows" "2"}}
-        </div>
-        <div class="mt-2">
-            {{template "form_textarea_alpine" dict "Label" "Notas" "Name" "notas" "Registro" .Registro "Rows" "2"}}
-        </div>
-    </fieldset>
-    {{end}}
 </div>
 
 {{template "form_buttons_alpine" dict "Registro" .Registro "Modulo" $modulo "IDColumna" $idColumna}}
