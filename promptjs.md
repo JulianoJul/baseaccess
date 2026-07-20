@@ -8,6 +8,44 @@ App de escritorio con **Wails v2** (Go backend nativo, SQLite, Go `html/template
 
 ---
 
+## OBJETIVO ADICIONAL: UNIFICAR TEMPLATES
+
+Además de migrar el JS, se busca **reducir los 18 templates** (9 `form_*.html` + 9 `tabla_*.html`) a **2 archivos** (`form.html` + `tabla.html`) o incluso 1 solo.
+
+Cada módulo tiene los mismos campos en su tabla y formulario, solo varían las columnas. La personalización por módulo se resuelve dentro del mismo archivo sin separar:
+
+### Con Go template (if/else server-side)
+
+```html
+{{if eq $.ModuloKey "expedientes"}}
+  <input name="presupuesto_base_usd" inputmode="decimal">
+  <input name="tipo_cambio" oninput="convertirMoneda()">
+{{else if eq $.ModuloKey "recobros"}}
+  <input name="costo_servicio_usd" inputmode="decimal">
+{{else if eq $.ModuloKey "vacaciones"}}
+  <input name="dias_solicitados" type="number">
+{{end}}
+```
+
+O más limpio: `{{template (printf "extra_%s" $.ModuloKey) .}}` con cada sección definida en el mismo archivo.
+
+### Con Alpine (client-side, más declarativo)
+
+```html
+<div x-data="{ modulo: '{{$.ModuloKey}}' }">
+  <input x-show="modulo === 'expedientes' || modulo === 'recobros'"
+         name="presupuesto_base_usd" inputmode="decimal">
+  <input x-show="modulo === 'vacaciones'"
+         name="dias_solicitados" type="number">
+</div>
+```
+
+Esto **elimina la necesidad de tener 18 archivos** y es perfecto para AI: escribe HTML con atributos, no gluecode.
+
+Las columnas de tabla se iteran con `{{range $col := .ColsMostrar}}` usando `cfg.Columnas` que ya está en Go, eliminando los `<th>` y `<td>` hardcodeados por módulo.
+
+---
+
 ## ARCHIVOS A LEER
 
 - `frontend/vendor/app.js` — ~770 líneas JS vainilla actual
