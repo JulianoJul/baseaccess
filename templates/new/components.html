@@ -112,7 +112,7 @@
     <button @click.stop
             hx-get="/api/cargar-expediente?modulo={{.Modulo}}&id={{rowGetStr .Registro .IDColumna}}"
             hx-target="#form-expediente"
-            x-on:htmx:after-request="$store.modals.abrir('form-modal'); $nextTick(() => { const titulo = document.getElementById('form-titulo'); if(titulo) titulo.textContent = 'Editar {{.ModuloLabel}} #{{rowGetStr .Registro .IDColumna}}'; })"
+            x-on:htmx:after-request="$store.modals.abrir('form-modal'); $nextTick(() => { const titulo = document.getElementById('form-titulo'); if(titulo) titulo.textContent = 'Editar {{(index $.Modulos $.ActiveModule).Nombre}} #{{rowGetStr .Registro .IDColumna}}'; })"
             class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
     <button @click.stop
             :class="estaFijado({{rowGetStr .Registro .IDColumna}}) ? 'btn-icon text-emerald-500 hover:text-emerald-400' : 'btn-icon text-blue-500 hover:text-blue-400'"

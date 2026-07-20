@@ -288,12 +288,12 @@ templates/new/
 
 - **Alpine** maneja estado UI local (modales, localStorage, toggles, validación, drag & drop)
 - **HTMX** maneja toda comunicación servidor (fetch, POST, GET)
-- **Go** sin cambios en handler.go/app.go (el backend no sabe que cambió el frontend)
+- **Go**: se introdujo el método `ObtenerFilasPaginado` en `app.go` y la función helper `pagRange` en `handler.go` para dar soporte a la paginación desde el servidor.
 - JS residual mínimo: apertura de BD (Wails dialog, no reemplazable por Alpine)
 
 ### Lo que falta para el swap
 
-1. **handler.go**: cambiar `template.ParseFS(templateFS, "templates/*.html")` → agregar `"templates/new/*.html"` (o reemplazar)
+1. **handler.go**: cambiar `template.ParseFS(templateFS, "templates/*.html")` → agregar `"templates/new/*.html"` (o reemplazar) y habilitar los cambios del backend preparados en `backend/new/handler.go` (que implementan `ObtenerFilasPaginado` y pasan parámetros de paginación a los templates)
 2. **handleCargarExpediente**: cambiar `tmplName := "form_" + modulo + ".html"` → `"form.html"`
 3. **handleFiltrarExpedientes** y **handleCambiarModulo**: cambiar `"tabla_" + modulo + ".html"` → `"tabla.html"`
 4. **index.html**: cambiar referencias de tabla del viejo `{{template "tabla_expedientes.html" .}}` → `{{template "tabla.html" .}}`
@@ -309,7 +309,7 @@ templates/new/
 - `Alpine.initTree()` en el bridge asegura que los componentes Alpine se activen tras swaps de HTMX
 - `x-currency` es directiva Alpine custom que reemplaza `_initNumInput`/`_fmtNum`/`_parseValue`
 - El `formularioModulo` component maneja la conversión USD↔Bs con reactividad bidireccional
-- La paginación cliente se mantiene igual (JS residual en el index) hasta decidir migrarla a servidor
+- **Paginación en Servidor:** Se migró completamente al servidor. Los controles de navegación en `tabla.html` se generan dinámicamente usando el helper `pagRange` de Go y realizan peticiones HTMX que envían la página y tamaño de página actuales.
 
 ---
 

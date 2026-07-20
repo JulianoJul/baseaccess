@@ -49,6 +49,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"sub":        func(a, b int) int { return a - b },
 		"seq":        seq,
 		"seqFromTo":  seqFromTo,
+		"pagRange":   pagRange,
 		"dict":       dict,
 		"rowGet":     rowGet,
 		"rowGetStr":  rowGetStr,
@@ -113,6 +114,27 @@ func seqFromTo(from, to int) []int {
 		s[i] = from + i
 	}
 	return s
+}
+
+// pagRange devuelve una ventana de números de página alrededor de `cur`.
+// window es el número de páginas a mostrar a cada lado de la página actual.
+func pagRange(cur, total, window int) []int {
+	if total <= 1 {
+		return nil
+	}
+	start := cur - window
+	if start < 1 {
+		start = 1
+	}
+	end := cur + window
+	if end > total {
+		end = total
+	}
+	result := make([]int, 0, end-start+1)
+	for i := start; i <= end; i++ {
+		result = append(result, i)
+	}
+	return result
 }
 
 func dict(values ...interface{}) map[string]interface{} {

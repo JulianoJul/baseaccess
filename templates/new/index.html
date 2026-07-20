@@ -11,6 +11,7 @@
     <script src="new/vendor/alpine.min.js" defer></script>
     <script src="new/vendor/alpine-app.js" defer></script>
     <script src="new/vendor/alpine-directives.js" defer></script>
+    <script src="new/vendor/alpine-htmx-bridge.js" defer></script>
 </head>
 <body id="body" class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans{{if .HasDB}} has-db{{end}}"
       x-data="appShell"
@@ -140,8 +141,6 @@
                     {{if eq .ActiveModule "reposos_medicos"}}{{template "tabla.html" .}}{{end}}
                 {{end}}
             </div>
-
-            <div id="paginacion" class="mt-4 pb-2"></div>
         </div>
     </div>
 
@@ -413,7 +412,6 @@
     </div>
     <div id="toast-container" class="fixed bottom-4 right-4 z-toast flex-col gap-2 flex pointer-events-none"></div>
 
-    <script src="new/vendor/alpine-htmx-bridge.js" defer></script>
     <script>
         // --- Mínimo JS para abrir BD (Wails dialog + fallback input file) ---
         const $ = id => document.getElementById(id);

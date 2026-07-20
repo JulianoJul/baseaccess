@@ -1,5 +1,5 @@
 <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]"
-     x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}})">
+     x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}}, 0)">
     {{$modulo := .ActiveModule}}
     {{$idColumna := "id_expediente"}}
     {{if eq $modulo "requisiciones"}}{{$idColumna = "id_requisicion"}}{{end}}
