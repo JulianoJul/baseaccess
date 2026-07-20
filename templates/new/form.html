@@ -1,5 +1,5 @@
 <div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]"
-     x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}}, 0)">
+     x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}})">
     {{$modulo := .ActiveModule}}
     {{$idColumna := "id_expediente"}}
     {{if eq $modulo "requisiciones"}}{{$idColumna = "id_requisicion"}}{{end}}
@@ -43,8 +43,8 @@
 
             {{if eq $modulo "recobros"}}
             {{template "form_textarea_alpine" dict "Label" "Asunto del Recobro" "Name" "asunto" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3"}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha de Inicio" "Name" "fecha_inicio" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Final" "Name" "fecha_final" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha de Inicio" "Name" "fecha_inicio"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Final" "Name" "fecha_final"  "Registro" .Registro}}
             {{end}}
 
             {{if eq $modulo "valuaciones"}}
@@ -57,7 +57,7 @@
             {{if eq $modulo "aprobacion_jd"}}
             {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro}}
             {{template "form_select_alpine" dict "Label" "Plan Contrataciones" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"0\""}}
+            {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro}}
             {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3"}}
             {{end}}
 
@@ -67,14 +67,14 @@
             {{if eq $modulo "vacaciones"}}
             {{template "form_input_number_alpine" dict "Label" "Año Período" "Name" "anio" "Registro" .Registro "ExtraAttrs" "step=\"1\""}}
             {{template "form_input_number_alpine" dict "Label" "Cantidad de Días" "Name" "cantidad_dias" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\""}}
-            {{template "form_input_text_alpine" dict "Label" "Desde" "Name" "fecha_desde" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Hasta" "Name" "fecha_hasta" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro}}
             {{end}}
 
             {{if eq $modulo "reposos_medicos"}}
             {{template "form_input_number_alpine" dict "Label" "Días Período" "Name" "dias_periodo" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\""}}
-            {{template "form_input_text_alpine" dict "Label" "Desde" "Name" "fecha_desde" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Hasta" "Name" "fecha_hasta" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro}}
             {{end}}
         </div>
     </fieldset>
@@ -84,10 +84,10 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-            {{template "form_input_text_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda()\""}}
-            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda()\""}}
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda('bs_presup')\""}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base"  "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro}}
+            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}
@@ -97,10 +97,10 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto Base</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-            {{template "form_input_text_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda('bs_presup')\""}}
-            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda()\""}}
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda()\""}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base"  "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro}}
+            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}
@@ -123,11 +123,12 @@
     <fieldset class="card">
         <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos</legend>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro}}
+            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro}}
             {{template "form_input_number_alpine" dict "Label" "Monto Valuación" "Name" "monto_valuacion" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Origen" "bs_adj" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Origen" "usd_adj" "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}
@@ -154,10 +155,10 @@
             {{template "form_select_alpine" dict "Label" "Emisor / Remitente" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
             {{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
             {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto"  "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Acta Apertura" "Name" "nro_acta_apertura" "Registro" .Registro}}
-            {{template "form_input_number_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"0\""}}
+            {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Resolución JD" "Name" "nro_resolucion_jd" "Registro" .Registro}}
         </div>
     </fieldset>
@@ -169,10 +170,16 @@
             {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Tiempo Ejecución" "Name" "tiempo_ejecucion" "Registro" .Registro "ExtraAttrs" "placeholder=\"ej: 120\""}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda('usd_adj')\""}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Registro" .Registro "ExtraAttrs" "@input.debounce=\"convertirMoneda('bs_adj')\""}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Firma Contrato" "Name" "fecha_firma_contrato" "Type" "date" "Registro" .Registro}}
+            <div>
+                <label class="label">Tiempo Ejecución</label>
+                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
+                       x-model="registro.tiempo_ejecucion"
+                       placeholder="ej: 120"
+                       @blur="appendDias()">
+            </div>
+            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Origen" "usd_adj" "Registro" .Registro}}
+            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Origen" "bs_adj" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Firma Contrato" "Name" "fecha_firma_contrato"  "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}
@@ -192,13 +199,18 @@
             {{end}}
             {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro}}
             {{if eq $modulo "aprobacion_jd"}}
-            {{template "form_input_text_alpine" dict "Label" "Tiempo de Ejecución" "Name" "tiempo_ejecucion" "Registro" .Registro}}
+            <div>
+                <label class="label">Tiempo de Ejecución</label>
+                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
+                       x-model="registro.tiempo_ejecucion"
+                       @blur="appendDias()">
+            </div>
             {{end}}
             {{if ne $modulo "reposos_medicos"}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto"  "Registro" .Registro}}
             {{else}}
-            {{template "form_input_text_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Type" "date" "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro}}
             {{end}}
         </div>
     </fieldset>
@@ -212,9 +224,14 @@
             {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Tiempo Ejecución" "Name" "tiempo_ejecucion" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Período Valuación Desde" "Name" "periodo_valuacion_desde" "Type" "date" "Registro" .Registro}}
-            {{template "form_input_text_alpine" dict "Label" "Período Valuación Hasta" "Name" "periodo_valuacion_hasta" "Type" "date" "Registro" .Registro}}
+            <div>
+                <label class="label">Tiempo Ejecución</label>
+                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
+                       x-model="registro.tiempo_ejecucion"
+                       @blur="appendDias()">
+            </div>
+            {{template "form_input_date_alpine" dict "Label" "Período Valuación Desde" "Name" "periodo_valuacion_desde"  "Registro" .Registro}}
+            {{template "form_input_date_alpine" dict "Label" "Período Valuación Hasta" "Name" "periodo_valuacion_hasta"  "Registro" .Registro}}
         </div>
     </fieldset>
     {{end}}

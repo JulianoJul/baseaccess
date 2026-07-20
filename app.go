@@ -57,7 +57,7 @@ var Modulos = map[string]ModuloConfig{
 			"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
 			"fecha_firma_contrato", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 	},
 	"requisiciones": {
@@ -72,7 +72,7 @@ var Modulos = map[string]ModuloConfig{
 			"observaciones_entrega", "fecha_recibido", "fecha_devuelto", "id_receptor",
 			"observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8, 11},
 	},
 	"memorandums": {
@@ -86,7 +86,7 @@ var Modulos = map[string]ModuloConfig{
 			"asunto", "id_estatus", "fecha_recibido", "fecha_devuelto",
 			"id_receptor", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
 	},
 	"recobros": {
@@ -101,7 +101,7 @@ var Modulos = map[string]ModuloConfig{
 			"nota_debito_reverso", "costo_servicio_usd", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"valuaciones": {
@@ -118,7 +118,7 @@ var Modulos = map[string]ModuloConfig{
 			"monto_adjudicado_bs", "monto_adjudicado_usd", "periodo_valuacion_desde",
 			"periodo_valuacion_hasta", "monto_valuacion", "nro_proforma", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
 	},
 	"aprobacion_jd": {
@@ -134,7 +134,7 @@ var Modulos = map[string]ModuloConfig{
 			"id_estatus", "fecha_recibido", "fecha_devuelto", "id_receptor", "tiempo_ejecucion",
 			"observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 7, 8},
 	},
 	"certificacion_bdu": {
@@ -149,7 +149,7 @@ var Modulos = map[string]ModuloConfig{
 			"monto_ejecutado", "monto_pagado", "id_estatus", "fecha_recibido",
 			"fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{7},
 	},
 	"vacaciones": {
@@ -163,7 +163,7 @@ var Modulos = map[string]ModuloConfig{
 			"anio", "cantidad_dias", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "fecha_devuelto", "id_receptor", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12},
 	},
 	"reposos_medicos": {
@@ -177,7 +177,7 @@ var Modulos = map[string]ModuloConfig{
 			"dias_periodo", "fecha_desde", "fecha_hasta", "id_estatus",
 			"fecha_recibido", "observaciones", "notas",
 		},
-		FechaColumna:   "fecha_recibido",
+		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13},
 	},
 }
@@ -1383,6 +1383,9 @@ func (a *App) CrearRutaProcesosHoja(nombre, inicioStr, finStr string) (int64, er
 	defer a.mu.Unlock()
 	if a.db == nil {
 		return 0, fmt.Errorf("no hay BD abierta")
+	}
+	if inicioStr > finStr {
+		return 0, fmt.Errorf("la fecha de inicio no puede ser mayor que la fecha de fin")
 	}
 	res, err := a.db.Exec("INSERT INTO ruta_procesos_hojas (nombre, fecha_inicio, fecha_fin) VALUES (?, ?, ?)", nombre, inicioStr, finStr)
 	if err != nil {

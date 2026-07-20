@@ -73,17 +73,12 @@ document.addEventListener('alpine:init', () => {
   });
 
   // --- Fijados (Pines / Acceso Rápido) ---
-  Alpine.data('fijados', () => ({
+  Alpine.store('fijados', {
     lista: [],
 
     init() {
-      this.cargar();
-    },
-
-    cargar() {
-      try {
-        this.lista = JSON.parse(localStorage.getItem('sidebarFrecuentes') || '[]');
-      } catch (e) { this.lista = []; }
+      const stored = localStorage.getItem('sidebarFrecuentes');
+      try { this.lista = JSON.parse(stored || '[]'); } catch (e) { this.lista = []; }
     },
 
     guardar() {
@@ -110,6 +105,21 @@ document.addEventListener('alpine:init', () => {
       this.lista.splice(idx, 1);
       this.guardar();
     }
+  });
+  Alpine.data('fijados', () => ({
+    get lista() { return Alpine.store('fijados').lista; },
+
+    toggle(id, solped, modulo) {
+      Alpine.store('fijados').toggle(id, solped, modulo);
+    },
+
+    estaFijado(id, modulo) {
+      return Alpine.store('fijados').estaFijado(id, modulo);
+    },
+
+    eliminar(idx) {
+      Alpine.store('fijados').eliminar(idx);
+    }
   }));
 
   // --- BD Recientes ---
@@ -118,6 +128,9 @@ document.addEventListener('alpine:init', () => {
 
     init() {
       this.cargar();
+      if (this.lista.length === 1 && !(window.PAGE_DATA && window.PAGE_DATA.hasDB)) {
+        this.abrir(this.lista[0].path);
+      }
     },
 
     cargar() {
@@ -176,9 +189,54 @@ document.addEventListener('alpine:init', () => {
     filas: [{ valor: '' }],
     resultado: 0,
 
+    onInput(idx, event) {
+      const input = event.target;
+      let raw = input.value;
+
+      raw = raw.replace(/[^0-9.,-]/g, '');
+      const lastComma = raw.lastIndexOf(',');
+      const lastDot = raw.lastIndexOf('.');
+      let intRaw, decRaw, sep;
+      if (lastComma > lastDot) {
+        sep = ',';
+        intRaw = raw.slice(0, lastComma);
+        decRaw = raw.slice(lastComma + 1);
+      } else if (lastDot > lastComma) {
+        sep = '.';
+        intRaw = raw.slice(0, lastDot);
+        decRaw = raw.slice(lastDot + 1);
+      } else {
+        intRaw = raw;
+        decRaw = '';
+        sep = '';
+      }
+      intRaw = intRaw.replace(/[.,]/g, '');
+      let isNeg = intRaw.startsWith('-') ? '-' : '';
+      intRaw = intRaw.replace(/-/g, '').replace(/\D/g, '');
+      decRaw = decRaw.replace(/\D/g, '').slice(0, 2);
+
+      raw = sep ? isNeg + intRaw + sep + decRaw : isNeg + intRaw;
+      input.value = raw;
+      this.filas[idx].valor = raw;
+      this.calcular();
+    },
+
+    onBlur(idx, event) {
+      const raw = event.target.value;
+      const clean = raw.replace(/\./g, '').replace(',', '.');
+      const num = parseFloat(clean);
+      if (!isNaN(num) && isFinite(num)) {
+        const formatted = num.toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        event.target.value = formatted;
+        this.filas[idx].valor = formatted;
+        this.calcular();
+      }
+    },
+
     calcular() {
       this.resultado = this.filas.reduce((sum, f) => {
-        const v = parseFloat(String(f.valor || '').replace(',', '.').replace(/[^0-9.]/g, '')) || 0;
+        const clean = String(f.valor || '').replace(/\./g, '').replace(',', '.');
+        const v = parseFloat(clean) || 0;
         return sum + v;
       }, 0);
     },
@@ -220,6 +278,16 @@ document.addEventListener('alpine:init', () => {
     fechaHasta: '',
     cargando: false,
 
+    init() {
+      this.$watch('modulo', () => this.cargarColumnas());
+      this._prevOpen = false;
+      this.$watch('$store.modals.stack', () => {
+        const open = Alpine.store('modals').tiene('export-modal');
+        if (open && !this._prevOpen) this.cargarColumnas();
+        this._prevOpen = open;
+      });
+    },
+
     async cargarColumnas() {
       this.cargando = true;
       const contCols = this.$el.querySelector('#exp-columnas');
@@ -239,7 +307,13 @@ document.addEventListener('alpine:init', () => {
         this.columnas.forEach(c => {
           const lbl = document.createElement('label');
           lbl.className = 'exp-checkbox-label flex items-center gap-2 text-sm cursor-pointer';
-          lbl.innerHTML = `<input type="checkbox" x-model="columnas[${this.columnas.indexOf(c)}].seleccionada" class="exp-col"> ${c.nombre.replace(/_/g, ' ')}`;
+          const cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'exp-col';
+          cb.checked = c.seleccionada;
+          cb.addEventListener('change', () => { c.seleccionada = cb.checked; });
+          lbl.appendChild(cb);
+          lbl.appendChild(document.createTextNode(' ' + c.nombre.replace(/_/g, ' ')));
           contCols.appendChild(lbl);
         });
 
@@ -254,11 +328,26 @@ document.addEventListener('alpine:init', () => {
               if (items.length > 0) {
                 const div = document.createElement('div');
                 div.className = 'flex flex-col';
-                div.innerHTML = `<label class="label">${catInfo.label}</label>
-                  <select x-model="filtros.${col}" name="${col}" class="input exp-filter-input">
-                    <option value="">Todos</option>
-                    ${items.map(i => `<option value="${i.id}"${i.id_gerencia ? ' data-id-gerencia="' + i.id_gerencia + '"' : ''}>${i.nombre}</option>`).join('')}
-                  </select>`;
+                const label = document.createElement('label');
+                label.className = 'label';
+                label.textContent = catInfo.label;
+                div.appendChild(label);
+                const select = document.createElement('select');
+                select.className = 'input exp-filter-input';
+                select.name = col;
+                const optAll = document.createElement('option');
+                optAll.value = '';
+                optAll.textContent = 'Todos';
+                select.appendChild(optAll);
+                items.forEach(i => {
+                  const opt = document.createElement('option');
+                  opt.value = String(i.id);
+                  if (i.id_gerencia) opt.dataset.idGerencia = String(i.id_gerencia);
+                  opt.textContent = i.nombre;
+                  select.appendChild(opt);
+                });
+                select.addEventListener('change', () => { this.filtros[col] = select.value; });
+                div.appendChild(select);
                 contFiltros.appendChild(div);
               }
             }
@@ -271,7 +360,19 @@ document.addEventListener('alpine:init', () => {
       }
     },
 
+    validarFechas() {
+      if (this.fechaDesde && this.fechaHasta && this.fechaDesde > this.fechaHasta) {
+        Alpine.store('toast').mostrar('La fecha desde no puede ser mayor que la fecha hasta', 'error');
+        this.fechaHasta = '';
+      }
+    },
+
     async exportar() {
+      if (this.fechaDesde && this.fechaHasta && this.fechaDesde > this.fechaHasta) {
+        Alpine.store('toast').mostrar('La fecha desde no puede ser mayor que la fecha hasta', 'error');
+        this.cargando = false;
+        return;
+      }
       this.cargando = true;
       const spinner = document.getElementById('spinner-overlay');
       if (spinner) { document.getElementById('spinner-text').textContent = 'Generando Excel...'; spinner.classList.remove('hidden'); }
@@ -336,46 +437,182 @@ document.addEventListener('alpine:init', () => {
   }));
 
   // --- Formulario Módulo (conversión USD/Bs) ---
-  Alpine.data('formularioModulo', (modulo, registroInicial, tipoCambioInicial) => ({
+  Alpine.data('formularioModulo', (modulo, registroInicial) => ({
     modulo: modulo || 'expedientes',
     registro: registroInicial || {},
-    tipoCambio: tipoCambioInicial || 0,
-    convLock: false,
+    lastSource: {},
 
     init() {
-      if (this.registro && this.registro.tipo_cambio) {
-        this.tipoCambio = this._parseValue(String(this.registro.tipo_cambio));
+      this.$watch('registro.tipo_cambio', () => this._syncAll());
+    },
+
+    _syncAll() {
+      const tc = this._parseValue(this.registro.tipo_cambio);
+      if (!tc || !isFinite(tc)) return;
+      this._syncPair('presupuesto_base_bs', 'presupuesto_base_usd', tc);
+      this._syncPair('monto_adjudicado_bs', 'monto_adjudicado_usd', tc);
+    },
+
+    _syncPair(bsKey, usdKey, tc) {
+      const bs = this._parseValue(this.registro[bsKey]);
+      const usd = this._parseValue(this.registro[usdKey]);
+      const source = this.lastSource[bsKey + '_' + usdKey];
+      if (source === bsKey && bs) {
+        this._setVal(usdKey, bs / tc);
+      } else if (source === usdKey && usd) {
+        this._setVal(bsKey, usd * tc);
+      } else if (bs && !usd) {
+        this._setVal(usdKey, bs / tc);
+      } else if (usd && !bs) {
+        this._setVal(bsKey, usd * tc);
       }
     },
 
-    convertirMoneda(origen) {
-      if (this.convLock || !this.tipoCambio) return;
-      this.convLock = true;
-      try {
-        const getRaw = (key) => this._parseValue(String(this.registro[key] || ''));
-        const setVal = (key, val) => { this.registro[key] = val ? val.toFixed(2) : ''; };
+    onMontoInput(event, origen) {
+      const input = event.target;
+      let raw = input.value;
+      raw = raw.replace(/[^0-9.,-]/g, '');
+      const lastComma = raw.lastIndexOf(',');
+      const lastDot = raw.lastIndexOf('.');
+      let sep, intRaw, decRaw;
+      if (lastComma > lastDot) { sep = ','; intRaw = raw.slice(0, lastComma); decRaw = raw.slice(lastComma + 1); }
+      else if (lastDot > lastComma) { sep = '.'; intRaw = raw.slice(0, lastDot); decRaw = raw.slice(lastDot + 1); }
+      else { sep = ''; intRaw = raw; decRaw = ''; }
+      intRaw = intRaw.replace(/[.,-]/g, '').replace(/\D/g, '');
+      decRaw = decRaw.replace(/\D/g, '').slice(0, 2);
+      raw = sep ? intRaw + sep + decRaw : intRaw;
+      input.value = raw;
+      input.dataset.raw = raw;
 
-        if (origen === 'bs_presup') {
-          const bs = getRaw('presupuesto_base_bs');
-          if (bs) setVal('presupuesto_base_usd', bs / this.tipoCambio);
-        } else if (origen === 'usd_adj') {
-          const usd = getRaw('monto_adjudicado_usd');
-          if (usd) setVal('monto_adjudicado_bs', usd * this.tipoCambio);
-        } else if (origen === 'bs_adj') {
-          const bs = getRaw('monto_adjudicado_bs');
-          if (bs) setVal('monto_adjudicado_usd', bs / this.tipoCambio);
-        } else {
-          const usd = getRaw('presupuesto_base_usd');
-          if (usd) setVal('presupuesto_base_bs', usd * this.tipoCambio);
-        }
-      } finally {
-        this.convLock = false;
+      const map = {
+        'bs_presup': ['presupuesto_base_bs', 'presupuesto_base_usd'],
+        'usd_presup': ['presupuesto_base_usd', 'presupuesto_base_bs'],
+        'bs_adj': ['monto_adjudicado_bs', 'monto_adjudicado_usd'],
+        'usd_adj': ['monto_adjudicado_usd', 'monto_adjudicado_bs']
+      };
+      const [origenKey, destinoKey] = map[origen] || [];
+      if (!origenKey) return;
+      this.lastSource[origenKey + '_' + destinoKey] = origenKey;
+      this.registro[origenKey] = raw;
+      this._conv(origenKey, destinoKey);
+    },
+
+    onMontoBlur(event, key) {
+      const raw = event.target.value;
+      const num = this._parseValue(raw);
+      if (!num) return;
+      const formatted = num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      event.target.value = formatted;
+      event.target.dataset.raw = raw;
+      this.registro[key] = raw;
+    },
+
+    onMontoFocus(event) {
+      if (event.target.dataset.raw !== undefined) {
+        event.target.value = event.target.dataset.raw;
       }
+    },
+
+    _conv(origenKey, destinoKey) {
+      const tc = this._parseValue(this.registro.tipo_cambio);
+      if (!tc || !isFinite(tc)) return;
+      const val = this._parseValue(this.registro[origenKey]);
+      if (!val) return;
+      const isUsdOrigen = origenKey.includes('_usd');
+      const res = isUsdOrigen ? val * tc : val / tc;
+      this._setVal(destinoKey, res);
+    },
+
+    _setVal(key, val) {
+      if (!isFinite(val)) return;
+      const str = val.toFixed(2);
+      this.registro[key] = str;
+      this.$nextTick(() => {
+        const el = document.getElementById('f-' + key);
+        if (el) {
+          el.dataset.raw = str;
+          const num = parseFloat(str);
+          if (num) el.value = num.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+      });
+    },
+
+    validarFechas() {
+      const pares = [
+        ['fecha_recibido', 'fecha_devuelto', 'Recibido', 'Devuelto'],
+        ['fecha_desde', 'fecha_hasta', 'Desde', 'Hasta'],
+        ['fecha_inicio', 'fecha_final', 'Inicio', 'Final'],
+        ['periodo_valuacion_desde', 'periodo_valuacion_hasta', 'Período Desde', 'Período Hasta']
+      ];
+      pares.forEach(([desde, hasta, labelDesde, labelHasta]) => {
+        const vDesde = this.registro[desde];
+        const vHasta = this.registro[hasta];
+        if (vDesde && vHasta && vDesde > vHasta) {
+          Alpine.store('toast').mostrar(`La fecha ${labelDesde} no puede ser mayor que la fecha ${labelHasta}`, 'error');
+          this.registro[hasta] = '';
+          const el = document.getElementById('f-' + hasta);
+          if (el) el.value = '';
+        }
+      });
+    },
+
+    validarAntesGuardar() {
+      let ok = true;
+      const pares = [
+        ['fecha_recibido', 'fecha_devuelto', 'Recibido', 'Devuelto'],
+        ['fecha_desde', 'fecha_hasta', 'Desde', 'Hasta'],
+        ['fecha_inicio', 'fecha_final', 'Inicio', 'Final'],
+        ['periodo_valuacion_desde', 'periodo_valuacion_hasta', 'Período Desde', 'Período Hasta']
+      ];
+      pares.forEach(([desde, hasta, labelDesde, labelHasta]) => {
+        const vDesde = this.registro[desde];
+        const vHasta = this.registro[hasta];
+        if (vDesde && vHasta && vDesde > vHasta) {
+          Alpine.store('toast').mostrar(`La fecha ${labelDesde} no puede ser mayor que la fecha ${labelHasta}`, 'error');
+          ok = false;
+        }
+      });
+      return ok;
+    },
+
+    appendDias() {
+      const v = String(this.registro.tiempo_ejecucion || '').trim();
+      if (v && !v.toUpperCase().endsWith('DÍAS') && !v.toUpperCase().endsWith('DIAS')) {
+        const nuevo = v + ' DÍAS';
+        this.registro.tiempo_ejecucion = nuevo;
+        const el = document.getElementById('f-tiempo_ejecucion');
+        if (el) el.value = nuevo;
+      }
+    },
+
+    spinFrente(delta) {
+      const actual = parseInt(this.registro.cantidad_frentes || '0', 10);
+      const nuevo = Math.max(0, actual + delta);
+      this.registro.cantidad_frentes = String(nuevo);
     },
 
     _parseValue(v) {
       if (!v) return 0;
-      v = String(v).replace(/,/g, '.').replace(/[^0-9.]/g, '');
+      v = String(v).trim();
+      const hasComma = v.includes(',');
+      const hasDot = v.includes('.');
+      if (hasComma && hasDot) {
+        const lastComma = v.lastIndexOf(',');
+        const lastDot = v.lastIndexOf('.');
+        if (lastComma > lastDot) {
+          v = v.replace(/\./g, '').replace(',', '.');
+        } else {
+          v = v.replace(/,/g, '').replace(/\.(?=.*\.)/, '');
+        }
+      } else if (hasComma && !hasDot) {
+        v = v.replace(',', '.');
+      } else if (!hasComma && hasDot) {
+        if ((v.match(/\./g) || []).length > 1) {
+          const lastDot = v.lastIndexOf('.');
+          v = v.slice(0, lastDot).replace(/\./g, '') + v.slice(lastDot);
+        }
+      }
+      v = v.replace(/[^0-9.]/g, '');
       const n = parseFloat(v);
       return isNaN(n) ? 0 : n;
     }

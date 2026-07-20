@@ -68,7 +68,7 @@
     </div>
 
     <!-- Modal Crear Hoja -->
-    <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+    <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-hoja-modal')">
         <div class="relative modal-content w-full max-w-sm">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group mr-2"></i>Nueva Hoja</h3>
@@ -93,7 +93,7 @@
     </div>
 
     <!-- Modal Crear Leyenda -->
-    <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+    <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-leyenda-modal')">
         <div class="relative modal-content w-full max-w-sm">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Nueva Leyenda</h3>
@@ -115,7 +115,7 @@
         </div>
     </div>
     <!-- Modal Editar Leyenda -->
-    <div id="editar-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+    <div id="editar-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('editar-leyenda-modal')">
         <div class="relative modal-content w-full max-w-sm">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Editar Leyenda</h3>
@@ -138,7 +138,7 @@
         </div>
     </div>
     <!-- Modal Editar Cronograma -->
-    <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+    <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crono-modal')">
         <div class="relative modal-content w-full max-w-sm">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-check mr-2"></i>Programar Día</h3>
@@ -204,7 +204,13 @@
         var inicio = document.getElementById('nueva-hoja-inicio').value;
         var fin = document.getElementById('nueva-hoja-fin').value;
         if (!nombre || !inicio || !fin) {
-            alert('Por favor completa todos los campos.');
+            if (window.Alpine) Alpine.store('toast').mostrar('Completa todos los campos', 'error');
+            else alert('Completa todos los campos');
+            return;
+        }
+        if (inicio > fin) {
+            if (window.Alpine) Alpine.store('toast').mostrar('La fecha de inicio no puede ser mayor que la fecha de fin', 'error');
+            else alert('La fecha de inicio no puede ser mayor que la fecha de fin');
             return;
         }
         fetch('/api/ruta-procesos-hoja-crear', {
@@ -389,8 +395,7 @@
         else processes.forEach(p => {
             html += '<div class="proceso-card flex items-center justify-between">' +
                 '<div class="flex items-start gap-2.5">' +
-                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="exp-col" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
-                '<span class="proceso-card-num">' + p.id + '</span></label>' +
+                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="exp-col" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)"></label>' +
                 '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + esc(p.descripcion) + '</p>' +
                 '<div class="proceso-card-meta"><span class="proceso-card-mod">' + esc(p.modulo || 'expedientes') + '</span>' +
                 '<span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
@@ -422,12 +427,12 @@
         });
 
         var html = '<div class="card mt-0"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
-            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="3" class="gantt-col-num p-2">N</th>' + weekHeaders + '</tr>' +
+            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold">' + weekHeaders + '</tr>' +
             '<tr class="bg-gray-800 uppercase font-bold">' + weekLabels + '</tr>' +
             '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + esc(c.day_name) + '</th>'; }).join('') + '</tr></thead><tbody>';
 
         active.forEach(function(p) {
-            html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10"><td class="gantt-col-num p-2 text-gray-400">' + p.id + '</td>';
+            html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10">';
             ganttColumns.forEach(function(col) {
                 var dayData = p.timeline[col.date_str] || {};
                 var color = dayData.hex_color;

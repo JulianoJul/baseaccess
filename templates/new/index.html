@@ -31,7 +31,8 @@
             totalPages: {{.TotalPages}},
             currentPage: {{.CurrentPage}},
             pageSize: {{.PageSize}},
-            ActiveModule: {{jsonEncode .ActiveModule}}
+            ActiveModule: {{jsonEncode .ActiveModule}},
+            CatalogFilters: {{jsonEncode .CatalogFilters}}
         };
     </script>
 
@@ -63,12 +64,10 @@
                         {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes" style="border:1px solid #f59e0b">
                     <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
-                <div x-data="exportarExcel">
-                    <button @click="$store.modals.abrir('export-modal'); $nextTick(() => cargarColumnas())"
-                            {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
-                        <i class="fas fa-file-excel mr-1"></i> Exportar Excel
-                    </button>
-                </div>
+                <button @click="$store.modals.abrir('export-modal')"
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
+                    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                </button>
                 <div x-data="fijados">
                     <button @click="$store.modals.abrir('modal-frecuentes')"
                             {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-frecuentes">
@@ -178,7 +177,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'form-modal')">
+         @mousedown="$store.modals.cerrarClickFuera($event, 'form-modal')">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Registro</h2>
@@ -194,7 +193,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'historial-modal')">
+         @mousedown="$store.modals.cerrarClickFuera($event, 'historial-modal')">
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
@@ -213,7 +212,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'modal-ruta')">
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-ruta')">
         <div class="relative modal-content w-full max-w-5xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
@@ -229,7 +228,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'modal-pendientes')">
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-pendientes')">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
@@ -245,7 +244,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'modal-recientes')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-recientes')"
          x-data="bdRecientes">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
@@ -278,7 +277,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'modal-frecuentes')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-frecuentes')"
          x-data="fijados">
         <div class="relative modal-content w-full max-w-4xl my-8">
             <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
@@ -317,7 +316,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'export-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'export-modal')"
          x-data="exportarExcel">
         <div class="relative modal-content w-full max-w-2xl my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
@@ -335,8 +334,8 @@
                 </div>
                 <div id="exp-filtros-dinamicos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="label">Fecha Desde (recibido)</label><input type="date" x-model="fechaDesde" class="input"></div>
-                    <div><label class="label">Fecha Hasta (recibido)</label><input type="date" x-model="fechaHasta" class="input"></div>
+                    <div><label class="label">Fecha Creación Desde</label><input type="date" x-model="fechaDesde" class="input" @change="validarFechas()"></div>
+                    <div><label class="label">Fecha Creación Hasta</label><input type="date" x-model="fechaHasta" class="input" @change="validarFechas()"></div>
                 </div>
                 <div>
                     <label class="label">Columnas a exportar</label>
@@ -360,7 +359,7 @@
          x-transition:enter="transition ease-out duration-200"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
-         @click="$store.modals.cerrarClickFuera($event, 'sumas-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'sumas-modal')"
          x-data="calculadoraSumas">
         <div class="relative modal-content w-full max-w-md my-8">
             <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
@@ -373,8 +372,9 @@
                         <div class="suma-fila flex items-center gap-3 w-full">
                             <input type="text" inputmode="decimal" placeholder="0,00"
                                    class="input flex-1 suma-input"
-                                   x-model="fila.valor"
-                                   @input="calcular"
+                                   :value="fila.valor"
+                                   @input="onInput(idx, $event)"
+                                   @blur="onBlur(idx, $event)"
                                    @keydown.enter.prevent="añadirFila()">
                             <button @click="quitarFila(idx)"
                                     class="w-8 h-8 shrink-0 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg transition-colors" title="Quitar">
@@ -469,16 +469,7 @@
                 }
             }
 
-            if (!window.PAGE_DATA || !window.PAGE_DATA.hasDB) {
-                let recientes = [];
-                try { recientes = JSON.parse(localStorage.getItem('baseaccess_recientes') || '[]'); } catch(e) {}
-                if (recientes.length === 1) {
-                    const recientesEl = document.querySelector('[x-data="bdRecientes"]');
-                    if (recientesEl && recientesEl.__x) {
-                        recientesEl.__x.$data.abrir(recientes[0].path);
-                    }
-                }
-            }
+
         });
 
 

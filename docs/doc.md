@@ -86,30 +86,52 @@ baseaccess/
 ├── go.sum                  # Checksums Go
 ├── wails.json              # Config proyecto Wails
 ├── templates/              # Go html/template (renderizados desde Go)
-│   ├── index.html          # Template principal (estructura HTML)
-│   ├── tabla_<key>.html (9)# Listado por modulo
-│   ├── form_<key>.html (9) # Formulario por modulo
 │   ├── historial.html      # Historial (multi-modulo)
-│   ├── ruta_procesos.html  # Ruta de procesos Gantt
-│   └── pendientes.html     # Docs pendientes
+│   ├── pendientes.html     # Docs pendientes
+│   └── new/                # Templates unificados (Alpine.js + HTMX)
+│       ├── index.html          # Template principal (estructura HTML)
+│       ├── form.html           # Formulario unificado (9 módulos)
+│       ├── tabla.html          # Tabla unificada (9 módulos)
+│       ├── components.html     # Sub-templates Alpine
+│       └── ruta_procesos.html  # Ruta de procesos Gantt
 ├── frontend/               # Estáticos embebidos (CSS, JS, fuentes)
-│   └── vendor/             # Dependencias locales (sin CDN)
-│       ├── tailwind.min.css    # Tailwind CSS build estático
-│       ├── styles.css          # Estilos adicionales
-│       ├── htmx.min.js         # HTMX
-│       ├── fontawesome.min.css # Font Awesome Free
-│       └── webfonts/           # Fuentes de iconos
+│   ├── vendor/             # Dependencias locales (sin CDN)
+│   │   ├── tailwind.min.css    # Tailwind CSS build estático
+│   │   ├── styles.css          # Estilos adicionales
+│   │   ├── htmx.min.js         # HTMX
+│   │   ├── fontawesome.min.css # Font Awesome Free
+│   │   └── webfonts/           # Fuentes de iconos
+│   ├── new/vendor/         # Alpine.js (migración desde JS vainilla)
+│   │   ├── alpine.min.js       # Alpine.js v3.14.8
+│   │   ├── alpine-app.js       # Stores + Alpine.data()
+│   │   ├── alpine-directives.js# Directiva custom x-currency
+│   │   └── alpine-htmx-bridge.js # Puente HTMX + Alpine
+│   └── wailsjs/            # Bindings auto-generados Wails
 ├── data/                   # Archivos de datos
 │   ├── sql/01_master_control_docs_presidencia.sql  # Schema: catalogos + expedientes
 │   ├── sql/02_modulos_adicionales.sql               # Schema: 8 modulos adicionales
 │   └── sql/03_ruta_procesos.sql                      # Schema: ruta procesos (Gantt)
 ├── docs/                   # Documentación
 │   ├── doc.md              # Este archivo
-│   ├── ai-context.md       # Anchor IA
 │   ├── funciones.md        # Catálogo SPOT
-│   └── legacy/             # Docs históricos (era pre-Wails)
-│       ├── decisiones.md   # ADR completo
-│       └── CHANGELOG.md    # Historial de cambios
+│   └── legacy/             # Docs históricos + archivos migrados
+│       ├── ai-context.md
+│       ├── CHANGELOG.md
+│       ├── decisiones.md
+│       ├── plan.md
+│       ├── promptjs.md
+│       ├── docs_legacy_js_analysis_diff.md
+│       ├── plan_migracion_alpine_diff.md
+│       ├── frontend/app.js     # JS vainilla (reemplazado por Alpine)
+│       ├── backend/
+│       │   ├── app.go          # Borrador previo (go:build ignore)
+│       │   └── handler.go      # Borrador previo (go:build ignore)
+│       └── templates/          # Templates antiguos (pre-unificación)
+│           ├── index.html
+│           ├── components.html
+│           ├── ruta_procesos.html
+│           ├── form_*.html (9)
+│           └── tabla_*.html (9)
 ├── Makefile                # Automatización
 ├── build/                  # Outputs de build (gitignored)
 │   └── bin/                # Binarios + WebView2 runtime (Windows)
@@ -255,66 +277,17 @@ Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de c
 
 ## Migración a Alpine.js
 
-### Estado actual
+La migración a Alpine.js y templates unificados concluyó con éxito. Archivos antiguos fueron archivados en `docs/legacy/`.
 
-La migración a Alpine.js y templates unificados concluyó con éxito. Los documentos de análisis y planificación de la migración (`promptjs.md`, `docs_legacy_js_analysis_diff.md`, `plan_migracion_alpine_diff.md`) han sido archivados en `docs/legacy/`.
-
-### Archivos nuevos
-
-```
-frontend/new/vendor/
-├── alpine.min.js              # Alpine.js v3.14.8 (CDN)
-├── alpine-app.js              # Stores + Alpine.data(): modales, fijados, recientes, sumas, exportar, formulario
-├── alpine-directives.js       # Directiva custom x-currency (formato numérico ES)
-└── alpine-htmx-bridge.js      # Puente: initTree tras HTMX swap + sincronización pines
-templates/new/
-├── index.html                 # Shell con x-data + $store.modals + @click (reemplaza index.html)
-├── components.html            # Sub-templates Alpine (form_*_alpine, tabla_*_alpine, filtro superintendencias)
-├── form.html                  # Formulario unificado (9 módulos en 1 archivo, Go if/eq)
-├── tabla.html                 # Tabla unificada (9 módulos en 1 archivo, Go if/eq)
-└── ruta_procesos.html         # IIFE Gantt (corregido cálculo dinámico de columnas y scroll horizontal)
-```
-
-### Lo que reemplazan
-
-| Antes | Después | Reducción |
-|-------|---------|-----------|
-| `frontend/vendor/app.js` (765 líneas, incl. drag & drop) | 3 Alpine JS (448 líneas, drag & drop migrado a `appShell`) | **-41%** |
-| 9 `form_*.html` + 9 `tabla_*.html` (1015 líneas) | 2 unificados (458 líneas) | **-55%** |
-| `templates/index.html` (298 líneas) | `templates/new/index.html` (495 líneas) | +197 (modales inline) |
-| Componentes con onclick global | Alpine x-show + @click + $store | Cero listeners globales |
-
-### Principios del nuevo frontend
-
+**Principios del frontend actual:**
 - **Alpine** maneja estado UI local (modales, localStorage, toggles, validación, drag & drop)
 - **HTMX** maneja toda comunicación servidor (fetch, POST, GET)
-- **Go**: se introdujo el método `ObtenerFilasPaginado` en `app.go` y la función helper `pagRange` en `handler.go` para dar soporte a la paginación desde el servidor.
+- **Go** (`html/template`) renderiza templates en servidor
 - JS residual mínimo: apertura de BD (Wails dialog, no reemplazable por Alpine)
-
-### Swap completado
-
-Los cambios ya están aplicados en `handler.go` y `app.go` raíz:
-- ParseFS carga ambos: `templates/*.html` (viejos) + `templates/new/*.html` (nuevos)
-- `handleCargarExpediente` renderiza `"form.html"` (unificado)
-- `handleFiltrarExpedientes` y `handleCambiarModulo` renderizan `"tabla.html"` (unificado + paginación)
-- `preparePageData` usa `ObtenerFilasPaginado` con `?pagina=` del request
-- `app.go` tiene nuevo método `ObtenerFilasPaginado` (COUNT + LIMIT/OFFSET)
-- Alpine JS se sirve desde `/new/vendor/` (embebido en `frontend/new/`)
-
-### Notas técnicas
-
-- Los templates nuevos usan Alpine `$store` (modals, toast) como estado global accesible desde `hx-on::after-request`
-- `appShell` es el componente raíz del body: maneja drag & drop con `@dragover.window.prevent`, `@dragleave.window`, `@drop.window.prevent` y `:class` reactivo — reemplazó los listeners globales de JS vainilla
-- `Alpine.initTree()` en el bridge asegura que los componentes Alpine se activen tras swaps de HTMX
-- `x-currency` es directiva Alpine custom que reemplaza `_initNumInput`/`_fmtNum`/`_parseValue`
-- El `formularioModulo` component maneja la conversión USD↔Bs con reactividad bidireccional
-- **Paginación en Servidor:** Se migró completamente al servidor. Los controles de navegación en `tabla.html` se generan dinámicamente usando el helper `pagRange` de Go y realizan peticiones HTMX que envían la página y tamaño de página actuales.
-- **Ruta de Procesos (Gantt):** Se corrigió `buildGanttColumns` en `app.go` para usar `strftime('%Y-%m-%d', ...)` y `parseDateFlex`, permitiendo rangos de fechas personalizados ilimitados, y se configuró `.gantt-table` con `width: max-content` y anchos de columna fijos (`32px` día, `44px` N) con `overflow-x-auto` en el contenedor para scroll horizontal fluido.
 
 ---
 
 
-> **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo (historial de decisiones técnicas, incluyendo era sql.js legacy).
-> **Anchor IA:** [`docs/legacy/ai-context.md`](legacy/ai-context.md) — stack, líneas rojas, estado actual.
+> **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo.
 > **Changelog:** [`docs/legacy/CHANGELOG.md`](legacy/CHANGELOG.md) — historial completo de cambios.
 > **Catálogo:** [`funciones.md`](funciones.md) — SPOT de funciones (DRY: verificar antes de crear).
