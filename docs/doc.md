@@ -1,10 +1,5 @@
 # Gestión de Expedientes con Historial — Documentación (Wails)
 
-> **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo (historial de decisiones técnicas, incluyendo era sql.js legacy).
-> **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
-> **Changelog:** [`docs/legacy/CHANGELOG.md`](legacy/CHANGELOG.md) — historial completo de cambios.
-> **Catálogo:** [`funciones.md`](funciones.md) — SPOT de funciones (DRY: verificar antes de crear).
-
 ## Stack
 
 | Capa | Tecnología |
@@ -231,94 +226,6 @@ Workflow: `.github/workflows/build.yml`
 Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de cambios.
 
 
-## Auditorías de Código (Julio 2026)
-
-Se recibieron 3 auditorías externas (Qwen, Kimi, GLM) con un total de ~70 hallazgos. Muchos "críticos" eran falsos positivos porque los auditores solo analizaron `01_master_control_docs_presidencia.sql` sin considerar `02_modulos_adicionales.sql` (8 módulos completos) ni `03_ruta_procesos.sql`.
-
-### Correcciones aplicadas
-
-| # | Hallazgo | Archivo | Fix |
-|---|----------|---------|-----|
-| 1 | `parseSpanishNumber` corrompía campos textuales (observaciones) | `handler.go` | Whitelist `columnasNumericas` — solo se aplica a columnas monetarias/numéricas |
-| 2 | `sanitizarOrden` rechazaba `fecha_creacion`/`fecha_actualizacion` | `app.go` | `columnasOrdenValidas` incluidas en validación |
-| 3 | `convertirMoneda` sobrescribía presupuesto al editar adjudicación | `templates/index.html` | Lógica de presupuesto vs adjudicación en bloques independientes |
-| 4 | `toggleFrecuente` inyección JS por comillas en solped | `templates/tabla_expedientes.html`, `index.html` | Migrado a `data-df-*` attributes + dataset |
-| 5 | `hxGetFormulario` no pasaba módulo | `templates/index.html` | Parámetro `modulo` en URL; items fijados guardan `{id, solped, modulo}` |
-| 6 | `EliminarFila` no limpiaba `ruta_procesos_*` (FK constraint) | `app.go` | DELETE en cronograma + procesos antes del DELETE principal |
-| 7 | Trigger sobrescribía `id_estatus` manual del usuario | `01_master...sql` | `AND OLD.fecha_firma_contrato IS NULL` en UPDATE a FIRMADO |
-| 8 | `truncate` rompía UTF-8 multi-byte | `handler.go` | `[]rune(s)[:n]` en vez de `s[:n]` |
-| 9 | `formatNumGo` error de precisión float (1,14 en vez de 1,15) | `handler.go` | `math.Round(f*100)/100` |
-| 10 | `handleCSV` orden de columnas aleatorio (map iteration) | `handler.go` | `sort.Strings(headers)` |
-| 11 | `fecha_actualizacion` inconsistente (CURRENT_DATE vs TIMESTAMP) | `02_modulos...sql` | Triggers cambiados a `CURRENT_TIMESTAMP` |
-| 12 | `EliminarRutaProceso` sin transacción | `app.go` | Envuelto en `tx.Begin/Commit/Rollback` |
-| 13 | `LastInsertId()` error ignorado | `app.go` | Error chequeado explícitamente |
-| 14 | Errores scan silenciados en `ObtenerRutaProcesosData` | `app.go` | `log.Printf` en cada scan fallido |
-| 15 | Items fijados perdían módulo al recargar | `templates/index.html` | `modulo` persistido en localStorage junto a id/solped |
-| 16 | Label incorrecto "Asunto del Memorándum" en recobros | `templates/form_recobros.html` | Cambiado a "Asunto del Recobro" |
-| 17 | `fecha_devuelto` consultado pero no mostrado en historial | `templates/historial.html` | Columna agregada al template |
-| 18 | `dayNames` duplicado "M" para Lunes y Miércoles | `app.go` | "L", "M", **"X"**, "J", "V" |
-| 19 | `pushModal` fuga de event listeners por apertura | `templates/index.html` | Listener único global con delegación de eventos |
-| 20 | `crearBackup` corrupción de bak.1 si el sistema crashea durante la copia | `app.go` | Copia primero a `bak.tmp`, renombra solo si exitoso |
-| — | — | — | — |
-| 21 | `formatNumGo` pérdida de signo negativo en `-0.50` → `"0,50"` | `handler.go` | Signo capturado con `rounded < 0` antes de truncar a int64 |
-| 22 | `safeHTML`/`safeJS`/`safeURL` desactivaban escape automático (XSS) | `handler.go` | Eliminadas del FuncMap |
-| 23 | `id_estatus` se insertaba NULL al enviar vacío (bypasea DEFAULT 1) | `app.go` | UPDATE dinámico: solo incluye columnas con valor no-nulo |
-| 24 | UPDATE sobrescribía campos vacíos con NULL (pérdida de datos) | `app.go` | SET dinámico solo para columnas no-nulas |
-| 25 | `DescargarBD` sin WAL checkpoint → copia inconsistente | `app.go` | `PRAGMA wal_checkpoint(TRUNCATE)` antes de copiar |
-| 26 | `parseSpanishNumber` convertía `1.23` → `123` | `handler.go` | Solo procesa si contiene coma (formato español) |
-| 27 | `queryRows` devolvía `nil` en templates → `"<nil>"` visible | `app.go` | Default `nil` → `""` |
-| 28 | `rows.Err()` no chequeado en `ObtenerCatalogos`, `ObtenerExpedientesDisponiblesRuta` | `app.go` | `rows.Err()` post-iteración |
-| 29 | `window.PAGE_DATA.ActiveModule` no existía → JS siempre `'expedientes'` | `templates/index.html` | `ActiveModule` agregado al objeto JS |
-| 30 | `handleCSV` construía CSV manualmente (comillas/saltos de línea frágiles) | `handler.go` | Migrado a `encoding/csv` |
-| 31 | `columnasOrdenValidas` permitía `id_expediente` cross-module (error 500) | `app.go` | Reducido solo a `fecha_creacion`, `fecha_actualizacion` |
-| 32 | Gantt 60 días calendario (~42 hábiles) vs 60 hábiles esperados | `app.go` | `bizTarget=60` iteración hasta alcanzar |
-| 33 | `ObtenerRutaProcesosData` loop O(n×m) en match cronograma | `app.go` | `map[int]*Proceso` O(1) |
-| 34 | Falta `_busy_timeout` en DSN → posibles `database is locked` | `app.go` | `_busy_timeout=5000` |
-| 35 | `go 1.25.0` en go.mod (no existe como toolchain) | `go.mod` | `go 1.23.0` |
-| 36 | Error ignorado en `handleCargarExpediente` | `handler.go` | Log agregado |
-
-## Migración a Go html/template — Estado
-
-| # | Paso | Estado | Detalle |
-|---|------|--------|---------|
-| 1 | **Datos precargados en PageData** | ✅ Hecho | `handler.go` — `PageData` inyecta catálogos y filas (multi-módulo). El template renderiza la tabla con `{{range}}`. |
-| 2 | **Rutas API en el handler** | ✅ Hecho | `handler.go` — 11 rutas `/api/*` para CRUD, abrir BD, historial, ruta procesos, pendientes, CSV, catálogos, VACUUM. |
-| 3 | **Reemplazar bindings JS** | ✅ Hecho | `templates/index.html` — `fetch()` y luego `htmx` reemplaza `window.go.main.App.*`. Solo queda 1 binding Wails: `AbrirDialogoBD`. |
-| 4 | **HTMX** | ✅ Hecho | Integrado en plantillas y handler. Las vistas parciales renderizan HTML fragmentado reactivamente sin gluecode JS. |
-
-### Tercera ronda (Julio 2026)
-
-En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos combinados). De ellos, solo estos eran válidos (el resto eran falsos positivos o ya corregidos):
-
-| # | Hallazgo | Archivo | Fix |
-|---|----------|---------|-----|
-| 37 | JS destructuring con mayúsculas: `Legend`/`Processes` vs json tags `legend`/`processes` | `templates/ruta_procesos.html` | `const { legend, columns: ganttColumns, processes } = data;` |
-| 38 | INSERT con `id_estatus = NULL` explícito bypassa `DEFAULT 1` (registros nuevos sin estatus) | `app.go` | INSERT dinámico: solo incluye columnas con valor no-nulo |
-| 39 | `AgregarRutaProceso` inserta `db_id = 0` violando FK (no existe expediente 0) | `app.go` | `if dbID > 0 { dbIDVal = dbID }` — nil en caso contrario |
-| 40 | Race condition: `a.db`/`a.dbPath` leídos sin `a.mu` en handlers | `handler.go` | Adquirir `a.mu.RLock()` antes de leer `db`/`dbPath` |
-| 41 | `crearBackup` posible nil dereference: chequea `dbPath` pero no `db == nil` | `app.go` | `if a.dbPath == "" \|\| a.db == nil { return nil }` |
-| 42 | Click fuera del modal no cierra: `closest('.modal')` nunca encuentra clase | `templates/index.html` | Clase `.modal` agregada a todos los contenedores de modal |
-| 43 | `filterColMap` en exportar-excel solo cubre columnas de expedientes (otros módulos excluyen todas las filas) | `handler.go` | Si `row[rowKey]` no existe, saltar filtro |
-| 44 | `PAGE_DATA.modulos` filtra `QueryHistorial` (SQL interno) al cliente | `handler.go` | Copia de Modulos sin `QueryHistorial` para frontend |
-| 45 | `fecha_recibido` vacío comparado con fechas (`"" < "2024-01-01" = true`) | `handler.go` | `fr != ""` antes de comparar |
-| 46 | Campos `nil` omitidos en UPDATE: usuario no puede limpiar/borrar campos | `app.go` | `col = NULL` incluido en SET cuando `vals[i] == nil` |
-| 47 | `nota` NULL en cronograma causa `rows.Scan` fail → fila descartada (pérdida silenciosa) | `app.go` | `nota` cambiado de `string` a `sql.NullString` |
-| 48 | `trg_exp_auditoria` no actualiza `fecha_actualizacion` (los otros 8 módulos sí) | `01_master_control_docs_presidencia.sql` | Agregado `UPDATE expedientes SET fecha_actualizacion = CURRENT_DATE` |
-| 49 | `handleCSV` ignora filtros: exporta dataset completo sin respetar fecha/catálogo/gerencia | `handler.go` | Misma lógica de filtrado que `handleExportarExcel` |
-| 50 | Templates legados `formulario.html` y `tabla_filas.html` cargados sin uso | `templates/`, `Makefile` | Eliminados |
-| 51 | Gantt timeline keys RFC3339 vs "YYYY-MM-DD": todas las celdas del cronograma vacías | `app.go` | `strftime('%Y-%m-%d', c.fecha)` en la query |
-| 52 | `convertirMoneda()` lee `dataset.raw` desactualizado (1 keystroke atrás) | `index.html` | `_parseValue()` lee desde `el.value` directamente |
-| 53 | Doble fila de historial en INSERT de expedientes | `01_*.sql` | Temp table `_skip_audit` + `WHEN` en trigger UPDATE |
-| 54 | Filas con `gerencia=""` se ven en pantalla pero desaparecen de CSV/Excel | `handler.go` | `gerName == "" \|\| permitidasNames[gerName]` en exports |
-| 55 | Falta FK y UNIQUE en `ruta_procesos_cronograma` | `03_ruta_procesos.sql` | FK `id_proceso` + `UNIQUE(id_proceso, fecha)` |
-| 56 | Estatus resuelto por `nombre` en triggers (vulnerable a rename) | `01_*.sql` | IDs literales: `1 = PENDIENTE`, `2 = FIRMADO` |
-| 57 | 11 handlers con extracción de módulo duplicada | `handler.go` | Helper `moduloDesdeRequest(r)` + const `moduloDefault` |
-| 58 | Export filter pipeline duplicado (-89 LOC) entre CSV y Excel | `handler.go` | Helper `filasParaExportar(r)` + `exportFilterColMap` |
-| 59 | `fecha_actualizacion`: CURRENT_TIMESTAMP vs CURRENT_DATE inconsistente (9 módulos vs Go) | SQL + `app.go` | Unificado a `CURRENT_DATE` en todos |
-| 60 | Scripts SQL no idempotentes | `data/sql/` | `IF NOT EXISTS` en CREATEs |
-| 61 | `withTx` helper DRY: boilerplate de transacción duplicado | `app.go` | `withTx(func(tx *sql.Tx) error) error` |
-| 62 | `_skip_audit` TEMP TABLE: conexiones del pool no comparten tablas TEMP → INSERT falla en producción | `01_*.sql` | Cambiado de `CREATE TEMP TABLE` a `CREATE TABLE` regular |
-
 ### Rutas API del handler
 
 | Ruta | Método | Descripción |
@@ -342,24 +249,9 @@ En esta ronda se recibieron 3 nuevas auditorías independientes (~70 hallazgos c
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
 | `/api/csv` | GET | Descarga CSV del módulo indicado (`?modulo=...`)
 
-## Bugs Conocidos (Julio 2026)
+---
 
-### 1. `location.reload()` después de guardar/eliminar vuelve a expedientes
-
-Al guardar o eliminar un registro en un módulo que no sea "Control Docs. Presidencia" (expedientes), la página se recarga completamente y muestra el módulo por defecto (expedientes). El usuario debe volver a hacer clic en el módulo deseado en la barra inferior para ver los cambios.
-
-**Causa**: `components.html` usa `location.reload()` después de guardar/eliminar. Un intento de reemplazarlo con `htmx.ajax()` para recargar solo `#vista-tabla` manteniendo el módulo activo rompió la persistencia de datos (los registros reaparecían después de navegar entre módulos). Se prefirió mantener `location.reload()` con el bug UX menor.
-
-### 2. Botón "Nuevo Registro" no siempre pasa el módulo correcto
-
-El botón "Nuevo Registro" en `index.html:41-48` usa `hx-include="#active-module-val"` para pasar el módulo activo al servidor. En la práctica, este mecanismo es frágil y a veces no incluye el valor, causando que se cargue el formulario de expedientes en lugar del módulo activo.
-
-**Causa**: `hx-include` con un elemento fuera del contexto del botón puede fallar intermitentemente.
-
-### 3. `location.reload()` causa parpadeo
-
-La recarga completa de la página después de guardar/eliminar causa un flash visual (pantalla blanca breve) antes de que el contenido se renderice nuevamente.
-
-### Nota
-
-El backend (Go) funciona correctamente en todos los casos: los datos se guardan, eliminan y consultan correctamente. Los bugs son exclusivamente de frontend/UX relacionados con `location.reload()` y `hx-include`. |
+> **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo (historial de decisiones técnicas, incluyendo era sql.js legacy).
+> **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
+> **Changelog:** [`docs/legacy/CHANGELOG.md`](legacy/CHANGELOG.md) — historial completo de cambios.
+> **Catálogo:** [`funciones.md`](funciones.md) — SPOT de funciones (DRY: verificar antes de crear).

@@ -38,5 +38,4 @@ App con **Wails v2 + Go html/template + HTMX**, **multi-modulo** (9 tipos de doc
 ## Regla de Oro
 Antes de tocar código: leer `doc.md` + `decisiones.md` + `funciones.md` + `ai-context.md`.
 
-## Bugs Conocidos (Frontend)
-Ver `doc.md` → Bugs Conocidos. Resumen: `location.reload()` después de guardar/eliminar vuelve a expedientes, y el botón "Nuevo Registro" a veces no pasa el módulo correcto. El backend Go funciona correctamente.
+

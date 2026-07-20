@@ -9,7 +9,7 @@ App de escritorio con **Wails v2** (Go backend nativo, frontend web embebido) pa
 **No intentes compilar ni ejecutar la app.** Wails requiere Go + WebView2/WebKitGTK. Solo audita el código.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE:** `main.go`, `app.go`, `handler.go`, `templates/index.html`, `templates/components.html`, `templates/form_*.html`, `templates/tabla_*.html`, `frontend/vendor/app.js`, `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql`, `data/sql/03_ruta_procesos.sql`, `docs/doc.md`, `docs/ai-context.md`, `docs/funciones.md`
+- ✅ **LEE:** `main.go`, `app.go`, `handler.go`, `templates/index.html`, `templates/components.html`, `templates/form_*.html`, `templates/tabla_*.html`, `frontend/vendor/app.js`, `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql`, `data/sql/03_ruta_procesos.sql`, `docs/doc.md`, `docs/funciones.md`
 - ❌ **NO LEAS:** Archivos legacy en `docs/legacy/` (históricos, no reflejan el código actual)
 - Lee los archivos individuales, NO hay un consolidated file.
 
@@ -53,20 +53,6 @@ Cada entrada debe incluir:
 - **Estado:** `pendiente`
 
 Al terminar, **NO ejecutes ningún comando**, solo genera el contenido del archivo y preséntalo al usuario.
-
----
-
-## ENTREGABLE 2: docs/legacy/decisiones.md (ADR)
-
-**Mantener actualizado** el archivo `docs/legacy/decisiones.md`. Cada vez que analices el repositorio o propongas cambios, debes registrar cronológicamente cada decisión técnica nueva bajo esta estructura:
-
-- **[ID-Título Corto]** (Ej: `DEC-019: ...`)
-- **Origen:** `[Instrucción Explícita del Usuario]` | `[Suposición/Iniciativa de la IA]` | `[Norma del Proyecto]`
-- **Contexto y Causa:** ¿Por qué se tomó esta decisión? Si fue suposición, explica el razonamiento lógico o estándar de la industria usado como base.
-- **Alternativas evaluadas:** Qué otra opción había y por qué se descartó.
-- **Impacto:** Archivos o lógica del sistema afectados.
-
-Para decisiones ya registradas, solo añadir nuevas entradas al final. No modificar ni reordenar existentes.
 
 ---
 
@@ -210,34 +196,19 @@ Al auditar el frontend (templates HTML), verificar:
 | `data/sql/02_*.sql` | Schema: 8 módulos adicionales |
 | `data/sql/03_*.sql` | Schema: ruta procesos (Gantt) |
 | `docs/doc.md` | Documentación estructural |
-| `docs/ai-context.md` | Anchor IA: stack, líneas rojas, estado actual |
 | `docs/funciones.md` | Catálogo de funciones (DRY) |
-| `docs/legacy/` | Documentación histórica (archivada) |
+| `docs/legacy/` | Documentación histórica (archivada) — incluye `ai-context.md`, `decisiones.md`, `CHANGELOG.md` |
 | `Makefile` | wails-build, wails-dev, combine |
 
 ---
 
 ## INSTRUCCIONES FINALES
 
-1. **docs/ai-context.md**: leerlo primero para orientarte en 10 segundos
-2. **docs/doc.md**: documentación estructural del proyecto
-3. **docs/funciones.md**: ver qué funciones Go/JS ya existen (no duplicar)
+1. **docs/doc.md**: documentación estructural del proyecto
+2. **docs/funciones.md**: ver qué funciones Go/JS ya existen (no duplicar)
 4. **Auditar**: detectar violaciones a las normas (hardcodeo, DRY, SoC, YAGNI, números mágicos, etc.)
 5. **Priorizar**: Alta (bloqueante/urgente) > Media (mejora significativa) > Baja (nice-to-have)
 6. **No ejecutar nada**: solo generar contenido de `plan_modificaciones.md`, presentarlo, y actualizar `docs/legacy/decisiones.md` si corresponde
-
----
-
-## FORMATO DE COMMITS (para auditar)
-
-```
-feat/fix: [Descripción breve del cambio]
-
-RAZÓN TÉCNICA: [Por qué se eligió esta solución]
-SUPOSICIÓN: [Qué asumió la IA porque no estaba explícito en el prompt]
-```
-
-Auditar que los commits recientes sigan este formato. Reportar omisiones.
 
 
 ---
@@ -367,23 +338,10 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 ## `SetBackupMaxCopies` sin UI
 - Expuesta vía Wails `Bind`, configurable a futuro desde settings. No es bug.
 
-## `go.mod` usa Go 1.25.0 "inexistente"
-- `go 1.25.0` es la versión mínima requerida por las dependencias (`go mod tidy` lo confirma). Con Go 1.26.5 instalado compila sin error. No es bug.
-
 ## `CURRENT_TIMESTAMP` vs `CURRENT_DATE` en triggers
-- Corregido: todos los triggers y el Go usan `CURRENT_DATE` consistente con el tipo `DATE` de la columna. Si aparece en una auditoría futura, se corrigió en commit posterior.
+- Los triggers de los 9 módulos usan `CURRENT_TIMESTAMP` en UPDATE de `fecha_actualizacion`, mientras las columnas tienen `DEFAULT CURRENT_DATE`. SQLite almacena correctamente ambos, pero es una inconsistencia menor. No causa bugs funcionales.
 
 ## `handleCSV` sin caller en UI
 - La ruta `/api/csv` está registrada pero ningún botón la invoca (solo `/api/exportar-excel`). Si no se usa, puede eliminarse para reducir la superficie de mantenimiento. No es bug funcional.
 
-## Gantt: `weekHeaders` y `weekSubs` idénticos
-- Corregido: se eliminó la fila `weekSubs` duplicada (rowspan ajustado de 4 a 3). No era bug — era una fila duplicada que no causaba error de renderizado pero sí fila innecesaria.
 
-## `exportFilterColMap` duplicado entre handlers
-- Corregido: extraído a variable package-level `exportFilterColMap` compartida por `filasParaExportar`.
-
-## `_skip_audit` como TEMP TABLE (conexión perdida entre pool y trigger)
-- Corregido: la tabla era `CREATE TEMP TABLE` (por-conexión, se perdía al cambiar de conexión en el pool). Cambiada a tabla regular. Si un auditor reporta que las conexiones del pool no ven la tabla, fue corregido.
-
-## `modulosSinQueries` — `QueryHistorial` expuesto
-- Corregido: `modulosSinQueries()` helper blanquea `QueryHistorial` antes de pasar `Modulos` a templates.
