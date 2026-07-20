@@ -1,7 +1,5 @@
 .PHONY: combine clean wails-install wails-build-linux wails-build-linux-prod wails-build-win wails-build wails-dev
 
-SQL_FILES := $(filter-out data/sql/Tablas8.sql%,$(wildcard data/sql/*.sql))
-
 combine:
 	{ \
 	  echo "=== go.mod ===" && cat go.mod && \
@@ -18,10 +16,7 @@ combine:
 	  echo "" && echo "=== templates/pendientes.html ===" && cat templates/pendientes.html && \
 	  echo "" && echo "=== frontend/new/vendor/alpine-app.js ===" && cat frontend/new/vendor/alpine-app.js && \
 	  echo "" && echo "=== frontend/new/vendor/alpine-directives.js ===" && cat frontend/new/vendor/alpine-directives.js && \
-	  echo "" && echo "=== frontend/new/vendor/alpine-htmx-bridge.js ===" && cat frontend/new/vendor/alpine-htmx-bridge.js && \
-	  echo "" && echo "=== docs/doc.md ===" && cat docs/doc.md && \
-	  echo "" && echo "=== docs/funciones.md ===" && cat docs/funciones.md; \
-	  $(foreach f,$(SQL_FILES), echo "" && echo "=== $(f) ===" && cat $(f) &&) :; \
+	  echo "" && echo "=== frontend/new/vendor/alpine-htmx-bridge.js ===" && cat frontend/new/vendor/alpine-htmx-bridge.js; \
 	} > combined.txt
 	@echo "combined.txt generado"
 
