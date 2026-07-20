@@ -1,0 +1,166 @@
+{{define "form_buttons_alpine"}}
+<div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex flex-wrap justify-end gap-3">
+    <button type="button" @click="$store.modals.cerrar('form-modal')" class="btn btn-secondary">Cancelar</button>
+    {{if .Registro}}
+    <button type="button" id="btn-eliminar"
+            hx-post="/api/eliminar-expediente?modulo={{.Modulo}}"
+            hx-include="#f-{{.IDColumna}}"
+            hx-confirm="¿Confirmar eliminación final del registro #{{rowGetStr .Registro .IDColumna}}?"
+            hx-swap="none"
+            hx-on::after-request="if(event.detail.successful){ window.Alpine.store('toast').success('Registro eliminado'); window.Alpine.store('modals').cerrar('form-modal'); location.reload(); }else{ window.Alpine.store('toast').error('Error al eliminar'); }"
+            class="btn btn-danger">Eliminar</button>
+    {{end}}
+    <button type="button"
+            hx-post="/api/guardar-expediente?modulo={{.Modulo}}"
+            hx-include="#form-expediente"
+            hx-swap="none"
+            hx-on::after-request="if(event.detail.successful){ window.Alpine.store('toast').success('Registro guardado'); window.Alpine.store('modals').cerrar('form-modal'); location.reload(); }else{ let e='Error al guardar'; try{ e=JSON.parse(event.detail.xhr.responseText).error||e; }catch(ex){} window.Alpine.store('toast').error(e); }"
+            class="btn btn-primary btn-lg">Guardar</button>
+</div>
+{{end}}
+
+{{define "form_input_text_alpine"}}
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+    <label class="label">{{.Label}}</label>
+    <input type="{{default "text" .Type}}" id="f-{{.Name}}" name="{{.Name}}"
+           class="input"
+           x-model="registro.{{.Name}}"
+           {{if .ExtraAttrs}}{{.ExtraAttrs}}{{end}}>
+</div>
+{{end}}
+
+{{define "form_input_number_alpine"}}
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+    <label class="label">{{.Label}}</label>
+    <input type="text" inputmode="decimal" id="f-{{.Name}}" name="{{.Name}}"
+           class="input"
+           x-currency
+           x-model="registro.{{.Name}}"
+           {{if .ExtraAttrs}}{{.ExtraAttrs}}{{end}}>
+</div>
+{{end}}
+
+{{define "form_textarea_alpine"}}
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+    <label class="label">{{.Label}}</label>
+    <textarea id="f-{{.Name}}" name="{{.Name}}" rows="{{default "2" .Rows}}"
+              class="input"
+              x-model="registro.{{.Name}}"></textarea>
+</div>
+{{end}}
+
+{{define "form_select_alpine"}}
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+    <label class="label">{{.Label}}</label>
+    <select id="f-{{.Name}}" name="{{.Name}}" class="input"
+            x-model="registro.{{.Name}}"
+            {{if .Onchange}}@change="{{.Onchange}}"{{end}}>
+        <option value=""></option>
+        {{$catList := index .Catalogs .CatalogName}}
+        {{$registro := .Registro}}
+        {{$name := .Name}}
+        {{range $catList}}
+        <option value="{{.ID}}" {{if .IDGerencia}}data-id-gerencia="{{.IDGerencia}}"{{end}}
+                {{if $registro}}{{if isSelected .ID (rowGetStr $registro $name)}}selected{{end}}{{end}}>{{.Nombre}}</option>
+        {{end}}
+    </select>
+</div>
+{{end}}
+
+{{define "form_gerencia_superintendencia_alpine"}}
+<div x-data="filtroSuperintendencias(
+    {{jsonEncode (index .Catalogs "superintendencia")}},
+    {{if .Registro}}{{rowGetStr .Registro "id_gerencia"}}{{else}}''{{end}}
+)">
+    {{template "form_select_alpine" dict "Label" "Gerencia" "Name" "id_gerencia" "CatalogName" "gerencia" "Catalogs" .Catalogs "Registro" .Registro "Onchange" "gerenciaSeleccionada = $el.value; superintendenciaSeleccionada = ''"}}
+    <div>
+        <label class="label">Superintendencia</label>
+        <select id="f-id_superintendencia" name="id_superintendencia" class="input"
+                x-model="superintendenciaSeleccionada"
+                @change="registro.id_superintendencia = $el.value">
+            <option value=""></option>
+            <template x-for="sup in superintendenciasFiltradas" :key="sup.id">
+                <option :value="sup.id" x-text="sup.nombre"
+                        {{if .Registro}}{{if .Registro.id_superintendencia}}:selected="sup.id == {{.Registro.id_superintendencia}}"{{end}}{{end}}>
+                </option>
+            </template>
+        </select>
+    </div>
+</div>
+{{end}}
+
+{{define "form_emisor_receptor_alpine"}}
+{{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
+{{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
+{{end}}
+
+{{define "form_hidden_id_alpine"}}
+<input type="hidden" id="f-{{.IDColumna}}" name="{{.IDColumna}}"
+       x-model="registro.{{.IDColumna}}"
+       value="{{if .Registro}}{{rowGetStr .Registro .IDColumna}}{{end}}">
+{{end}}
+
+{{define "tabla_empty_row"}}
+<tr><td colspan="{{.Colspan}}" class="p-12 text-center text-gray-500">No hay registros en la base de datos o que coincidan con la búsqueda.</td></tr>
+{{end}}
+
+{{define "tabla_action_buttons_alpine"}}
+<td class="p-3 text-center">
+    <button class="btn-icon text-link" id="btn-{{rowGetStr .Registro .IDColumna}}"><i class="fas fa-plus"></i></button>
+</td>
+<td class="p-3 text-center space-x-1.5 whitespace-nowrap">
+    <button @click.stop
+            hx-get="/api/cargar-expediente?modulo={{.Modulo}}&id={{rowGetStr .Registro .IDColumna}}"
+            hx-target="#form-expediente"
+            x-on:htmx:after-request="$store.modals.abrir('form-modal'); $nextTick(() => { const titulo = document.getElementById('form-titulo'); if(titulo) titulo.textContent = 'Editar {{.ModuloLabel}} #{{rowGetStr .Registro .IDColumna}}'; })"
+            class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
+    <button @click.stop
+            :class="estaFijado({{rowGetStr .Registro .IDColumna}}) ? 'btn-icon text-emerald-500 hover:text-emerald-400' : 'btn-icon text-blue-500 hover:text-blue-400'"
+            @click="toggle({{rowGetStr .Registro .IDColumna}}, '{{rowGetStr .Registro "solped"}}')"
+            title="Anclar" :id="'pin-btn-' + {{rowGetStr .Registro .IDColumna}}">
+        <i class="fas fa-thumbtack rotate-45 text-xs"></i>
+    </button>
+</td>
+{{end}}
+
+{{define "tabla_subrow_trazabilidad"}}
+<div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+    <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-info-circle mr-1"></i> Trazabilidad y Fechas</h4>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+        <div><span class="text-gray-400">Receptor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr .Registro "receptor") "N/A"}}</span></div>
+        <div><span class="text-gray-400">Estatus:</span> <span class="text-teal-300 block">{{default (rowGetStr .Registro "estatus_detalle") "N/A"}}</span></div>
+        <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr .Registro "fecha_recibido") "N/A"}}</span></div>
+        <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr .Registro "fecha_devuelto") "N/A"}}</span></div>
+        <div><span class="text-gray-400">Fecha Creación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr .Registro "fecha_creacion") "N/A"}}</span></div>
+        <div><span class="text-gray-400">Última Modificación:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr .Registro "fecha_actualizacion") "N/A"}}</span></div>
+    </div>
+    <div class="pt-2 border-t border-gray-700/40 mt-2">
+        <button @click.stop
+                hx-get="/api/historial?modulo={{.Modulo}}&id={{rowGetStr .Registro .IDColumna}}"
+                hx-target="#historial-cuerpo"
+                x-on:htmx:before-request="$store.modals.abrir('historial-modal'); document.getElementById('historial-titulo').innerHTML = '<i class=\'fas fa-hourglass-half mr-1\'></i> Historial #{{rowGetStr .Registro .IDColumna}}';"
+                class="text-xs text-teal-400 hover:text-teal-300 font-semibold">
+            <i class="fas fa-clipboard-list mr-1"></i> Ver Historial
+        </button>
+    </div>
+</div>
+{{end}}
+
+{{define "tabla_subrow_observaciones_notas"}}
+{{if rowGetStr .Registro "observaciones"}}
+<div class="mt-4 border-t border-gray-700/50 pt-4">
+    <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+        <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</span>
+        <div class="text-gray-300 italic whitespace-pre-wrap">{{rowGetStr .Registro "observaciones"}}</div>
+    </div>
+</div>
+{{end}}
+{{if rowGetStr .Registro "notas"}}
+<div class="mt-4 border-t border-gray-700/50 pt-4">
+    <div class="bg-gray-800/40 p-4 rounded-lg border border-gray-700/40 text-xs">
+        <span class="text-gray-400 font-bold block mb-2"><i class="fas fa-sticky-note mr-1"></i> Notas</span>
+        <p class="text-gray-300 whitespace-pre-wrap">{{rowGetStr .Registro "notas"}}</p>
+    </div>
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,219 @@
+<div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 w-full"
+     x-data="fijados">
+    <input type="hidden" id="active-module-val" name="modulo" value="{{.ActiveModule}}">
+
+    <div class="overflow-x-auto w-full">
+        <table class="w-full text-left border-collapse" style="table-layout: fixed;">
+            <thead>
+                <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
+                    <th class="p-3 text-center whitespace-nowrap" style="width: 55px;">Ver</th>
+                    <th class="p-3 text-center whitespace-nowrap" style="width: 85px;">Acción</th>
+                    {{if eq .ActiveModule "expedientes"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">SOLPED</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Descripción</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus Detalle</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Nro Proceso</th>
+                    {{else if eq .ActiveModule "requisiciones"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Descripción</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Equipo/Serial</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Pase Sicesma</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    {{else if eq .ActiveModule "memorandums"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Asunto</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Recibido</th>
+                    {{else if eq .ActiveModule "recobros"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Asunto</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Servicios</th>
+                    {{else if eq .ActiveModule "valuaciones"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">SOLPED</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Descripción</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Monto Valuación</th>
+                    {{else if eq .ActiveModule "aprobacion_jd"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">SOLPED</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap">Descripción</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Presupuesto (Bs)</th>
+                    {{else if eq .ActiveModule "certificacion_bdu"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 140px;">Presupuesto Total USD</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 120px;">Monto Contrato</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    {{else if eq .ActiveModule "vacaciones"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 100px;">Año</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 100px;">Días</th>
+                    <th class="p-3 whitespace-nowrap">Desde</th>
+                    <th class="p-3 whitespace-nowrap">Hasta</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    {{else if eq .ActiveModule "reposos_medicos"}}
+                    <th class="p-3 whitespace-nowrap" style="width: 150px;">Gerencia</th>
+                    <th class="p-3 whitespace-nowrap">Documento</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 100px;">Días</th>
+                    <th class="p-3 whitespace-nowrap">Desde</th>
+                    <th class="p-3 whitespace-nowrap">Hasta</th>
+                    <th class="p-3 whitespace-nowrap" style="width: 130px;">Estatus</th>
+                    {{end}}
+                </tr>
+            </thead>
+            <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+            {{if eq (len .Filas) 0}}
+                {{$colspan := 8}}
+                {{if eq .ActiveModule "vacaciones"}}{{$colspan = 9}}{{end}}
+                {{if eq .ActiveModule "reposos_medicos"}}{{$colspan = 8}}{{end}}
+                {{if eq .ActiveModule "certificacion_bdu"}}{{$colspan = 7}}{{end}}
+                {{template "tabla_empty_row" dict "Colspan" $colspan}}
+            {{else}}
+                {{$modulo := .ActiveModule}}
+                {{range $i, $row := .Filas}}
+                {{$IDColumna := (index $.Modulos $modulo).IDColumna}}
+                {{$idVal := rowGetStr $row $IDColumna}}
+                <tr class="hover:bg-gray-700/20 transition-colors cursor-pointer border-gray-700"
+                    @click="const sub = document.getElementById('subfila-{{$idVal}}'); const btn = document.getElementById('btn-{{$idVal}}'); if(sub && btn){ sub.classList.toggle('hidden'); btn.innerHTML = sub.classList.contains('hidden') ? '<i class=\'fas fa-plus\'></i>' : '<i class=\'fas fa-minus\'></i>'; }">
+                    <td class="p-3 text-center">
+                        <button class="btn-icon text-link" id="btn-{{$idVal}}"><i class="fas fa-plus"></i></button>
+                    </td>
+                    <td class="p-3 text-center space-x-1.5 whitespace-nowrap">
+                        <button @click.stop
+                                hx-get="/api/cargar-expediente?modulo={{$modulo}}&id={{$idVal}}"
+                                hx-target="#form-expediente"
+                                x-on:htmx:after-request="$store.modals.abrir('form-modal')"
+                                class="btn-icon text-edit" title="Editar"><i class="fas fa-edit"></i></button>
+                        <button @click.stop
+                                :class="estaFijado({{$idVal}}, '{{$modulo}}') ? 'btn-icon text-emerald-500 hover:text-emerald-400' : 'btn-icon text-blue-500 hover:text-blue-400'"
+                                @click="toggle({{$idVal}}, '{{rowGetStr $row "solped"}}', '{{$modulo}}')"
+                                title="Anclar" :id="'pin-btn-' + {{$idVal}}">
+                            <i class="fas fa-thumbtack rotate-45 text-xs"></i>
+                        </button>
+                    </td>
+                    {{if eq $modulo "expedientes"}}
+                    <td class="p-3 font-semibold text-gray-200 truncate" title="{{rowGetStr $row "solped"}}">{{default (rowGetStr $row "solped") "SIN SOLPED"}}</td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "descripcion_proceso"}}">{{rowGetStr $row "descripcion_proceso"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    <td class="p-3 text-gray-300 font-mono text-xs truncate" title="{{rowGetStr $row "nro_proceso"}}">{{default (rowGetStr $row "nro_proceso") "N/A"}}</td>
+                    {{else if eq $modulo "requisiciones"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "descripcion_materiales"}}">{{rowGetStr $row "descripcion_materiales"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "serial_equipo"}}">{{default (rowGetStr $row "serial_equipo") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate">{{default (rowGetStr $row "pase_sicesma") "N/A"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    {{else if eq $modulo "memorandums"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "asunto"}}">{{rowGetStr $row "asunto"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    <td class="p-3 text-gray-300 font-mono text-xs truncate">{{default (rowGetStr $row "fecha_recibido") "N/A"}}</td>
+                    {{else if eq $modulo "recobros"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "asunto"}}">{{rowGetStr $row "asunto"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    <td class="p-3 text-gray-400 truncate">{{default (rowGetStr $row "servicios") "N/A"}}</td>
+                    {{else if eq $modulo "valuaciones"}}
+                    <td class="p-3 font-semibold text-gray-200 truncate" title="{{rowGetStr $row "solped"}}">{{default (rowGetStr $row "solped") "SIN SOLPED"}}</td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "descripcion_proceso"}}">{{rowGetStr $row "descripcion_proceso"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    <td class="p-3 text-amber-400 font-mono text-xs font-semibold">{{if rowGetNum $row "monto_valuacion"}}${{formatNum (rowGet $row "monto_valuacion")}}{{else}}N/A{{end}}</td>
+                    {{else if eq $modulo "aprobacion_jd"}}
+                    <td class="p-3 font-semibold text-gray-200 truncate" title="{{rowGetStr $row "solped"}}">{{default (rowGetStr $row "solped") "SIN SOLPED"}}</td>
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "descripcion_proceso"}}">{{rowGetStr $row "descripcion_proceso"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    <td class="p-3 text-teal-400 font-mono text-xs font-semibold">{{if rowGetNum $row "presupuesto_base_bs"}}Bs {{formatNum (rowGet $row "presupuesto_base_bs")}}{{else}}N/A{{end}}</td>
+                    {{else if eq $modulo "certificacion_bdu"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-amber-400 font-mono text-xs font-semibold">{{if rowGetNum $row "presupuesto_base_total_usd"}}${{formatNum (rowGet $row "presupuesto_base_total_usd")}}{{else}}N/A{{end}}</td>
+                    <td class="p-3 text-teal-400 font-mono text-xs font-semibold">{{if rowGetNum $row "monto_contrato"}}${{formatNum (rowGet $row "monto_contrato")}}{{else}}N/A{{end}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    {{else if eq $modulo "vacaciones"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 font-semibold">{{default (rowGetStr $row "anio") "N/A"}}</td>
+                    <td class="p-3 text-gray-200 text-center">{{default (rowGetStr $row "cantidad_dias") "0"}}</td>
+                    <td class="p-3 text-gray-300 font-mono text-xs">{{default (rowGetStr $row "fecha_desde") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 font-mono text-xs">{{default (rowGetStr $row "fecha_hasta") "N/A"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    {{else if eq $modulo "reposos_medicos"}}
+                    <td class="p-3 text-gray-300 truncate" title="{{rowGetStr $row "gerencia"}}">{{default (rowGetStr $row "gerencia") "N/A"}}</td>
+                    <td class="p-3 text-gray-400 truncate" title="{{rowGetStr $row "documento"}}">{{default (rowGetStr $row "documento") "N/A"}}</td>
+                    <td class="p-3 text-gray-200 text-center">{{default (rowGetStr $row "dias_periodo") "0"}}</td>
+                    <td class="p-3 text-gray-300 font-mono text-xs">{{default (rowGetStr $row "fecha_desde") "N/A"}}</td>
+                    <td class="p-3 text-gray-300 font-mono text-xs">{{default (rowGetStr $row "fecha_hasta") "N/A"}}</td>
+                    <td class="p-3 truncate"><span class="px-2 py-1 rounded text-xs whitespace-nowrap {{estatusClass (rowGetStr $row "estatus_detalle")}}">{{default (rowGetStr $row "estatus_detalle") "PENDIENTE"}}</span></td>
+                    {{end}}
+                </tr>
+                <tr id="subfila-{{$idVal}}" class="hidden bg-gray-950/40 border-l-4 border-teal-500">
+                    <td colspan="12" class="p-5">
+                        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                            {{if eq $modulo "expedientes"}}
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</h4>
+                                <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">{{default (rowGetStr $row "descripcion_proceso") "Sin descripción."}}</span></p>
+                                <div class="grid grid-cols-2 gap-2 text-xs pt-2">
+                                    <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "superintendencia") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Plan Contratación:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "plan_contrataciones") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Modalidad:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "modalidad_contratacion") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Artículo Normativa:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "art") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Tipo Contrato:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "tipo_contrato") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "cantidad_frentes") "0"}}</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-coins mr-1"></i> Valores y Trazabilidad</h4>
+                                <div class="grid grid-cols-2 gap-x-4 gap-y-2">
+                                    <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">{{if rowGetNum $row "presupuesto_base_usd"}}${{formatNum (rowGet $row "presupuesto_base_usd")}}{{else}}N/A{{end}}</span></div>
+                                    <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">{{if rowGetNum $row "monto_adjudicado_bs"}}Bs {{formatNum (rowGet $row "monto_adjudicado_bs")}}{{else}}N/A{{end}}</span></div>
+                                    <div><span class="text-gray-400">Emisor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $row "emisor") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Receptor:</span> <span class="text-gray-200 block truncate">{{default (rowGetStr $row "receptor") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Fecha Recibido:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $row "fecha_recibido") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $row "fecha_devuelto") "N/A"}}</span></div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
+                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-building mr-1"></i> Adjudicación y Legal</h4>
+                                <p><span class="text-gray-400">Empresa:</span> <span class="text-gray-200 block font-medium truncate">{{default (rowGetStr $row "empresa_adjudicada") "N/A"}}</span></p>
+                                <div class="grid grid-cols-2 gap-2 pt-1">
+                                    <div><span class="text-gray-400 block">Acta Apertura:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $row "nro_acta_apertura") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Resolución JD:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $row "nro_resolucion_jd") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">SICAC:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $row "nro_contrato_sicac") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">SAP:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $row "nro_contrato_sap") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Tiempo Ejec.:</span> <span class="text-gray-200">{{default (rowGetStr $row "tiempo_ejecucion") "N/A"}}</span></div>
+                                    <div><span class="text-gray-400 block">Fecha Firma:</span> <span class="text-emerald-400 font-mono font-medium">{{default (rowGetStr $row "fecha_firma_contrato") "N/A"}}</span></div>
+                                </div>
+                            </div>
+                            {{else}}
+                            {{template "tabla_subrow_trazabilidad" dict "Registro" $row "Modulo" $modulo}}
+                            {{end}}
+                        </div>
+                        {{template "tabla_subrow_observaciones_notas" dict "Registro" $row}}
+                    </td>
+                </tr>
+                {{end}}
+            {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>

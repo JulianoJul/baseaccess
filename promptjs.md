@@ -1,142 +1,86 @@
-# Contexto: Migración a Alpine.js
+# Auditoría Pre-Swap: Migración Alpine.js
 
-App de escritorio con **Wails v2** (Go backend nativo, SQLite, Go `html/template` + HTMX + Tailwind CSS).
+App de escritorio **Wails v2** (Go backend, SQLite, Go `html/template` + HTMX + Tailwind).
 
-**Stack destino:** HTMX para interacción servidor + Alpine.js para UI state local + JS vainilla residual mínimo (solo lógica de negocio que Alpine no puede expresar). **Cero gluecode** — el AI no debe escribir funciones JS, solo atributos HTML y definiciones `Alpine.data()` reutilizables.
+## Estado actual
 
-**No tocar Go backend** (`app.go`, `handler.go`). No romper HTMX. Alpine se copia a `frontend/vendor/alpine.min.js`.
-
----
-
-## OBJETIVO ADICIONAL: UNIFICAR TEMPLATES
-
-Además de migrar el JS, se busca **reducir los 18 templates** (9 `form_*.html` + 9 `tabla_*.html`) a **2 archivos** (`form.html` + `tabla.html`) o incluso 1 solo.
-
-Cada módulo tiene los mismos campos en su tabla y formulario, solo varían las columnas. La personalización por módulo se resuelve dentro del mismo archivo sin separar:
-
-### Con Go template (if/else server-side)
-
-```html
-{{if eq $.ModuloKey "expedientes"}}
-  <input name="presupuesto_base_usd" inputmode="decimal">
-  <input name="tipo_cambio" oninput="convertirMoneda()">
-{{else if eq $.ModuloKey "recobros"}}
-  <input name="costo_servicio_usd" inputmode="decimal">
-{{else if eq $.ModuloKey "vacaciones"}}
-  <input name="dias_solicitados" type="number">
-{{end}}
-```
-
-O más limpio: `{{template (printf "extra_%s" $.ModuloKey) .}}` con cada sección definida en el mismo archivo.
-
-### Con Alpine (client-side, más declarativo)
-
-```html
-<div x-data="{ modulo: '{{$.ModuloKey}}' }">
-  <input x-show="modulo === 'expedientes' || modulo === 'recobros'"
-         name="presupuesto_base_usd" inputmode="decimal">
-  <input x-show="modulo === 'vacaciones'"
-         name="dias_solicitados" type="number">
-</div>
-```
-
-Esto **elimina la necesidad de tener 18 archivos** y es perfecto para AI: escribe HTML con atributos, no gluecode.
-
-Las columnas de tabla se iteran con `{{range $col := .ColsMostrar}}` usando `cfg.Columnas` que ya está en Go, eliminando los `<th>` y `<td>` hardcodeados por módulo.
-
----
-
-## ARCHIVOS A LEER
-
-- `frontend/vendor/app.js` — ~770 líneas JS vainilla actual
-- `templates/index.html` — template principal (modales, botones)
-- `templates/components.html` — componentes reutilizables
-- `templates/ruta_procesos.html` — IIFE del Gantt (contiene su propio JS)
-- `docs/doc.md` — documentación estructural
-- `docs/funciones.md` — catálogo de funciones
-
----
-
-## ENTREGABLE 1: `docs/legacy/js_analysis.md`
-
-Analiza **exhaustivamente** el JS actual y produce este archivo con:
-
-### A. Catálogo de funciones JS
-
-Para cada función en `app.js`, documenta:
-- **Nombre**
-- **Línea** en app.js
-- **Qué hace** (descripción breve)
-- **Cómo se activa** (onclick, hx-on, evento DOM, etc.)
-- **Estado que maneja** (variable global, localStorage, DOM)
-- **Template(s) donde se invoca** (archivo:línea)
-
-Agrupa por categoría: Modales, Pines/Fijados, BD Recientes, Paginación, Exportar, Sumas, Campos Numéricos, Superintendencias, Conversión USD/Bs, Helpers.
-
-### B. Estado global y localStorage
-
-Lista completa de:
-- Variables globales (`PAGE_DATA`, `MODAL_STACK`, `currentPage`, `_superCache`, `_convLock`, etc.)
-- Claves de localStorage (`sidebarFrecuentes`, `baseaccess_recientes`)
-- Variables de closure en la IIFE del Gantt
-
-### C. Mapa de interacción HTML → JS
-
-Para cada template, lista qué eventos HTML disparan qué funciones JS. Ej:
+La migración a Alpine.js ya se implementó completamente en subcarpetas sin alterar los originales:
 
 ```
-index.html
-├── onclick="abrirBaseDatos()"       → app.js:49
-├── onclick="abrirRecientes()"        → app.js:231
-├── onclick="toggleSortDir()"         → app.js:461
-├── hx-on::after-request="pushModal"  → app.js:136
-...
+frontend/new/vendor/
+├── alpine.min.js              # Alpine.js v3.14.8
+├── alpine-app.js              # Stores + Alpine.data() — modales, fijados, recientes, sumas, exportar, formulario
+├── alpine-directives.js       # Directiva x-currency (formato numérico ES)
+└── alpine-htmx-bridge.js      # Puente HTMX→Alpine (initTree, pines post-swap)
+
+templates/new/
+├── index.html                 # Shell con x-data + $store.modals + @click
+├── components.html            # Sub-templates Alpine (form_*_alpine, tabla_*_alpine, filtro superintendencias)
+├── form.html                  # Formulario unificado (9 módulos, Go if/eq)
+├── tabla.html                 # Tabla unificada (9 módulos, Go if/eq)
+└── ruta_procesos.html         # Sin cambios (IIFE Gantt, intencionalmente NO migrado)
 ```
 
----
+## Lo que reemplazan
 
-## ENTREGABLE 2: `plan_migracion_alpine.md`
+| Antes | Después | Reducción |
+|-------|---------|-----------|
+| `frontend/vendor/app.js` (765 líneas, JS vainilla) | 3 Alpine JS (448 líneas) | -41% |
+| 9 `form_*.html` + 9 `tabla_*.html` (1015 líneas) | 2 unificados (458 líneas) | -55% |
+| `templates/index.html` (298 líneas) | `templates/new/index.html` (495 líneas) | +197 (modales inline con x-show) |
 
-Genera un plan de migración priorizado. Para cada fase:
+## Lo que NO se migró (intencionalmente)
 
-### Formato de cada entrada
+- **Ruta Procesos / Gantt**: mantiene su IIFE propia (~300 líneas en ruta_procesos.html). Tiene estado complejo (processes, timeline, legend, columns), renderizado tabular dinámico y lógica de negocio embebida. Alpine no aporta valor aquí.
+- **Paginación cliente**: se deja como JS residual en el index hasta decidir migrar a servidor.
+- **Apertura BD**: JS vainilla mínimo (~25 líneas) porque usa binding Wails (`window.go.main.App.AbrirDialogoBD()`). No reemplazable por Alpine.
 
-```
-## Fase N: [Nombre]
+## Swap pendiente (cambios en handler.go)
 
-### Funciones a migrar
-- [lista de funciones de app.js]
+1. `template.ParseFS(templateFS, "templates/*.html")` → agregar `"templates/new/*.html"`
+2. `handleCargarExpediente`: `"form_" + modulo + ".html"` → `"form.html"`
+3. `handleFiltrarExpedientes` + `handleCambiarModulo`: `"tabla_" + modulo + ".html"` → `"tabla.html"`
+4. Eliminar `frontend/vendor/app.js`, los 18 templates viejos, y referencias a onclick
 
-### Patrón Alpine
-[Pseudocódigo HTML + Alpine concreto]
+## ARCHIVOS A AUDITAR
 
-### Estado reemplazado
-[Variables globales o DOM que Alpine elimina]
+- `frontend/new/vendor/alpine-app.js`
+- `frontend/new/vendor/alpine-directives.js`
+- `frontend/new/vendor/alpine-htmx-bridge.js`
+- `templates/new/index.html`
+- `templates/new/components.html`
+- `templates/new/form.html`
+- `templates/new/tabla.html`
+- `docs/doc.md` (sección "Migración a Alpine.js" al final)
 
-### JS residual
-[Lo que queda como JS vainilla y por qué]
+## TAREA
 
-### Archivos a modificar
-[rutas de archivos]
-```
+Auditar todo el código nuevo. Buscar:
 
-### Priorización (de mayor a menor ROI)
-
-1. **Modales** (stack: `pushModal`/`cerrarModal`/backdrop) — el mayor boilerplate JS
-2. **Pines/Fijados** (`toggleFrecuente`, `abrirFrecuentes`) — Alpine.data + localStorage
-3. **BD Recientes** (`registrarReciente`, `abrirRecientes`) — mismo patrón
-4. **Sumas** (`anyadirFilaSuma`, `calcularSumas`) — x-model + x-for
-5. **Paginación cliente** (`irPagina`, `renderPaginacionControles`) — evaluar migrar a servidor vs Alpine
-6. **Exportar** (`cargarColumnasExportar`, modal de selección) — solo UI, fetch queda igual
-7. **Campos numéricos / Superintendencias / Conversión USD/Bs / Gantt** — baja prioridad o no migrar
-
-Cada fase debe incluir pseudocódigo HTML+Alpine concreto y viable, no genérico.
-
----
+1. **Errores de sintaxis** en Go templates (llaves, pipes, funciones que no existen)
+2. **Referencias rotas**: variables Go que no están en el context del template, helpers que faltan
+3. **Alpine mal usado**: `x-data`, `x-model`, `x-show`, `@click`, `$store` bien referenciados
+4. **Eventos HTMX → Alpine**: los `hx-on::after-request` acceden a `window.Alpine.store()` correctamente
+5. **x-currency vs x-model**: no debe haber conflicto entre la directiva custom y el binding bidireccional
+6. **Inicialización de componentes Alpine tras HTMX swap** — `Alpine.initTree()` está en el bridge
+7. **form.html**: la variable `$idColumna` se setea con `if/eq` hardcodeado (porque el handler Go no pasa `.Modulos` en el context del form). Verificar que estén todos los módulos.
+8. **tabla.html**: columnas y subfilas por módulo — verificar que cada módulo tenga sus columnas correctas y que los helpers `estatusClass`, `formatNum`, `rowGetStr`, `rowGetNum`, `rowGet` existan en el FuncMap de Go.
+9. **Compatibilidad con el FuncMap Go**: `jsonEncode`, `default`, `isSelected`, `estatusClass`, `formatNum`, `rowGetStr`, `rowGetNum`, `rowGet`, `dict` — todos disponibles desde handler.go.
+10. **Qué falta o está mal** antes de hacer el swap.
 
 ## REGLAS
 
-- **Cero gluecode:** no escribir funciones JS nuevas. Si hay lógica que no se puede expresar en atributos HTML + `Alpine.data()`, marcarla como JS residual y explicar por qué.
-- **Alpine convive con HTMX:** Alpine maneja estado UI local, HTMX maneja toda comunicación servidor.
-- **No modificar Go.**
-- Al terminar, presentar ambos archivos sin ejecutar nada.
+- **No modificar Go backend** (app.go, handler.go). El swap de handler.go es manual y está documentado.
+- **Señalar si falta algo** en el checklist de swap.
+- **El Gantt (ruta_procesos.html) no se toca**.
+- Entregar una lista de issues encontrados con archivo:línea, prioridad (critical/major/minor), y cómo arreglarlo.
+- Si no hay issues críticos, dar **go/no-go** para el swap.
+
+## Referencias útiles
+
+- `handler.go:47-80` — FuncMap de Go (funciones disponibles en templates)
+- `handler.go:313-329` — PageData struct (variables disponibles en index.html)
+- `handler.go:554-610` — handleCargarExpediente (datos pasados a form)
+- `handler.go:612-700` — handleFiltrarExpedientes + handleCambiarModulo (datos pasados a tabla)
+- `app.go:31-40` — ModuloConfig struct con Columnas, IDColumna, Nombre
+- `app.go:42-183` — Definición de los 9 módulos

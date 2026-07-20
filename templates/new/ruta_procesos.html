@@ -1,0 +1,525 @@
+<div id="gantt-chart-container" class="space-y-6">
+    <!-- Hojas y Navegación -->
+    <div class="card bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group"></i> Hoja Actual:</h3>
+            <select id="gantt-hoja-select" class="input w-48 text-sm py-1 h-8" onchange="cambiarHoja()">
+                {{ if .Hojas }}
+                    {{ range .Hojas }}
+                        <option value="{{ .ID }}" {{ if eq .ID $.CurrentHoja.ID }}selected{{ end }}>{{ .Nombre }}</option>
+                    {{ end }}
+                {{ else }}
+                    <option value="0">Sin hojas</option>
+                {{ end }}
+            </select>
+            <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-teal-400" title="Nueva Hoja">
+                <i class="fas fa-plus"></i>
+            </button>
+            <button onclick="eliminarHojaActual()" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar Hoja">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
+        <div class="flex items-center gap-2"></div>
+    </div>
+
+    <div class="card">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="legend legend-teal flex items-center gap-1.5">
+                <i class="fas fa-cog"></i> Gestión de Procesos
+            </h3>
+            <button onclick="toggleFormProceso()" class="btn btn-primary">
+                <i class="fas fa-plus mr-1"></i> Añadir Proceso
+            </button>
+        </div>
+        <div id="form-agregar-proceso" class="hidden border border-gray-700 rounded-lg p-4 mb-4 space-y-4">
+            <div>
+                <label class="label">Módulo</label>
+                <select id="proc-mod-select" class="input" onchange="cargarRegistrosModulo()">
+                    <option value="expedientes">Control Docs. Presidencia</option>
+                    <option value="requisiciones">Requisición de Materiales</option>
+                    <option value="memorandums">Memorándums</option>
+                    <option value="recobros">Recobros</option>
+                    <option value="valuaciones">Valuaciones</option>
+                    <option value="aprobacion_jd">Aprobación JD</option>
+                    <option value="certificacion_bdu">Certificación BDU</option>
+                    <option value="vacaciones">Vacaciones</option>
+                    <option value="reposos_medicos">Reposos Médicos</option>
+                </select>
+            </div>
+            <div>
+                <label class="label">Registro existente</label>
+                <select id="proc-exp-select" class="input" size="6">
+                    <option value="" disabled selected>Selecciona un módulo primero...</option>
+                </select>
+            </div>
+            <div class="flex justify-end gap-3 pt-3 border-t border-gray-700">
+                <button onclick="toggleFormProceso()" class="btn btn-secondary">Cancelar</button>
+                <button onclick="agregarProceso()" class="btn btn-primary"><i class="fas fa-check mr-1"></i> Agregar</button>
+            </div>
+        </div>
+        <div class="procesos-grid" id="procesos-checkboxes"></div>
+    </div>
+    <div id="gantt-process-content"></div>
+
+    <div class="flex justify-end mt-4">
+        <button id="btn-crear-leyenda" onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary text-sm hidden">
+            <i class="fas fa-palette mr-1"></i> Añadir Leyenda Personalizada
+        </button>
+    </div>
+
+    <!-- Modal Crear Hoja -->
+    <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group mr-2"></i>Nueva Hoja</h3>
+                <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="label">Nombre de la Hoja</label>
+                    <input type="text" id="nueva-hoja-nombre" class="input" placeholder="Ej: Trimestre 1">
+                </div>
+                <div>
+                    <label class="label">Fecha Inicio</label>
+                    <input type="date" id="nueva-hoja-inicio" class="input">
+                </div>
+                <div>
+                    <label class="label">Fecha Fin</label>
+                    <input type="date" id="nueva-hoja-fin" class="input">
+                </div>
+                <button onclick="crearHoja()" class="btn btn-primary w-full mt-4">Crear Hoja</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Crear Leyenda -->
+    <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Nueva Leyenda</h3>
+                <button onclick="toggleModal('crear-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="label">Nombre (Estatus)</label>
+                    <input type="text" id="nueva-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
+                </div>
+                <div>
+                    <label class="label">Color</label>
+                    <div class="leyenda-color-wrap">
+                        <input type="color" id="nueva-leyenda-color" class="input" value="#FFFFFF">
+                    </div>
+                </div>
+                <button onclick="crearLeyenda()" class="btn btn-primary w-full mt-4">Guardar Leyenda</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Editar Leyenda -->
+    <div id="editar-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Editar Leyenda</h3>
+                <button onclick="toggleModal('editar-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <input type="hidden" id="editar-leyenda-id">
+                <div>
+                    <label class="label">Nombre (Estatus)</label>
+                    <input type="text" id="editar-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
+                </div>
+                <div>
+                    <label class="label">Color</label>
+                    <div class="leyenda-color-wrap">
+                        <input type="color" id="editar-leyenda-color" class="input">
+                    </div>
+                </div>
+                <button onclick="guardarEditarLeyenda()" class="btn btn-primary w-full mt-4">Actualizar Leyenda</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Editar Cronograma -->
+    <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
+        <div class="relative modal-content w-full max-w-sm">
+            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+                <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-check mr-2"></i>Programar Día</h3>
+                <button onclick="cerrarCronoModal()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-4 space-y-4">
+                <input type="hidden" id="crono-proc-id">
+                <input type="hidden" id="crono-fecha">
+                
+                <div>
+                    <label class="label">Estatus / Color</label>
+                    <select id="crono-status-select" class="input">
+                        <option value="">(Limpiar casilla / Sin actividad)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label">Detalle / Nota</label>
+                    <textarea id="crono-nota" class="input" rows="2" placeholder="Ej: Enviado a firma..."></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-gray-700 flex justify-end gap-2 rounded-b-xl bg-gray-800/40">
+                <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cancelar</button>
+                <button onclick="guardarCronoDia()" class="btn btn-primary text-xs"><i class="fas fa-check mr-1"></i> Guardar</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const data = {{jsonEncode .}};
+    const { legend, columns: ganttColumns, processes, offset_weeks } = data;
+    var formVisible = false;
+
+    window.toggleModal = function(id) {
+        document.getElementById(id).classList.toggle('hidden');
+    };
+
+    window.cambiarHoja = function() {
+        var idHoja = document.getElementById('gantt-hoja-select').value;
+        if (!idHoja || idHoja == "0") return;
+        htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=0', '#ruta-contenido');
+    };
+
+    window.eliminarHojaActual = function() {
+        var idHoja = document.getElementById('gantt-hoja-select').value;
+        if (!idHoja || idHoja == "0") return;
+        if (!confirm('¿Seguro que deseas eliminar esta hoja y TODOS sus procesos?')) return;
+        fetch('/api/ruta-procesos-hoja-eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + idHoja
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                htmx.ajax('GET', '/api/ruta-procesos', '#ruta-contenido');
+            } else {
+                alert(res.error || 'Error eliminando hoja');
+            }
+        });
+    };
+
+    window.crearHoja = function() {
+        var nombre = document.getElementById('nueva-hoja-nombre').value;
+        var inicio = document.getElementById('nueva-hoja-inicio').value;
+        var fin = document.getElementById('nueva-hoja-fin').value;
+        if (!nombre || !inicio || !fin) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-hoja-crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'nombre=' + encodeURIComponent(nombre) + '&fecha_inicio=' + inicio + '&fecha_fin=' + fin
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('crear-hoja-modal');
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + res.id, '#ruta-contenido');
+            } else {
+                alert(res.error || 'Error creando hoja');
+            }
+        });
+    };
+
+    window.editarLeyenda = function(id, nombre, color) {
+        document.getElementById('editar-leyenda-id').value = id;
+        document.getElementById('editar-leyenda-nombre').value = nombre;
+        document.getElementById('editar-leyenda-color').value = color;
+        toggleModal('editar-leyenda-modal');
+    };
+
+    window.guardarEditarLeyenda = function() {
+        var id = document.getElementById('editar-leyenda-id').value;
+        var nombre = document.getElementById('editar-leyenda-nombre').value;
+        var color = document.getElementById('editar-leyenda-color').value;
+        if (!nombre || !color) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-leyenda-actualizar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id + '&nombre=' + encodeURIComponent(nombre) + '&color=' + encodeURIComponent(color)
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('editar-leyenda-modal');
+                var idHoja = document.getElementById('gantt-hoja-select').value;
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+            } else {
+                alert(res.error || 'Error actualizando leyenda');
+            }
+        }).catch(function() { alert('Error de conexion'); });
+    };
+
+    window.crearLeyenda = function() {
+        var nombre = document.getElementById('nueva-leyenda-nombre').value;
+        var color = document.getElementById('nueva-leyenda-color').value;
+        if (!nombre || !color) {
+            alert('Por favor completa todos los campos.');
+            return;
+        }
+        fetch('/api/ruta-procesos-leyenda-crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'nombre=' + encodeURIComponent(nombre) + '&color=' + encodeURIComponent(color)
+        }).then(r => r.json()).then(res => {
+            if (res.success) {
+                toggleModal('crear-leyenda-modal');
+                var idHoja = document.getElementById('gantt-hoja-select').value;
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + idHoja + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+            } else {
+                alert(res.error || 'Error creando leyenda');
+            }
+        });
+    };
+
+    function esc(v) {
+        if (v == null) return '';
+        return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    window.cargarRegistrosModulo = function() {
+        var mod = document.getElementById('proc-mod-select').value;
+        var sel = document.getElementById('proc-exp-select');
+        sel.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+        fetch('/api/ruta-procesos-registros?modulo=' + encodeURIComponent(mod))
+            .then(function(r) { return r.json(); })
+            .then(function(list) {
+                if (!list || !list.length) {
+                    sel.innerHTML = '<option value="" disabled>No hay registros disponibles</option>';
+                    return;
+                }
+                sel.innerHTML = '';
+                list.forEach(function(ex) {
+                    var opt = document.createElement('option');
+                    opt.value = ex.id;
+                    var label = ex.label || '';
+                    opt.setAttribute('data-label', label);
+                    opt.setAttribute('data-modulo', mod);
+                    opt.textContent = '#' + ex.id + ' - ' + label;
+                    sel.appendChild(opt);
+                });
+            })
+            .catch(function() {
+                sel.innerHTML = '<option value="" disabled>Error al cargar</option>';
+            });
+    };
+
+    window.toggleFormProceso = function() {
+        formVisible = !formVisible;
+        document.getElementById('form-agregar-proceso').classList.toggle('hidden', !formVisible);
+        if (formVisible) {
+            cargarRegistrosModulo();
+        }
+    };
+
+    window.agregarProceso = function() {
+        var sel = document.getElementById('proc-exp-select');
+        var dbId = parseInt(sel.value);
+        if (!dbId) { alert('Selecciona un expediente'); return; }
+        var opt = sel.options[sel.selectedIndex];
+        var modulo = opt.getAttribute('data-modulo') || 'expedientes';
+        var label = opt.getAttribute('data-label') || '';
+        var desc = label || '#' + dbId;
+        var solped = label || 'NO APLICA';
+        
+        var idHoja = document.getElementById('gantt-hoja-select') ? document.getElementById('gantt-hoja-select').value : 0;
+        
+        fetch('/api/ruta-procesos-agregar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id_hoja=' + idHoja + '&modulo=' + encodeURIComponent(modulo) + '&descripcion=' + encodeURIComponent(desc) + '&db_id=' + dbId
+        })
+        .then(async function(res) {
+            if (!res.ok) {
+                var text = await res.text();
+                throw new Error(text || 'Error en el servidor');
+            }
+            return res.json();
+        })
+        .then(json => {
+            if (json.success) {
+                processes.push({ id: json.id, modulo: modulo, descripcion: desc, db_id: dbId, activo: true, solped: solped, estatus_detalle: 'NO APLICA', receptor: 'NO APLICA', timeline: {} });
+                renderAll();
+                toggleFormProceso();
+                sel.value = '';
+            } else {
+                alert(json.error || 'Error al agregar proceso');
+            }
+        })
+        .catch(err => alert(err.message || 'Error de conexion'));
+    };
+
+    window.toggleProceso = function(id, checked) {
+        fetch('/api/ruta-procesos-toggle', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id + '&activo=' + (checked ? '1' : '0')
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                const p = processes.find(pr => pr.id === id);
+                if (p) p.activo = checked;
+                renderAll();
+            }
+        });
+    };
+
+    window.eliminarProceso = function(id) {
+        if (!confirm('Eliminar proceso ' + id + '?')) return;
+        fetch('/api/ruta-procesos-eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id
+        })
+        .then(r => r.json())
+        .then(json => {
+            if (json.success) {
+                var idx = processes.findIndex(p => p.id === id);
+                if (idx !== -1) processes.splice(idx, 1);
+                renderAll();
+            }
+        });
+    };
+
+    function renderAll() {
+        var html = '';
+        if (!processes.length) html = '<p class="text-gray-500 text-sm italic py-2">Sin procesos. Usa el botón para agregar.</p>';
+        else processes.forEach(p => {
+            html += '<div class="proceso-card flex items-center justify-between">' +
+                '<div class="flex items-start gap-2.5">' +
+                '<label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" class="exp-col" ' + (p.activo ? 'checked' : '') + ' onchange="toggleProceso(' + p.id + ', this.checked)">' +
+                '<span class="proceso-card-num">' + p.id + '</span></label>' +
+                '<div class="flex-1 min-w-0"><p class="proceso-card-desc">' + esc(p.descripcion) + '</p>' +
+                '<div class="proceso-card-meta"><span class="proceso-card-mod">' + esc(p.modulo || 'expedientes') + '</span>' +
+                '<span>SOLPED: <strong class="text-teal-400">' + esc(p.solped || 'SIN SOLPED') + '</strong></span>' +
+                '<span>Estatus: <span class="proceso-card-badge ' + ((p.estatus_detalle || '') === 'FIRMADO' ? 'proceso-card-badge-firmado' : 'proceso-card-badge-pendiente') + '">' + esc(p.estatus_detalle || 'N/A') + '</span></span></div></div></div>' +
+                '<button onclick="event.stopPropagation(); eliminarProceso(' + p.id + ')" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar"><i class="fas fa-trash"></i></button>' +
+                '</div>';
+        });
+        document.getElementById('procesos-checkboxes').innerHTML = html;
+        document.getElementById('btn-crear-leyenda').classList.toggle('hidden', !processes.length);
+        renderGantt();
+    }
+
+    function renderGantt() {
+        const active = processes.filter(p => p.activo);
+        if (!active.length) {
+            document.getElementById('gantt-process-content').innerHTML = '<p class="text-gray-500 text-sm italic text-center py-8">Selecciona procesos arriba para ver el cronograma.</p>';
+            return;
+        }
+
+        var weekHeaders = '', weekLabels = '';
+        var seenWeeks = [];
+        ganttColumns.forEach(function(c) {
+            if (seenWeeks.indexOf(c.week_label) === -1) {
+                seenWeeks.push(c.week_label);
+                var count = ganttColumns.filter(function(x) { return x.week_label === c.week_label; }).length;
+                weekHeaders += '<th colspan="' + count + '" class="gantt-week-header">' + esc(c.date_str) + '</th>';
+                weekLabels += '<th colspan="' + count + '" class="gantt-week-label">' + esc(c.week_label) + '</th>';
+            }
+        });
+
+        var html = '<div class="card mt-0"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-calendar-alt"></i> Cronograma Diario</h3><div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2"><table class="gantt-table text-left text-xs text-gray-300"><thead>' +
+            '<tr class="bg-gray-800 text-gray-300 uppercase font-bold"><th rowspan="3" class="gantt-col-num p-2">N</th>' + weekHeaders + '</tr>' +
+            '<tr class="bg-gray-800 uppercase font-bold">' + weekLabels + '</tr>' +
+            '<tr class="bg-gray-700/80 text-gray-200 font-bold">' + ganttColumns.map(function(c) { return '<th class="gantt-col-day gantt-day-header">' + esc(c.day_name) + '</th>'; }).join('') + '</tr></thead><tbody>';
+
+        active.forEach(function(p) {
+            html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10"><td class="gantt-col-num p-2 text-gray-400">' + p.id + '</td>';
+            ganttColumns.forEach(function(col) {
+                var dayData = p.timeline[col.date_str] || {};
+                var color = dayData.hex_color;
+                var statusName = dayData.status_name || '';
+                var note = dayData.note || '';
+                var cleanNote = (note || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                
+                if (color) {
+                    var titleColor = color === '#000000' ? '#ffffff' : color;
+                    html += '<td style="background-color: ' + esc(color) + '; cursor: pointer;" class="gantt-col-day gantt-cell-active" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'' + esc(statusName) + '\', \'' + cleanNote + '\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + esc(titleColor) + '">' + esc(statusName) + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + esc(note) + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
+                } else {
+                    html += '<td style="cursor: pointer;" class="gantt-col-day gantt-cell-empty" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'\', \'\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada (Haz clic para programar)</div></div></td>';
+                }
+            });
+            html += '</tr>';
+        });
+        html += '</tbody></table></div></div>';
+
+        var leyendaHtml = '<div class="border-t border-gray-700 pt-4"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
+        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item cursor-pointer" onclick="editarLeyenda(' + leg.id + ', \'' + esc(leg.status_name) + '\', \'' + esc(leg.hex_color) + '\')"><span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span><span class="gantt-legend-label">' + esc(leg.status_name) + '</span></div>'; });
+        leyendaHtml += '</div></div>';
+        html += leyendaHtml;
+        document.getElementById('gantt-process-content').innerHTML = html;
+    }
+
+    window.abrirEditarCronograma = function(procId, fecha, statusName, note) {
+        document.getElementById('crono-proc-id').value = procId;
+        document.getElementById('crono-fecha').value = fecha;
+        document.getElementById('crono-nota').value = note || '';
+        
+        const select = document.getElementById('crono-status-select');
+        select.innerHTML = '<option value="">(Limpiar casilla / Sin actividad)</option>';
+        legend.forEach(leg => {
+            const opt = document.createElement('option');
+            opt.value = leg.id;
+            opt.textContent = leg.status_name;
+            if (leg.status_name === statusName) {
+                opt.selected = true;
+            }
+            select.appendChild(opt);
+        });
+        
+        document.getElementById('crono-modal').classList.remove('hidden');
+    };
+    
+    window.cerrarCronoModal = function() {
+        document.getElementById('crono-modal').classList.add('hidden');
+    };
+    
+    window.guardarCronoDia = function() {
+        const procId = document.getElementById('crono-proc-id').value;
+        const fecha = document.getElementById('crono-fecha').value;
+        const leyId = document.getElementById('crono-status-select').value;
+        const nota = document.getElementById('crono-nota').value;
+        
+        fetch('/api/ruta-procesos-cronograma-guardar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id_proceso=' + procId + '&fecha=' + fecha + '&id_leyenda=' + leyId + '&nota=' + encodeURIComponent(nota)
+        })
+        .then(async function(res) {
+            if (!res.ok) {
+                const text = await res.text();
+                throw new Error(text || 'Error en el servidor');
+            }
+            return res.json();
+        })
+        .then(json => {
+            if (json.success) {
+                // Update local processes timeline
+                const p = processes.find(pr => pr.id === parseInt(procId));
+                if (p) {
+                    if (leyId) {
+                        const leg = legend.find(l => l.id === parseInt(leyId));
+                        p.timeline[fecha] = {
+                            status_name: leg ? leg.status_name : '',
+                            hex_color: leg ? leg.hex_color : '',
+                            note: nota
+                        };
+                    } else {
+                        delete p.timeline[fecha];
+                    }
+                }
+                renderGantt();
+                cerrarCronoModal();
+            } else {
+                alert(json.error || 'Error al guardar');
+            }
+        })
+        .catch(err => alert(err.message || 'Error de conexión'));
+    };
+
+    renderAll();
+})();
+</script>

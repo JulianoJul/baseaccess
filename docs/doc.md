@@ -253,7 +253,66 @@ Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de c
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
 
+## Migración a Alpine.js
+
+### Estado actual
+
+El frontend está siendo migrado de JS vainilla (app.js, ~765 líneas) + 18 templates modulares a Alpine.js + templates unificados. Todo el código nuevo se construye en subcarpetas `frontend/new/` y `templates/new/` sin alterar los originales.
+
+### Archivos nuevos
+
+```
+frontend/new/vendor/
+├── alpine.min.js              # Alpine.js v3.14.8 (CDN)
+├── alpine-app.js              # Stores + Alpine.data(): modales, fijados, recientes, sumas, exportar, formulario
+├── alpine-directives.js       # Directiva custom x-currency (formato numérico ES)
+└── alpine-htmx-bridge.js      # Puente: initTree tras HTMX swap + sincronización pines
+templates/new/
+├── index.html                 # Shell con x-data + $store.modals + @click (reemplaza index.html)
+├── components.html            # Sub-templates Alpine (form_*_alpine, tabla_*_alpine, filtro superintendencias)
+├── form.html                  # Formulario unificado (9 módulos en 1 archivo, Go if/eq)
+├── tabla.html                 # Tabla unificada (9 módulos en 1 archivo, Go if/eq)
+└── ruta_procesos.html         # Sin cambios (IIFE Gantt encapsulada)
+```
+
+### Lo que reemplazan
+
+| Antes | Después | Reducción |
+|-------|---------|-----------|
+| `frontend/vendor/app.js` (765 líneas, incl. drag & drop) | 3 Alpine JS (448 líneas, drag & drop migrado a `appShell`) | **-41%** |
+| 9 `form_*.html` + 9 `tabla_*.html` (1015 líneas) | 2 unificados (458 líneas) | **-55%** |
+| `templates/index.html` (298 líneas) | `templates/new/index.html` (495 líneas) | +197 (modales inline) |
+| Componentes con onclick global | Alpine x-show + @click + $store | Cero listeners globales |
+
+### Principios del nuevo frontend
+
+- **Alpine** maneja estado UI local (modales, localStorage, toggles, validación, drag & drop)
+- **HTMX** maneja toda comunicación servidor (fetch, POST, GET)
+- **Go** sin cambios en handler.go/app.go (el backend no sabe que cambió el frontend)
+- JS residual mínimo: apertura de BD (Wails dialog, no reemplazable por Alpine)
+
+### Lo que falta para el swap
+
+1. **handler.go**: cambiar `template.ParseFS(templateFS, "templates/*.html")` → agregar `"templates/new/*.html"` (o reemplazar)
+2. **handleCargarExpediente**: cambiar `tmplName := "form_" + modulo + ".html"` → `"form.html"`
+3. **handleFiltrarExpedientes** y **handleCambiarModulo**: cambiar `"tabla_" + modulo + ".html"` → `"tabla.html"`
+4. **index.html**: cambiar referencias de tabla del viejo `{{template "tabla_expedientes.html" .}}` → `{{template "tabla.html" .}}`
+5. Copiar Alpine JS de `frontend/new/vendor/` a `frontend/vendor/` (o servir desde `/new/vendor/`)
+6. Eliminar `frontend/vendor/app.js` y referencias viejas
+7. Eliminar los 18 templates modulares viejos (`form_*.html`, `tabla_*.html`)
+8. Probar todos los módulos: carga inicial, filtro, cambio de módulo, CRUD, exportar, sumas, fijados, recientes, Gantt
+
+### Notas técnicas
+
+- Los templates nuevos usan Alpine `$store` (modals, toast) como estado global accesible desde `hx-on::after-request`
+- `appShell` es el componente raíz del body: maneja drag & drop con `@dragover.window.prevent`, `@dragleave.window`, `@drop.window.prevent` y `:class` reactivo — reemplazó los listeners globales de JS vainilla
+- `Alpine.initTree()` en el bridge asegura que los componentes Alpine se activen tras swaps de HTMX
+- `x-currency` es directiva Alpine custom que reemplaza `_initNumInput`/`_fmtNum`/`_parseValue`
+- El `formularioModulo` component maneja la conversión USD↔Bs con reactividad bidireccional
+- La paginación cliente se mantiene igual (JS residual en el index) hasta decidir migrarla a servidor
+
 ---
+
 
 > **Ver también:** [`docs/legacy/decisiones.md`](legacy/decisiones.md) — ADR completo (historial de decisiones técnicas, incluyendo era sql.js legacy).
 > **Anchor IA:** [`ai-context.md`](ai-context.md) — stack, líneas rojas, estado actual (lee esto primero).
