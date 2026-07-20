@@ -6,14 +6,14 @@ data/*.sqlite
 data/*.db-shm
 data/*.db-wal
 data/*.bak.*
-src-tauri/target/
-src-tauri/gen/
 data/datos_excel.sql
 __pycache__/
 *.pyc
 *.xls
 *.xlsx
 plan_modificaciones.md
+skills-lock.json
+.agents/
 build/bin/
 build/*.app
 baseaccess

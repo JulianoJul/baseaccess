@@ -232,22 +232,26 @@ Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de c
 |------|--------|-------------|
 | `/api/guardar-expediente` | POST | Guarda (INSERT/UPDATE) desde formulario |
 | `/api/eliminar-expediente` | POST | Elimina expediente + historial por ID |
-| `/api/cargar-expediente` | GET | Devuelve fragmento HTML del formulario de edición |
+| `/api/cargar-expediente` | GET | Devuelve fragmento HTML del formulario de edición (`?id=...`, `?modulo=...`) |
 | `/api/filtrar-expedientes` | GET | Filtra, ordena y devuelve fragmento HTML de las filas de la tabla |
-| `/api/cambiar-modulo` | GET | Cambia de módulo y devuelve fragmento HTML de la tabla correspondiente |
+| `/api/cambiar-modulo` | GET | Cambia de módulo y devuelve fragmento HTML de la tabla correspondiente (`?modulo=...`) |
+| `/api/exportar-excel` | GET | Descarga Excel con columnas seleccionables (`?modulo=...&columnas=...&...`) |
+| `/api/columnas-modulo` | GET | Devuelve JSON con las columnas de un módulo (`?modulo=...`) |
 | `/api/historial` | GET | Devuelve fragmento HTML del historial de un registro (multi-módulo) |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
-| `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos |
+| `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos (`?hoja=...&offset=...`) |
 | `/api/ruta-procesos-agregar` | POST | Agrega un proceso a la ruta (vinculado a un registro existente de cualquier módulo) |
 | `/api/ruta-procesos-toggle` | POST | Activa/desactiva un proceso en la ruta |
 | `/api/ruta-procesos-eliminar` | POST | Elimina un proceso de la ruta |
 | `/api/ruta-procesos-registros` | GET | Devuelve JSON con registros disponibles para agregar como procesos (`?modulo=xxx`) |
 | `/api/ruta-procesos-leyenda-crear` | POST | Crea una leyenda personalizada |
 | `/api/ruta-procesos-leyenda-actualizar` | POST | Actualiza nombre y color de una leyenda existente |
+| `/api/ruta-procesos-hoja-crear` | POST | Crea una hoja nueva en el Gantt |
+| `/api/ruta-procesos-hoja-eliminar` | POST | Elimina una hoja y todos sus procesos |
+| `/api/ruta-procesos-cronograma-guardar` | POST | Guarda/actualiza/elimina un día en el cronograma Gantt |
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
-| `/api/csv` | GET | Descarga CSV del módulo indicado (`?modulo=...`)
 
 ---
 

@@ -679,14 +679,6 @@ function limpiarSumas() {
     $('sumas-resultado').textContent = '0.00';
 }
 
-// --- Helpers JS ---
-function formatNum(v) {
-    if (!v && v !== 0) return '';
-    const s = String(v).replace(/\./g, '').replace(',', '.');
-    const n = parseFloat(s); if (isNaN(n)) return String(v);
-    return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
 // --- Campos numéricos: formato, separador miles, max 2 decimales ---
 function _rawNum(input) {
     return _parseValue(input).toString();

@@ -258,11 +258,6 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 ## ObtenerFilas usa vista / GuardarFila usa tabla
 - Por diseño. `ObtenerFilas` lee de la vista (joins, alias). `GuardarFila` escribe en la tabla base. Las columnas de INSERT coinciden con las de la tabla real, no con la vista.
 
-## handleCSV
-- **No escapa comas**: `encoding/csv` escapa automáticamente comas, saltos de línea y comillas.
-- **Falta `wr.Flush()`**: El `Flush()` SÍ está presente (línea 895 de handler.go), seguido de `wr.Error()` (línea 896). El CSV se escribe completo.
-- **Sin BOM UTF-8**: Excel abre CSV UTF-8 correctamente desde hace años. BOM es opcional.
-
 ## COALESCE redundante
 - `COALESCE(db_id, 0)` donde `db_id IS NOT NULL` es redundante pero no causa ningún bug.
 
@@ -314,7 +309,10 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 ## int vs int64 en IDs
 - En arquitectura 64-bit (único target), `int` = `int64`. SQLite ROWIDs nunca excederán 2^31 en esta app.
 
-## Sin tests / Sin GoDoc / Sin health check / Logging no estructurado
+## Sin tests
+- Ya existen **29 tests** (12 en `app_test.go`, 17 en `handler_test.go`) cubriendo funciones puras y operaciones CRUD con SQLite en memoria. Cubren `formatNumGo`, `parseSpanishNumber`, `sanitizarOrden`, `moduloDesdeRequest`, template helpers, y los 5 métodos principales de BD. Pasan todos. No faltan tests.
+
+## Sin GoDoc / Sin health check / Logging no estructurado
 - Son métricas de calidad de código, no bugs funcionales. Fuera del scope de una auditoría de bugs.
 
 ## `f.Close()` en excelize no existe
@@ -325,9 +323,6 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 
 ## `ObtenerCatalogos` sin caché
 - Se llama en cada carga/refresco sin caché. Para una app desktop monousuario con <100 items por catálogo, el overhead es insignificante (~11 queries sub-milisegundo en SQLite). No justifica la complejidad de una caché con invalidación.
-
-## `formatNum` JS definido pero no usado
-- Definido en `index.html` como helper de formateo legacy. Quedó sin invocar tras la migración a `formatNumGo` en templates Go. Inofensivo.
 
 ## `PageData.SortColumn` con valor inicial muerto
 - `SortColumn: "fecha_creacion"` se asigna y luego se pisa con `cfg.IDColumna`. Es una inicialización inofensiva de struct.
@@ -340,8 +335,4 @@ Estos hallazgos aparecen en todas las auditorías pero NO son bugs reales. Ignor
 
 ## `CURRENT_TIMESTAMP` vs `CURRENT_DATE` en triggers
 - Los triggers de los 9 módulos usan `CURRENT_TIMESTAMP` en UPDATE de `fecha_actualizacion`, mientras las columnas tienen `DEFAULT CURRENT_DATE`. SQLite almacena correctamente ambos, pero es una inconsistencia menor. No causa bugs funcionales.
-
-## `handleCSV` sin caller en UI
-- La ruta `/api/csv` está registrada pero ningún botón la invoca (solo `/api/exportar-excel`). Si no se usa, puede eliminarse para reducir la superficie de mantenimiento. No es bug funcional.
-
 

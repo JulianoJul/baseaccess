@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"embed"
-	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -160,7 +159,10 @@ func rowGetNum(r Row, key string) float64 {
 	case int:
 		return float64(n)
 	case string:
-		f, _ := strconv.ParseFloat(n, 64)
+		f, err := strconv.ParseFloat(n, 64)
+		if err != nil {
+			log.Printf("toFloat64: error parsing %q: %v", n, err)
+		}
 		return f
 	}
 	return 0
@@ -458,9 +460,6 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/optimizar-bd" && r.Method == http.MethodPost:
 		h.handleOptimizarBD(w, r)
 		return
-	case p == "/api/csv" && r.Method == http.MethodGet:
-		h.handleCSV(w, r)
-		return
 	}
 
 	// --- Page routes ---
@@ -754,8 +753,14 @@ func (h *TemplateHandler) handleAbrirBD(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *TemplateHandler) handleRutaProcesos(w http.ResponseWriter, r *http.Request) {
-	idHoja, _ := strconv.Atoi(r.URL.Query().Get("hoja"))
-	offsetWeeks, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	idHoja, err := strconv.Atoi(r.URL.Query().Get("hoja"))
+	if err != nil {
+		log.Printf("handleRutaProcesos: hoja param inválido, usando 0: %v", err)
+	}
+	offsetWeeks, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil {
+		log.Printf("handleRutaProcesos: offset param inválido, usando 0: %v", err)
+	}
 
 	data, err := h.app.ObtenerRutaProcesosData(idHoja, offsetWeeks)
 	if err != nil {
@@ -1122,55 +1127,6 @@ func (h *TemplateHandler) filasParaExportar(r *http.Request) (cfg ModuloConfig, 
 	}
 
 	return cfg, filtered, nil
-}
-
-func (h *TemplateHandler) handleCSV(w http.ResponseWriter, r *http.Request) {
-	cfg, filas, err := h.filasParaExportar(r)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if len(filas) == 0 {
-		http.Error(w, "no hay datos con los filtros aplicados", http.StatusBadRequest)
-		return
-	}
-	modulo, _, _ := moduloDesdeRequest(r)
-
-	filename := "reporte_" + modulo + ".csv"
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
-
-	headers := make([]string, 0, len(filas[0]))
-	for k := range filas[0] {
-		headers = append(headers, k)
-	}
-	sort.Strings(headers)
-	for i, k := range headers {
-		if k == cfg.IDColumna {
-			copy(headers[1:i+1], headers[0:i])
-			headers[0] = k
-			break
-		}
-	}
-
-	wr := csv.NewWriter(w)
-	wr.Write(headers)
-	for _, row := range filas {
-		vals := make([]string, len(headers))
-		for i, h := range headers {
-			v := row[h]
-			if v == nil {
-				vals[i] = ""
-			} else {
-				vals[i] = fmt.Sprintf("%v", v)
-			}
-		}
-		wr.Write(vals)
-	}
-	wr.Flush()
-	if err := wr.Error(); err != nil {
-		log.Printf("csv: error escribiendo respuesta: %v", err)
-	}
 }
 
 func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Request) {
