@@ -48,6 +48,8 @@ export function ObtenerFilaPorId(arg1:string,arg2:number):Promise<main.Row>;
 
 export function ObtenerFilas(arg1:string,arg2:string):Promise<Array<main.Row>>;
 
+export function ObtenerFilasPaginado(arg1:string,arg2:string,arg3:number,arg4:number):Promise<Array<main.Row>>;
+
 export function ObtenerHistorialFila(arg1:string,arg2:number):Promise<Array<main.Row>>;
 
 export function ObtenerRegistrosDisponiblesRuta(arg1:string):Promise<Array<Record<string, any>>>;

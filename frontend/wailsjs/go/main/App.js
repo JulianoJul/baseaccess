@@ -94,6 +94,10 @@ export function ObtenerFilas(arg1, arg2) {
   return window['go']['main']['App']['ObtenerFilas'](arg1, arg2);
 }
 
+export function ObtenerFilasPaginado(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ObtenerFilasPaginado'](arg1, arg2, arg3, arg4);
+}
+
 export function ObtenerHistorialFila(arg1, arg2) {
   return window['go']['main']['App']['ObtenerHistorialFila'](arg1, arg2);
 }
