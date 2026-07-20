@@ -228,6 +228,20 @@ Al auditar el frontend (templates HTML), verificar:
 
 ---
 
+## FORMATO DE COMMITS (para auditar)
+
+```
+feat/fix: [Descripción breve del cambio]
+
+RAZÓN TÉCNICA: [Por qué se eligió esta solución]
+SUPOSICIÓN: [Qué asumió la IA porque no estaba explícito en el prompt]
+```
+
+Auditar que los commits recientes sigan este formato. Reportar omisiones.
+
+
+---
+
 ---
 
 # Falsos Positivos Conocidos — No reportar como bugs
