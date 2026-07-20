@@ -31,117 +31,16 @@ Fuente única de verdad de la lógica existente. Antes de crear una nueva funci�
 | `GetBackupMaxCopies()` | — | Retorna número actual de backups. Thread-safe |
 | `DescargarBD(destPath)` | `destPath`: string | Copia el .db actual a otra ruta |
 
-## Data Layer — Frontend (HTMX + JS minimo)
+## Frontend (HTMX + JS mínimo)
 
-La mayoria de las funciones JS previas (cargarCatalogos, obtenerExpedientes, guardarExpedienteEnBd, etc.) fueron reemplazadas por HTMX declarativo. JS actual minimo: helpers de modales (`mostrarFormulario`, `cerrarFormulario`), paginacion DOM del lado del cliente, localStorage (recientes/fijados), y `abrirBaseDatos()` (unica funcion que invoca el binding Wails `AbrirDialogoBD`).
+La mayoría de las funciones JS del modelo sql.js/Electron fueron reemplazadas por HTMX declarativo. El JS actual (`frontend/vendor/app.js`) se limita a:
 
-## UI Layer — Tabla Principal (renderizada en Go, actualizada via HTMX)
-
-| Funcion | Parametros | Descripcion |
-|---------|-----------|-------------|
-| `mostrarFormulario(id)` | `id`: opcional | Abre modal formulario (crear/editar) con titulo dinamico segun modulo |
-| `cerrarFormulario()` | — | Cierra modal, limpia formulario |
-| `toggleDesplegable(id)` | `id`: registro.id | Expande/colapsa fila desplegable |
-| `renderPaginacion()` | — | Renderiza controles de paginacion |
-| `irPagina(n)` | `n`: numero de pagina | Cambia pagina, refresca tabla |
-| `aplicarPaginacion()` / `aplicarPaginacionDOM()` | — | Calcula paginas, renderiza slice actual |
-
-## UI Layer — Formulario de Edición
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `mostrarFormulario(id?)` | `id`: opcional | Abre modal formulario (crear/editar) |
-| `cancelarFormulario()` | — | Cierra modal, limpia formulario |
-| `cargarExpediente(id)` | `id`: ID | Carga datos en formulario para edición |
-| `calcularBs(origen?)` | `origen?`: 'usd' \| 'bs' | Conversión bidireccional USD↔Bs |
-| `guardarExpediente()` | — | Valida, llama `guardarExpedienteEnBd`, recarga |
-| `eliminarExpediente()` | — | Confirma, llama `eliminarExpedienteDeBd`, recarga |
-| `marcarCamposEdicionFrecuente()` | — | Marca campos frecuentes con indicador |
-| `generarObservacionAutomatica()` | — | Genera línea de observación automática |
-| `previewObservacion()` | — | Combina parte automática + texto libre |
-| `formatTiempoEjecucion(v)` | `v`: número/string | Aplica sufijo "DÍAS" |
-| `parseTiempoEjecucionParaEdicion(v)` | `v`: string | Quita sufijo "DÍAS" |
-
-## UI Layer — Modales Secundarios
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `abrirRutaProcesos()` | — | Modal Gantt-chart de ruta de procesos |
-| `cerrarRutaProcesos()` | — | Cierra modal ruta |
-| `toggleFormProceso()` | — | Muestra/oculta formulario para agregar proceso con selector de módulo y registro |
-| `cargarRegistrosModulo()` | — | Carga registros del módulo seleccionado en el selector |
-| `agregarProceso()` | — | Agrega registro seleccionado como proceso en la ruta (incluye módulo) |
-| `toggleProceso(id, checked)` | `id`, `checked` | Activa/desactiva proceso en la ruta |
-| `eliminarProceso(id)` | `id` | Elimina proceso de la ruta |
-| `abrirEditarCronograma(procId, fecha, statusName, note)` | `procId`, `fecha`, `statusName`, `note` | Abre el modal para programar un día en el Gantt con estatus y notas |
-| `cerrarCronoModal()` | — | Cierra el modal de programación del día |
-| `guardarCronoDia()` | — | Guarda los cambios de la celda del Gantt llamando al backend |
-| `editarLeyenda(id, nombre, color)` | `id`, `nombre`, `color` | Abre modal para editar nombre y color de una leyenda existente |
-| `guardarEditarLeyenda()` | — | Guarda los cambios de la leyenda editada y recarga el Gantt |
-| `abrirDocumentosPendientes()` | — | Modal con expedientes no FIRMADOS |
-| `cerrarPendientes()` | — | Cierra modal pendientes |
-| `abrirHistorialCompleto(id)` | `id`: ID | Modal historial de snapshots |
-| `cerrarHistorialCompleto()` | — | Cierra modal historial |
-| `cargarHistorialCompleto(id)` | `id`: ID | Consulta y renderiza historial |
-| `getEstatusClass(estatus)` | `estatus`: string | Clase CSS del badge según estatus |
-
-## UI Layer — Sidebar (Frecuentes)
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `toggleFrecuente(id, solped)` | `id`, `solped` | Marca/desmarca frecuente en localStorage |
-| `renderSidebar()` | — | Renderiza lista de frecuentes |
-| `toggleSidebar()` | — | Colapsa/expande sidebar |
-| `toggleModoOrdenForm()` | — | Alterna orden secciones/Excel en formulario |
-| `aplicarOrdenExcel()` | — | Clona campos en grilla plana |
-| `restaurarOrdenSecciones()` | — | Restaura orden agrupado |
-
-## UI Layer — Catálogos
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `inicializarBotonesCatalogo()` | — | Asigna eventos a botones "+" |
-| `abrirAgregarCatalogo(selectId)` | `selectId`: ID del `<select>` | Abre modal para nuevo registro |
-| `cerrarAgregarCatalogo()` | — | Cierra modal agregar catálogo |
-| `captureAndRestoreFormState(callback)` | `callback` | Captura valores, ejecuta callback, restaura |
-| `guardarNuevoCatalogo()` | — | Inserta y actualiza selector |
-
-## Utilidades y Mantenimiento
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `actualizarEstadoBD(msg)` | `msg`: string | Actualiza indicador visual de estado BD |
-| `optimizarBD()` | — | Ejecuta VACUUM vía Go, reporta resultado |
-| `exportarCSV()` | — | Exporta datos como CSV descargable |
-| `descargarBDError()` | — | Abre diálogo para guardar copia del .db actual |
-| `updateUIOnError()` | — | Deshabilita botones, añade badge solo-lectura |
-| `abrirBaseDatos()` | — | Dispara `<input type="file">`, carga BD |
-| `abrirBaseDatosReciente(path)` | `path`: string | Abre BD desde recientes |
-| `mostrarMenuRecientes()` | — | Renderiza menú BD recientes |
-| `registrarReciente(nombre, path)` | `nombre`, `path` | Guarda en localStorage |
-| `eliminarReciente(path)` o `eliminarRecienteIndex(index)` | — | Elimina de recientes |
-| `abrirRecientes()` | — | Modal con lista de BD recientes |
-
-## Helpers
-
-| Función | Parámetros | Descripción |
-|---------|-----------|-------------|
-| `$(id)` | `id`: string | `document.getElementById(id)` |
-| `toast(mensaje, tipo)` | `mensaje`, `tipo` | Notificación flotante auto-dismiss 3s |
-| `mostrarSpinner(texto)` | `texto`: opcional | Overlay con spinner |
-| `ocultarSpinner()` | — | Oculta overlay spinner |
-| `validarForma()` | — | Retorna array de errores de validación |
-| `renderCatalogSelect(selectId, catKey, selectValue)` | — | Puebla un select desde catálogo cacheado |
-| `cerrarModalSiOverlay(e, closeFn)` | `e`, `closeFn` | Cierra modal si click fuera del contenido |
-| `escapeHtml(text)` | `text`: string | Escapa HTML para prevenir XSS |
-
-## Constantes Globales (schema-config.js)
-
-| Constante | Descripción |
-|-----------|-------------|
-| `CONFIG` | `MAX_FILE_SIZE_BYTES`, `PAGE_SIZE`, `VACUUM_CONFIRM_THRESHOLD_MB`, etc. |
-| `DEBUG` | Wrapper condicional de console: `DEBUG.log()`, `DEBUG.error()` |
-| `MSG` | Mensajes de usuario centralizados |
-| `STORAGE_KEYS` | Keys de localStorage |
-| `SELECTORS` | IDs de elementos DOM |
-| `MSG_EXTRA` | Mensajes de mantenimiento (VACUUM, errores, etc.) |
+**Modales:** `mostrarFormulario`, `cerrarFormulario`, `pushModal`, `cerrarModal`, `cerrarSiOverlay`
+**Paginación DOM:** `renderPaginacion`, `irPagina`, `aplicarPaginacion`
+**Exportar:** `abrirModalExportar`, `cerrarModalExportar`, `cargarColumnasExportar`, `ejecutarExportar`, `toggleTodasColumnas`, `filtrarSuperintendenciasExportar`
+**Fijados (localStorage):** `toggleFrecuente`, `abrirFrecuentes`, `cerrarFrecuentes`
+**BD Recientes:** `abrirRecientes`, `cerrarRecientes`, `registrarReciente`, `eliminarReciente`
+**Sumas:** `abrirSumas`, `cerrarSumas`, `anyadirFilaSuma`, `calcularSumas`, `limpiarSumas`
+**Conversión USD/Bs:** `calcularBs`
+**BD:** `abrirBaseDatos`, `optimizarBD`, `descargarBDError`
+**Helpers:** `toast`, `mostrarSpinner`, `ocultarSpinner`, `esc` (escapeHtml)

@@ -4,6 +4,7 @@
 - **Wails v2** (Go 1.21+): backend nativo, frontend web embebido
 - **Go** + **mattn/go-sqlite3**: acceso SQLite directo al archivo .db
 - **Frontend**: Go `html/template` renderiza el HTML desde `TemplateHandler`
+- **Interactividad**: HTMX (declarativo, server-side)
 - **Estáticos**: Tailwind CSS + Font Awesome (en `frontend/vendor/`)
 - **Sin CDN, sin frameworks JS, sin backend externo**
 
@@ -16,7 +17,7 @@
 - **Makefile**: única fuente de automatización local
 
 ## Estado Actual (Julio 2026)
-App con **Wails v2 + Go html/template + HTMX**, **multi-modulo** (9 tipos de documentos). Schema dividido en `data/sql/01_master_control_docs_presidencia.sql` + `data/sql/02_modulos_adicionales.sql` + `data/sql/03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar fija tipo hojas de cálculo con pestañas de módulos y Ruta Procesos a la derecha. Ruta Procesos ahora incluye soporte para **Hojas** (ventanas de tiempo persistentes con paginación independiente de semanas), una leyenda de colores estricta e independiente, y soporte para agregar procesos desde **cualquier módulo** (expedientes, memorandums, recobros, etc.) usando un selector de módulo. Archivos SQL embebidos via `//go:embed data/sql/*.sql` para portabilidad. Rama `wails-migration` activa.
+App con **Wails v2 + Go html/template + HTMX**, **multi-modulo** (9 tipos de documentos). Schema en `data/sql/01_master_control_docs_presidencia.sql` + `02_modulos_adicionales.sql` + `03_ruta_procesos.sql`. API Go unificada via `var Modulos map[string]ModuloConfig` en `app.go`. Bottom bar tipo hojas de cálculo con pestañas de módulos. Ruta Procesos con Hojas (ventanas de tiempo persistentes), leyenda independiente, y procesos multi-módulo. SQL embebidos via `//go:embed`.
 ## Archivos Clave
 | Archivo | Para qué |
 |---------|----------|
