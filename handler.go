@@ -66,6 +66,17 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 			if !ok {
 				return 999
 			}
+			viewAlias := map[string]string{
+				"id_gerencia": "gerencia", "id_superintendencia": "superintendencia",
+				"id_emisor": "emisor", "id_documento": "documento",
+				"id_receptor": "receptor", "id_estatus": "estatus_detalle",
+				"id_plan": "plan_contrataciones", "id_modalidad": "modalidad_contratacion",
+				"id_art": "art", "id_tipo_contrato": "tipo_contrato",
+				"id_resultado": "resultados_proceso", "id_empresa": "empresa_adjudicada",
+			}
+			if alias, ok := viewAlias[col]; ok {
+				col = alias
+			}
 			for i, c := range cfg.OrdenExcel {
 				if c == col {
 					return i + 1
