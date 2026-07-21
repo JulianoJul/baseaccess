@@ -581,23 +581,6 @@
             }
         });
     };
-                        p.timeline[fecha] = {
-                            status_name: leg ? leg.status_name : '',
-                            hex_color: leg ? leg.hex_color : '',
-                            note: nota
-                        };
-                    } else {
-                        delete p.timeline[fecha];
-                    }
-                }
-                renderGantt();
-                cerrarCronoModal();
-            } else {
-                alert(json.error || 'Error al guardar');
-            }
-        })
-        .catch(err => alert(err.message || 'Error de conexión'));
-    };
 
     renderAll();
 })();
