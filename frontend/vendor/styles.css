@@ -676,16 +676,17 @@ select.input option {
 .exp-checkbox-label {
   display: flex;
   align-items: center;
-  gap: 8px;
-  background-color: var(--bg-surface-800);
+  gap: 10px;
+  background-color: var(--bg-surface-900);
   border: 1px solid var(--border-default);
   border-radius: var(--radius);
-  padding: 6px 10px;
-  font-size: 11px;
+  padding: 7px 12px;
+  font-size: 12px;
   color: var(--text-light);
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
+  line-height: 1.2;
 }
 .exp-checkbox-label:hover {
   border-color: var(--primary);
@@ -694,17 +695,19 @@ select.input option {
 .exp-col {
   appearance: none;
   -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   border: 2px solid var(--border-default);
-  border-radius: 6px;
+  border-radius: 5px;
   background-color: var(--bg-surface-900);
   cursor: pointer;
-  display: inline-grid;
-  place-content: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   position: relative;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  margin: 0;
 }
 .exp-col:hover {
   border-color: var(--primary);
@@ -713,13 +716,13 @@ select.input option {
   background-color: var(--primary);
   border-color: var(--primary);
 }
-.exp-col:checked::before {
+.exp-col:checked::after {
   content: "";
-  width: 12px;
-  height: 6px;
-  border-left: 3px solid white;
-  border-bottom: 3px solid white;
-  transform: rotate(-45deg) translate(1px, -2px);
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) translate(-1px, -1px);
 }
 
 /* Calculator/Sumas fila gap */

@@ -235,7 +235,7 @@
         </span>
 
         {{/* Botones de navegación */}}
-        <div class="flex items-center gap-1">
+        <div class="flex items-center gap-1.5">
 
             {{/* ← Primera */}}
             {{if gt .CurrentPage 1}}
@@ -259,24 +259,48 @@
             </button>
             {{end}}
 
-            {{/* Números de página: mostrar ventana de 5 alrededor de la actual */}}
+            {{/* Números de página: siempre mostrar 1, total, y ventana alrededor de actual */}}
             {{$cur   := .CurrentPage}}
             {{$total := .TotalPages}}
             {{$win   := 2}}
+            {{$start := sub $cur $win}}{{if lt $start 1}}{{$start = 1}}{{end}}
+            {{$end   := add $cur $win}}{{if gt $end $total}}{{$end = $total}}{{end}}
+
+            {{/* Primera página si no está en la ventana */}}
+            {{if gt $start 1}}
+                <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
+                        hx-get="/api/filtrar-expedientes"
+                        hx-target="#vista-tabla"
+                        hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+                        hx-vals='{"pagina": "1"}'>1</button>
+                {{if gt $start 2}}
+                <span class="btn btn-sm bg-transparent text-gray-500 px-2 cursor-default" aria-hidden="true">…</span>
+                {{end}}
+            {{end}}
+
+            {{/* Ventana centrada */}}
             {{range $p := pagRange $cur $total $win}}
                 {{if eq $p $cur}}
-                <button class="btn btn-sm bg-teal-600 text-white font-bold px-3 cursor-default" disabled>
-                    {{$p}}
-                </button>
+                <button class="btn btn-sm bg-teal-600 text-white font-bold px-3 cursor-default" disabled>{{$p}}</button>
                 {{else}}
                 <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
                         hx-get="/api/filtrar-expedientes"
                         hx-target="#vista-tabla"
                         hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
-                        hx-vals='{"pagina": "{{$p}}"}'>
-                    {{$p}}
-                </button>
+                        hx-vals='{"pagina": "{{$p}}"}'>{{$p}}</button>
                 {{end}}
+            {{end}}
+
+            {{/* Última página si no está en la ventana */}}
+            {{if lt $end $total}}
+                {{if lt $end (sub $total 1)}}
+                <span class="btn btn-sm bg-transparent text-gray-500 px-2 cursor-default" aria-hidden="true">…</span>
+                {{end}}
+                <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
+                        hx-get="/api/filtrar-expedientes"
+                        hx-target="#vista-tabla"
+                        hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+                        hx-vals='{"pagina": "{{$total}}"}'>{{$total}}</button>
             {{end}}
 
             {{/* Siguiente → */}}
