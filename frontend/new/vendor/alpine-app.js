@@ -515,43 +515,53 @@ document.addEventListener('alpine:init', () => {
     },
 
     _reordenar() {
-      const container = this.$el.querySelector('#excel-order-container');
+      console.log('[OrdenExcel] this.$el=', this.$el ? this.$el.tagName + '.' + this.$el.className : 'null');
+
+      const container = document.getElementById('excel-order-container');
       if (!container) {
-        console.warn('[OrdenExcel] #excel-order-container no encontrado');
+        console.warn('[OrdenExcel] #excel-order-container no encontrado en documento');
         return;
       }
+      console.log('[OrdenExcel] container encontrado, display=' + container.style.display);
 
-      const allFields = Array.from(this.$el.querySelectorAll('[data-orden-excel]'));
+      const allFields = Array.from(document.querySelectorAll('[data-orden-excel]'));
       console.log('[OrdenExcel] estado=' + this.ordenExcel + ', campos=' + allFields.length);
+      if (allFields.length === 0) {
+        console.warn('[OrdenExcel] No hay campos con data-orden-excel');
+        return;
+      }
 
       if (this.ordenExcel) {
         if (!this._fieldStructure) {
           this._fieldStructure = [];
-          this.$el.querySelectorAll('[data-orden-excel]').forEach(el => {
+          document.querySelectorAll('[data-orden-excel]').forEach(el => {
             this._fieldStructure.push({
               el: el,
               parent: el.parentNode
             });
           });
+          console.log('[OrdenExcel] estructura guardada, ' + this._fieldStructure.length + ' campos');
         }
 
-        this.$el.querySelectorAll('fieldset').forEach(fs => fs.style.display = 'none');
+        document.querySelectorAll('fieldset').forEach(fs => fs.style.display = 'none');
 
-        const fields = Array.from(this.$el.querySelectorAll('[data-orden-excel]'));
+        const fields = Array.from(document.querySelectorAll('[data-orden-excel]'));
         fields.sort((a, b) => parseInt(a.dataset.ordenExcel) - parseInt(b.dataset.ordenExcel));
-        console.log('[OrdenExcel] ordenando ' + fields.length + ' campos');
+        console.log('[OrdenExcel] ordenando ' + fields.length + ' campos por data-orden-excel');
 
         container.innerHTML = '';
         fields.forEach(f => container.appendChild(f));
         container.style.display = '';
+        console.log('[OrdenExcel] campos movidos al contenedor plano');
       } else {
         container.style.display = 'none';
         if (this._fieldStructure) {
           this._fieldStructure.forEach(item => {
             item.parent.appendChild(item.el);
           });
+          console.log('[OrdenExcel] campos restaurados a fieldsets originales');
         }
-        this.$el.querySelectorAll('fieldset').forEach(fs => fs.style.display = '');
+        document.querySelectorAll('fieldset').forEach(fs => fs.style.display = '');
       }
     },
 
