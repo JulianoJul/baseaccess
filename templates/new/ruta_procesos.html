@@ -174,7 +174,8 @@
 <script>
 (function() {
     const data = {{jsonEncode .}};
-    const { legend, columns: ganttColumns, processes, offset_weeks } = data;
+    const { legend, columns: ganttColumns, processes, offset_weeks, current_hoja } = data;
+    var currentHojaId = (current_hoja && current_hoja.id) || 0;
     var formVisible = false;
 
     window.toggleModal = function(id) {
