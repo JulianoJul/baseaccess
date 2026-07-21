@@ -21,7 +21,7 @@
 {{end}}
 
 {{define "form_input_text_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <input type="{{default "text" .Type}}" id="f-{{.Name}}" name="{{.Name}}"
            class="input"
@@ -31,7 +31,7 @@
 {{end}}
 
 {{define "form_input_date_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <input type="date" id="f-{{.Name}}" name="{{.Name}}"
            class="input"
@@ -41,7 +41,7 @@
 {{end}}
 
 {{define "form_input_number_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <input type="text" inputmode="decimal" id="f-{{.Name}}" name="{{.Name}}"
            class="input"
@@ -52,7 +52,7 @@
 {{end}}
 
 {{define "form_input_monto_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <input type="text" inputmode="decimal" id="f-{{.Name}}" name="{{.Name}}"
            class="input"
@@ -64,7 +64,7 @@
 {{end}}
 
 {{define "form_input_spin_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <div class="flex gap-0">
         <input type="text" inputmode="numeric" id="f-{{.Name}}" name="{{.Name}}"
@@ -79,7 +79,7 @@
 {{end}}
 
 {{define "form_textarea_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <textarea id="f-{{.Name}}" name="{{.Name}}" rows="{{default "2" .Rows}}"
               class="input"
@@ -88,7 +88,7 @@
 {{end}}
 
 {{define "form_select_alpine"}}
-<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}>
+<div{{if .GridSpan}} class="{{.GridSpan}}"{{end}}{{if .ExcelOrder}} data-orden-excel="{{.ExcelOrder}}"{{end}}>
     <label class="label">{{.Label}}</label>
     <select id="f-{{.Name}}" name="{{.Name}}" class="input"
             x-model="registro.{{.Name}}"
@@ -110,8 +110,8 @@
     {{jsonEncode (index .Catalogs "superintendencia")}},
     {{if .Registro}}{{rowGetStr .Registro "id_gerencia"}}{{else}}''{{end}}
 )">
-    {{template "form_select_alpine" dict "Label" "Gerencia" "Name" "id_gerencia" "CatalogName" "gerencia" "Catalogs" .Catalogs "Registro" .Registro "Onchange" "gerenciaSeleccionada = $el.value; superintendenciaSeleccionada = ''"}}
-    <div>
+    {{template "form_select_alpine" dict "Label" "Gerencia" "Name" "id_gerencia" "CatalogName" "gerencia" "Catalogs" .Catalogs "Registro" .Registro "Onchange" "gerenciaSeleccionada = $el.value; superintendenciaSeleccionada = ''" "ExcelOrder" .ExcelOrderGerencia}}
+    <div{{if .ExcelOrderSuperintendencia}} data-orden-excel="{{.ExcelOrderSuperintendencia}}"{{end}}>
         <label class="label">Superintendencia</label>
         <select id="f-id_superintendencia" name="id_superintendencia" class="input"
                 x-model="superintendenciaSeleccionada"
@@ -128,8 +128,8 @@
 {{end}}
 
 {{define "form_emisor_receptor_alpine"}}
-{{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
-{{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro}}
+{{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" .ExcelOrderEmisor}}
+{{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" .ExcelOrderReceptor}}
 {{end}}
 
 {{define "form_hidden_id_alpine"}}
@@ -204,7 +204,7 @@
         {{if $obs}}
         <div class="border-t border-gray-700/40 pt-2 mt-2 text-gray-300 italic whitespace-pre-wrap"
              x-data="{ txt: {{jsonEncode $obs}} }"
-             x-text="txt.includes('\n---\n') ? txt.split('\n---\n')[1].trim() : txt"></div>
+             x-text="txt.includes('\n---\n') ? txt.split('\n---\n')[1].trim().split('\n').pop().trim() : (txt.startsWith('Fecha Devuelto:') || txt.startsWith('Fecha Recibido:')) ? '' : txt.split('\n').pop().trim()"></div>
         {{end}}
     </div>
 </div>

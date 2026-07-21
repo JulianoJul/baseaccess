@@ -37,6 +37,7 @@ type ModuloConfig struct {
 	Columnas       []string
 	FechaColumna   string
 	GerenciasIDs   []int
+	OrdenExcel     []string
 }
 
 var Modulos = map[string]ModuloConfig{
@@ -59,6 +60,17 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
+		OrdenExcel: []string{
+			"id_expediente", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "solped", "fecha_presupuesto_base", "presupuesto_base_usd",
+			"tipo_cambio", "presupuesto_base_bs", "id_plan", "descripcion_proceso",
+			"id_modalidad", "id_art", "id_tipo_contrato", "nro_acta_apertura",
+			"cantidad_frentes", "nro_resolucion_jd", "id_estatus",
+			"observaciones", "fecha_recibido", "fecha_devuelto", "id_receptor",
+			"nro_proceso", "id_resultado", "nro_contrato_sicac", "nro_contrato_sap",
+			"id_empresa", "tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
+			"fecha_firma_contrato", "notas",
+		},
 	},
 	"requisiciones": {
 		Nombre:         "Requisición de Materiales",
@@ -74,6 +86,12 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8, 11},
+		OrdenExcel: []string{
+			"id_requisicion", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "descripcion_materiales", "serial_equipo", "pase_sicesma",
+			"id_estatus", "observaciones_entrega", "observaciones",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "notas",
+		},
 	},
 	"memorandums": {
 		Nombre:         "Memorándums",
@@ -88,6 +106,11 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+		OrdenExcel: []string{
+			"id_memorandum", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "asunto", "id_estatus", "observaciones",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "notas",
+		},
 	},
 	"recobros": {
 		Nombre:         "Recobros",
@@ -103,6 +126,13 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
+		OrdenExcel: []string{
+			"id_recobro", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "asunto", "fecha_inicio", "fecha_final",
+			"servicios", "beneficios", "nota_debito_reverso", "costo_servicio_usd",
+			"id_estatus", "observaciones", "fecha_recibido", "fecha_devuelto",
+			"id_receptor", "notas",
+		},
 	},
 	"valuaciones": {
 		Nombre:         "Valuaciones",
@@ -120,6 +150,16 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 8},
+		OrdenExcel: []string{
+			"id_valuacion", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "solped", "presupuesto_base_bs", "presupuesto_base_usd",
+			"descripcion_proceso", "id_estatus", "observaciones",
+			"fecha_recibido", "fecha_devuelto", "id_receptor", "nro_proceso",
+			"nro_contrato_sicac", "nro_contrato_sap", "id_empresa",
+			"tiempo_ejecucion", "monto_adjudicado_bs", "monto_adjudicado_usd",
+			"periodo_valuacion_desde", "periodo_valuacion_hasta",
+			"monto_valuacion", "nro_proforma", "notas",
+		},
 	},
 	"aprobacion_jd": {
 		Nombre:         "Aprobación JD",
@@ -136,6 +176,14 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 7, 8},
+		OrdenExcel: []string{
+			"id_aprobacion_jd", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "solped", "fecha_presupuesto_base", "presupuesto_base_bs",
+			"tipo_cambio", "presupuesto_base_usd", "id_plan", "descripcion_proceso",
+			"cantidad_frentes", "id_estatus", "observaciones",
+			"fecha_recibido", "fecha_devuelto", "id_receptor",
+			"tiempo_ejecucion", "notas",
+		},
 	},
 	"certificacion_bdu": {
 		Nombre:         "Certificación BDU",
@@ -151,6 +199,13 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{7},
+		OrdenExcel: []string{
+			"id_certificacion_bdu", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "presupuesto_base_total_usd", "monto_adjudicado_total_usd",
+			"monto_contrato", "monto_ejecutado", "monto_pagado",
+			"id_estatus", "observaciones", "fecha_recibido", "fecha_devuelto",
+			"id_receptor", "notas",
+		},
 	},
 	"vacaciones": {
 		Nombre:         "Vacaciones",
@@ -165,6 +220,12 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12},
+		OrdenExcel: []string{
+			"id_vacacion", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "anio", "cantidad_dias", "fecha_desde", "fecha_hasta",
+			"id_estatus", "observaciones", "fecha_recibido", "fecha_devuelto",
+			"id_receptor", "notas",
+		},
 	},
 	"reposos_medicos": {
 		Nombre:         "Reposos Médicos",
@@ -179,6 +240,11 @@ var Modulos = map[string]ModuloConfig{
 		},
 		FechaColumna:   "fecha_creacion",
 		GerenciasIDs:   []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 13},
+		OrdenExcel: []string{
+			"id_reposo_medico", "id_gerencia", "id_superintendencia", "id_emisor",
+			"id_documento", "dias_periodo", "fecha_desde", "fecha_hasta",
+			"id_estatus", "observaciones", "fecha_recibido", "notas",
+		},
 	},
 }
 
@@ -1306,15 +1372,15 @@ func (a *App) ObtenerRegistrosDisponiblesRuta(modulo string) ([]map[string]inter
 		labelCol string
 	}
 	queries := map[string]moduleQuery{
-		"expedientes":     {"vw_reporte_excel_contrataciones", "id_expediente", "solped"},
-		"requisiciones":   {"vw_reporte_req_materiales", "id_requisicion", "descripcion_materiales"},
-		"memorandums":     {"vw_reporte_memorandums", "id_memorandum", "asunto"},
-		"recobros":        {"vw_reporte_recobros", "id_recobro", "asunto"},
-		"valuaciones":     {"vw_reporte_valuaciones", "id_valuacion", "solped"},
-		"aprobacion_jd":   {"vw_reporte_aprobacion_jd", "id_aprobacion", "solped"},
-		"certificacion_bdu": {"vw_reporte_certificacion_bdu", "id_certificacion", "nro_certificacion"},
-		"vacaciones":      {"vw_reporte_vacaciones", "id_vacacion", "nombre_empleado"},
-		"reposos_medicos": {"vw_reporte_reposos_medicos", "id_reposo", "nombre_empleado"},
+		"expedientes":       {"vw_reporte_excel_contrataciones", "id_expediente", "COALESCE(solped, '')"},
+		"requisiciones":     {"vw_reporte_req_materiales", "id_requisicion", "COALESCE(descripcion_materiales, '')"},
+		"memorandums":       {"vw_reporte_memorandums", "id_memorandum", "COALESCE(asunto, '')"},
+		"recobros":          {"vw_reporte_recobros", "id_recobro", "COALESCE(asunto, '')"},
+		"valuaciones":       {"vw_reporte_valuaciones", "id_valuacion", "COALESCE(solped, '')"},
+		"aprobacion_jd":     {"vw_reporte_aprobacion_jd", "id_aprobacion_jd", "COALESCE(solped, '')"},
+		"certificacion_bdu": {"vw_reporte_certificacion_bdu", "id_certificacion_bdu", "COALESCE(observaciones, '')"},
+		"vacaciones":        {"vw_reporte_vacaciones", "id_vacacion", "COALESCE(observaciones, '')"},
+		"reposos_medicos":   {"vw_reporte_reposos_medicos", "id_reposo_medico", "COALESCE(observaciones, '')"},
 	}
 
 	q, ok := queries[modulo]

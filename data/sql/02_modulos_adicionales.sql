@@ -59,13 +59,15 @@ CREATE TABLE IF NOT EXISTS hist_req_materiales (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_req_mat_inicial AFTER INSERT ON req_materiales
+DROP TRIGGER IF EXISTS trg_req_mat_inicial;
+CREATE TRIGGER trg_req_mat_inicial AFTER INSERT ON req_materiales
 FOR EACH ROW BEGIN
     INSERT INTO hist_req_materiales (id_requisicion, id_gerencia, id_superintendencia, id_emisor, id_documento, descripcion_materiales, serial_equipo, pase_sicesma, id_estatus, observaciones_entrega, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_requisicion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.descripcion_materiales, NEW.serial_equipo, NEW.pase_sicesma, NEW.id_estatus, NEW.observaciones_entrega, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_req_mat_auditoria AFTER UPDATE ON req_materiales
+DROP TRIGGER IF EXISTS trg_req_mat_auditoria;
+CREATE TRIGGER trg_req_mat_auditoria AFTER UPDATE ON req_materiales
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.descripcion_materiales IS NOT NEW.descripcion_materiales OR OLD.serial_equipo IS NOT NEW.serial_equipo OR OLD.pase_sicesma IS NOT NEW.pase_sicesma OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.observaciones_entrega IS NOT NEW.observaciones_entrega OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -154,13 +156,15 @@ CREATE TABLE IF NOT EXISTS hist_memorandums (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_mem_inicial AFTER INSERT ON memorandums
+DROP TRIGGER IF EXISTS trg_mem_inicial;
+CREATE TRIGGER trg_mem_inicial AFTER INSERT ON memorandums
 FOR EACH ROW BEGIN
     INSERT INTO hist_memorandums (id_memorandum, id_gerencia, id_superintendencia, id_emisor, id_documento, asunto, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_memorandum, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.asunto, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_mem_auditoria AFTER UPDATE ON memorandums
+DROP TRIGGER IF EXISTS trg_mem_auditoria;
+CREATE TRIGGER trg_mem_auditoria AFTER UPDATE ON memorandums
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.asunto IS NOT NEW.asunto OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -258,13 +262,15 @@ CREATE TABLE IF NOT EXISTS hist_recobros (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_rec_inicial AFTER INSERT ON recobros
+DROP TRIGGER IF EXISTS trg_rec_inicial;
+CREATE TRIGGER trg_rec_inicial AFTER INSERT ON recobros
 FOR EACH ROW BEGIN
     INSERT INTO hist_recobros (id_recobro, id_gerencia, id_superintendencia, id_emisor, id_documento, asunto, fecha_inicio, fecha_final, servicios, beneficios, nota_debito_reverso, costo_servicio_usd, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_recobro, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.asunto, NEW.fecha_inicio, NEW.fecha_final, NEW.servicios, NEW.beneficios, NEW.nota_debito_reverso, NEW.costo_servicio_usd, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_rec_auditoria AFTER UPDATE ON recobros
+DROP TRIGGER IF EXISTS trg_rec_auditoria;
+CREATE TRIGGER trg_rec_auditoria AFTER UPDATE ON recobros
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.asunto IS NOT NEW.asunto OR OLD.fecha_inicio IS NOT NEW.fecha_inicio OR OLD.fecha_final IS NOT NEW.fecha_final OR OLD.servicios IS NOT NEW.servicios OR OLD.beneficios IS NOT NEW.beneficios OR OLD.nota_debito_reverso IS NOT NEW.nota_debito_reverso OR OLD.costo_servicio_usd IS NOT NEW.costo_servicio_usd OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -386,13 +392,15 @@ CREATE TABLE IF NOT EXISTS hist_valuaciones (
     FOREIGN KEY (id_empresa) REFERENCES cat_empresas(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_val_inicial AFTER INSERT ON valuaciones
+DROP TRIGGER IF EXISTS trg_val_inicial;
+CREATE TRIGGER trg_val_inicial AFTER INSERT ON valuaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_valuaciones (id_valuacion, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, presupuesto_base_bs, presupuesto_base_usd, descripcion_proceso, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, nro_proceso, nro_contrato_sicac, nro_contrato_sap, id_empresa, tiempo_ejecucion, monto_adjudicado_bs, monto_adjudicado_usd, periodo_valuacion_desde, periodo_valuacion_hasta, monto_valuacion, nro_proforma, observaciones, notas)
     VALUES (NEW.id_valuacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.presupuesto_base_bs, NEW.presupuesto_base_usd, NEW.descripcion_proceso, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.nro_proceso, NEW.nro_contrato_sicac, NEW.nro_contrato_sap, NEW.id_empresa, NEW.tiempo_ejecucion, NEW.monto_adjudicado_bs, NEW.monto_adjudicado_usd, NEW.periodo_valuacion_desde, NEW.periodo_valuacion_hasta, NEW.monto_valuacion, NEW.nro_proforma, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_val_auditoria AFTER UPDATE ON valuaciones
+DROP TRIGGER IF EXISTS trg_val_auditoria;
+CREATE TRIGGER trg_val_auditoria AFTER UPDATE ON valuaciones
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.solped IS NOT NEW.solped OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.nro_proceso IS NOT NEW.nro_proceso OR OLD.nro_contrato_sicac IS NOT NEW.nro_contrato_sicac OR OLD.nro_contrato_sap IS NOT NEW.nro_contrato_sap OR OLD.id_empresa IS NOT NEW.id_empresa OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.monto_adjudicado_bs IS NOT NEW.monto_adjudicado_bs OR OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR OLD.periodo_valuacion_desde IS NOT NEW.periodo_valuacion_desde OR OLD.periodo_valuacion_hasta IS NOT NEW.periodo_valuacion_hasta OR OLD.monto_valuacion IS NOT NEW.monto_valuacion OR OLD.nro_proforma IS NOT NEW.nro_proforma OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -512,13 +520,15 @@ CREATE TABLE IF NOT EXISTS hist_aprobacion_jd (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_jd_inicial AFTER INSERT ON aprobacion_jd
+DROP TRIGGER IF EXISTS trg_jd_inicial;
+CREATE TRIGGER trg_jd_inicial AFTER INSERT ON aprobacion_jd
 FOR EACH ROW BEGIN
     INSERT INTO hist_aprobacion_jd (id_aprobacion_jd, id_gerencia, id_superintendencia, id_emisor, id_documento, solped, fecha_presupuesto_base, presupuesto_base_bs, tipo_cambio, presupuesto_base_usd, id_plan, descripcion_proceso, cantidad_frentes, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, tiempo_ejecucion, observaciones, notas)
     VALUES (NEW.id_aprobacion_jd, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.solped, NEW.fecha_presupuesto_base, NEW.presupuesto_base_bs, NEW.tipo_cambio, NEW.presupuesto_base_usd, NEW.id_plan, NEW.descripcion_proceso, NEW.cantidad_frentes, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.tiempo_ejecucion, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
+DROP TRIGGER IF EXISTS trg_jd_auditoria;
+CREATE TRIGGER trg_jd_auditoria AFTER UPDATE ON aprobacion_jd
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.solped IS NOT NEW.solped OR OLD.fecha_presupuesto_base IS NOT NEW.fecha_presupuesto_base OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.tipo_cambio IS NOT NEW.tipo_cambio OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.id_plan IS NOT NEW.id_plan OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.cantidad_frentes IS NOT NEW.cantidad_frentes OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -621,13 +631,15 @@ CREATE TABLE IF NOT EXISTS hist_certificacion_bdu (
     FOREIGN KEY (id_documento) REFERENCES cat_documento(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_bdu_inicial AFTER INSERT ON certificacion_bdu
+DROP TRIGGER IF EXISTS trg_bdu_inicial;
+CREATE TRIGGER trg_bdu_inicial AFTER INSERT ON certificacion_bdu
 FOR EACH ROW BEGIN
     INSERT INTO hist_certificacion_bdu (id_certificacion_bdu, id_gerencia, id_superintendencia, id_emisor, id_documento, presupuesto_base_total_usd, monto_adjudicado_total_usd, monto_contrato, monto_ejecutado, monto_pagado, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_certificacion_bdu, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.presupuesto_base_total_usd, NEW.monto_adjudicado_total_usd, NEW.monto_contrato, NEW.monto_ejecutado, NEW.monto_pagado, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
+DROP TRIGGER IF EXISTS trg_bdu_auditoria;
+CREATE TRIGGER trg_bdu_auditoria AFTER UPDATE ON certificacion_bdu
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.presupuesto_base_total_usd IS NOT NEW.presupuesto_base_total_usd OR OLD.monto_adjudicado_total_usd IS NOT NEW.monto_adjudicado_total_usd OR OLD.monto_contrato IS NOT NEW.monto_contrato OR OLD.monto_ejecutado IS NOT NEW.monto_ejecutado OR OLD.monto_pagado IS NOT NEW.monto_pagado OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -723,13 +735,15 @@ CREATE TABLE IF NOT EXISTS hist_vacaciones (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_vac_inicial AFTER INSERT ON vacaciones
+DROP TRIGGER IF EXISTS trg_vac_inicial;
+CREATE TRIGGER trg_vac_inicial AFTER INSERT ON vacaciones
 FOR EACH ROW BEGIN
     INSERT INTO hist_vacaciones (id_vacacion, id_gerencia, id_superintendencia, id_emisor, id_documento, anio, cantidad_dias, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, fecha_devuelto, id_receptor, observaciones, notas)
     VALUES (NEW.id_vacacion, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.anio, NEW.cantidad_dias, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.fecha_devuelto, NEW.id_receptor, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_vac_auditoria AFTER UPDATE ON vacaciones
+DROP TRIGGER IF EXISTS trg_vac_auditoria;
+CREATE TRIGGER trg_vac_auditoria AFTER UPDATE ON vacaciones
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.anio IS NOT NEW.anio OR OLD.cantidad_dias IS NOT NEW.cantidad_dias OR OLD.fecha_desde IS NOT NEW.fecha_desde OR OLD.fecha_hasta IS NOT NEW.fecha_hasta OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN
@@ -816,13 +830,15 @@ CREATE TABLE IF NOT EXISTS hist_reposos_medicos (
     FOREIGN KEY (id_estatus) REFERENCES cat_estatus_detalle(id)
 );
 
-CREATE TRIGGER IF NOT EXISTS trg_rep_inicial AFTER INSERT ON reposos_medicos
+DROP TRIGGER IF EXISTS trg_rep_inicial;
+CREATE TRIGGER trg_rep_inicial AFTER INSERT ON reposos_medicos
 FOR EACH ROW BEGIN
     INSERT INTO hist_reposos_medicos (id_reposo_medico, id_gerencia, id_superintendencia, id_emisor, id_documento, dias_periodo, fecha_desde, fecha_hasta, id_estatus, fecha_recibido, observaciones, notas)
     VALUES (NEW.id_reposo_medico, NEW.id_gerencia, NEW.id_superintendencia, NEW.id_emisor, NEW.id_documento, NEW.dias_periodo, NEW.fecha_desde, NEW.fecha_hasta, NEW.id_estatus, NEW.fecha_recibido, NEW.observaciones, NEW.notas);
 END;
 
-CREATE TRIGGER IF NOT EXISTS trg_rep_auditoria AFTER UPDATE ON reposos_medicos
+DROP TRIGGER IF EXISTS trg_rep_auditoria;
+CREATE TRIGGER trg_rep_auditoria AFTER UPDATE ON reposos_medicos
 FOR EACH ROW
 WHEN OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.dias_periodo IS NOT NEW.dias_periodo OR OLD.fecha_desde IS NOT NEW.fecha_desde OR OLD.fecha_hasta IS NOT NEW.fecha_hasta OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas
 BEGIN

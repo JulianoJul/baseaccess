@@ -61,6 +61,18 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"truncate":   truncate,
 		"isSelected": isSelected,
 		"default":    defaultVal,
+		"excelOrder": func(modulo, col string) int {
+			cfg, ok := Modulos[modulo]
+			if !ok {
+				return 999
+			}
+			for i, c := range cfg.OrdenExcel {
+				if c == col {
+					return i + 1
+				}
+			}
+			return 999
+		},
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html", "templates/new/*.html")
@@ -1224,17 +1236,22 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	}
 
 	keysOrdered := make([]string, 0, len(filas[0]))
-	for k := range filas[0] {
-		keysOrdered = append(keysOrdered, k)
-	}
-	sort.Strings(keysOrdered)
-	for i, k := range keysOrdered {
-		if k == cfg.IDColumna {
-			copy(keysOrdered[1:i+1], keysOrdered[0:i])
-			keysOrdered[0] = k
-			break
+	// Build column order: OrdenExcel first, then any extra columns sorted alphabetically
+	excelKeys := map[string]bool{}
+	for _, k := range cfg.OrdenExcel {
+		if _, ok := filas[0][k]; ok {
+			keysOrdered = append(keysOrdered, k)
+			excelKeys[k] = true
 		}
 	}
+	var extra []string
+	for k := range filas[0] {
+		if !excelKeys[k] {
+			extra = append(extra, k)
+		}
+	}
+	sort.Strings(extra)
+	keysOrdered = append(keysOrdered, extra...)
 
 	if len(columnasSel) > 0 {
 		sel := map[string]bool{}

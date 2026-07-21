@@ -8,7 +8,10 @@ SCHEMA_FILES = [
     os.path.join(os.path.dirname(__file__), 'sql', '02_modulos_adicionales.sql'),
     os.path.join(os.path.dirname(__file__), 'sql', '03_ruta_procesos.sql'),
 ]
-DATA = os.path.join(os.path.dirname(__file__), 'datos_excel.sql')
+DATA_FILES = [
+    os.path.join(os.path.dirname(__file__), 'datos_excel.sql'),
+    os.path.join(os.path.dirname(__file__), 'Datos_excel2.sql'),
+]
 EXCEL = os.path.join(os.path.dirname(__file__), 'CONTROL DE DOCUMENTOS JUNIO 2026.xlsx')
 
 COLUMNS = [
@@ -85,12 +88,8 @@ def main():
         with open(schema_file) as f:
             cur.executescript(f.read())
 
-    # Desactivar el trigger de auditoría durante la migración para que
-    # no sobreescriba fecha_actualizacion con CURRENT_DATE en los UPDATE
-    # (queremos que fecha_actualizacion refleje el último movimiento del historial)
-    cur.execute("DROP TRIGGER trg_exp_auditoria")
-
-    with open(DATA) as f:
+    # Procesar datos_excel.sql (catálogos + expedientes)
+    with open(DATA_FILES[0]) as f:
         data_sql = f.read()
 
     catalog_sections = data_sql.split('INSERT INTO expedientes')[0]
@@ -98,6 +97,10 @@ def main():
 
     rows_part = 'INSERT INTO expedientes' + data_sql.split('INSERT INTO expedientes')[1]
     lines = rows_part.split('\n')
+
+    # Ejecutar Datos_excel2.sql (otros módulos: req_materiales, memorandums, recobros, etc.)
+    with open(DATA_FILES[1]) as f:
+        cur.executescript(f.read())
 
     all_rows = []
     # Valores esperados por fila del SQL: 31 (sin notas, fecha_creacion, fecha_actualizacion)
@@ -240,56 +243,6 @@ def main():
     upd_count = cur.rowcount
     con.commit()
     print(f"fecha_actualizacion recalculada para {upd_count} expedientes (último movimiento del historial)")
-
-    # Recrear el trigger de auditoría eliminado al inicio
-    cur.executescript("""
-        CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
-        FOR EACH ROW
-        BEGIN
-            INSERT INTO historial_movimientos (
-                id_expediente, solped, id_gerencia, id_superintendencia,
-                id_emisor, id_receptor, id_documento, id_plan,
-                id_modalidad, id_art, id_tipo_contrato, id_estatus,
-                id_resultado, id_empresa,
-                fecha_recibido, fecha_devuelto, fecha_presupuesto_base,
-                fecha_firma_contrato,
-                nro_proceso, nro_acta_apertura, nro_resolucion_jd,
-                nro_contrato_sicac, nro_contrato_sap,
-                descripcion_proceso,
-                presupuesto_base_usd, presupuesto_base_bs, tipo_cambio,
-                monto_adjudicado_usd, monto_adjudicado_bs,
-                tiempo_ejecucion, cantidad_frentes,
-                observaciones, notas
-            ) VALUES (
-                NEW.id_expediente, NEW.solped, NEW.id_gerencia, NEW.id_superintendencia,
-                NEW.id_emisor, NEW.id_receptor, NEW.id_documento, NEW.id_plan,
-                NEW.id_modalidad, NEW.id_art, NEW.id_tipo_contrato, NEW.id_estatus,
-                NEW.id_resultado, NEW.id_empresa,
-                NEW.fecha_recibido, NEW.fecha_devuelto, NEW.fecha_presupuesto_base,
-                NEW.fecha_firma_contrato,
-                NEW.nro_proceso, NEW.nro_acta_apertura, NEW.nro_resolucion_jd,
-                NEW.nro_contrato_sicac, NEW.nro_contrato_sap,
-                NEW.descripcion_proceso,
-                NEW.presupuesto_base_usd, NEW.presupuesto_base_bs, NEW.tipo_cambio,
-                NEW.monto_adjudicado_usd, NEW.monto_adjudicado_bs,
-                NEW.tiempo_ejecucion, NEW.cantidad_frentes,
-                NEW.observaciones, NEW.notas
-            );
-            UPDATE expedientes
-            SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'PENDIENTE' LIMIT 1)
-            WHERE NEW.fecha_firma_contrato IS NULL
-              AND OLD.fecha_firma_contrato IS NOT NULL
-              AND id_expediente = NEW.id_expediente;
-            UPDATE expedientes
-            SET id_estatus = (SELECT id FROM cat_estatus_detalle WHERE nombre = 'FIRMADO' LIMIT 1)
-            WHERE NEW.fecha_firma_contrato IS NOT NULL
-              AND id_expediente = NEW.id_expediente;
-            UPDATE expedientes
-            SET fecha_actualizacion = CURRENT_DATE
-            WHERE id_expediente = NEW.id_expediente;
-        END;
-    """)
-    con.commit()
 
     hist_count = cur.execute("SELECT COUNT(*) FROM historial_movimientos").fetchone()[0]
     exp_count = cur.execute("SELECT COUNT(*) FROM expedientes").fetchone()[0]

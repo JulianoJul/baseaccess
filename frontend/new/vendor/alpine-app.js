@@ -471,6 +471,8 @@ document.addEventListener('alpine:init', () => {
     lastSource: {},
     _obsReady: false,
     _pendingObs: {},
+    ordenExcel: false,
+    _fieldStructure: null,
 
     init() {
       if (!this.registro.id_estatus) this.registro.id_estatus = '1';
@@ -507,6 +509,50 @@ document.addEventListener('alpine:init', () => {
       return parts.length ? parts.join(', ') : '';
     },
 
+    toggleOrden() {
+      this.ordenExcel = !this.ordenExcel;
+      this.$nextTick(() => this._reordenar());
+    },
+
+    _reordenar() {
+      const container = this.$el.querySelector('#excel-order-container');
+      if (!container) return;
+
+      if (this.ordenExcel) {
+        if (!this._fieldStructure) {
+          this._fieldStructure = [];
+          this.$el.querySelectorAll('[data-orden-excel]').forEach(el => {
+            this._fieldStructure.push({
+              el: el,
+              parent: el.parentNode,
+              next: el.nextSibling
+            });
+          });
+        }
+
+        this.$el.querySelectorAll('fieldset').forEach(fs => fs.style.display = 'none');
+
+        const fields = Array.from(this.$el.querySelectorAll('[data-orden-excel]'));
+        fields.sort((a, b) => parseInt(a.dataset.ordenExcel) - parseInt(b.dataset.ordenExcel));
+
+        container.innerHTML = '';
+        fields.forEach(f => container.appendChild(f));
+        container.style.display = '';
+      } else {
+        container.style.display = 'none';
+        if (this._fieldStructure) {
+          this._fieldStructure.forEach(item => {
+            if (item.next) {
+              item.parent.insertBefore(item.el, item.next);
+            } else {
+              item.parent.appendChild(item.el);
+            }
+          });
+        }
+        this.$el.querySelectorAll('fieldset').forEach(fs => fs.style.display = '');
+      }
+    },
+
     _obsCambio(label, oldVal, newVal) {
       if (!this._obsReady) return;
       const old = String(oldVal || '').trim();
@@ -515,7 +561,7 @@ document.addEventListener('alpine:init', () => {
       this._pendingObs[label] = true;
       const linea = this._obsLineaCompleta();
       if (!linea) return;
-      this.autoObs = this.autoHistorial ? this.autoHistorial + '\n' + linea : linea;
+      this.autoObs = linea;
     },
 
     _obsLabel(label, val) {

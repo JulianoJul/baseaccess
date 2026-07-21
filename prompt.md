@@ -9,7 +9,7 @@ App de escritorio con **Wails v2** (Go backend nativo, frontend web embebido) pa
 **No intentes compilar ni ejecutar la app.** Wails requiere Go + WebView2/WebKitGTK. Solo audita el código.
 
 **IMPORTANTE - LECTURA DE ARCHIVOS:**
-- ✅ **LEE:** `main.go`, `app.go`, `handler.go`, `templates/index.html`, `templates/components.html`, `templates/form_*.html`, `templates/tabla_*.html`, `frontend/vendor/app.js`, `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql`, `data/sql/03_ruta_procesos.sql`, `docs/doc.md`, `docs/funciones.md`
+- **LEE:** `main.go`, `app.go`, `handler.go`, `templates/new/index.html`, `templates/new/components.html`, `templates/new/form.html`, `templates/new/tabla.html`, `templates/new/ruta_procesos.html`, `templates/historial.html`, `templates/pendientes.html`, `frontend/new/vendor/alpine-app.js`, `frontend/new/vendor/alpine-directives.js`, `frontend/new/vendor/alpine-htmx-bridge.js`, `data/sql/01_master_control_docs_presidencia.sql`, `data/sql/02_modulos_adicionales.sql`, `data/sql/03_ruta_procesos.sql`, `data/importar_datos.py`, `docs/doc.md`, `docs/funciones.md`, `docs/mapeo_excel_bd.md`, `handler_test.go`, `app_test.go`
 - ❌ **NO LEAS:** Archivos legacy en `docs/legacy/` (históricos, no reflejan el código actual)
 - Lee los archivos individuales, NO hay un consolidated file.
 

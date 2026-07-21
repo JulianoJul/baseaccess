@@ -154,7 +154,8 @@ CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(
 -- durante las correcciones automáticas del trigger INSERT.
 
 -- Snapshot inicial al crear expediente
-CREATE TRIGGER IF NOT EXISTS trg_exp_snapshot_inicial AFTER INSERT ON expedientes
+DROP TRIGGER IF EXISTS trg_exp_snapshot_inicial;
+CREATE TRIGGER trg_exp_snapshot_inicial AFTER INSERT ON expedientes
 FOR EACH ROW
 BEGIN
     INSERT OR IGNORE INTO historial_movimientos (
@@ -199,7 +200,8 @@ BEGIN
     WHERE id_expediente = NEW.id_expediente
       AND id_estatus IS NOT (CASE WHEN NEW.fecha_firma_contrato IS NULL THEN 1 ELSE 2 END);
 END;
-CREATE TRIGGER IF NOT EXISTS trg_exp_auditoria AFTER UPDATE ON expedientes
+DROP TRIGGER IF EXISTS trg_exp_auditoria;
+CREATE TRIGGER trg_exp_auditoria AFTER UPDATE ON expedientes
 FOR EACH ROW
 WHEN (OLD.solped IS NOT NEW.solped OR OLD.id_gerencia IS NOT NEW.id_gerencia OR OLD.id_superintendencia IS NOT NEW.id_superintendencia OR OLD.id_emisor IS NOT NEW.id_emisor OR OLD.id_receptor IS NOT NEW.id_receptor OR OLD.id_documento IS NOT NEW.id_documento OR OLD.id_plan IS NOT NEW.id_plan OR OLD.id_modalidad IS NOT NEW.id_modalidad OR OLD.id_art IS NOT NEW.id_art OR OLD.id_tipo_contrato IS NOT NEW.id_tipo_contrato OR OLD.id_estatus IS NOT NEW.id_estatus OR OLD.id_resultado IS NOT NEW.id_resultado OR OLD.id_empresa IS NOT NEW.id_empresa OR OLD.fecha_recibido IS NOT NEW.fecha_recibido OR OLD.fecha_devuelto IS NOT NEW.fecha_devuelto OR OLD.fecha_presupuesto_base IS NOT NEW.fecha_presupuesto_base OR OLD.fecha_firma_contrato IS NOT NEW.fecha_firma_contrato OR OLD.nro_proceso IS NOT NEW.nro_proceso OR OLD.nro_acta_apertura IS NOT NEW.nro_acta_apertura OR OLD.nro_resolucion_jd IS NOT NEW.nro_resolucion_jd OR OLD.nro_contrato_sicac IS NOT NEW.nro_contrato_sicac OR OLD.nro_contrato_sap IS NOT NEW.nro_contrato_sap OR OLD.descripcion_proceso IS NOT NEW.descripcion_proceso OR OLD.presupuesto_base_usd IS NOT NEW.presupuesto_base_usd OR OLD.presupuesto_base_bs IS NOT NEW.presupuesto_base_bs OR OLD.tipo_cambio IS NOT NEW.tipo_cambio OR OLD.monto_adjudicado_usd IS NOT NEW.monto_adjudicado_usd OR OLD.monto_adjudicado_bs IS NOT NEW.monto_adjudicado_bs OR OLD.tiempo_ejecucion IS NOT NEW.tiempo_ejecucion OR OLD.cantidad_frentes IS NOT NEW.cantidad_frentes OR OLD.observaciones IS NOT NEW.observaciones OR OLD.notas IS NOT NEW.notas)
 BEGIN
