@@ -3,7 +3,11 @@ import re
 import os
 
 DB = os.path.join(os.path.dirname(__file__), 'expedientes.db')
-SCHEMA = os.path.join(os.path.dirname(__file__), 'sql', 'Tablas8.sql')
+SCHEMA_FILES = [
+    os.path.join(os.path.dirname(__file__), 'sql', '01_master_control_docs_presidencia.sql'),
+    os.path.join(os.path.dirname(__file__), 'sql', '02_modulos_adicionales.sql'),
+    os.path.join(os.path.dirname(__file__), 'sql', '03_ruta_procesos.sql'),
+]
 DATA = os.path.join(os.path.dirname(__file__), 'datos_excel.sql')
 EXCEL = os.path.join(os.path.dirname(__file__), 'CONTROL DE DOCUMENTOS JUNIO 2026.xlsx')
 
@@ -77,8 +81,9 @@ def main():
     con.execute("PRAGMA foreign_keys = OFF")
     cur = con.cursor()
 
-    with open(SCHEMA) as f:
-        cur.executescript(f.read())
+    for schema_file in SCHEMA_FILES:
+        with open(schema_file) as f:
+            cur.executescript(f.read())
 
     # Desactivar el trigger de auditoría durante la migración para que
     # no sobreescriba fecha_actualizacion con CURRENT_DATE en los UPDATE
@@ -166,6 +171,9 @@ def main():
         if solped and solped.strip():
             if solped in solped_to_id:
                 existing_id = solped_to_id[solped]
+                existing_obs = cur.execute("SELECT observaciones FROM expedientes WHERE id_expediente = ?", (existing_id,)).fetchone()[0]
+                if vals[30] and existing_obs:
+                    vals[30] = existing_obs + '\n' + vals[30]
                 vals.append(existing_id)
                 try:
                     cur.execute(f"UPDATE expedientes SET {update_set} WHERE id_expediente = ?", vals)
@@ -199,6 +207,9 @@ def main():
                 existing = cur.fetchone()
                 if existing:
                     existing_id = existing[0]
+                    existing_obs = cur.execute("SELECT observaciones FROM expedientes WHERE id_expediente = ?", (existing_id,)).fetchone()[0]
+                    if vals[30] and existing_obs:
+                        vals[30] = existing_obs + '\n' + vals[30]
                     vals.append(existing_id)
                     try:
                         cur.execute(f"UPDATE expedientes SET {update_set} WHERE id_expediente = ?", vals)
