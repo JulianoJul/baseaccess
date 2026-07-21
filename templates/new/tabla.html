@@ -304,3 +304,77 @@
     {{end}}
 
 </div>
+
+<style>
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 10;
+}
+.col-resizer:hover,
+.col-resizing .col-resizer {
+  background-color: rgba(45, 212, 191, 0.4);
+}
+</style>
+<script>
+(function() {
+  var mod = document.getElementById('active-module-val');
+  var moduleKey = mod ? mod.value : 'expedientes';
+  var STORAGE_KEY = 'col_widths_' + moduleKey;
+
+  function loadWidths() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
+  }
+  function saveWidths(widths) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(widths)); } catch(e) {}
+  }
+
+  var widths = loadWidths();
+  var table = document.querySelector('#tabla-cuerpo')?.closest('table');
+  if (!table) return;
+
+  var headers = table.querySelectorAll('thead th');
+  headers.forEach(function(th, idx) {
+    var key = th.textContent.trim() || 'col_' + idx;
+    if (widths[key]) {
+      th.style.width = widths[key] + 'px';
+    }
+    th.style.position = 'relative';
+    th.classList.add('select-none');
+
+    var resizer = document.createElement('div');
+    resizer.className = 'col-resizer';
+    th.appendChild(resizer);
+
+    var startX, startW;
+    resizer.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      startX = e.clientX;
+      startW = th.offsetWidth;
+      table.classList.add('col-resizing');
+      document.documentElement.style.cursor = 'col-resize';
+
+      function onMouseMove(ev) {
+        var diff = ev.clientX - startX;
+        var newW = Math.max(50, startW + diff);
+        th.style.width = newW + 'px';
+      }
+      function onMouseUp() {
+        table.classList.remove('col-resizing');
+        document.documentElement.style.cursor = '';
+        var finalW = th.offsetWidth;
+        widths[key] = finalW;
+        saveWidths(widths);
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+      }
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+    });
+  });
+})();
+</script>
