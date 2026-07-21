@@ -129,15 +129,22 @@
                     Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.
                 </div>
                 {{else}}
-                    {{if eq .ActiveModule "expedientes"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "requisiciones"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "memorandums"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "recobros"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "valuaciones"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "aprobacion_jd"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "certificacion_bdu"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "vacaciones"}}{{template "tabla.html" .}}{{end}}
-                    {{if eq .ActiveModule "reposos_medicos"}}{{template "tabla.html" .}}{{end}}
+                    {{if .Error}}
+                    <div class="bg-red-900/30 rounded-xl shadow-xl overflow-hidden border border-red-700/60 w-full p-8 text-center">
+                        <p class="text-red-400 font-semibold mb-2"><i class="fas fa-triangle-exclamation mr-2"></i>Error al cargar datos</p>
+                        <p class="text-red-300 text-sm">{{.Error}}</p>
+                    </div>
+                    {{else}}
+                        {{if eq .ActiveModule "expedientes"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "requisiciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "memorandums"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "recobros"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "valuaciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "aprobacion_jd"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "certificacion_bdu"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "vacaciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "reposos_medicos"}}{{template "tabla.html" .}}{{end}}
+                    {{end}}
                 {{end}}
             </div>
         </div>
@@ -447,11 +454,16 @@
                     });
                 }
                 if (path) {
-                    await fetch('/api/abrir-bd', {
+                    const res = await fetch('/api/abrir-bd', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'path=' + encodeURIComponent(path)
                     });
+                    if (!res.ok) {
+                        const text = await res.text();
+                        Alpine.store('toast').error('Error abriendo BD: ' + text);
+                        return;
+                    }
                     location.reload();
                 }
             } catch(e) {
@@ -467,14 +479,19 @@
                     if (!f) return;
                     const path = f.path || f.name;
                     try {
-                        await fetch('/api/abrir-bd', {
+                        const res = await fetch('/api/abrir-bd', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                             body: 'path=' + encodeURIComponent(path)
                         });
+                        if (!res.ok) {
+                            const text = await res.text();
+                            Alpine.store('toast').error('Error abriendo BD: ' + text);
+                            return;
+                        }
                         location.reload();
                     } catch(err) {
-                        window.Alpine.store('toast').error('Error al abrir BD: ' + err);
+                        Alpine.store('toast').error('Error de conexión al abrir BD: ' + err);
                     }
                 });
             }
