@@ -516,7 +516,13 @@ document.addEventListener('alpine:init', () => {
 
     _reordenar() {
       const container = this.$el.querySelector('#excel-order-container');
-      if (!container) return;
+      if (!container) {
+        console.warn('[OrdenExcel] #excel-order-container no encontrado');
+        return;
+      }
+
+      const allFields = Array.from(this.$el.querySelectorAll('[data-orden-excel]'));
+      console.log('[OrdenExcel] estado=' + this.ordenExcel + ', campos=' + allFields.length);
 
       if (this.ordenExcel) {
         if (!this._fieldStructure) {
@@ -533,6 +539,7 @@ document.addEventListener('alpine:init', () => {
 
         const fields = Array.from(this.$el.querySelectorAll('[data-orden-excel]'));
         fields.sort((a, b) => parseInt(a.dataset.ordenExcel) - parseInt(b.dataset.ordenExcel));
+        console.log('[OrdenExcel] ordenando ' + fields.length + ' campos');
 
         container.innerHTML = '';
         fields.forEach(f => container.appendChild(f));
