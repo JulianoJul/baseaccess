@@ -343,12 +343,12 @@ select.input option {
 .gantt-cell-entries {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 2px 0;
+  gap: 3px;
+  padding: 3px 0;
 }
 .gantt-cell-entry {
-  min-height: 6px;
-  border-radius: 2px;
+  min-height: 12px;
+  border-radius: 3px;
   flex-shrink: 0;
 }
 .gantt-cell-active:hover {
