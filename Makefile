@@ -7,8 +7,6 @@ combine:
 	  echo "" && echo "=== main.go ===" && cat main.go && \
 	  echo "" && echo "=== app.go ===" && cat app.go && \
 	  echo "" && echo "=== handler.go ===" && cat handler.go && \
-	  echo "" && echo "=== handler_test.go ===" && cat handler_test.go && \
-	  echo "" && echo "=== app_test.go ===" && cat app_test.go && \
 	  echo "" && echo "=== templates/new/index.html ===" && cat templates/new/index.html && \
 	  echo "" && echo "=== templates/new/components.html ===" && cat templates/new/components.html && \
 	  echo "" && echo "=== templates/new/form.html ===" && cat templates/new/form.html && \
@@ -18,15 +16,7 @@ combine:
 	  echo "" && echo "=== templates/pendientes.html ===" && cat templates/pendientes.html && \
 	  echo "" && echo "=== frontend/new/vendor/alpine-app.js ===" && cat frontend/new/vendor/alpine-app.js && \
 	  echo "" && echo "=== frontend/new/vendor/alpine-directives.js ===" && cat frontend/new/vendor/alpine-directives.js && \
-	  echo "" && echo "=== frontend/new/vendor/alpine-htmx-bridge.js ===" && cat frontend/new/vendor/alpine-htmx-bridge.js && \
-	  echo "" && echo "=== data/sql/01_master_control_docs_presidencia.sql ===" && cat data/sql/01_master_control_docs_presidencia.sql && \
-	  echo "" && echo "=== data/sql/02_modulos_adicionales.sql ===" && cat data/sql/02_modulos_adicionales.sql && \
-	  echo "" && echo "=== data/sql/03_ruta_procesos.sql ===" && cat data/sql/03_ruta_procesos.sql && \
-	  echo "" && echo "=== data/importar_datos.py ===" && cat data/importar_datos.py && \
-	  echo "" && echo "=== docs/doc.md ===" && cat docs/doc.md && \
-	  echo "" && echo "=== docs/funciones.md ===" && cat docs/funciones.md && \
-	  echo "" && echo "=== docs/mapeo_excel_bd.md ===" && cat docs/mapeo_excel_bd.md && \
-	  echo "" && echo "=== prompt.md ===" && cat prompt.md; \
+	  echo "" && echo "=== frontend/new/vendor/alpine-htmx-bridge.js ===" && cat frontend/new/vendor/alpine-htmx-bridge.js; \
 	} > combined.txt
 	@echo "combined.txt generado"
 
