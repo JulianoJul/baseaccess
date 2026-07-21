@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [master, wails-migration]
+    branches: [master]
   workflow_dispatch:
 
 jobs:
@@ -13,10 +13,12 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            artifact-name: GestionExpedientes-Wails-Linux
+            label: linux
+            artifact-name: GestionExpedientes-Linux
             upload-path: build/bin/GestionExpedientes
           - os: windows-latest
-            artifact-name: GestionExpedientes-Wails-Windows
+            label: windows
+            artifact-name: GestionExpedientes-Windows
             upload-path: build/bin/
 
     runs-on: ${{ matrix.os }}
@@ -31,24 +33,24 @@ jobs:
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      - name: Install system dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install system dependencies (${{ matrix.label }})
+        if: matrix.label == 'linux'
         run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
-      - name: Build Wails (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build Wails (${{ matrix.label }})
+        if: matrix.label == 'linux'
         run: wails build -platform linux/amd64
 
-      - name: Cache WebView2 Fixed Runtime (Windows)
+      - name: Cache WebView2 Fixed Runtime (${{ matrix.label }})
         id: cache-webview-wails
-        if: matrix.os == 'windows-latest'
+        if: matrix.label == 'windows'
         uses: actions/cache@v4
         with:
           path: Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64
           key: wails-webview2-v150
 
-      - name: Download & extract WebView2 fixed runtime (Windows)
-        if: matrix.os == 'windows-latest' && steps.cache-webview-wails.outputs.cache-hit != 'true'
+      - name: Download & extract WebView2 fixed runtime (${{ matrix.label }})
+        if: matrix.label == 'windows' && steps.cache-webview-wails.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $cab = "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64.cab"
@@ -81,25 +83,25 @@ jobs:
             }
           }
 
-      - name: Build Wails (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Build Wails (${{ matrix.label }})
+        if: matrix.label == 'windows'
         run: wails build -platform windows/amd64 -webview2 embed
 
-      - name: Copy WebView2 runtime alongside binary (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Copy WebView2 runtime alongside binary (${{ matrix.label }})
+        if: matrix.label == 'windows'
         shell: pwsh
         run: |
           Copy-Item -Recurse "Microsoft.WebView2.FixedVersionRuntime.150.0.4078.65.x64" -Destination "build/bin/"
 
-      - name: Upload Wails artifact (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Upload Wails artifact (${{ matrix.label }})
+        if: matrix.label == 'linux'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
           path: build/bin/GestionExpedientes
 
-      - name: Upload Wails artifact (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Upload Wails artifact (${{ matrix.label }})
+        if: matrix.label == 'windows'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact-name }}
