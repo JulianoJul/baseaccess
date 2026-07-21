@@ -60,6 +60,8 @@ export function ObtenerRutaProcesosData(arg1:number,arg2:number):Promise<main.Ru
 
 export function OptimizarBD():Promise<void>;
 
+export function ReordenarRutaProcesosLeyenda(arg1:number,arg2:number):Promise<void>;
+
 export function SetBackupMaxCopies(arg1:number):Promise<void>;
 
 export function ToggleRutaProceso(arg1:number,arg2:boolean):Promise<void>;

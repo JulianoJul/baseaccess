@@ -50,6 +50,7 @@ export namespace main {
 	    id: number;
 	    status_name: string;
 	    hex_color: string;
+	    orden: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new RutaProcesosLegend(source);
@@ -60,6 +61,7 @@ export namespace main {
 	        this.id = source["id"];
 	        this.status_name = source["status_name"];
 	        this.hex_color = source["hex_color"];
+	        this.orden = source["orden"];
 	    }
 	}
 	export class RutaProcesosGanttData {

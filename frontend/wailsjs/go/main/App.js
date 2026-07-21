@@ -118,6 +118,10 @@ export function OptimizarBD() {
   return window['go']['main']['App']['OptimizarBD']();
 }
 
+export function ReordenarRutaProcesosLeyenda(arg1, arg2) {
+  return window['go']['main']['App']['ReordenarRutaProcesosLeyenda'](arg1, arg2);
+}
+
 export function SetBackupMaxCopies(arg1) {
   return window['go']['main']['App']['SetBackupMaxCopies'](arg1);
 }

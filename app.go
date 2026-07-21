@@ -440,7 +440,8 @@ func (a *App) initRutaProcesosSchema() error {
 		`CREATE TABLE IF NOT EXISTS ruta_procesos_leyenda (
 			id          INTEGER PRIMARY KEY AUTOINCREMENT,
 			status_name TEXT NOT NULL UNIQUE,
-			hex_color   TEXT NOT NULL
+			hex_color   TEXT NOT NULL,
+			orden       INTEGER NOT NULL DEFAULT 0
 		)`,
 		`CREATE TABLE IF NOT EXISTS ruta_procesos_hojas (
 			id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -469,21 +470,25 @@ func (a *App) initRutaProcesosSchema() error {
 			CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente),
 			CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 		)`,
-		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
-			('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757'),
-			('ANÁLISIS ECONÓMICO', '#1E90FF'),
-			('ANÁLISIS TÉCNICO', '#2ED573'),
-			('APERTURA DE OFERTAS', '#FFA502'),
-			('APROBACIÓN PRESIDENCIA', '#A855F7'),
-			('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3'),
-			('INICIO (COMISIÓN)', '#FF6B81'),
-			('INICIO (CONTRATACIÓN)', '#2BCBBA'),
-			('RESULTADOS', '#FDCB6E'),
-			('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7')`,
+		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color, orden) VALUES
+			('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757', 1),
+			('INICIO (CONTRATACIÓN)', '#2BCBBA', 2),
+			('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7', 3),
+			('INICIO (COMISIÓN)', '#FF6B81', 4),
+			('APERTURA DE OFERTAS', '#FFA502', 5),
+			('ANÁLISIS TÉCNICO', '#2ED573', 6),
+			('ANÁLISIS ECONÓMICO', '#1E90FF', 7),
+			('RESULTADOS', '#FDCB6E', 8),
+			('APROBACIÓN PRESIDENCIA', '#A855F7', 9),
+			('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3', 10)`,
 		`INSERT OR IGNORE INTO ruta_procesos_hojas (id, nombre, fecha_inicio, fecha_fin) VALUES (1, 'Default', '2024-01-01', '2024-12-31')`,
+		`ALTER TABLE ruta_procesos_leyenda ADD COLUMN orden INTEGER NOT NULL DEFAULT 0`,
 	}
 	for _, s := range statements {
 		if _, err := a.db.Exec(s); err != nil {
+			if strings.Contains(err.Error(), "duplicate column") {
+				continue
+			}
 			return fmt.Errorf("error ejecutando: %s: %w", s[:60], err)
 		}
 	}
@@ -977,6 +982,7 @@ type RutaProcesosLegend struct {
 	ID         int    `json:"id"`
 	StatusName string `json:"status_name"`
 	HexColor   string `json:"hex_color"`
+	Orden      int    `json:"orden"`
 }
 
 type RutaProcesosProceso struct {
@@ -1014,7 +1020,7 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 		return nil, fmt.Errorf("no hay BD abierta")
 	}
 
-	legendRows, err := a.db.Query("SELECT id, status_name, hex_color FROM ruta_procesos_leyenda ORDER BY status_name COLLATE NOCASE")
+	legendRows, err := a.db.Query("SELECT id, status_name, hex_color, orden FROM ruta_procesos_leyenda ORDER BY orden, status_name COLLATE NOCASE")
 	if err != nil {
 		return nil, err
 	}
@@ -1023,7 +1029,7 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 	legendMap := make(map[string]string) // Map to quickly find colors
 	for legendRows.Next() {
 		var l RutaProcesosLegend
-		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor); err != nil {
+		if err := legendRows.Scan(&l.ID, &l.StatusName, &l.HexColor, &l.Orden); err != nil {
 			log.Printf("ObtenerRutaProcesosData: scan leyenda: %v", err)
 			continue
 		}
@@ -1490,6 +1496,34 @@ func (a *App) ActualizarRutaProcesosLeyenda(id int, nombre, color string) error 
 		return fmt.Errorf("no hay BD abierta")
 	}
 	_, err := a.db.Exec("UPDATE ruta_procesos_leyenda SET status_name = ?, hex_color = ? WHERE id = ?", nombre, color, id)
+	return err
+}
+
+func (a *App) ReordenarRutaProcesosLeyenda(id, direction int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
+	}
+	// Get current orden
+	var curOrden int
+	err := a.db.QueryRow("SELECT orden FROM ruta_procesos_leyenda WHERE id = ?", id).Scan(&curOrden)
+	if err != nil {
+		return err
+	}
+	newOrden := curOrden + direction
+	// Find the legend that currently has newOrden
+	var swapID int
+	err = a.db.QueryRow("SELECT id FROM ruta_procesos_leyenda WHERE orden = ?", newOrden).Scan(&swapID)
+	if err != nil {
+		return nil // no legend to swap with (already at edge)
+	}
+	// Swap orden values
+	_, err = a.db.Exec("UPDATE ruta_procesos_leyenda SET orden = ? WHERE id = ?", newOrden, id)
+	if err != nil {
+		return err
+	}
+	_, err = a.db.Exec("UPDATE ruta_procesos_leyenda SET orden = ? WHERE id = ?", curOrden, swapID)
 	return err
 }
 

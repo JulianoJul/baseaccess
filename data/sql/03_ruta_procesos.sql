@@ -4,7 +4,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS ruta_procesos_leyenda (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     status_name TEXT NOT NULL UNIQUE,
-    hex_color   TEXT NOT NULL
+    hex_color   TEXT NOT NULL,
+    orden       INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS ruta_procesos_hojas (
@@ -37,15 +38,15 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
     CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
 );
 
--- Leyenda base (orden alfabético)
-INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color) VALUES
-('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757'),
-('ANÁLISIS ECONÓMICO', '#1E90FF'),
-('ANÁLISIS TÉCNICO', '#2ED573'),
-('APERTURA DE OFERTAS', '#FFA502'),
-('APROBACIÓN PRESIDENCIA', '#A855F7'),
-('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3'),
-('INICIO (COMISIÓN)', '#FF6B81'),
-('INICIO (CONTRATACIÓN)', '#2BCBBA'),
-('RESULTADOS', '#FDCB6E'),
-('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7');
+-- Leyenda base (orden personalizado)
+INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color, orden) VALUES
+('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757', 1),
+('INICIO (CONTRATACIÓN)', '#2BCBBA', 2),
+('VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7', 3),
+('INICIO (COMISIÓN)', '#FF6B81', 4),
+('APERTURA DE OFERTAS', '#FFA502', 5),
+('ANÁLISIS TÉCNICO', '#2ED573', 6),
+('ANÁLISIS ECONÓMICO', '#1E90FF', 7),
+('RESULTADOS', '#FDCB6E', 8),
+('APROBACIÓN PRESIDENCIA', '#A855F7', 9),
+('CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3', 10);

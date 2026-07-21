@@ -410,7 +410,7 @@ select.input option {
 .gantt-legend-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
   background-color: var(--bg-card);
   border: 1px solid var(--bg-surface-800);
   border-radius: 6px;
@@ -436,6 +436,28 @@ select.input option {
   color: var(--text-light);
   line-height: 1.25;
   word-break: break-word;
+  cursor: pointer;
+}
+.gantt-legend-arrows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex-shrink: 0;
+}
+.legend-arrow {
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-muted);
+  font-size: 8px;
+  line-height: 1;
+  padding: 1px 2px;
+  cursor: pointer;
+  border-radius: 2px;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+.legend-arrow:hover {
+  color: var(--text-light);
+  border-color: var(--border-default);
 }
 
 /* Proceso tarjeta */

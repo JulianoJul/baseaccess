@@ -279,6 +279,22 @@
         });
     };
 
+    window.moverLeyenda = function(id, direction) {
+        fetch('/api/ruta-procesos-leyenda-reordenar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id + '&direction=' + direction
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(json) {
+            if (json.success) {
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + (currentHojaId || 0) + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+            } else {
+                alert(json.error || 'Error reordenando leyenda');
+            }
+        });
+    };
+
     function esc(v) {
         if (v == null) return '';
         return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -452,7 +468,17 @@
         html += '</tbody></table></div></div>';
 
         var leyendaHtml = '<div class="border-t border-gray-700 pt-4"><h3 class="legend legend-teal mb-4 flex items-center gap-1.5"><i class="fas fa-info-circle"></i> Leyenda</h3><div class="gantt-legend-grid">';
-        legend.forEach(function(leg) { if (leg.hex_color) leyendaHtml += '<div class="gantt-legend-item cursor-pointer" onclick="editarLeyenda(' + leg.id + ', \'' + esc(leg.status_name) + '\', \'' + esc(leg.hex_color) + '\')"><span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span><span class="gantt-legend-label">' + esc(leg.status_name) + '</span></div>'; });
+        legend.forEach(function(leg, idx) {
+            if (!leg.hex_color) return;
+            leyendaHtml += '<div class="gantt-legend-item">';
+            leyendaHtml += '<div class="gantt-legend-arrows">';
+            leyendaHtml += '<button onclick="moverLeyenda(' + leg.id + ', -1)" class="legend-arrow" title="Mover arriba">&#9650;</button>';
+            leyendaHtml += '<button onclick="moverLeyenda(' + leg.id + ', 1)" class="legend-arrow" title="Mover abajo">&#9660;</button>';
+            leyendaHtml += '</div>';
+            leyendaHtml += '<span class="gantt-legend-circle" style="background-color: ' + esc(leg.hex_color) + '"></span>';
+            leyendaHtml += '<span class="gantt-legend-label" onclick="editarLeyenda(' + leg.id + ', \'' + esc(leg.status_name) + '\', \'' + esc(leg.hex_color) + '\')">' + esc(leg.status_name) + '</span>';
+            leyendaHtml += '</div>';
+        });
         leyendaHtml += '</div></div>';
         html += leyendaHtml;
         document.getElementById('gantt-process-content').innerHTML = html;

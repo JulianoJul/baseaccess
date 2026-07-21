@@ -488,6 +488,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-leyenda-actualizar" && r.Method == http.MethodPost:
 		h.handleActualizarLeyenda(w, r)
 		return
+	case p == "/api/ruta-procesos-leyenda-reordenar" && r.Method == http.MethodPost:
+		h.handleReordenarLeyenda(w, r)
+		return
 	case p == "/api/pendientes" && r.Method == http.MethodGet:
 		h.handlePendientes(w, r)
 		return
@@ -966,6 +969,26 @@ func (h *TemplateHandler) handleActualizarLeyenda(w http.ResponseWriter, r *http
 		return
 	}
 	if err := h.app.ActualizarRutaProcesosLeyenda(id, nombre, color); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleReordenarLeyenda(w http.ResponseWriter, r *http.Request) {
+	idStr := r.FormValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSONError(w, "id inválido", http.StatusBadRequest)
+		return
+	}
+	dirStr := r.FormValue("direction")
+	direction, err := strconv.Atoi(dirStr)
+	if err != nil || (direction != -1 && direction != 1) {
+		writeJSONError(w, "direction debe ser -1 o 1", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.ReordenarRutaProcesosLeyenda(id, direction); err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
