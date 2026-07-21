@@ -46,7 +46,13 @@ jobs:
 
       - name: Build Wails (${{ matrix.label }})
         if: matrix.label == 'linux'
-        run: wails build -platform linux/amd64
+        run: |
+          # Ubuntu 24.04 usa webkit2gtk-4.1; 22.04 usa 4.0
+          if dpkg -l | grep -q 'libwebkit2gtk-4\.1-dev'; then
+            wails build -platform linux/amd64 -tags webkit2_41
+          else
+            wails build -platform linux/amd64
+          fi
 
       - name: Cache WebView2 Fixed Runtime (${{ matrix.label }})
         id: cache-webview-wails
