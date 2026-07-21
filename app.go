@@ -467,8 +467,7 @@ func (a *App) initRutaProcesosSchema() error {
 			nota          TEXT,
 			CONSTRAINT fk_cron_proc FOREIGN KEY (id_proceso) REFERENCES ruta_procesos_procesos(id) ON DELETE CASCADE,
 			CONSTRAINT fk_cron_ley FOREIGN KEY (id_leyenda) REFERENCES ruta_procesos_leyenda(id),
-			CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente),
-			CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
+			CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente)
 		)`,
 		`INSERT OR IGNORE INTO ruta_procesos_leyenda (status_name, hex_color, orden) VALUES
 			('ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757', 1),
@@ -492,6 +491,17 @@ func (a *App) initRutaProcesosSchema() error {
 			return fmt.Errorf("error ejecutando: %s: %w", s[:60], err)
 		}
 	}
+
+	// Migrate cronograma table to remove UNIQUE constraint (allow multiple entries per day)
+	var hasUnique int
+	a.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='ruta_procesos_cronograma' AND sql LIKE '%UNIQUE%'").Scan(&hasUnique)
+	if hasUnique > 0 {
+		a.db.Exec("CREATE TABLE ruta_procesos_cronograma_new (id INTEGER PRIMARY KEY AUTOINCREMENT,id_proceso INTEGER NOT NULL,id_expediente INTEGER,fecha DATE NOT NULL,id_leyenda INTEGER,nota TEXT,CONSTRAINT fk_cron_proc FOREIGN KEY (id_proceso) REFERENCES ruta_procesos_procesos(id) ON DELETE CASCADE,CONSTRAINT fk_cron_ley FOREIGN KEY (id_leyenda) REFERENCES ruta_procesos_leyenda(id),CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente))")
+		a.db.Exec("INSERT INTO ruta_procesos_cronograma_new (id, id_proceso, id_expediente, fecha, id_leyenda, nota) SELECT id, id_proceso, id_expediente, fecha, id_leyenda, nota FROM ruta_procesos_cronograma")
+		a.db.Exec("DROP TABLE ruta_procesos_cronograma")
+		a.db.Exec("ALTER TABLE ruta_procesos_cronograma_new RENAME TO ruta_procesos_cronograma")
+	}
+
 	return nil
 }
 
@@ -1136,11 +1146,11 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 			if c, ok := legendMap[stName]; ok {
 				hexColor = c
 			}
-			p.Timeline[dateKey] = map[string]string{
+			p.Timeline[dateKey] = []map[string]string{{
 				"status_name": stName,
 				"hex_color":   hexColor,
 				"note":        "Devuelto: " + stName,
-			}
+			}}
 		}
 		if fFirma != "" && len(fFirma) >= 10 {
 			dateKey := fFirma[:10]
@@ -1152,10 +1162,15 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 			if c, ok := legendMap[stName]; ok {
 				hexColor = c
 			}
-			p.Timeline[dateKey] = map[string]string{
+			entry := map[string]string{
 				"status_name": stName,
 				"hex_color":   hexColor,
 				"note":        "Fecha de firma de contrato",
+			}
+			if existing, ok := p.Timeline[dateKey]; ok {
+				p.Timeline[dateKey] = append(existing.([]map[string]string), entry)
+			} else {
+				p.Timeline[dateKey] = []map[string]string{entry}
 			}
 		}
 		}
@@ -1179,17 +1194,18 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 		placeholders[i] = "?"
 	}
 	cronoRows, err := a.db.Query(
-		"SELECT c.id_proceso, strftime('%Y-%m-%d', c.fecha) AS fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
+		"SELECT c.id, c.id_proceso, strftime('%Y-%m-%d', c.fecha) AS fecha, c.nota, l.status_name, l.hex_color FROM ruta_procesos_cronograma c LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id WHERE c.id_proceso IN ("+strings.Join(placeholders, ",")+")",
 		args...)
 	if err != nil {
 		return nil, err
 	}
 	defer cronoRows.Close()
 	for cronoRows.Next() {
+		var cronoID int
 		var idProc int
 		var fecha string
 		var notaNull, statusNameNull, hexColorNull sql.NullString
-		if err := cronoRows.Scan(&idProc, &fecha, &notaNull, &statusNameNull, &hexColorNull); err != nil {
+		if err := cronoRows.Scan(&cronoID, &idProc, &fecha, &notaNull, &statusNameNull, &hexColorNull); err != nil {
 			log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
 			continue
 		}
@@ -1206,10 +1222,16 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, offsetWeeks int) (*RutaProceso
 			if notaNull.Valid {
 				nota = notaNull.String
 			}
-			p.Timeline[fecha] = map[string]string{
+			entry := map[string]string{
+				"id":          strconv.Itoa(cronoID),
 				"status_name": statusName,
 				"hex_color":   hexColor,
 				"note":        nota,
+			}
+			if existing, ok := p.Timeline[fecha]; ok {
+				p.Timeline[fecha] = append(existing.([]map[string]string), entry)
+			} else {
+				p.Timeline[fecha] = []map[string]string{entry}
 			}
 		}
 	}
@@ -1645,38 +1667,33 @@ func (a *App) GuardarNuevoCatalogo(tabla, nombre string, extra map[string]interf
 	return res.LastInsertId()
 }
 
-func (a *App) GuardarCronogramaDia(idProceso int, fecha string, idLeyenda int, nota string) error {
+func (a *App) GuardarCronogramaDia(idProceso int, fecha string, idLeyenda int, nota string) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.db == nil {
-		return fmt.Errorf("no hay BD abierta")
+		return 0, fmt.Errorf("no hay BD abierta")
 	}
 
 	if err := a.crearBackup(); err != nil {
 		log.Printf("Backup falló: %v", err)
 	}
 
-	// Check if entry exists
-	var id int
-	err := a.db.QueryRow("SELECT id FROM ruta_procesos_cronograma WHERE id_proceso = ? AND fecha = ?", idProceso, fecha).Scan(&id)
-	if err == sql.ErrNoRows {
-		if idLeyenda == 0 {
-			// Nothing to save/delete
-			return nil
-		}
-		_, err = a.db.Exec("INSERT INTO ruta_procesos_cronograma (id_proceso, fecha, id_leyenda, nota) VALUES (?, ?, ?, ?)", idProceso, fecha, idLeyenda, nota)
-		return err
-	} else if err != nil {
-		return err
+	res, err := a.db.Exec("INSERT INTO ruta_procesos_cronograma (id_proceso, fecha, id_leyenda, nota) VALUES (?, ?, ?, ?)", idProceso, fecha, idLeyenda, nota)
+	if err != nil {
+		return 0, err
 	}
+	return res.LastInsertId()
+}
 
-	if idLeyenda == 0 {
-		// Clear/delete cell
-		_, err = a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id = ?", id)
-		return err
+func (a *App) EliminarCronogramaDia(id int) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.db == nil {
+		return fmt.Errorf("no hay BD abierta")
 	}
-
-	// Update existing
-	_, err = a.db.Exec("UPDATE ruta_procesos_cronograma SET id_leyenda = ?, nota = ? WHERE id = ?", idLeyenda, nota, id)
+	if err := a.crearBackup(); err != nil {
+		log.Printf("Backup falló: %v", err)
+	}
+	_, err := a.db.Exec("DELETE FROM ruta_procesos_cronograma WHERE id = ?", id)
 	return err
 }

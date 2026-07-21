@@ -148,20 +148,25 @@
                 <input type="hidden" id="crono-proc-id">
                 <input type="hidden" id="crono-fecha">
                 
-                <div>
-                    <label class="label">Estatus / Color</label>
-                    <select id="crono-status-select" class="input">
-                        <option value="">(Limpiar casilla / Sin actividad)</option>
-                    </select>
+                <div id="crono-entries-list" class="space-y-2">
+                    <!-- Existing entries rendered here -->
                 </div>
-                <div>
-                    <label class="label">Detalle / Nota</label>
-                    <textarea id="crono-nota" class="input" rows="2" placeholder="Ej: Enviado a firma..."></textarea>
+
+                <div class="border-t border-gray-700 pt-3">
+                    <label class="label">Agregar nueva etapa</label>
+                    <div class="flex gap-2">
+                        <select id="crono-status-select" class="input flex-1">
+                            <option value="">Seleccionar...</option>
+                        </select>
+                    </div>
+                    <div class="mt-2">
+                        <textarea id="crono-nota" class="input" rows="2" placeholder="Detalle (opcional)"></textarea>
+                    </div>
+                    <button onclick="guardarCronoDia()" class="btn btn-primary text-xs mt-2 w-full"><i class="fas fa-plus mr-1"></i> Agregar</button>
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-700 flex justify-end gap-2 rounded-b-xl bg-gray-800/40">
-                <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cancelar</button>
-                <button onclick="guardarCronoDia()" class="btn btn-primary text-xs"><i class="fas fa-check mr-1"></i> Guardar</button>
+            <div class="p-4 border-t border-gray-700 flex justify-end rounded-b-xl bg-gray-800/40">
+                <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cerrar</button>
             </div>
         </div>
     </div>
@@ -450,17 +455,21 @@
         active.forEach(function(p) {
             html += '<tr class="border-b border-gray-700/60 hover:bg-gray-700/10">';
             ganttColumns.forEach(function(col) {
-                var dayData = p.timeline[col.date_str] || {};
-                var color = dayData.hex_color;
-                var statusName = dayData.status_name || '';
-                var note = dayData.note || '';
-                var cleanNote = (note || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
-                
-                if (color) {
-                    var titleColor = color === '#000000' ? '#ffffff' : color;
-                    html += '<td style="background-color: ' + esc(color) + '; cursor: pointer;" class="gantt-col-day gantt-cell-active" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'' + esc(statusName) + '\', \'' + cleanNote + '\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-stage"><span class="gantt-tooltip-stage-label">Etapa:</span> <strong style="color: ' + esc(titleColor) + '">' + esc(statusName) + '</strong></div>' + (note ? '<div><span class="gantt-tooltip-stage-label">Detalle:</span> <span class="gantt-tooltip-detail">' + esc(note) + '</span></div>' : '<div class="gantt-tooltip-empty">Sin comentarios.</div>') + '</div></td>';
+                var entries = p.timeline[col.date_str];
+                if (entries && Array.isArray(entries) && entries.length > 0) {
+                    html += '<td class="gantt-col-day gantt-cell-active" onclick="abrirEditarCronograma(' + p.id + ',\'' + esc(col.date_str) + '\')">';
+                    html += '<div class="gantt-cell-entries">';
+                    entries.forEach(function(e) {
+                        var ec = e.hex_color || '#333';
+                        var tip = esc(e.status_name || '');
+                        if (e.note) tip += ': ' + esc(e.note);
+                        html += '<div class="gantt-cell-entry" style="background-color:' + esc(ec) + '" title="' + tip + '"></div>';
+                    });
+                    html += '</div></td>';
                 } else {
-                    html += '<td style="cursor: pointer;" class="gantt-col-day gantt-cell-empty" onclick="abrirEditarCronograma(' + p.id + ', \'' + esc(col.date_str) + '\', \'\', \'\')"><div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + ' - ' + esc(col.week_label) + ' - ' + esc(col.day_name) + '</span><span class="gantt-tooltip-date">' + esc(col.date_str) + '</span></div><div class="gantt-tooltip-empty">Sin actividad programada (Haz clic para programar)</div></div></td>';
+                    html += '<td class="gantt-col-day gantt-cell-empty" onclick="abrirEditarCronograma(' + p.id + ',\'' + esc(col.date_str) + '\')">';
+                    html += '<div class="gantt-tooltip"><div class="gantt-tooltip-title"><span>Proceso ' + p.id + '</span></div><div class="gantt-tooltip-empty">Sin actividad (clic para programar)</div></div>';
+                    html += '</td>';
                 }
             });
             html += '</tr>';
@@ -484,22 +493,42 @@
         document.getElementById('gantt-process-content').innerHTML = html;
     }
 
-    window.abrirEditarCronograma = function(procId, fecha, statusName, note) {
+    window.abrirEditarCronograma = function(procId, fecha) {
         document.getElementById('crono-proc-id').value = procId;
         document.getElementById('crono-fecha').value = fecha;
-        document.getElementById('crono-nota').value = note || '';
+        document.getElementById('crono-nota').value = '';
         
         const select = document.getElementById('crono-status-select');
-        select.innerHTML = '<option value="">(Limpiar casilla / Sin actividad)</option>';
-        legend.forEach(leg => {
+        select.innerHTML = '<option value="">Seleccionar...</option>';
+        legend.forEach(function(leg) {
             const opt = document.createElement('option');
             opt.value = leg.id;
             opt.textContent = leg.status_name;
-            if (leg.status_name === statusName) {
-                opt.selected = true;
-            }
             select.appendChild(opt);
         });
+
+        // Show existing entries for this day
+        var entriesList = document.getElementById('crono-entries-list');
+        entriesList.innerHTML = '';
+        var proc = processes.find(function(p) { return p.id === procId; });
+        if (proc) {
+            var dayEntries = proc.timeline[fecha];
+            if (dayEntries && Array.isArray(dayEntries)) {
+                dayEntries.forEach(function(e) {
+                    var ec = e.hex_color || '#333';
+                    var div = document.createElement('div');
+                    div.className = 'flex items-center gap-2 bg-gray-800/60 rounded-lg p-2 border border-gray-700';
+                    div.innerHTML = '<span class="gantt-legend-circle" style="background-color:' + esc(ec) + ';width:16px;height:16px;min-width:16px;min-height:16px"></span>' +
+                        '<span class="flex-1 text-xs text-gray-200"><strong>' + esc(e.status_name || '') + '</strong>' +
+                        (e.note ? '<br><span class="text-gray-400">' + esc(e.note) + '</span>' : '') + '</span>' +
+                        '<button onclick="eliminarCronoEntry(' + e.id + ')" class="btn-icon text-red-500 hover:text-red-400 text-xs p-1" title="Eliminar"><i class="fas fa-times"></i></button>';
+                    entriesList.appendChild(div);
+                });
+            }
+        }
+        if (entriesList.children.length === 0) {
+            entriesList.innerHTML = '<p class="text-xs text-gray-500 italic">Sin actividades programadas para este día.</p>';
+        }
         
         document.getElementById('crono-modal').classList.remove('hidden');
     };
@@ -513,6 +542,7 @@
         const fecha = document.getElementById('crono-fecha').value;
         const leyId = document.getElementById('crono-status-select').value;
         const nota = document.getElementById('crono-nota').value;
+        if (!leyId) { alert('Selecciona una etapa'); return; }
         
         fetch('/api/ruta-procesos-cronograma-guardar', {
             method: 'POST',
@@ -520,19 +550,37 @@
             body: 'id_proceso=' + procId + '&fecha=' + fecha + '&id_leyenda=' + leyId + '&nota=' + encodeURIComponent(nota)
         })
         .then(async function(res) {
-            if (!res.ok) {
-                const text = await res.text();
-                throw new Error(text || 'Error en el servidor');
-            }
+            if (!res.ok) throw new Error(await res.text());
             return res.json();
         })
-        .then(json => {
+        .then(function(json) {
             if (json.success) {
-                // Update local processes timeline
-                const p = processes.find(pr => pr.id === parseInt(procId));
-                if (p) {
-                    if (leyId) {
-                        const leg = legend.find(l => l.id === parseInt(leyId));
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + (currentHojaId || 0) + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+                cerrarCronoModal();
+            } else {
+                alert(json.error || 'Error guardando');
+            }
+        })
+        .catch(function(err) { alert('Error: ' + err.message); });
+    };
+    
+    window.eliminarCronoEntry = function(id) {
+        if (!confirm('¿Eliminar esta actividad?')) return;
+        fetch('/api/ruta-procesos-cronograma-eliminar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'id=' + id
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(json) {
+            if (json.success) {
+                htmx.ajax('GET', '/api/ruta-procesos?hoja=' + (currentHojaId || 0) + '&offset=' + (offset_weeks || 0), '#ruta-contenido');
+                cerrarCronoModal();
+            } else {
+                alert(json.error || 'Error eliminando');
+            }
+        });
+    };
                         p.timeline[fecha] = {
                             status_name: leg ? leg.status_name : '',
                             hex_color: leg ? leg.hex_color : '',

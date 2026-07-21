@@ -34,6 +34,10 @@ export function DescargarBD(arg1) {
   return window['go']['main']['App']['DescargarBD'](arg1);
 }
 
+export function EliminarCronogramaDia(arg1) {
+  return window['go']['main']['App']['EliminarCronogramaDia'](arg1);
+}
+
 export function EliminarFila(arg1, arg2) {
   return window['go']['main']['App']['EliminarFila'](arg1, arg2);
 }

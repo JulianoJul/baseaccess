@@ -34,8 +34,7 @@ CREATE TABLE IF NOT EXISTS ruta_procesos_cronograma (
     nota          TEXT,
     CONSTRAINT fk_cron_proc FOREIGN KEY (id_proceso) REFERENCES ruta_procesos_procesos(id) ON DELETE CASCADE,
     CONSTRAINT fk_cron_ley FOREIGN KEY (id_leyenda) REFERENCES ruta_procesos_leyenda(id),
-    CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente),
-    CONSTRAINT unq_cron_day UNIQUE (id_proceso, fecha)
+    CONSTRAINT fk_cron_exp FOREIGN KEY (id_expediente) REFERENCES expedientes(id_expediente)
 );
 
 -- Leyenda base (orden personalizado)

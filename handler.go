@@ -470,6 +470,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-cronograma-guardar" && r.Method == http.MethodPost:
 		h.handleGuardarCronogramaDia(w, r)
 		return
+	case p == "/api/ruta-procesos-cronograma-eliminar" && r.Method == http.MethodPost:
+		h.handleEliminarCronogramaDia(w, r)
+		return
 	case p == "/api/ruta-procesos-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarRutaProceso(w, r)
 		return
@@ -1014,8 +1017,22 @@ func (h *TemplateHandler) handleGuardarCronogramaDia(w http.ResponseWriter, r *h
 	}
 	nota := r.FormValue("nota")
 
-	err = h.app.GuardarCronogramaDia(idProceso, fecha, idLeyenda, nota)
+	_, err = h.app.GuardarCronogramaDia(idProceso, fecha, idLeyenda, nota)
 	if err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleEliminarCronogramaDia(w http.ResponseWriter, r *http.Request) {
+	idStr := r.FormValue("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		writeJSONError(w, "id inválido", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.EliminarCronogramaDia(id); err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

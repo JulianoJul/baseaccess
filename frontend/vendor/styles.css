@@ -340,6 +340,20 @@ select.input option {
 .gantt-cell-empty:hover {
   background-color: rgba(55, 65, 81, 0.2);
 }
+.gantt-cell-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 2px 0;
+}
+.gantt-cell-entry {
+  min-height: 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.gantt-cell-active:hover {
+  opacity: 0.85;
+}
 .gantt-tooltip {
   display: none;
   position: absolute;

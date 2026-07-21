@@ -18,6 +18,8 @@ export function CrearRutaProcesosLeyenda(arg1:string,arg2:string):Promise<number
 
 export function DescargarBD(arg1:string):Promise<void>;
 
+export function EliminarCronogramaDia(arg1:number):Promise<void>;
+
 export function EliminarFila(arg1:string,arg2:number):Promise<void>;
 
 export function EliminarRutaCronogramaCelda(arg1:number,arg2:string):Promise<void>;
@@ -28,7 +30,7 @@ export function EliminarRutaProcesosHoja(arg1:number):Promise<void>;
 
 export function GetBackupMaxCopies():Promise<number>;
 
-export function GuardarCronogramaDia(arg1:number,arg2:string,arg3:number,arg4:string):Promise<void>;
+export function GuardarCronogramaDia(arg1:number,arg2:string,arg3:number,arg4:string):Promise<number>;
 
 export function GuardarDialogoBD(arg1:string):Promise<string>;
 
