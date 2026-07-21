@@ -245,7 +245,7 @@
     <!-- Observaciones (todos los módulos) -->
     <fieldset class="card" data-fieldset="observaciones">
         <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3">
+        <div class="mt-3" data-orden-excel="{{excelOrder $modulo "observaciones"}}">
             <label class="label">Cambios automáticos</label>
             <textarea class="input text-xs text-gray-400 bg-gray-900/40 cursor-default" rows="3" readonly
                       x-show="autoObs" x-model="autoObs"></textarea>
