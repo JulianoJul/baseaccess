@@ -3,7 +3,7 @@
     <input type="hidden" id="active-module-val" name="modulo" value="{{.ActiveModule}}">
 
     <div class="overflow-x-auto w-full">
-        <table class="w-full text-left border-collapse" style="min-width: 900px;">
+        <table class="w-full text-left border-collapse" style="min-width: 900px; table-layout: fixed;">
             <thead>
                 <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
                     <th class="p-3 text-center whitespace-nowrap" style="width: 55px;">Ver</th>
@@ -73,11 +73,13 @@
                 </tr>
             </thead>
             <tbody id="tabla-cuerpo" class="divide-y divide-gray-700 text-sm">
+            {{$colspan := 8}}
+            {{if eq .ActiveModule "memorandums"}}{{$colspan = 7}}{{end}}
+            {{if eq .ActiveModule "recobros"}}{{$colspan = 7}}{{end}}
+            {{if eq .ActiveModule "certificacion_bdu"}}{{$colspan = 7}}{{end}}
+            {{if eq .ActiveModule "vacaciones"}}{{$colspan = 10}}{{end}}
+            {{if eq .ActiveModule "reposos_medicos"}}{{$colspan = 8}}{{end}}
             {{if eq (len .Filas) 0}}
-                {{$colspan := 8}}
-                {{if eq .ActiveModule "vacaciones"}}{{$colspan = 9}}{{end}}
-                {{if eq .ActiveModule "reposos_medicos"}}{{$colspan = 8}}{{end}}
-                {{if eq .ActiveModule "certificacion_bdu"}}{{$colspan = 7}}{{end}}
                 {{template "tabla_empty_row" dict "Colspan" $colspan}}
             {{else}}
                 {{$modulo := .ActiveModule}}
@@ -166,7 +168,7 @@
                     {{end}}
                 </tr>
                 <tr id="subfila-{{$idVal}}" class="hidden bg-gray-950/40 border-l-4 border-teal-500">
-                    <td colspan="12" class="p-5">
+                    <td colspan="{{$colspan}}" class="p-5">
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                             {{if eq $modulo "expedientes"}}
                             <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
@@ -310,14 +312,26 @@
   position: absolute;
   top: 0;
   right: 0;
-  width: 5px;
+  width: 10px;
   height: 100%;
   cursor: col-resize;
-  z-index: 10;
+  z-index: 20;
+  background: transparent;
 }
-.col-resizer:hover,
-.col-resizing .col-resizer {
-  background-color: rgba(45, 212, 191, 0.4);
+.col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  right: 2px;
+  width: 3px;
+  height: 70%;
+  border-radius: 2px;
+  background-color: rgba(148, 163, 184, 0.35);
+  transition: background-color 0.15s;
+}
+.col-resizer:hover::after,
+.col-resizing .col-resizer::after {
+  background-color: rgba(45, 212, 191, 0.8);
 }
 </style>
 <script>
@@ -325,6 +339,7 @@
   var mod = document.getElementById('active-module-val');
   var moduleKey = mod ? mod.value : 'expedientes';
   var STORAGE_KEY = 'col_widths_' + moduleKey;
+  var MIN_WIDTH = 50;
 
   function loadWidths() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch(e) { return {}; }
@@ -337,14 +352,44 @@
   var table = document.querySelector('#tabla-cuerpo')?.closest('table');
   if (!table) return;
 
+  // Asegurar que el resize funcione sobre anchos fijos de columna.
+  table.style.tableLayout = 'fixed';
+
   var headers = table.querySelectorAll('thead th');
   headers.forEach(function(th, idx) {
     var key = th.textContent.trim() || 'col_' + idx;
-    if (widths[key]) {
-      th.style.width = widths[key] + 'px';
+    var savedW = widths[key];
+
+    function applyColWidth(w) {
+      w = Math.max(MIN_WIDTH, w);
+      th.style.width = w + 'px';
+      th.style.maxWidth = w + 'px';
+      table.querySelectorAll('tbody > tr:not(.hidden):not([id^="subfila-"])').forEach(function(row) {
+        var td = row.children[idx];
+        if (!td) return;
+        td.style.width = w + 'px';
+        td.style.maxWidth = w + 'px';
+        td.style.overflow = 'hidden';
+        td.style.textOverflow = 'ellipsis';
+        td.style.whiteSpace = 'nowrap';
+      });
     }
+
+    // Aplicar ancho guardado o fijar el ancho actual para no romper el layout inicial.
+    if (savedW) {
+      applyColWidth(savedW);
+    } else if (!th.style.width) {
+      applyColWidth(th.offsetWidth || MIN_WIDTH);
+    }
+
     th.style.position = 'relative';
+    th.style.minWidth = MIN_WIDTH + 'px';
+    th.style.overflow = 'hidden';
+    th.style.textOverflow = 'ellipsis';
     th.classList.add('select-none');
+
+    // Evitar agregar resizers duplicados cuando la tabla se recarga por HTMX.
+    if (th.querySelector('.col-resizer')) return;
 
     var resizer = document.createElement('div');
     resizer.className = 'col-resizer';
@@ -360,8 +405,8 @@
 
       function onMouseMove(ev) {
         var diff = ev.clientX - startX;
-        var newW = Math.max(50, startW + diff);
-        th.style.width = newW + 'px';
+        var newW = Math.max(MIN_WIDTH, startW + diff);
+        applyColWidth(newW);
       }
       function onMouseUp() {
         table.classList.remove('col-resizing');
