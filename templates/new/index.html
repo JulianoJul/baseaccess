@@ -39,7 +39,7 @@
     <div class="w-full">
         <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
             <div class="flex items-center gap-2 flex-wrap">
-                <input type="file" id="dbfile" accept=".db,.sqlite" style="display:none;">
+                <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
                 <button @click="abrirBaseDatos()" class="btn btn-primary" id="btn-abrir-bd" title="Abrir Base de Datos">
                     <i class="fas fa-folder-open mr-1"></i> <span class="btn-label">Abrir Base de Datos</span>
                 </button>
@@ -61,7 +61,7 @@
                 <button hx-get="/api/pendientes"
                         hx-target="#pendientes-contenido"
                         x-on:htmx:after-request="$store.modals.abrir('modal-pendientes')"
-                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-pendientes" style="border:1px solid #f59e0b">
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary btn-amber-outline" id="btn-pendientes">
                     <i class="fas fa-clock mr-1"></i> Pendientes
                 </button>
                 <button @click="$store.modals.abrir('export-modal')"
@@ -85,13 +85,13 @@
             <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
                 <div class="flex items-center gap-3">
                     <div class="flex items-center gap-3 text-xs shrink-0">
-                        <select id="sort-order" name="sort" class="input text-xs" style="width: auto; padding: 0.2rem 0.5rem;"
+                        <select id="sort-order" name="sort" class="input input-auto text-xs"
                                 hx-get="/api/filtrar-expedientes"
                                 hx-target="#vista-tabla"
                                 hx-include="#search, #sort-dir-val, #active-module-val"
                                 hx-trigger="change"
                                 title="Ordenar" {{if not .HasDB}}disabled{{end}}>
-                            <option value="" selected>Defecto</option>
+                            <option value="" selected>Ordenar por</option>
                             <option value="fecha_creacion" {{if isSelected .SortColumn "fecha_creacion"}}selected{{end}}>Creación</option>
                             <option value="fecha_actualizacion" {{if isSelected .SortColumn "fecha_actualizacion"}}selected{{end}}>Modificación</option>
                         </select>
@@ -179,7 +179,7 @@
          x-transition:enter-end="opacity-100"
          @mousedown="$store.modals.cerrarClickFuera($event, 'form-modal')">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 id="form-titulo" class="text-lg font-bold text-teal-400">Nuevo Registro</h2>
                 <button @click="$store.modals.cerrar('form-modal')" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
@@ -195,12 +195,12 @@
          x-transition:enter-end="opacity-100"
          @mousedown="$store.modals.cerrarClickFuera($event, 'historial-modal')">
         <div class="relative modal-content w-full max-w-5xl my-8">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 id="historial-titulo" class="text-lg font-bold text-teal-400"><i class="fas fa-hourglass-half mr-1"></i> Historial Completo</h2>
                 <button @click="$store.modals.cerrar('historial-modal')" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
             <div id="historial-cuerpo" class="modal-body overflow-x-auto max-h-[75vh] overflow-y-auto"></div>
-            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end">
+            <div class="modal-panel-footer rounded-b-xl">
                 <button @click="$store.modals.cerrar('historial-modal')" class="btn btn-secondary">Cerrar</button>
             </div>
         </div>
@@ -214,7 +214,7 @@
          x-transition:enter-end="opacity-100"
          @mousedown="$store.modals.cerrarClickFuera($event, 'modal-ruta')">
         <div class="relative modal-content w-full max-w-5xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
                 <button @click="$store.modals.cerrar('modal-ruta')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -230,7 +230,7 @@
          x-transition:enter-end="opacity-100"
          @mousedown="$store.modals.cerrarClickFuera($event, 'modal-pendientes')">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-amber-400"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
                 <button @click="$store.modals.cerrar('modal-pendientes')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -247,11 +247,11 @@
          @mousedown="$store.modals.cerrarClickFuera($event, 'modal-recientes')"
          x-data="bdRecientes">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
                 <button @click="$store.modals.cerrar('modal-recientes')" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body overflow-y-auto max-h-[75vh] p-4">
+            <div class="modal-body overflow-y-auto max-h-[75vh]">
                 <template x-if="lista.length === 0">
                     <p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>
                 </template>
@@ -280,11 +280,11 @@
          @mousedown="$store.modals.cerrarClickFuera($event, 'modal-frecuentes')"
          x-data="fijados">
         <div class="relative modal-content w-full max-w-4xl my-8">
-            <div class="sticky top-0 z-10 bg-gray-800 rounded-t-xl border-b border-gray-700 p-4 flex items-center justify-between">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-thumbtack rotate-45 mr-2"></i>Acceso Rápido (Fijados)</h2>
                 <button @click="$store.modals.cerrar('modal-frecuentes')" class="btn-icon text-gray-400 hover:text-white" title="Cerrar"><i class="fas fa-times"></i></button>
             </div>
-            <div class="modal-body overflow-y-auto max-h-[75vh] p-4">
+            <div class="modal-body overflow-y-auto max-h-[75vh]">
                 <template x-if="lista.length === 0">
                     <div class="text-center py-12 text-gray-500 space-y-2">
                         <i class="fas fa-thumbtack text-gray-600 text-2xl rotate-45 animate-pulse"></i>
@@ -319,7 +319,7 @@
          @mousedown="$store.modals.cerrarClickFuera($event, 'export-modal')"
          x-data="exportarExcel">
         <div class="relative modal-content w-full max-w-2xl my-8">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-file-excel mr-2"></i>Exportar a Excel</h2>
                 <button @click="$store.modals.cerrar('export-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -346,7 +346,7 @@
                     <div id="exp-columnas" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-gray-700 rounded-lg"></div>
                 </div>
             </div>
-            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 p-4 flex justify-end gap-3 rounded-b-xl">
+            <div class="modal-panel-footer rounded-b-xl">
                 <button @click="$store.modals.cerrar('export-modal')" class="btn btn-secondary">Cancelar</button>
                 <button @click="exportar()" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar XLSX</button>
             </div>
@@ -362,7 +362,7 @@
          @mousedown="$store.modals.cerrarClickFuera($event, 'sumas-modal')"
          x-data="calculadoraSumas">
         <div class="relative modal-content w-full max-w-md my-8">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header rounded-t-xl">
                 <h2 class="text-lg font-bold text-teal-400"><i class="fas fa-calculator mr-2"></i>Sumas</h2>
                 <button @click="$store.modals.cerrar('sumas-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
@@ -412,7 +412,7 @@
                     </div>
                 </template>
             </div>
-            <div class="sticky bottom-0 bg-gray-800 border-t border-gray-700 rounded-b-xl p-4 flex justify-end gap-3">
+            <div class="modal-panel-footer rounded-b-xl">
                 <button @click="limpiar()" class="btn btn-secondary"><i class="fas fa-eraser mr-1"></i> Limpiar todo</button>
                 <button @click="$store.modals.cerrar('sumas-modal')" class="btn btn-primary">Cerrar</button>
             </div>

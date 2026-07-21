@@ -580,6 +580,7 @@ select.input option {
 .bg-gray-900\/30 { background-color: rgba(17, 24, 39, 0.30); }
 .bg-gray-900\/40 { background-color: rgba(17, 24, 39, 0.40); }
 .bg-gray-900\/60 { background-color: rgba(17, 24, 39, 0.60); }
+.bg-gray-950\/40 { background-color: rgba(3, 7, 18, 0.40); }
 .bg-red-900\/40 { background-color: rgba(127, 29, 29, 0.40); }
 
 .border-gray-700\/40 { border-color: rgba(55, 65, 81, 0.40); }
@@ -588,6 +589,88 @@ select.input option {
 .border-gray-800 { border-color: #1f2937; }
 .border-red-700 { border-color: #b91c1c; }
 .border-red-700\/60 { border-color: rgba(185, 28, 28, 0.60); }
+
+/* Subrow card reusable (tabla detalle expandido) */
+.subrow-card {
+  background: rgba(31, 41, 55, 0.80);
+  padding: 1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(55, 65, 81, 0.60);
+}
+.subrow-card h4 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary-text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-default);
+  padding-bottom: 0.25rem;
+}
+
+/* Modal panel sub-components (DRY headers/footers) */
+.modal-panel-header {
+  position: sticky;
+  top: 0;
+  background: var(--bg-surface-800);
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-default);
+  border-radius: 0.75rem 0.75rem 0 0;
+}
+.modal-panel-footer {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-surface-800);
+  border-top: 1px solid var(--border-default);
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+
+/* Column resizer extracted from tabla.html inline styles */
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 10px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 20;
+  background: transparent;
+}
+.col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 15%;
+  right: 2px;
+  width: 3px;
+  height: 70%;
+  border-radius: 2px;
+  background-color: rgba(148, 163, 184, 0.35);
+  transition: background-color 0.15s;
+}
+.col-resizer:hover::after,
+.col-resizing .col-resizer::after {
+  background-color: rgba(45, 212, 191, 0.8);
+}
+
+/* Input auto-width utility */
+.input-auto {
+  width: auto !important;
+  padding: 0.2rem 0.5rem !important;
+}
+
+/* Button amber outline variant (Pendientes) */
+.btn-amber-outline {
+  border: 1px solid var(--amber) !important;
+}
 
 /* Custom premium checkboxes for Export Modal */
 .exp-checkbox-label {

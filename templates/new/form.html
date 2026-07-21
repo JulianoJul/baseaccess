@@ -176,7 +176,7 @@
             {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_empresa")}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sicac")}}
             {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sap")}}
-            <div data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
+            <div class="input-wrapper" data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
                 <label class="label">Tiempo Ejecución</label>
                 <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
                        x-model="registro.tiempo_ejecucion"
@@ -205,10 +205,11 @@
             {{end}}
             {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_estatus")}}
             {{if eq $modulo "aprobacion_jd"}}
-            <div data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
+            <div class="input-wrapper" data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
                 <label class="label">Tiempo de Ejecución</label>
                 <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
                        x-model="registro.tiempo_ejecucion"
+                       placeholder="ej: 120"
                        @blur="appendDias()">
             </div>
             {{end}}

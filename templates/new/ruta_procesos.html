@@ -70,11 +70,11 @@
     <!-- Modal Crear Hoja -->
     <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-hoja-modal')">
         <div class="relative modal-content w-full max-w-sm">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group mr-2"></i>Nueva Hoja</h3>
                 <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 space-y-4">
+            <div class="modal-body space-y-4">
                 <div>
                     <label class="label">Nombre de la Hoja</label>
                     <input type="text" id="nueva-hoja-nombre" class="input" placeholder="Ej: Trimestre 1">
@@ -87,7 +87,10 @@
                     <label class="label">Fecha Fin</label>
                     <input type="date" id="nueva-hoja-fin" class="input">
                 </div>
-                <button onclick="crearHoja()" class="btn btn-primary w-full mt-4">Crear Hoja</button>
+            </div>
+            <div class="modal-panel-footer">
+                <button onclick="toggleModal('crear-hoja-modal')" class="btn btn-secondary">Cancelar</button>
+                <button onclick="crearHoja()" class="btn btn-primary">Crear Hoja</button>
             </div>
         </div>
     </div>
@@ -95,11 +98,11 @@
     <!-- Modal Crear Leyenda -->
     <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-leyenda-modal')">
         <div class="relative modal-content w-full max-w-sm">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Nueva Leyenda</h3>
                 <button onclick="toggleModal('crear-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 space-y-4">
+            <div class="modal-body space-y-4">
                 <div>
                     <label class="label">Nombre (Estatus)</label>
                     <input type="text" id="nueva-leyenda-nombre" class="input" placeholder="Ej: EN ESPERA">
@@ -110,18 +113,22 @@
                         <input type="color" id="nueva-leyenda-color" class="input" value="#FFFFFF">
                     </div>
                 </div>
-                <button onclick="crearLeyenda()" class="btn btn-primary w-full mt-4">Guardar Leyenda</button>
+            </div>
+            <div class="modal-panel-footer">
+                <button onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary">Cancelar</button>
+                <button onclick="crearLeyenda()" class="btn btn-primary">Guardar Leyenda</button>
             </div>
         </div>
     </div>
+
     <!-- Modal Editar Leyenda -->
     <div id="editar-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('editar-leyenda-modal')">
         <div class="relative modal-content w-full max-w-sm">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i>Editar Leyenda</h3>
                 <button onclick="toggleModal('editar-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 space-y-4">
+            <div class="modal-body space-y-4">
                 <input type="hidden" id="editar-leyenda-id">
                 <div>
                     <label class="label">Nombre (Estatus)</label>
@@ -133,25 +140,27 @@
                         <input type="color" id="editar-leyenda-color" class="input">
                     </div>
                 </div>
-                <button onclick="guardarEditarLeyenda()" class="btn btn-primary w-full mt-4">Actualizar Leyenda</button>
+            </div>
+            <div class="modal-panel-footer">
+                <button onclick="toggleModal('editar-leyenda-modal')" class="btn btn-secondary">Cancelar</button>
+                <button onclick="guardarEditarLeyenda()" class="btn btn-primary">Actualizar Leyenda</button>
             </div>
         </div>
     </div>
+
     <!-- Modal Editar Cronograma -->
     <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crono-modal')">
         <div class="relative modal-content w-full max-w-sm">
-            <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+            <div class="modal-panel-header">
                 <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-check mr-2"></i>Programar Día</h3>
                 <button onclick="cerrarCronoModal()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
             </div>
-            <div class="p-4 space-y-4">
+            <div class="modal-body space-y-4">
                 <input type="hidden" id="crono-proc-id">
                 <input type="hidden" id="crono-fecha">
-                
                 <div id="crono-entries-list" class="space-y-2">
                     <!-- Existing entries rendered here -->
                 </div>
-
                 <div class="border-t border-gray-700 pt-3">
                     <label class="label">Agregar nueva etapa</label>
                     <div class="flex gap-2">
@@ -165,8 +174,8 @@
                     <button onclick="guardarCronoDia()" class="btn btn-primary text-xs mt-2 w-full"><i class="fas fa-plus mr-1"></i> Agregar</button>
                 </div>
             </div>
-            <div class="p-4 border-t border-gray-700 flex justify-end rounded-b-xl bg-gray-800/40">
-                <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cerrar</button>
+            <div class="modal-panel-footer">
+                <button onclick="cerrarCronoModal()" class="btn btn-secondary">Cerrar</button>
             </div>
         </div>
     </div>

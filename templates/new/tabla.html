@@ -171,8 +171,8 @@
                     <td colspan="{{$colspan}}" class="p-5">
                         <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                             {{if eq $modulo "expedientes"}}
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</h4>
+                            <div class="subrow-card space-y-2">
+                                <h4><i class="fas fa-clipboard-list mr-1"></i> Información del Proceso</h4>
                                 <p><span class="text-gray-400 font-medium">Descripción:</span> <span class="text-gray-200 block bg-gray-900/40 p-2 rounded mt-1 text-xs whitespace-pre-wrap">{{default (rowGetStr $row "descripcion_proceso") "Sin descripción."}}</span></p>
                                 <div class="grid grid-cols-2 gap-2 text-xs pt-2">
                                     <div><span class="text-gray-400 block">Superintendencia:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "superintendencia") "N/A"}}</span></div>
@@ -183,8 +183,8 @@
                                     <div><span class="text-gray-400 block">Cant. Frentes:</span> <span class="text-gray-200 font-medium">{{default (rowGetStr $row "cantidad_frentes") "0"}}</span></div>
                                 </div>
                             </div>
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-coins mr-1"></i> Valores y Trazabilidad</h4>
+                            <div class="subrow-card space-y-2 text-xs">
+                                <h4><i class="fas fa-coins mr-1"></i> Valores y Trazabilidad</h4>
                                 <div class="grid grid-cols-2 gap-x-4 gap-y-2">
                                     <div><span class="text-gray-400">Presupuesto Base (USD):</span> <span class="text-amber-400 block font-mono font-medium">{{if rowGetNum $row "presupuesto_base_usd"}}${{formatNum (rowGet $row "presupuesto_base_usd")}}{{else}}N/A{{end}}</span></div>
                                     <div><span class="text-gray-400">Monto Adjudicado (Bs):</span> <span class="text-emerald-500 block font-mono font-medium">{{if rowGetNum $row "monto_adjudicado_bs"}}Bs {{formatNum (rowGet $row "monto_adjudicado_bs")}}{{else}}N/A{{end}}</span></div>
@@ -194,8 +194,8 @@
                                     <div><span class="text-gray-400">Fecha Devuelto:</span> <span class="text-gray-300 block font-mono">{{default (rowGetStr $row "fecha_devuelto") "N/A"}}</span></div>
                                 </div>
                             </div>
-                            <div class="bg-gray-800/80 p-4 rounded-lg border border-gray-700/60 space-y-2 text-xs">
-                                <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2 border-b border-gray-700 pb-1"><i class="fas fa-building mr-1"></i> Adjudicación y Legal</h4>
+                            <div class="subrow-card space-y-2 text-xs">
+                                <h4><i class="fas fa-building mr-1"></i> Adjudicación y Legal</h4>
                                 <p><span class="text-gray-400">Empresa:</span> <span class="text-gray-200 block font-medium truncate">{{default (rowGetStr $row "empresa_adjudicada") "N/A"}}</span></p>
                                 <div class="grid grid-cols-2 gap-2 pt-1">
                                     <div><span class="text-gray-400 block">Acta Apertura:</span> <span class="text-gray-200 font-mono">{{default (rowGetStr $row "nro_acta_apertura") "N/A"}}</span></div>
@@ -307,33 +307,6 @@
 
 </div>
 
-<style>
-.col-resizer {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 10px;
-  height: 100%;
-  cursor: col-resize;
-  z-index: 20;
-  background: transparent;
-}
-.col-resizer::after {
-  content: '';
-  position: absolute;
-  top: 15%;
-  right: 2px;
-  width: 3px;
-  height: 70%;
-  border-radius: 2px;
-  background-color: rgba(148, 163, 184, 0.35);
-  transition: background-color 0.15s;
-}
-.col-resizer:hover::after,
-.col-resizing .col-resizer::after {
-  background-color: rgba(45, 212, 191, 0.8);
-}
-</style>
 <script>
 (function() {
   var mod = document.getElementById('active-module-val');
