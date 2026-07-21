@@ -524,8 +524,7 @@ document.addEventListener('alpine:init', () => {
           this.$el.querySelectorAll('[data-orden-excel]').forEach(el => {
             this._fieldStructure.push({
               el: el,
-              parent: el.parentNode,
-              next: el.nextSibling
+              parent: el.parentNode
             });
           });
         }
@@ -542,11 +541,7 @@ document.addEventListener('alpine:init', () => {
         container.style.display = 'none';
         if (this._fieldStructure) {
           this._fieldStructure.forEach(item => {
-            if (item.next) {
-              item.parent.insertBefore(item.el, item.next);
-            } else {
-              item.parent.appendChild(item.el);
-            }
+            item.parent.appendChild(item.el);
           });
         }
         this.$el.querySelectorAll('fieldset').forEach(fs => fs.style.display = '');
