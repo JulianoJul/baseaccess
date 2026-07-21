@@ -1253,6 +1253,15 @@ func (h *TemplateHandler) handleExportarExcel(w http.ResponseWriter, r *http.Req
 	sort.Strings(extra)
 	keysOrdered = append(keysOrdered, extra...)
 
+	// Filter out backend-only columns (used for ordering, not for export)
+	filteredKeys := keysOrdered[:0]
+	for _, k := range keysOrdered {
+		if k != "fecha_creacion" && k != "fecha_actualizacion" {
+			filteredKeys = append(filteredKeys, k)
+		}
+	}
+	keysOrdered = filteredKeys
+
 	if len(columnasSel) > 0 {
 		sel := map[string]bool{}
 		for _, c := range columnasSel {
