@@ -7,6 +7,7 @@ data/*.db-shm
 data/*.db-wal
 data/*.bak.*
 data/datos_excel.sql
+data/Datos_excel2.sql
 __pycache__/
 *.pyc
 *.xls
