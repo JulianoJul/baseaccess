@@ -16,7 +16,6 @@ import (
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
-	wailsRuntime "github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 //go:embed data/sql/*.sql
@@ -355,7 +354,7 @@ type App struct {
 
 type Row map[string]interface{}
 
-func NewApp() *App { return &App{} }
+func NewApp() *App { return &App{ctx: context.Background()} }
 
 func (a *App) Startup(ctx context.Context) { a.ctx = ctx }
 
@@ -370,25 +369,6 @@ func (a *App) SetBackupMaxCopies(n int) {
 }
 
 func (a *App) GetBackupMaxCopies() int { return int(backupMaxCopies.Load()) }
-
-func (a *App) AbrirDialogoBD() (string, error) {
-	return wailsRuntime.OpenFileDialog(a.ctx, wailsRuntime.OpenDialogOptions{
-		Title: "Seleccionar base de datos",
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
-		},
-	})
-}
-
-func (a *App) GuardarDialogoBD(nombreDefault string) (string, error) {
-	return wailsRuntime.SaveFileDialog(a.ctx, wailsRuntime.SaveDialogOptions{
-		Title:           "Guardar copia de base de datos",
-		DefaultFilename: nombreDefault,
-		Filters: []wailsRuntime.FileFilter{
-			{DisplayName: "SQLite DB", Pattern: "*.db;*.sqlite"},
-		},
-	})
-}
 
 func (a *App) AbrirBaseDatos(filePath string) error {
 	a.mu.Lock()

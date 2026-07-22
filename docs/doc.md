@@ -4,7 +4,7 @@
 
 | Capa | Tecnología |
 |------|-----------|
-| Backend | Go 1.21+, Wails v2 |
+| Backend | Go 1.25+, Wails v2 |
 | SQLite | mattn/go-sqlite3 (driver nativo) |
 | Frontend | Go `html/template` + HTMX + Tailwind CSS + Font Awesome |
 | Renderizado | `TemplateHandler` (http.Handler) intercepta AssetServer |
@@ -39,7 +39,7 @@
 │  └── pendientes.html     # Docs pendientes         │
 ├──────────────────────────────────────────────────┤
 │  app.go (backend Go nativo)                       │
-│  ├── App struct { db *sql.DB, mu sync.Mutex }     │
+│  ├── App struct { ctx, db, dbPath, mu sync.RWMutex }│
 │  ├── AbrirBaseDatos(filePath) → sql.Open          │
 │  ├── ObtenerFilas(moduloKey, orden) → SELECT vista│
 │  ├── GuardarFila(moduloKey, data) → INSERT/UPDATE │
@@ -81,7 +81,7 @@ Usuario → Click → HTMX realiza petición HTTP (hx-get / hx-post)
 baseaccess/
 ├── main.go                 # Entry point Wails (Handler en AssetServer)
 ├── handler.go              # TemplateHandler: http.Handler con templates Go
-├── app.go                  # Backend Go (App struct, 12 métodos)
+├── app.go                  # Backend Go (App struct, ~44 métodos)
 ├── go.mod                  # Dependencias Go
 ├── go.sum                  # Checksums Go
 ├── wails.json              # Config proyecto Wails
@@ -108,9 +108,11 @@ baseaccess/
 │   │   └── alpine-htmx-bridge.js # Puente HTMX + Alpine
 │   └── wailsjs/            # Bindings auto-generados Wails
 ├── data/                   # Archivos de datos
-│   ├── sql/01_master_control_docs_presidencia.sql  # Schema: catalogos + expedientes
-│   ├── sql/02_modulos_adicionales.sql               # Schema: 8 modulos adicionales
-│   └── sql/03_ruta_procesos.sql                      # Schema: ruta procesos (Gantt)
+│   ├── sql/
+│   │   ├── 01_master_control_docs_presidencia.sql  # Schema: catalogos + expedientes
+│   │   ├── 02_modulos_adicionales.sql               # Schema: 8 modulos adicionales
+│   │   └── 03_ruta_procesos.sql                      # Schema: ruta procesos (Gantt)
+│   └── sql/*.legacy         # Schemas antiguos (no usados en runtime)
 ├── docs/                   # Documentación
 │   ├── doc.md              # Este archivo
 │   ├── funciones.md        # Catálogo SPOT
@@ -242,7 +244,7 @@ Separar estrictamente:
 ## CI/CD (GitHub Actions)
 
 Workflow: `.github/workflows/build.yml`
-- Push a `master` o `wails-migration` dispara build
+- Push a `master` dispara build (también manual via `workflow_dispatch`)
 - Jobs: `wails` (Linux + Windows)
 
 Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de cambios.
@@ -262,15 +264,23 @@ Ver [`legacy/CHANGELOG.md`](legacy/CHANGELOG.md) para el historial completo de c
 | `/api/historial` | GET | Devuelve fragmento HTML del historial de un registro (multi-módulo) |
 | `/api/abrir-bd` | POST | Abre base de datos SQLite por ruta |
 | `/api/ruta-procesos` | GET | Devuelve fragmento HTML de la vista Gantt de procesos (`?hoja=...&offset=...`) |
-| `/api/ruta-procesos-agregar` | POST | Agrega un proceso a la ruta (vinculado a un registro existente de cualquier módulo) |
-| `/api/ruta-procesos-toggle` | POST | Activa/desactiva un proceso en la ruta |
-| `/api/ruta-procesos-eliminar` | POST | Elimina un proceso de la ruta |
-| `/api/ruta-procesos-registros` | GET | Devuelve JSON con registros disponibles para agregar como procesos (`?modulo=xxx`) |
-| `/api/ruta-procesos-leyenda-crear` | POST | Crea una leyenda personalizada |
-| `/api/ruta-procesos-leyenda-actualizar` | POST | Actualiza nombre y color de una leyenda existente |
 | `/api/ruta-procesos-hoja-crear` | POST | Crea una hoja nueva en el Gantt |
 | `/api/ruta-procesos-hoja-eliminar` | POST | Elimina una hoja y todos sus procesos |
+| `/api/ruta-procesos-junta-crear` | POST | Crea una junta dentro de una hoja |
+| `/api/ruta-procesos-junta-actualizar` | POST | Actualiza número, consecutiva y fecha de una junta |
+| `/api/ruta-procesos-junta-eliminar` | POST | Elimina una junta |
+| `/api/ruta-procesos-semana-agregar` | POST | Agrega una semana a una junta |
+| `/api/ruta-procesos-semana-eliminar` | POST | Elimina semanas de una junta |
+| `/api/ruta-procesos-proceso-agregar` | POST | Agrega un proceso a una junta |
+| `/api/ruta-procesos-proceso-eliminar` | POST | Elimina un proceso |
+| `/api/ruta-procesos-proceso-reordenar` | POST | Reordena procesos (arriba/abajo) |
+| `/api/ruta-procesos-leyenda-crear` | POST | Crea una leyenda personalizada (global, por hoja o por junta) |
+| `/api/ruta-procesos-leyenda-actualizar` | POST | Actualiza nombre y color de una leyenda existente |
+| `/api/ruta-procesos-leyenda-eliminar` | POST | Elimina una leyenda |
+| `/api/ruta-procesos-leyenda-reordenar` | POST | Reordena leyendas (arriba/abajo) |
+| `/api/ruta-procesos-leyenda-bloquear` | POST | Activa/desactiva una leyenda |
 | `/api/ruta-procesos-cronograma-guardar` | POST | Guarda/actualiza/elimina un día en el cronograma Gantt |
+| `/api/ruta-procesos-cronograma-eliminar` | POST | Elimina un día del cronograma |
 | `/api/pendientes` | GET | Devuelve fragmento HTML de documentos pendientes |
 | `/api/guardar-catalogo` | POST | Agrega registro a un catálogo |
 | `/api/optimizar-bd` | POST | Ejecuta VACUUM |
