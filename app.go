@@ -1153,105 +1153,91 @@ func (a *App) ObtenerRutaProcesosData(idHoja int, idJunta int) (*RutaProcesosGan
 		}
 	}
 
-	// 4. Semanas, Procesos, JuntaLegend (solo si hay junta)
+	// 4. Semanas, Procesos, JuntaLegend (para TODAS las juntas de la hoja)
 	var semanas []RutaProcesosJuntaSemana
 	var procesos []RutaProcesosJuntaProceso
 	var juntaLegend []RutaProcesosJuntaLeyenda
 
-	if currentJunta != nil {
+	if len(juntas) > 0 {
+		juntaIDs := make([]interface{}, len(juntas))
+		phs := make([]string, len(juntas))
+		for i, j := range juntas {
+			juntaIDs[i] = j.ID
+			phs[i] = "?"
+		}
+		inClause := strings.Join(phs, ",")
+
 		// 4a. Semanas
-		semRows, err := a.db.Query("SELECT id, id_junta, numero, fecha_inicio, fecha_fin FROM ruta_procesos_junta_semana WHERE id_junta = ? ORDER BY numero", currentJunta.ID)
-		if err != nil {
-			return nil, err
-		}
-		defer semRows.Close()
-		for semRows.Next() {
-			var s RutaProcesosJuntaSemana
-			if err := semRows.Scan(&s.ID, &s.IDJunta, &s.Numero, &s.FechaInicio, &s.FechaFin); err != nil {
-				log.Printf("ObtenerRutaProcesosData: scan semana: %v", err)
-				continue
+		semRows, err := a.db.Query("SELECT id, id_junta, numero, fecha_inicio, fecha_fin FROM ruta_procesos_junta_semana WHERE id_junta IN ("+inClause+") ORDER BY numero", juntaIDs...)
+		if err == nil {
+			for semRows.Next() {
+				var s RutaProcesosJuntaSemana
+				if err := semRows.Scan(&s.ID, &s.IDJunta, &s.Numero, &s.FechaInicio, &s.FechaFin); err == nil {
+					s.Dias = calcDiasSemana(s.FechaInicio)
+					semanas = append(semanas, s)
+				}
 			}
-			s.Dias = calcDiasSemana(s.FechaInicio)
-			semanas = append(semanas, s)
-		}
-		if semanas == nil {
-			semanas = []RutaProcesosJuntaSemana{}
+			semRows.Close()
 		}
 
 		// 4b. Procesos
-		procRows, err := a.db.Query("SELECT id, id_junta, numero, proceso FROM ruta_procesos_junta_proceso WHERE id_junta = ? ORDER BY numero", currentJunta.ID)
-		if err != nil {
-			return nil, err
-		}
-		defer procRows.Close()
-		for procRows.Next() {
-			var p RutaProcesosJuntaProceso
-			if err := procRows.Scan(&p.ID, &p.IDJunta, &p.Numero, &p.Proceso); err != nil {
-				log.Printf("ObtenerRutaProcesosData: scan proceso: %v", err)
-				continue
+		procRows, err := a.db.Query("SELECT id, id_junta, numero, proceso FROM ruta_procesos_junta_proceso WHERE id_junta IN ("+inClause+") ORDER BY numero", juntaIDs...)
+		if err == nil {
+			for procRows.Next() {
+				var p RutaProcesosJuntaProceso
+				if err := procRows.Scan(&p.ID, &p.IDJunta, &p.Numero, &p.Proceso); err == nil {
+					p.Timeline = make(map[string][]RutaProcesosCronogramaEntry)
+					procesos = append(procesos, p)
+				}
 			}
-			p.Timeline = make(map[string][]RutaProcesosCronogramaEntry)
-			procesos = append(procesos, p)
-		}
-		if procesos == nil {
-			procesos = []RutaProcesosJuntaProceso{}
+			procRows.Close()
 		}
 
-		// 4c. Cronograma (cargar entradas diarias para todos los procesos de la junta)
+		// 4c. Cronograma (cargar entradas diarias para todos los procesos)
 		if len(procesos) > 0 {
 			args := make([]interface{}, len(procesos))
-			phs := make([]string, len(procesos))
+			cPhs := make([]string, len(procesos))
 			procMap := make(map[int]*RutaProcesosJuntaProceso, len(procesos))
 			for i := range procesos {
 				procMap[procesos[i].ID] = &procesos[i]
 				args[i] = procesos[i].ID
-				phs[i] = "?"
+				cPhs[i] = "?"
 			}
 
 			cronoRows, err := a.db.Query(
 				`SELECT c.id, c.id_junta_proceso, c.fecha, c.nota, l.nombre, l.color
 				 FROM ruta_procesos_cronograma c
 				 LEFT JOIN ruta_procesos_leyenda l ON c.id_leyenda = l.id
-				 WHERE c.id_junta_proceso IN (`+strings.Join(phs, ",")+`)`,
+				 WHERE c.id_junta_proceso IN (`+strings.Join(cPhs, ",")+`)`,
 				args...)
-			if err != nil {
-				return nil, err
-			}
-			defer cronoRows.Close()
+			if err == nil {
+				for cronoRows.Next() {
+					var e RutaProcesosCronogramaEntry
+					var notaNull, nomNull, colorNull sql.NullString
+					if err := cronoRows.Scan(&e.ID, &e.IDProceso, &e.Fecha, &notaNull, &nomNull, &colorNull); err == nil {
+						if notaNull.Valid { e.Nota = notaNull.String }
+						if nomNull.Valid { e.NombreLeyenda = nomNull.String }
+						if colorNull.Valid { e.HexColor = colorNull.String }
 
-			for cronoRows.Next() {
-				var e RutaProcesosCronogramaEntry
-				var notaNull, nomNull, colorNull sql.NullString
-				if err := cronoRows.Scan(&e.ID, &e.IDProceso, &e.Fecha, &notaNull, &nomNull, &colorNull); err != nil {
-					log.Printf("ObtenerRutaProcesosData: scan cronograma: %v", err)
-					continue
+						if p, ok := procMap[e.IDProceso]; ok {
+							p.Timeline[e.Fecha] = append(p.Timeline[e.Fecha], e)
+						}
+					}
 				}
-				if notaNull.Valid { e.Nota = notaNull.String }
-				if nomNull.Valid { e.NombreLeyenda = nomNull.String }
-				if colorNull.Valid { e.HexColor = colorNull.String }
-
-				if p, ok := procMap[e.IDProceso]; ok {
-					p.Timeline[e.Fecha] = append(p.Timeline[e.Fecha], e)
-				}
+				cronoRows.Close()
 			}
 		}
 
 		// 4d. Junta — Leyendas
-		jlRows, err := a.db.Query("SELECT id, id_junta, id_leyenda, orden FROM ruta_procesos_junta_leyenda WHERE id_junta = ? ORDER BY orden", currentJunta.ID)
-		if err != nil {
-			return nil, err
-		}
-		defer jlRows.Close()
-		for jlRows.Next() {
-			var jl RutaProcesosJuntaLeyenda
-			if err := jlRows.Scan(&jl.ID, &jl.IDJunta, &jl.IDLeyenda, &jl.Orden); err != nil {
-				log.Printf("ObtenerRutaProcesosData: scan junta_leyenda: %v", err)
-				continue
+		jlRows, err := a.db.Query("SELECT id, id_junta, id_leyenda, orden FROM ruta_procesos_junta_leyenda WHERE id_junta IN ("+inClause+") ORDER BY orden", juntaIDs...)
+		if err == nil {
+			for jlRows.Next() {
+				var jl RutaProcesosJuntaLeyenda
+				if err := jlRows.Scan(&jl.ID, &jl.IDJunta, &jl.IDLeyenda, &jl.Orden); err == nil {
+					juntaLegend = append(juntaLegend, jl)
+				}
 			}
-			juntaLegend = append(juntaLegend, jl)
-		}
-		if juntaLegend == nil {
-			juntaLegend = []RutaProcesosJuntaLeyenda{}
+			jlRows.Close()
 		}
 	}
 
@@ -1343,9 +1329,13 @@ func (a *App) CrearRutaProcesosJunta(idHoja, numero, consecutiva int, fecha stri
 		for rows.Next() {
 			var idLey int
 			if rows.Scan(&idLey) == nil {
-				a.db.Exec("INSERT INTO ruta_procesos_junta_leyenda (id_junta, id_leyenda, orden) VALUES (?, ?, 0)", idJunta, idLey)
+				if _, err := a.db.Exec("INSERT INTO ruta_procesos_junta_leyenda (id_junta, id_leyenda, orden) VALUES (?, ?, 0)", idJunta, idLey); err != nil {
+					log.Printf("Error heredando leyenda %d a junta %d: %v", idLey, idJunta, err)
+				}
 			}
 		}
+	} else {
+		log.Printf("Error consultando leyendas para heredar: %v", err)
 	}
 
 	return idJunta, nil
@@ -1429,11 +1419,16 @@ func (a *App) EliminarRutaProcesosSemanas(idJunta int, numeros []int) error {
 
 // --- Procesos de Junta ---
 
-func (a *App) AgregarRutaProcesosProceso(idJunta, numero int, proceso string) (int64, error) {
+func (a *App) AgregarRutaProcesosProceso(idJunta, unusedNumero int, proceso string) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.db == nil {
 		return 0, fmt.Errorf("no hay BD abierta")
+	}
+	var numero int
+	err := a.db.QueryRow("SELECT COALESCE(MAX(numero), 0) + 1 FROM ruta_procesos_junta_proceso WHERE id_junta = ?", idJunta).Scan(&numero)
+	if err != nil {
+		return 0, err
 	}
 	res, err := a.db.Exec("INSERT INTO ruta_procesos_junta_proceso (id_junta, numero, proceso) VALUES (?, ?, ?)", idJunta, numero, proceso)
 	if err != nil {
@@ -1479,7 +1474,7 @@ func (a *App) ReordenarRutaProcesosProceso(idJunta, idProceso, direction int) er
 
 // --- Leyendas ---
 
-func (a *App) CrearRutaProcesosLeyenda(nombre, color, ambito string, idHoja *int) (int64, error) {
+func (a *App) CrearRutaProcesosLeyenda(nombre, color, ambito string, idHoja *int, idJunta *int) (int64, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.db == nil {
@@ -1527,6 +1522,10 @@ func (a *App) CrearRutaProcesosLeyenda(nombre, color, ambito string, idHoja *int
 				}
 			}
 		}
+	case "junta":
+		if idJunta != nil {
+			a.db.Exec("INSERT OR IGNORE INTO ruta_procesos_junta_leyenda (id_junta, id_leyenda, orden) VALUES (?, ?, 0)", *idJunta, idLey)
+		}
 	}
 	return idLey, nil
 }
@@ -1563,19 +1562,48 @@ func (a *App) ReordenarRutaProcesosLeyenda(idJunta, idLeyenda, direction int) er
 	if a.db == nil {
 		return fmt.Errorf("no hay BD abierta")
 	}
-	var curOrden int
-	err := a.db.QueryRow("SELECT orden FROM ruta_procesos_junta_leyenda WHERE id_junta = ? AND id_leyenda = ?", idJunta, idLeyenda).Scan(&curOrden)
+
+	rows, err := a.db.Query("SELECT id, id_leyenda, orden FROM ruta_procesos_junta_leyenda WHERE id_junta = ? ORDER BY orden ASC, id ASC", idJunta)
 	if err != nil {
 		return err
 	}
-	newOrden := curOrden + direction
-	var swapID int
-	err = a.db.QueryRow("SELECT id_leyenda FROM ruta_procesos_junta_leyenda WHERE id_junta = ? AND orden = ?", idJunta, newOrden).Scan(&swapID)
-	if err != nil {
-		return nil
+	defer rows.Close()
+
+	type item struct {
+		id        int
+		idLeyenda int
+		orden     int
 	}
-	a.db.Exec("UPDATE ruta_procesos_junta_leyenda SET orden = ? WHERE id_junta = ? AND id_leyenda = ?", newOrden, idJunta, idLeyenda)
-	a.db.Exec("UPDATE ruta_procesos_junta_leyenda SET orden = ? WHERE id_junta = ? AND id_leyenda = ?", curOrden, idJunta, swapID)
+	var items []item
+	for rows.Next() {
+		var it item
+		if err := rows.Scan(&it.id, &it.idLeyenda, &it.orden); err == nil {
+			items = append(items, it)
+		}
+	}
+
+	idx := -1
+	for i, it := range items {
+		if it.idLeyenda == idLeyenda {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return fmt.Errorf("leyenda no encontrada en la junta")
+	}
+
+	swapIdx := idx + direction
+	if swapIdx >= 0 && swapIdx < len(items) {
+		items[idx], items[swapIdx] = items[swapIdx], items[idx]
+	}
+
+	// Update all to ensure strict 0, 1, 2... sequence (fixes any gaps or ties)
+	for i, it := range items {
+		a.db.Exec("UPDATE ruta_procesos_junta_leyenda SET orden = ? WHERE id = ?", i, it.id)
+	}
+
 	return nil
 }
 

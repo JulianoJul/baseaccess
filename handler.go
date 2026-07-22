@@ -505,6 +505,9 @@ func (h *TemplateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case p == "/api/ruta-procesos-proceso-eliminar" && r.Method == http.MethodPost:
 		h.handleEliminarProceso(w, r)
 		return
+	case p == "/api/ruta-procesos-proceso-reordenar" && r.Method == http.MethodPost:
+		h.handleReordenarProceso(w, r)
+		return
 	case p == "/api/ruta-procesos-leyenda-crear" && r.Method == http.MethodPost:
 		h.handleCrearLeyenda(w, r)
 		return
@@ -980,7 +983,13 @@ func (h *TemplateHandler) handleCrearLeyenda(w http.ResponseWriter, r *http.Requ
 			idHoja = &v
 		}
 	}
-	id, err := h.app.CrearRutaProcesosLeyenda(nombre, color, ambito, idHoja)
+	var idJunta *int
+	if jVal := r.FormValue("id_junta"); jVal != "" {
+		if v, err := strconv.Atoi(jVal); err == nil {
+			idJunta = &v
+		}
+	}
+	id, err := h.app.CrearRutaProcesosLeyenda(nombre, color, ambito, idHoja, idJunta)
 	if err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -1089,7 +1098,7 @@ func (h *TemplateHandler) handleAgregarProceso(w http.ResponseWriter, r *http.Re
 	idJunta, _ := strconv.Atoi(r.FormValue("id_junta"))
 	numero, _ := strconv.Atoi(r.FormValue("numero"))
 	proceso := strings.TrimSpace(r.FormValue("proceso"))
-	if idJunta == 0 || numero == 0 || proceso == "" {
+	if idJunta == 0 || proceso == "" {
 		writeJSONError(w, "Faltan campos", http.StatusBadRequest)
 		return
 	}
@@ -1108,6 +1117,21 @@ func (h *TemplateHandler) handleEliminarProceso(w http.ResponseWriter, r *http.R
 		return
 	}
 	if err := h.app.EliminarRutaProcesosProceso(id); err != nil {
+		writeJSONError(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, map[string]interface{}{"success": true})
+}
+
+func (h *TemplateHandler) handleReordenarProceso(w http.ResponseWriter, r *http.Request) {
+	idJunta, _ := strconv.Atoi(r.FormValue("id_junta"))
+	idProceso, _ := strconv.Atoi(r.FormValue("id_proceso"))
+	direction, _ := strconv.Atoi(r.FormValue("direction"))
+	if idJunta == 0 || idProceso == 0 || (direction != -1 && direction != 1) {
+		writeJSONError(w, "Parámetros inválidos", http.StatusBadRequest)
+		return
+	}
+	if err := h.app.ReordenarRutaProcesosProceso(idJunta, idProceso, direction); err != nil {
 		writeJSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

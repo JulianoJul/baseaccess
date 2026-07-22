@@ -38,8 +38,8 @@ export function CrearRutaProcesosJunta(arg1, arg2, arg3, arg4) {
   return window['go']['main']['App']['CrearRutaProcesosJunta'](arg1, arg2, arg3, arg4);
 }
 
-export function CrearRutaProcesosLeyenda(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['CrearRutaProcesosLeyenda'](arg1, arg2, arg3, arg4);
+export function CrearRutaProcesosLeyenda(arg1, arg2, arg3, arg4, arg5) {
+  return window['go']['main']['App']['CrearRutaProcesosLeyenda'](arg1, arg2, arg3, arg4, arg5);
 }
 
 export function DescargarBD(arg1) {

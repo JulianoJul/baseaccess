@@ -275,7 +275,7 @@ func TestActualizarRutaProcesosLeyenda(t *testing.T) {
 	app := testApp(t)
 	m := app
 
-	legID, err := m.CrearRutaProcesosLeyenda("TEST", "#123456", "global", nil)
+	legID, err := m.CrearRutaProcesosLeyenda("TEST", "#123456", "global", nil, nil)
 	if err != nil {
 		t.Fatalf("CrearRutaProcesosLeyenda: %v", err)
 	}

@@ -20,7 +20,7 @@ export function CrearRutaProcesosHoja(arg1:string):Promise<number>;
 
 export function CrearRutaProcesosJunta(arg1:number,arg2:number,arg3:number,arg4:string):Promise<number>;
 
-export function CrearRutaProcesosLeyenda(arg1:string,arg2:string,arg3:string,arg4:any):Promise<number>;
+export function CrearRutaProcesosLeyenda(arg1:string,arg2:string,arg3:string,arg4:any,arg5:any):Promise<number>;
 
 export function DescargarBD(arg1:string):Promise<void>;
 

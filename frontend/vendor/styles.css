@@ -794,3 +794,45 @@ input[type="color"] { cursor: pointer; }
 
 .gantt-col-num { position: sticky; left: 0; z-index: 2; }
 
+/* Gantt Chart Cells & Entries */
+.gantt-cell-active {
+  cursor: pointer;
+  padding: 2px 0;
+  position: relative;
+}
+.gantt-cell-active:hover {
+  background-color: rgba(55, 65, 81, 0.3);
+}
+.gantt-cell-empty {
+  cursor: pointer;
+}
+.gantt-cell-empty:hover {
+  background-color: rgba(55, 65, 81, 0.4);
+}
+.gantt-cell-entries {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 12px;
+}
+.gantt-cell-entry {
+  height: 4px;
+  border-radius: 1px;
+  margin: 0 1px;
+  transition: opacity var(--transition-fast);
+}
+
+/* Legend Reorder Arrows */
+.legend-arrow {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 8px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+.legend-arrow:hover {
+  color: var(--primary-text);
+}
+

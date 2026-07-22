@@ -1,83 +1,84 @@
 <div id="gantt-chart-container" class="space-y-6">
     <!-- ─── Hoja Selector ─── -->
-    <div class="card bg-gray-800 p-4 rounded-xl border border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
-        <div class="flex items-center gap-3">
-            <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group"></i> Hoja:</h3>
-            <select id="gantt-hoja-select" class="input w-48 text-sm py-1 h-8" onchange="cambiarHoja()">
+    <fieldset class="card flex flex-col md:flex-row justify-between items-center gap-4">
+        <legend class="legend legend-teal"><i class="fas fa-layer-group mr-1"></i> Hoja</legend>
+        <div class="flex items-center gap-3 w-full">
+            <select id="gantt-hoja-select" class="input flex-1 py-1 h-8" onchange="cambiarHoja()">
                 {{range .Hojas}}
                 <option value="{{.ID}}" {{if eq .ID $.CurrentHoja.ID}}selected{{end}}>{{.Nombre}}</option>
                 {{else}}
                 <option value="0">Sin hojas</option>
                 {{end}}
             </select>
-            <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-teal-400" title="Nueva Hoja"><i class="fas fa-plus"></i></button>
-            <button onclick="eliminarHojaActual()" class="btn-icon text-gray-400 hover:text-red-400" title="Eliminar Hoja"><i class="fas fa-trash"></i></button>
+            <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-teal-400 shrink-0" title="Nueva Hoja"><i class="fas fa-plus"></i></button>
+            <button onclick="eliminarHojaActual()" class="btn-icon text-gray-400 hover:text-red-400 shrink-0" title="Eliminar Hoja"><i class="fas fa-trash"></i></button>
         </div>
-    </div>
+    </fieldset>
 
     <!-- ─── Bloques de Juntas ─── -->
     <div id="juntas-container" class="space-y-8">
         {{$root := .}}
         {{range $j := .Juntas}}
-        <div class="junta-block card bg-gray-800 rounded-xl border border-gray-700 p-5 space-y-4" data-junta-id="{{$j.ID}}">
+        <fieldset class="junta-block card space-y-6" data-junta-id="{{$j.ID}}">
+            <legend class="legend legend-teal"><i class="fas fa-users mr-1"></i> Junta Nº {{$j.Numero}}</legend>
             <!-- ↕ Tabla de datos de la Junta (editable) -->
-            <div class="flex items-start gap-4">
-                <div class="grid grid-cols-4 gap-3 flex-1">
-                    <div>
-                        <label class="label text-[10px]">JUNTA DIRECTIVA</label>
-                        <input type="text" class="input text-sm" value="JUNTA DIRECTIVA" readonly>
-                    </div>
-                    <div>
-                        <label class="label text-[10px]">Nº REUNIÓN</label>
-                        <input type="number" class="input text-sm junta-numero" value="{{$j.Numero}}">
-                    </div>
-                    <div>
-                        <label class="label text-[10px]">CONSECUTIVA</label>
-                        <input type="number" class="input text-sm junta-consecutiva" value="{{$j.Consecutiva}}">
-                    </div>
-                    <div>
-                        <label class="label text-[10px]">FECHA</label>
-                        <input type="date" class="input text-sm junta-fecha" value="{{$j.Fecha}}">
-                    </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
+                <div>
+                    <label class="label">Junta Directiva</label>
+                    <input type="text" class="input" value="JUNTA DIRECTIVA" readonly>
                 </div>
-                <button onclick="guardarJunta({{$j.ID}}, this)" class="btn btn-primary btn-sm mt-5 shrink-0"><i class="fas fa-save mr-1"></i> Guardar</button>
-                <button onclick="eliminarJunta({{$j.ID}})" class="btn btn-danger btn-sm mt-5 shrink-0" title="Eliminar junta"><i class="fas fa-trash"></i></button>
+                <div>
+                    <label class="label">Nº Reunión</label>
+                    <input type="number" class="input junta-numero" value="{{$j.Numero}}">
+                </div>
+                <div>
+                    <label class="label">Consecutiva</label>
+                    <input type="number" class="input junta-consecutiva" value="{{$j.Consecutiva}}">
+                </div>
+                <div>
+                    <label class="label">Fecha</label>
+                    <input type="date" class="input junta-fecha" value="{{$j.Fecha}}">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-2">
+                <button onclick="eliminarJunta({{$j.ID}})" class="btn btn-danger btn-sm" title="Eliminar junta"><i class="fas fa-trash mr-1"></i> Eliminar</button>
+                <button onclick="guardarJunta({{$j.ID}}, this)" class="btn btn-primary btn-sm"><i class="fas fa-save mr-1"></i> Guardar Junta</button>
             </div>
 
             <!-- ↕ Gantt -->
             <div class="overflow-x-auto border border-gray-700 rounded-lg bg-gray-900/40 p-2">
                 <table class="gantt-table text-xs text-gray-300 min-w-full" data-junta="{{$j.ID}}">
                     <thead>
-                        {{/* Semanas */}}
+                        {{/* desde */}}
                         <tr class="bg-gray-800 text-gray-300 font-bold">
                             <th class="gantt-col-num" rowspan="4"></th>
                             <th class="gantt-col-num" rowspan="4" style="min-width:120px;max-width:200px;">Proceso</th>
                             {{range $s := $root.Semanas}}
                             {{if eq $s.IDJunta $j.ID}}
-                            <th colspan="5" class="gantt-week-header">{{$s.Numero}}</th>
+                            <td colspan="5" class="gantt-week-subheader text-center">desde {{$s.FechaInicio}}</td>
                             {{end}}
                             {{end}}
-                            <th class="gantt-week-header" style="min-width:60px;" rowspan="2">
+                            <td rowspan="2"></td>
+                        </tr>
+                        {{/* al */}}
+                        <tr class="bg-gray-800 text-gray-300 font-bold">
+                            {{range $s := $root.Semanas}}
+                            {{if eq $s.IDJunta $j.ID}}
+                            <td colspan="5" class="gantt-week-subheader text-center">al {{$s.FechaFin}}</td>
+                            {{end}}
+                            {{end}}
+                        </tr>
+                        {{/* Semanas */}}
+                        <tr class="bg-gray-800 text-gray-300 font-bold">
+                            {{range $s := $root.Semanas}}
+                            {{if eq $s.IDJunta $j.ID}}
+                            <th colspan="5" class="gantt-week-header text-[10px]">SEMANA {{$s.Numero}}</th>
+                            {{end}}
+                            {{end}}
+                            <th class="gantt-week-header" style="min-width:60px;">
                                 <button onclick="agregarSemana({{$j.ID}})" class="btn-icon text-teal-400 hover:text-teal-300" title="Añadir semana"><i class="fas fa-plus"></i></button>
                                 <button onclick="abrirEliminarSemanas({{$j.ID}})" class="btn-icon text-red-400 hover:text-red-300" title="Eliminar semanas"><i class="fas fa-minus"></i></button>
                             </th>
-                        </tr>
-                        {{/* desde */}}
-                        <tr class="bg-gray-800 font-bold">
-                            {{range $s := $root.Semanas}}
-                            {{if eq $s.IDJunta $j.ID}}
-                            <td colspan="5" class="gantt-week-subheader">desde {{$s.FechaInicio}}</td>
-                            {{end}}
-                            {{end}}
-                        </tr>
-                        {{/* al */}}
-                        <tr class="bg-gray-800 font-bold">
-                            {{range $s := $root.Semanas}}
-                            {{if eq $s.IDJunta $j.ID}}
-                            <td colspan="5" class="gantt-week-subheader">al {{$s.FechaFin}}</td>
-                            {{end}}
-                            {{end}}
-                            <td></td>
                         </tr>
                         {{/* Días L M X J V */}}
                         <tr class="bg-gray-700/80 text-gray-200 font-bold">
@@ -102,14 +103,14 @@
                             <td class="text-xs text-left px-2 py-1 truncate" style="min-width:120px;max-width:200px;" title="{{$p.Proceso}}">{{$p.Proceso}}</td>
                             {{range $s := $root.Semanas}}
                             {{if eq $s.IDJunta $j.ID}}
-                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 0}}')"><span class="text-gray-600">·</span></td>
-                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 1}}')"><span class="text-gray-600">·</span></td>
-                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 2}}')"><span class="text-gray-600">·</span></td>
-                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 3}}')"><span class="text-gray-600">·</span></td>
-                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 4}}')"><span class="text-gray-600">·</span></td>
+                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" data-proc="{{$p.ID}}" data-fecha="{{index $s.Dias 0}}" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 0}}')"><span class="text-gray-600">·</span></td>
+                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" data-proc="{{$p.ID}}" data-fecha="{{index $s.Dias 1}}" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 1}}')"><span class="text-gray-600">·</span></td>
+                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" data-proc="{{$p.ID}}" data-fecha="{{index $s.Dias 2}}" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 2}}')"><span class="text-gray-600">·</span></td>
+                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" data-proc="{{$p.ID}}" data-fecha="{{index $s.Dias 3}}" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 3}}')"><span class="text-gray-600">·</span></td>
+                            <td class="gantt-col-day gantt-cell-empty cursor-pointer" data-proc="{{$p.ID}}" data-fecha="{{index $s.Dias 4}}" onclick="abrirEditarCronograma({{$p.ID}}, '{{index $s.Dias 4}}')"><span class="text-gray-600">·</span></td>
                             {{end}}
                             {{end}}
-                            <td class="text-center">
+                            <td class="text-center whitespace-nowrap">
                                 <button onclick="eliminarProceso({{$p.ID}})" class="btn-icon text-gray-500 hover:text-red-400 text-xs" title="Eliminar proceso"><i class="fas fa-times"></i></button>
                             </td>
                         </tr>
@@ -117,42 +118,41 @@
                         {{end}}
                         {{/* Fila añadir proceso */}}
                         <tr>
-                            <td class="gantt-col-num text-teal-400">+</td>
-                            <td style="min-width:120px;max-width:200px;">
-                                <div class="flex items-center gap-1">
-                                    <input type="text" class="input text-xs py-1 flex-1" placeholder="Nuevo proceso..." id="nuevo-proc-{{$j.ID}}">
-                                    <button onclick="agregarProceso({{$j.ID}})" class="btn-icon text-teal-400 hover:text-teal-300 text-xs"><i class="fas fa-plus"></i></button>
-                                </div>
+                            <td colspan="100" class="p-0">
+                                <button onclick="agregarProceso({{$j.ID}})" class="w-full text-xs font-bold text-teal-400 hover:text-teal-300 hover:bg-teal-900/20 py-2 transition-colors border-t border-dashed border-gray-700/60 uppercase tracking-wider">
+                                    <i class="fas fa-plus mr-1"></i> Añadir proceso
+                                </button>
                             </td>
-                            {{range $s := $root.Semanas}}
-                            {{if eq $s.IDJunta $j.ID}}
-                            <td colspan="5" class="text-gray-600 text-[10px] italic">—</td>
-                            {{end}}
-                            {{end}}
-                            <td></td>
                         </tr>
                     </tbody>
                 </table>
             </div>
 
             <!-- ↕ Leyendas -->
-            <div class="border-t border-gray-700 pt-3">
-                <div class="flex items-center justify-between mb-2">
-                    <h4 class="text-xs font-bold text-teal-400 uppercase tracking-wider"><i class="fas fa-palette mr-1"></i> Leyendas</h4>
-                    <button onclick="toggleModal('crear-leyenda-modal')" class="btn btn-secondary btn-sm text-xs"><i class="fas fa-plus mr-1"></i> Añadir</button>
+            <fieldset class="card card-amber mt-6">
+                <legend class="legend legend-amber"><i class="fas fa-palette mr-1"></i> Leyendas</legend>
+                <div class="flex items-center justify-end mb-3">
+                    <button onclick="abrirCrearLeyenda({{$j.ID}})" class="btn btn-secondary btn-sm"><i class="fas fa-plus mr-1"></i> Añadir</button>
                 </div>
-                <div class="flex flex-wrap gap-2" id="leyendas-junta-{{$j.ID}}">
+                <div class="flex flex-wrap gap-2 mt-3" id="leyendas-junta-{{$j.ID}}">
                     {{range $jl := $root.JuntaLegend}}
                     {{if eq $jl.IDJunta $j.ID}}
                     {{range $l := $root.Legend}}
                     {{if eq $l.ID $jl.IDLeyenda}}
                     <div class="flex items-center gap-1.5 bg-gray-900/60 rounded-lg px-2.5 py-1.5 border border-gray-700/60 text-xs" data-leyenda-id="{{$l.ID}}">
-                        <span class="inline-block w-3 h-3 rounded-full" style="background:{{$l.Color}}"></span>
+                        <div class="flex items-center gap-1">
+                            <div class="flex flex-col -space-y-1">
+                                <button onclick="moverLeyenda({{$j.ID}}, {{$l.ID}}, -1)" class="btn-icon text-gray-500 hover:text-teal-400 text-[10px]" title="Subir"><i class="fas fa-chevron-up"></i></button>
+                                <button onclick="moverLeyenda({{$j.ID}}, {{$l.ID}}, 1)" class="btn-icon text-gray-500 hover:text-teal-400 text-[10px]" title="Bajar"><i class="fas fa-chevron-down"></i></button>
+                            </div>
+                            <span class="inline-block w-3 h-3 rounded-full shrink-0" style="background:{{$l.Color}}"></span>
+                        </div>
                         <span class="text-gray-200">{{$l.Nombre}}</span>
                         <button onclick="editarLeyenda({{$l.ID}}, '{{$l.Nombre}}', '{{$l.Color}}')" class="btn-icon text-gray-500 hover:text-teal-400 text-[10px] ml-1" title="Editar"><i class="fas fa-pen"></i></button>
                         {{if $l.Bloqueado}}
-                        <span class="text-gray-500 text-[10px]" title="Bloqueada"><i class="fas fa-lock"></i></span>
+                        <button onclick="toggleBloquearLeyenda({{$l.ID}})" class="btn-icon text-yellow-500 text-[10px]" title="Desbloquear"><i class="fas fa-lock"></i></button>
                         {{else}}
+                        <button onclick="toggleBloquearLeyenda({{$l.ID}})" class="btn-icon text-gray-500 hover:text-yellow-400 text-[10px]" title="Bloquear"><i class="fas fa-unlock"></i></button>
                         <button onclick="eliminarLeyenda({{$l.ID}})" class="btn-icon text-gray-500 hover:text-red-400 text-[10px]" title="Eliminar"><i class="fas fa-times"></i></button>
                         {{end}}
                     </div>
@@ -161,8 +161,8 @@
                     {{end}}
                     {{end}}
                 </div>
-            </div>
-        </div>
+            </fieldset>
+        </fieldset>
         {{end}}
     </div>
 
@@ -179,11 +179,11 @@
 <!-- Crear Hoja -->
 <div id="crear-hoja-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-hoja-modal')">
     <div class="relative modal-content w-full max-w-sm">
-        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
             <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-layer-group mr-2"></i>Nueva Hoja</h3>
             <button onclick="toggleModal('crear-hoja-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
         </div>
-        <div class="p-4 space-y-4">
+        <div class="modal-body space-y-4">
             <div>
                 <label class="label">Nombre del Mes</label>
                 <input type="text" id="nueva-hoja-nombre" class="input" placeholder="Ej: Junio 2026">
@@ -196,11 +196,11 @@
 <!-- Editar/Crear Leyenda -->
 <div id="crear-leyenda-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crear-leyenda-modal')">
     <div class="relative modal-content w-full max-w-sm">
-        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
             <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-palette mr-2"></i><span id="leyenda-modal-title">Nueva Leyenda</span></h3>
             <button onclick="toggleModal('crear-leyenda-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
         </div>
-        <div class="p-4 space-y-4">
+        <div class="modal-body space-y-4">
             <input type="hidden" id="editar-leyenda-id">
             <div>
                 <label class="label">Nombre</label>
@@ -208,7 +208,9 @@
             </div>
             <div>
                 <label class="label">Color</label>
-                <input type="color" id="leyenda-color" class="input" value="#FFFFFF">
+                <div class="leyenda-color-wrap mt-1">
+                    <input type="color" id="leyenda-color" class="input" value="#FFFFFF">
+                </div>
             </div>
             <div>
                 <label class="label">Ámbito</label>
@@ -220,7 +222,7 @@
             </div>
             <div id="leyenda-bloquear-wrap" class="hidden">
                 <label class="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" id="leyenda-bloqueado">
+                    <input type="checkbox" id="leyenda-bloqueado" class="exp-col">
                     <span class="text-xs text-gray-300">Bloqueada (no se puede eliminar)</span>
                 </label>
             </div>
@@ -232,11 +234,11 @@
 <!-- Eliminar Semanas -->
 <div id="eliminar-semanas-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('eliminar-semanas-modal')">
     <div class="relative modal-content w-full max-w-sm">
-        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
             <h3 class="text-sm font-bold text-red-400"><i class="fas fa-calendar-minus mr-2"></i>Eliminar Semanas</h3>
             <button onclick="toggleModal('eliminar-semanas-modal')" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
         </div>
-        <div id="eliminar-semanas-body" class="p-4 space-y-3">
+        <div id="eliminar-semanas-body" class="modal-body space-y-3">
             <!-- Renderizado por JS -->
         </div>
         <div class="p-4 border-t border-gray-700 flex justify-end gap-2 rounded-b-xl bg-gray-800/40">
@@ -272,12 +274,12 @@
 <!-- Cronograma Modal -->
 <div id="crono-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onclick="if(event.target===event.currentTarget) toggleModal('crono-modal')">
     <div class="relative modal-content w-full max-w-sm">
-        <div class="sticky top-0 bg-gray-800 z-10 flex items-center justify-between p-4 border-b border-gray-700 rounded-t-xl">
-            <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-check mr-2"></i>Programar Día</h3>
+        <div class="flex items-center justify-between p-4 border-b border-gray-700">
+            <h3 class="text-sm font-bold text-teal-400"><i class="fas fa-calendar-day mr-2"></i>Día <span id="crono-dia-label"></span></h3>
             <button onclick="cerrarCronoModal()" class="btn-icon text-gray-400 hover:text-white"><i class="fas fa-times"></i></button>
         </div>
-        <div class="p-4 space-y-4">
-            <input type="hidden" id="crono-proc-id">
+        
+        <div class="modal-body space-y-4"><input type="hidden" id="crono-proc-id">
             <input type="hidden" id="crono-fecha">
 
             <div id="crono-entries-list" class="space-y-2">
@@ -295,17 +297,13 @@
                 <button onclick="guardarCronoDia()" class="btn btn-primary text-xs w-full"><i class="fas fa-plus mr-1"></i> Agregar</button>
             </div>
         </div>
-        <div class="p-4 border-t border-gray-700 flex justify-end rounded-b-xl bg-gray-800/40">
+        <div class="p-4 border-t border-gray-700 flex justify-end">
             <button onclick="cerrarCronoModal()" class="btn btn-secondary text-xs">Cerrar</button>
         </div>
     </div>
 </div>
 
-<style>
-.gantt-cell-entry {
-    margin: 0 1px;
-}
-</style>
+
 
 <script>
 (function() {
@@ -314,6 +312,7 @@
 
     var currentHojaId = (current_hoja && current_hoja.id) || 0;
     var _editingLeyendaId = null;
+    var _editingJuntaId = null;
 
     // ─── Utilitarios ───
     window.toggleModal = function(id) {
@@ -458,7 +457,7 @@
         juntaSemanas.forEach(function(s) {
             var div = document.createElement('div');
             div.className = 'flex items-center gap-2';
-            div.innerHTML = '<input type="checkbox" class="sem-chk" value="' + s.numero + '">' +
+            div.innerHTML = '<input type="checkbox" class="sem-chk exp-col" value="' + s.numero + '">' +
                 '<span class="text-xs text-gray-300">Semana ' + s.numero + ' (' + s.fecha_inicio + ' → ' + s.fecha_fin + ')</span>';
             body.appendChild(div);
         });
@@ -487,10 +486,9 @@
 
     // ─── Procesos ───
     window.agregarProceso = function(idJunta) {
-        var input = document.getElementById('nuevo-proc-' + idJunta);
-        if (!input) return;
-        var nombre = input.value.trim();
-        if (!nombre) { alert('Escribe un nombre para el proceso'); return; }
+        var nombre = prompt('Ingresa el nombre del nuevo proceso:');
+        if (!nombre || !nombre.trim()) return;
+        nombre = nombre.trim();
 
         var juntaProcs = procesos.filter(function(p) { return p.id_junta === idJunta; });
 
@@ -541,10 +539,12 @@
         } else {
             // Crear nueva
             var idHoja = ambito === 'hoja' ? currentHojaId : null;
+            var idJunta = ambito === 'junta' ? _editingJuntaId : null;
             jsonPost('/api/ruta-procesos-leyenda-crear',
                 'nombre=' + encodeURIComponent(nombre) + '&color=' + encodeURIComponent(color) +
                 '&ambito=' + encodeURIComponent(ambito) +
-                (idHoja ? '&id_hoja=' + idHoja : '')
+                (idHoja ? '&id_hoja=' + idHoja : '') +
+                (idJunta ? '&id_junta=' + idJunta : '')
             ).then(function(res) {
                 if (res.success) { toggleModal('crear-leyenda-modal'); reload(); }
                 else alert(res.error || 'Error');
@@ -628,6 +628,73 @@
             else alert(res.error || 'Error');
         });
     };
+
+    // ─── Reordenar Leyendas ───
+    window.moverLeyenda = function(idJunta, idLeyenda, direction) {
+        jsonPost('/api/ruta-procesos-leyenda-reordenar',
+            'id_junta=' + idJunta + '&id_leyenda=' + idLeyenda + '&direction=' + direction
+        ).then(function(res) {
+            if (res.success) reload();
+            else alert(res.error || 'Error');
+        });
+    };
+
+    // ─── Toggle Bloquear Leyenda ───
+    window.toggleBloquearLeyenda = function(id) {
+        jsonPost('/api/ruta-procesos-leyenda-bloquear', 'id=' + id).then(function(res) {
+            if (res.success) reload();
+            else alert(res.error || 'Error');
+        });
+    };
+
+    // ─── Reordenar Procesos ───
+    window.moverProceso = function(idJunta, idProceso, direction) {
+        jsonPost('/api/ruta-procesos-proceso-reordenar',
+            'id_junta=' + idJunta + '&id_proceso=' + idProceso + '&direction=' + direction
+        ).then(function(res) {
+            if (res.success) reload();
+            else alert(res.error || 'Error');
+        });
+    };
+
+    // ─── Abrir Modal Crear Leyenda (reset) ───
+    window.abrirCrearLeyenda = function(idJunta) {
+        _editingLeyendaId = null;
+        _editingJuntaId = idJunta;
+        document.getElementById('leyenda-modal-title').textContent = 'Nueva Leyenda';
+        document.getElementById('editar-leyenda-id').value = '';
+        document.getElementById('leyenda-nombre').value = '';
+        document.getElementById('leyenda-color').value = '#FFFFFF';
+        document.getElementById('leyenda-ambito').disabled = false;
+        document.getElementById('leyenda-ambito').value = 'junta';
+        document.getElementById('leyenda-bloquear-wrap').classList.add('hidden');
+        toggleModal('crear-leyenda-modal');
+    };
+
+    // ─── Colorear Celdas del Gantt ───
+    function colorearCeldas() {
+        procesos.forEach(function(p) {
+            if (!p.timeline) return;
+            Object.keys(p.timeline).forEach(function(fecha) {
+                var entries = p.timeline[fecha];
+                if (!entries || !entries.length) return;
+                var td = document.querySelector('td[data-proc="' + p.id + '"][data-fecha="' + fecha + '"]');
+                if (!td) return;
+                td.className = td.className.replace('gantt-cell-empty', 'gantt-cell-active');
+                var html = '<div class="gantt-cell-entries">';
+                entries.forEach(function(e) {
+                    var c = esc(e.hex_color || '#333');
+                    var tip = esc(e.status_name || '');
+                    if (e.nota) tip += ': ' + esc(e.nota);
+                    html += '<div class="gantt-cell-entry" style="background-color:' + c + '" title="' + tip + '"></div>';
+                });
+                html += '</div>';
+                td.innerHTML = html;
+            });
+        });
+    }
+
+    colorearCeldas();
 
 })();
 </script>
