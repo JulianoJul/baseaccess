@@ -10,24 +10,36 @@ export function AbrirDialogoBD() {
   return window['go']['main']['App']['AbrirDialogoBD']();
 }
 
+export function ActualizarRutaProcesosJunta(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['ActualizarRutaProcesosJunta'](arg1, arg2, arg3, arg4);
+}
+
 export function ActualizarRutaProcesosLeyenda(arg1, arg2, arg3) {
   return window['go']['main']['App']['ActualizarRutaProcesosLeyenda'](arg1, arg2, arg3);
 }
 
-export function AgregarRutaProceso(arg1, arg2, arg3, arg4) {
-  return window['go']['main']['App']['AgregarRutaProceso'](arg1, arg2, arg3, arg4);
+export function AgregarRutaProcesosProceso(arg1, arg2, arg3) {
+  return window['go']['main']['App']['AgregarRutaProcesosProceso'](arg1, arg2, arg3);
+}
+
+export function AgregarRutaProcesosSemana(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['AgregarRutaProcesosSemana'](arg1, arg2, arg3, arg4);
 }
 
 export function CerrarBaseDatos() {
   return window['go']['main']['App']['CerrarBaseDatos']();
 }
 
-export function CrearRutaProcesosHoja(arg1, arg2, arg3) {
-  return window['go']['main']['App']['CrearRutaProcesosHoja'](arg1, arg2, arg3);
+export function CrearRutaProcesosHoja(arg1) {
+  return window['go']['main']['App']['CrearRutaProcesosHoja'](arg1);
 }
 
-export function CrearRutaProcesosLeyenda(arg1, arg2) {
-  return window['go']['main']['App']['CrearRutaProcesosLeyenda'](arg1, arg2);
+export function CrearRutaProcesosJunta(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CrearRutaProcesosJunta'](arg1, arg2, arg3, arg4);
+}
+
+export function CrearRutaProcesosLeyenda(arg1, arg2, arg3, arg4) {
+  return window['go']['main']['App']['CrearRutaProcesosLeyenda'](arg1, arg2, arg3, arg4);
 }
 
 export function DescargarBD(arg1) {
@@ -42,16 +54,24 @@ export function EliminarFila(arg1, arg2) {
   return window['go']['main']['App']['EliminarFila'](arg1, arg2);
 }
 
-export function EliminarRutaCronogramaCelda(arg1, arg2) {
-  return window['go']['main']['App']['EliminarRutaCronogramaCelda'](arg1, arg2);
-}
-
-export function EliminarRutaProceso(arg1) {
-  return window['go']['main']['App']['EliminarRutaProceso'](arg1);
-}
-
 export function EliminarRutaProcesosHoja(arg1) {
   return window['go']['main']['App']['EliminarRutaProcesosHoja'](arg1);
+}
+
+export function EliminarRutaProcesosJunta(arg1) {
+  return window['go']['main']['App']['EliminarRutaProcesosJunta'](arg1);
+}
+
+export function EliminarRutaProcesosLeyenda(arg1) {
+  return window['go']['main']['App']['EliminarRutaProcesosLeyenda'](arg1);
+}
+
+export function EliminarRutaProcesosProceso(arg1) {
+  return window['go']['main']['App']['EliminarRutaProcesosProceso'](arg1);
+}
+
+export function EliminarRutaProcesosSemanas(arg1, arg2) {
+  return window['go']['main']['App']['EliminarRutaProcesosSemanas'](arg1, arg2);
 }
 
 export function GetBackupMaxCopies() {
@@ -86,10 +106,6 @@ export function ObtenerDocumentosPendientes() {
   return window['go']['main']['App']['ObtenerDocumentosPendientes']();
 }
 
-export function ObtenerExpedientesDisponiblesRuta() {
-  return window['go']['main']['App']['ObtenerExpedientesDisponiblesRuta']();
-}
-
 export function ObtenerFilaPorId(arg1, arg2) {
   return window['go']['main']['App']['ObtenerFilaPorId'](arg1, arg2);
 }
@@ -106,10 +122,6 @@ export function ObtenerHistorialFila(arg1, arg2) {
   return window['go']['main']['App']['ObtenerHistorialFila'](arg1, arg2);
 }
 
-export function ObtenerRegistrosDisponiblesRuta(arg1) {
-  return window['go']['main']['App']['ObtenerRegistrosDisponiblesRuta'](arg1);
-}
-
 export function ObtenerRutaProcesos() {
   return window['go']['main']['App']['ObtenerRutaProcesos']();
 }
@@ -122,14 +134,18 @@ export function OptimizarBD() {
   return window['go']['main']['App']['OptimizarBD']();
 }
 
-export function ReordenarRutaProcesosLeyenda(arg1, arg2) {
-  return window['go']['main']['App']['ReordenarRutaProcesosLeyenda'](arg1, arg2);
+export function ReordenarRutaProcesosLeyenda(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReordenarRutaProcesosLeyenda'](arg1, arg2, arg3);
+}
+
+export function ReordenarRutaProcesosProceso(arg1, arg2, arg3) {
+  return window['go']['main']['App']['ReordenarRutaProcesosProceso'](arg1, arg2, arg3);
 }
 
 export function SetBackupMaxCopies(arg1) {
   return window['go']['main']['App']['SetBackupMaxCopies'](arg1);
 }
 
-export function ToggleRutaProceso(arg1, arg2) {
-  return window['go']['main']['App']['ToggleRutaProceso'](arg1, arg2);
+export function ToggleBloquearRutaProcesosLeyenda(arg1) {
+  return window['go']['main']['App']['ToggleBloquearRutaProcesosLeyenda'](arg1);
 }

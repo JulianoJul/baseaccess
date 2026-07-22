@@ -2,8 +2,8 @@
      x-data="fijados">
     <input type="hidden" id="active-module-val" name="modulo" value="{{.ActiveModule}}">
 
-    <div class="overflow-x-auto w-full">
-        <table class="w-full text-left border-collapse" style="min-width: 900px; table-layout: fixed;">
+    <div class="overflow-x-auto w-full pb-2">
+        <table class="text-left border-collapse" style="min-width: 900px; width: 100%;">
             <thead>
                 <tr class="bg-gray-700/60 text-teal-400 text-xs uppercase tracking-wider border-b border-gray-700">
                     <th class="p-3 text-center whitespace-nowrap" style="width: 55px;">Ver</th>
@@ -221,18 +221,12 @@
 
     {{/* ── Paginación ────────────────────────────────────────────────── */}}
     {{if gt .TotalPages 1}}
-    <div class="flex items-center justify-between mt-4 px-1 select-none"
+    <div class="flex items-center justify-center px-4 py-2 select-none border-t border-gray-700"
          id="paginacion-controles">
 
         {{/* Hidden inputs para que los botones de página los incluyan */}}
         <input type="hidden" id="pagina-actual-val"   name="pagina"     value="{{.CurrentPage}}">
         <input type="hidden" id="page-size-val"        name="page_size"  value="{{.PageSize}}">
-
-        {{/* Info: "Página X de Y" */}}
-        <span class="text-xs text-gray-400">
-            Página <span class="text-teal-400 font-semibold">{{.CurrentPage}}</span>
-            de <span class="font-semibold text-gray-200">{{.TotalPages}}</span>
-        </span>
 
         {{/* Botones de navegación */}}
         <div class="flex items-center gap-1.5">
@@ -349,8 +343,40 @@
   var table = document.querySelector('#tabla-cuerpo')?.closest('table');
   if (!table) return;
 
-  // Asegurar que el resize funcione sobre anchos fijos de columna.
-  table.style.tableLayout = 'fixed';
+  function tdOverflow(idx) {
+    table.querySelectorAll('tbody > tr:not(.hidden):not([id^="subfila-"])').forEach(function(row) {
+      var td = row.children[idx];
+      if (!td) return;
+      td.style.overflow = 'hidden';
+      td.style.textOverflow = 'ellipsis';
+      td.style.whiteSpace = 'nowrap';
+    });
+  }
+
+  function fillLastColumn() {
+    var ths = table.querySelectorAll('thead th');
+    var lastIdx = ths.length - 1;
+    var lastKey = ths[lastIdx].textContent.trim() || 'col_' + lastIdx;
+    if (widths[lastKey] !== undefined) return;
+
+    var total = 0, allSet = true;
+    ths.forEach(function(th) {
+      if (th.style.width) { total += parseFloat(th.style.width) || MIN_WIDTH; }
+      else { allSet = false; }
+    });
+    if (!allSet) return;
+
+    var tableW = table.clientWidth;
+    var extra = tableW - total;
+    if (extra <= MIN_WIDTH) return;
+
+    var w = Math.max(MIN_WIDTH, extra);
+    ths[lastIdx].style.width = w + 'px';
+    table.querySelectorAll('tbody > tr:not(.hidden):not([id^="subfila-"])').forEach(function(row) {
+      var td = row.children[lastIdx];
+      if (td) td.style.width = w + 'px';
+    });
+  }
 
   var headers = table.querySelectorAll('thead th');
   headers.forEach(function(th, idx) {
@@ -360,25 +386,20 @@
     function applyColWidth(w) {
       w = Math.max(MIN_WIDTH, w);
       th.style.width = w + 'px';
-      th.style.maxWidth = w + 'px';
       table.querySelectorAll('tbody > tr:not(.hidden):not([id^="subfila-"])').forEach(function(row) {
         var td = row.children[idx];
         if (!td) return;
         td.style.width = w + 'px';
-        td.style.maxWidth = w + 'px';
-        td.style.overflow = 'hidden';
-        td.style.textOverflow = 'ellipsis';
-        td.style.whiteSpace = 'nowrap';
       });
     }
 
-    // Aplicar ancho guardado o fijar el ancho actual para no romper el layout inicial.
+    // Solo fijar ancho en columnas que el usuario ya redimensionó.
+    // Las columnas sin savedW se reparten el espacio restante equitativamente.
     if (savedW) {
       applyColWidth(savedW);
-    } else if (!th.style.width) {
-      applyColWidth(th.offsetWidth || MIN_WIDTH);
     }
 
+    tdOverflow(idx);
     th.style.position = 'relative';
     th.style.minWidth = MIN_WIDTH + 'px';
     th.style.overflow = 'hidden';
@@ -411,6 +432,7 @@
         var finalW = th.offsetWidth;
         widths[key] = finalW;
         saveWidths(widths);
+        fillLastColumn();
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
       }
@@ -418,5 +440,6 @@
       document.addEventListener('mouseup', onMouseUp);
     });
   });
+  fillLastColumn();
 })();
 </script>

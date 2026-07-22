@@ -248,7 +248,7 @@ func TestObtenerRutaProcesosData(t *testing.T) {
 	app := testApp(t)
 	m := app
 
-	hojaID, err := m.CrearRutaProcesosHoja("Test", "2024-01-01", "2024-12-31")
+	hojaID, err := m.CrearRutaProcesosHoja("Test")
 	if err != nil {
 		t.Fatalf("CrearRutaProcesosHoja: %v", err)
 	}
@@ -260,11 +260,11 @@ func TestObtenerRutaProcesosData(t *testing.T) {
 	if data.Legend == nil || len(data.Legend) == 0 {
 		t.Error("legend should not be empty")
 	}
-	if data.Columns == nil {
-		t.Error("columns should not be nil")
+	if data.Juntas == nil {
+		t.Error("juntas should not be nil")
 	}
-	if data.Processes == nil {
-		t.Error("processes should not be nil")
+	if data.Procesos == nil {
+		t.Error("procesos should not be nil")
 	}
 	if len(data.Legend) < 6 {
 		t.Errorf("expected at least 6 legend entries, got %d", len(data.Legend))
@@ -275,7 +275,7 @@ func TestActualizarRutaProcesosLeyenda(t *testing.T) {
 	app := testApp(t)
 	m := app
 
-	legID, err := m.CrearRutaProcesosLeyenda("TEST", "#123456")
+	legID, err := m.CrearRutaProcesosLeyenda("TEST", "#123456", "global", nil)
 	if err != nil {
 		t.Fatalf("CrearRutaProcesosLeyenda: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestActualizarRutaProcesosLeyenda(t *testing.T) {
 		t.Fatalf("ActualizarRutaProcesosLeyenda: %v", err)
 	}
 
-	hojaID, err := m.CrearRutaProcesosHoja("Test", "2024-01-01", "2024-12-31")
+	hojaID, err := m.CrearRutaProcesosHoja("Test")
 	if err != nil {
 		t.Fatalf("CrearRutaProcesosHoja: %v", err)
 	}
@@ -299,11 +299,11 @@ func TestActualizarRutaProcesosLeyenda(t *testing.T) {
 	for _, leg := range data.Legend {
 		if leg.ID == int(legID) {
 			found = true
-			if leg.StatusName != "TEST-UPDATED" {
-				t.Errorf("expected status_name TEST-UPDATED, got %s", leg.StatusName)
+			if leg.Nombre != "TEST-UPDATED" {
+				t.Errorf("expected nombre TEST-UPDATED, got %s", leg.Nombre)
 			}
-			if leg.HexColor != "#654321" {
-				t.Errorf("expected hex_color #654321, got %s", leg.HexColor)
+			if leg.Color != "#654321" {
+				t.Errorf("expected color #654321, got %s", leg.Color)
 			}
 			break
 		}
@@ -313,32 +313,32 @@ func TestActualizarRutaProcesosLeyenda(t *testing.T) {
 	}
 }
 
-func TestObtenerExpedientesDisponiblesRuta(t *testing.T) {
+func TestCrearJunta(t *testing.T) {
 	app := testApp(t)
 	m := app
 
-	_, err := m.GuardarFila("expedientes", map[string]interface{}{
-		"solped":               "RUTA-TEST",
-		"id_gerencia":          1,
-		"id_estatus":           1,
-		"descripcion_proceso":  "Test ruta process",
-	})
+	hojaID, err := m.CrearRutaProcesosHoja("Test Junta")
 	if err != nil {
-		t.Fatalf("GuardarFila: %v", err)
+		t.Fatalf("CrearRutaProcesosHoja: %v", err)
 	}
 
-	disp, err := m.ObtenerExpedientesDisponiblesRuta()
+	juntaID, err := m.CrearRutaProcesosJunta(int(hojaID), 1, 100, "2026-01-15")
 	if err != nil {
-		t.Fatalf("ObtenerExpedientesDisponiblesRuta: %v", err)
+		t.Fatalf("CrearRutaProcesosJunta: %v", err)
 	}
-	if len(disp) == 0 {
-		t.Error("should return at least 1 expediente")
+
+	data, err := m.ObtenerRutaProcesosData(int(hojaID), int(juntaID))
+	if err != nil {
+		t.Fatalf("ObtenerRutaProcesosData: %v", err)
 	}
-	if len(disp) > 0 {
-		r := disp[0]
-		if _, ok := r["id"]; !ok {
-			t.Error("result row should have 'id' key")
-		}
+	if data.CurrentJunta == nil {
+		t.Fatal("CurrentJunta should not be nil")
+	}
+	if data.CurrentJunta.Numero != 1 {
+		t.Errorf("expected numero 1, got %d", data.CurrentJunta.Numero)
+	}
+	if data.CurrentJunta.Fecha != "2026-01-15" {
+		t.Errorf("expected fecha 2026-01-15, got %s", data.CurrentJunta.Fecha)
 	}
 }
 
