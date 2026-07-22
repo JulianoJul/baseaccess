@@ -1,0 +1,430 @@
+El usuario quiere que actúe como un Arquitecto de UI/UX Senior y genere un documento plan.md detallado para rediseñar su frontend actual (documentado en el archivo adjunto) hacia una estética de "Modern SaaS Dashboard" con "Minimalismo Funcional" y sistema bimodal de temas (claro/oscuro).
+Restricciones clave:
+NO escribir código HTML ni CSS, solo el plan Markdown.
+Principio DRY: arquitectura que elimine redundancia, clases reutilizables, abstracción de fragmentos repetitivos.
+Paleta de colores: inspiración en colores actuales (Teal, Amber, Emerald, grises) pero con libertad para modificar.
+Resoluciones objetivo: 1280x720 (ventana completa) y 640x720 (media pantalla junto a Excel). Priorizar eficiencia vertical y comportamiento exacto en 640px.
+Iconografía: Font Awesome Free 7.3 exclusivamente (fas fa-*). Prohibido SVGs inline, imágenes o placeholders.
+El plan.md debe contener exactamente 5 secciones:
+Visión del Rediseño (SaaS Dashboard Bimodal)
+Sistema de Diseño y Tokens (Variables CSS)
+Estructura de Layout y Componentes DRY
+Guía de Refactorización Crítica
+Hoja de Ruta de Ejecución (Step-by-Step)
+Debo basarme en la documentación proporcionada (plan_frontend_html_css.md) que describe una app con Go backend, HTMX, Alpine.js, Tailwind CSS purged + styles.css custom (838 líneas), Font Awesome, y varios templates (index.html, tabla.html, form.html, components.html, ruta_procesos.html, historial.html, pendientes.html).
+Necesito analizar la documentación adjunta para entender la estructura actual y proponer el rediseño.
+Análisis rápido de la documentación actual:
+Stack: Go html/template, HTMX, Alpine.js v3.14.8, Tailwind CSS (purged) + styles.css custom, Font Awesome Free 7.3.
+Estructura: appShell en body, header, barra de búsqueda, #vista-tabla, #bottom-bar (switcher de módulos), 8 modales.
+Tabla: tabla.html con thead, tbody, subfilas expandibles, paginación, resize de columnas con localStorage.
+Formulario: form.html con fieldsets, conversión USD/Bs, observaciones auto-generadas, modo orden Excel.
+Componentes: components.html con templates reutilizables para inputs, selects, botones, etc.
+Ruta Procesos: ruta_procesos.html con Gantt chart, vanilla JS en IIFE, no Alpine.js.
+CSS actual: custom properties en :root, dark mode forzado (color-scheme: dark), variables para fondos, bordes, textos, acentos.
+9 módulos: expedientes, requisiciones, memorandums, recobros, valuaciones, aprobacion_jd, certificacion_bdu, vacaciones, reposos_medicos.
+El usuario quiere un plan detallado, no código. Debo ser muy específico en las instrucciones para el agente programador.
+Consideraciones para el rediseño:
+Modern SaaS Dashboard: layouts limpios, cards con bordes sutiles o sin bordes con sombras suaves, tipografía clara, espaciado consistente.
+Minimalismo funcional: cada elemento debe tener un propósito, eliminar decoración innecesaria, maximizar información útil por px.
+Bimodal nativo: tema claro y oscuro, usando variables CSS y data-theme o prefers-color-scheme.
+DRY: unificar los templates de inputs, botones, etc. Actualmente ya hay algunos templates reutilizables (components.html) pero se pueden mejorar. Unificar la estructura de tabla entre módulos.
+Responsividad extrema 1280→640: en 640px la app se usa junto a Excel. Esto significa que no podemos depender de menús laterales que consuman ancho. El bottom bar actual es bueno para 640px. La tabla debe scroll horizontal eficiente. Los formularios deben adaptarse (posiblemente layout de una columna o drawer lateral en lugar de modal centrado que ocupe mucho espacio vertical). Los modales en 640px deben ser fullscreen o drawers.
+Iconografía: solo Font Awesome (fas fa-*). Debo mapear qué iconos usar para cada acción.
+Estructura del plan.md:
+Visión del Rediseño (SaaS Dashboard Bimodal):
+Principios estéticos: flat con profundidad sutil (elevation system), radios consistentes (8px para cards, 6px para inputs, 9999px para badges/pills), opacidades para estados deshabilitados/skeletons, jerarquía visual mediante peso tipográfico, color y espaciado (no bordes pesados).
+Estrategia DRY:
+Crear un "Design System" de templates Go reutilizables: ui_button.html, ui_input.html, ui_badge.html, ui_card.html, ui_table.html, ui_modal.html, ui_empty_state.html.
+Unificar los 9 módulos de tabla en un único template parametrizado data_table.html que reciba columnas y filas.
+Unificar fieldsets del formulario en componentes de layout form_section.html.
+Extraer la lógica de subfila expandible a un componente único.
+Centralizar la definición de columnas por módulo en el backend (ya está en ModuloConfig.OrdenExcel y Columnas) y usarla para generar thead/tbody dinámicamente.
+Estrategia de responsividad:
+Breakpoint único crítico: 640px. No diseñar para mobile (<640px), sino para "ventana estrecha de escritorio" (640px-1280px).
+Layout base: CSS Grid con grid-template-columns: 1fr en <960px, y layouts multi-columna en ≥960px.
+Header: en <960px, colapsar texto de botones, mostrar solo iconos + tooltip (title). El input de búsqueda se convierte en icono que expande al hacer focus.
+Bottom bar: ya es fixed, mantenerlo pero reducir padding y font-size en <960px. Agrupar módulos menos usados en un dropdown "Más" (fas fa-ellipsis-h) si no caben.
+Tablas: en <960px, no usar tablas nativas con columnas comprimidas. En su lugar, usar una "card list view" o mantener tabla con scroll horizontal SIN redimensionar columnas (resizer desactivado en <960px). Las columnas prioritarias (Documento, Estatus) deben ser sticky-left.
+Formularios: en <960px, convertir el modal de formulario en un drawer lateral deslizable desde la derecha que ocupe 100% del ancho (640px) o 90%, permitiendo ver la tabla detrás si es posible, o bien un panel inline que reemplace la tabla. Dado el espacio reducido, el drawer es mejor que un modal centrado.
+Gantt: en <960px, scroll horizontal obligatorio con cabecera de semanas sticky-top y columna de proceso sticky-left.
+Sistema de Diseño y Tokens (Variables CSS):
+Definir :root (tema claro) y [data-theme="dark"] (tema oscuro). También respetar @media (prefers-color-scheme: dark) como fallback si no hay data-theme.
+Paleta:
+Fondos: --bg-base (fondo app), --bg-surface (cards/modales), --bg-surface-elevated (toasts, dropdowns), --bg-input (campos).
+Capas de superficie: usar opacidad/blend para diferenciar, no múltiples grises. Ej: rgba(255,255,255,0.6) sobre base para superficie en claro; rgba(255,255,255,0.05) en oscuro.
+Acentos:
+Primary: Teal ajustado para accesibilidad (ej. #0f766e / #14b8a6).
+Secondary: Slate azulado (#64748b).
+Success: Emerald (#10b981).
+Warning: Amber (#f59e0b).
+Danger: Red (#ef4444).
+Info: Blue (#3b82f6).
+Texto: --text-primary, --text-secondary, --text-tertiary, --text-inverse.
+Bordes: --border-subtle, --border-default, --border-focus.
+Espaciado: sistema de 4px base (0.25rem). Densidad "compacta" para 720p: padding de cards reducido a 12px (0.75rem), gap entre elementos 8px (0.5rem). Inputs con altura mínima 36px (no 44px) para ahorrar vertical.
+Tipografía: Inter o system-ui. Tamaños reducidos: xs (0.75rem/12px) para labels y badges, sm (0.875rem/14px) para cuerpo de tabla, base (1rem/16px) para inputs. Line-height tight (1.25) para tablas.
+Sombras: sistema de elevación de 3 niveles (sutil para cards, media para modales/drawers, alta para toasts).
+Estructura de Layout y Componentes DRY:
+appShell:
+Reestructurar <body> con display: grid; grid-template-rows: auto 1fr auto; height: 100vh; overflow: hidden; para evitar scroll del body y manejar scroll interno en #vista-tabla.
+Header: display: flex; justify-content: space-between; align-items: center; height: 48px; padding: 0 16px; border-bottom: 1px solid var(--border-subtle);. En 640px, altura 44px.
+#vista-tabla: overflow: auto; padding: 12px;. Contenedor principal con scroll propio.
+Bottom bar: fixed o grid-row. En 640px, altura 48px. Usar display: flex; overflow-x: auto; con scrollbar-width: none para permitir scroll horizontal de módulos si no caben, o el dropdown "Más".
+Navegación: Unificar los botones de módulo en un componente template nav_module_button.html que reciba Modulo, IsActive, IconClass. En 640px, solo icono + badge de notificación si aplica.
+Redundancias a eliminar:
+Los 9 templates de tabla parcialmente distintos → unificar en data_table.html que itere ModuloConfig.Columnas para generar <th> y <td>. Las subfilas expandibles usar un template único table_subrow.html parametrizado por módulo.
+Los múltiples fieldsets en form.html → usar form_section.html con título y slot de contenido. Los campos específicos del módulo se inyectan mediante templates parciales por módulo, pero el wrapper es único.
+Los 8 modales → wrapper único modal_shell.html con slots para header, body, footer. Cada modal concreto solo define el contenido.
+Inputs: unificar form_input_text_alpine, form_input_date_alpine, form_input_number_alpine, form_input_monto_alpine en un único form_input.html que reciba Type, Name, Label, Model, Directive (ej: x-currency), Extras (clases, eventos). Similar para selects y textareas.
+Botones de acción en tabla (editar/fijar) → componente table_row_actions.html.
+Drawer para formularios en <960px: crear un componente side_panel.html que en 640px se comporte como drawer deslizable (position: fixed; right: 0; top: 0; bottom: 0; width: 100%; max-width: 640px; transform: translateX(100%); transition: transform 0.3s;) y en ≥960px como modal centrado clásico o panel inline. Esto es clave para el uso junto a Excel.
+Guía de Refactorización Crítica:
+a) Tablas de datos:
+Usar display: grid o tabla nativa con table-layout: auto pero con contenedor scrollable. En <960px, desactivar resizer de columnas y forzar white-space: nowrap.
+Sticky headers (position: sticky; top: 0; z-index: 10;) y sticky columnas de acción (primera columna con acciones) para scroll horizontal en 640px.
+Unificar paginación en componente pagination.html.
+Preservar: hx-get en botones de página, hx-target="#vista-tabla", hx-trigger en búsqueda.
+b) Formularios:
+Layout del formulario: usar CSS Grid grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) para que en 1280px haya 2-3 columnas y en 640px una sola columna.
+Fieldsets reemplazados por cards con header (<details>/<summary> opcional para colapsar secciones y ahorrar espacio vertical en 640px).
+Preservar: x-data="formularioModulo(...)", x-model en inputs, @change para validación de fechas, onMontoInput para conversión, prepararObservaciones() antes de submit.
+Preservar HTMX: hx-post="/api/guardar-expediente", hx-include, hx-confirm en eliminar.
+c) Gantt (Ruta de Procesos):
+Reemplazar la tabla HTML nativa del Gantt por un layout CSS Grid más moderno y controlable: grid-template-columns: 200px repeat(N, minmax(40px, 1fr)) donde N es número de días/semanas.
+Sticky: primera columna (nombre de proceso) sticky-left; header de semanas sticky-top.
+En 640px: reducir ancho de celdas de día a 32px, fuente 10px, ocultar leyendas en sidebar (mover a dropdown).
+Preservar: el IIFE de vanilla JS y sus funciones (toggleModal, jsonPost, reload, colorearCeldas). Solo cambiar el markup y clases CSS que afectan al layout visual. No tocar la lógica de datos.
+Preservar: hx-get="/api/ruta-procesos" y hx-target="#ruta-contenido".
+d) Modales y Toasts:
+Unificar todos los modales bajo un sistema de "Modal/Drawer" híbrido.
+En ≥960px: modal centrado con overlay (position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;), max-width según contenido (ej. 720px para formularios, 960px para Gantt).
+En <960px: drawer lateral derecho (o bottom sheet para modales pequeños) que ocupe todo el ancho disponible (640px) para no perder contexto.
+Toasts: posición top-right en ≥960px, bottom-center en <960px (para no tapar el drawer). Animación slide-in.
+Preservar: $store.modals.abrir/cerrar, $store.toast.mostrar, hx-get que abren modales (ej. historial, pendientes).
+Atributos obligatorios a preservar (recalcar explícitamente):
+HTMX: Todos los hx-get, hx-post, hx-target, hx-include, hx-vals, hx-trigger, hx-swap (default o innerHTML). Especialmente los endpoints /api/*.
+Alpine.js: x-data en appShell, formularioModulo, fijados, bdRecientes, calculadoraSumas, exportarExcel, filtroSuperintendencias. Los $store.modals, $store.toast, $store.fijados. Los @click, @change, @input con handlers existentes (toggle, onMontoInput, validarFechas, etc.). La directiva x-currency.
+alpine-htmx-bridge.js: debe seguir funcionando (htmx:afterSettle → Alpine.initTree).
+Hoja de Ruta de Ejecución (Step-by-Step):
+Paso 1: Preparar el proyecto. Backup de archivos actuales. Verificar que Alpine, HTMX, Font Awesome estén en versiones correctas.
+Paso 2: Implementar tokens CSS. Crear nuevo styles.css (o theme.css) con :root, [data-theme="dark"], y clases de utilidad del design system. Eliminar el styles.css anterior de 838 líneas o refactorizarlo progresivamente.
+Paso 3: Crear templates base DRY. ui_base.html (shell), ui_modal_shell.html, ui_button.html, ui_input.html, ui_card.html, ui_badge.html, ui_empty_state.html.
+Paso 4: Refactorizar index.html (appShell). Implementar grid base, header compacto, bottom bar responsive con dropdown "Más" en 640px. Integrar tema claro/oscuro toggle.
+Paso 5: Refactorizar tabla.html → data_table.html unificado. Implementar sticky columns, scroll horizontal, resizer condicional (solo ≥960px). Asegurar que las 9 variantes de módulo se generen desde PageData.Modulos.
+Paso 6: Refactorizar form.html y components.html. Unificar inputs en ui_input.html. Implementar grid responsive en fieldsets. Convertir modal de formulario a drawer en <960px.
+Paso 7: Refactorizar modales secundarios (historial, pendientes, exportar, sumas, recientes, frecuentes). Usar ui_modal_shell.html.
+Paso 8: Refactorizar ruta_procesos.html. Modernizar markup del Gantt a CSS Grid, sticky headers/columns, responsive para 640px.
+Paso 9: Implementar sistema de toasts responsive y animaciones de transición.
+Paso 10: Testing y ajustes finales. Verificar en 1280x720 y 640x720. Validar que todos los hx-* y x-* funcionan. Revisar contraste y accesibilidad.
+Necesito ser muy cuidadoso de NO escribir código HTML ni CSS. Debo describir todo en términos de arquitectura, tokens, instrucciones y nombres de clases/componentes, pero sin bloques de código ejecutables. Puedo usar pseudo-código o descripciones textuales de estructuras.
+También debo recordar que la interfaz se usa junto a Excel en 640px, por lo que el usuario probablemente tiene la ventana a la mitad de una pantalla 1080p o similar. La altura es 720px (o la mitad de 1080p con taskbar), así que la eficiencia vertical es CRÍTICA.
+Refinando ideas:
+Para el bottom bar en 640px: si hay 9 módulos + Ruta Procesos, no caben. Debo proponer que se muestren los 4-5 más usados y el resto en un menú "Más" (fas fa-ellipsis-h). O usar scroll horizontal con fade en los bordes. El scroll horizontal es más directo y mantiene acceso rápido. Pero 10 botones en 640px... cada uno con icono + texto corto podría caber si son muy compactos (padding 4px 8px, font 11px). Pero mejor proponer un "overflow menu" para no arriesgar. O un "rail" lateral izquierdo colapsable en lugar de bottom bar para 640px? No, 640px de ancho es poco, un rail lateral quitaría ~60px valiosos. El bottom bar es mejor porque usa altura, no ancho. En 640px de ancho, el ancho es lo valioso. Así que bottom bar horizontal es correcto, pero debe ser muy compacto. Quizás solo iconos en <800px.
+Para las tablas en 640px: en lugar de comprimir todas las columnas, usar un patrón "primary column sticky + scroll". La primera columna (Documento + Descripción) debe ser ancha y sticky, el resto scroll horizontal. O usar una vista de "cards" en <800px donde cada fila es una card vertical. Pero las cards consumen mucho espacio vertical, y en 720px de altura eso es problemático para ver muchos registros. Así que mejor mantener tabla con scroll horizontal y sticky first column. Las subfilas expandibles deben ser modales o drawers en <800px para no romper el layout.
+Para los formularios: el modal actual probablemente es un overlay centrado. En 640x720, un modal centrado con max-width 500px dejaría 70px a cada lado, pero la altura podría ser insuficiente. Mejor un drawer derecho que ocupe todo el ancho (640px) y permita scroll interno. Esto también permite al usuario ver parcialmente la tabla detrás si el drawer no es 100% (ej. 90% width), pero en 640px 90% son 576px, dejando 64px a la izquierda que no sirven de mucho. Así que 100% width drawer es aceptable, siempre que se sienta como una capa superior y tenga un botón de cierre claro.
+Para el Gantt: en 640px, el Gantt actual con tabla HTML es imposible de leer si hay muchas semanas. Debo proponer que en <960px, el Gantt cambie a una vista de "lista de procesos" donde cada proceso se expande para mostrar su cronograma en una sub-grid horizontal. O mantener el grid pero con zoom/escala reducida (semanas en lugar de días, o días más angostos). La propuesta de grid CSS con celdas de 32px y sticky left column es buena. El header de semanas puede ser sticky top.
+Ahora, sobre la paleta de colores:
+Actual: Teal (#0d9488), Amber (#f59e0b), Emerald (#34d399), grises (#111827, #1f2937, #374151).
+Nueva paleta (Modern SaaS):
+Tema Claro:
+Base: #f8fafc (slate-50) o #ffffff.
+Surface: #ffffff con bordes #e2e8f0 (slate-200).
+Surface elevated: #ffffff con sombra sutil.
+Input: #f1f5f9 (slate-100) con borde #cbd5e1 (slate-300).
+Text primary: #0f172a (slate-900).
+Text secondary: #475569 (slate-600).
+Text tertiary: #94a3b8 (slate-400).
+Primary: #0f766e (teal-700) o un teal más vibrante #14b8a6 (teal-500) para claro. En claro, el teal-500 funciona bien.
+Success: #10b981 (emerald-500).
+Warning: #f59e0b (amber-500).
+Danger: #ef4444 (red-500).
+Info: #3b82f6 (blue-500).
+Tema Oscuro:
+Base: #0f172a (slate-900) o el actual #111827 (gray-900).
+Surface: #1e293b (slate-800) con bordes #334155 (slate-700).
+Surface elevated: #1e293b con sombra más pronunciada.
+Input: #0f172a (slate-900) o #1e293b con borde #475569 (slate-600).
+Text primary: #f8fafc (slate-50).
+Text secondary: #94a3b8 (slate-400).
+Text tertiary: #64748b (slate-500).
+Primary: #2dd4bf (teal-400) o #14b8a6 (teal-500).
+Success: #34d399 (emerald-400).
+Warning: #fbbf24 (amber-400).
+Danger: #f87171 (red-400).
+Info: #60a5fa (blue-400).
+Esto mantiene la esencia (teal, amber, emerald) pero la moderniza con una escala de grises slate en lugar de gray puro, que es más sofisticada.
+Sistema de espaciado:
+Densidad compacta: 4px base.
+Space unit: 0.25rem (4px).
+Usar multiplicaciones: 1 (4px), 2 (8px), 3 (12px), 4 (16px), 6 (24px), 8 (32px).
+En 720p, reducir márgenes verticales. Padding de cards: 12px (3 unidades). Gap entre items: 8px (2 unidades).
+Altura de inputs: 36px (2.25rem) para ahorrar espacio. Botones: 32px (2rem) para iconos solos, 36px para con texto.
+Tipografía:
+Familia: font-family: 'Inter', system-ui, -apple-system, sans-serif; (Inter es estándar SaaS).
+Tamaños:
+2xs: 0.625rem (10px) - Gantt headers, badges.
+xs: 0.75rem (12px) - Labels, captions.
+sm: 0.875rem (14px) - Body, tabla, inputs.
+base: 1rem (16px) - Títulos de sección, modales.
+lg: 1.125rem (18px) - Títulos de página.
+xl: 1.25rem (20px) - Header brand.
+Pesos: 400 (normal), 500 (medium para labels), 600 (semibold para headers), 700 (bold para títulos).
+Line-height: 1.25 para tablas y densidad, 1.5 para textos largos.
+Radios:
+--radius-sm: 4px (badges, tags).
+--radius-md: 6px (inputs, botones pequeños).
+--radius-lg: 8px (cards, modales).
+--radius-xl: 12px (drawers, paneles grandes).
+--radius-full: 9999px (pills, badges de estado).
+Sombras (elevation):
+--shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05) - inputs, badges.
+--shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1) - cards, dropdowns.
+--shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1) - modales, drawers.
+--shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) - toasts.
+En dark mode, las sombras deben tener más opacidad o usar un tono del color de fondo.
+Ahora, estructura DRY específica:
+La documentación actual tiene muchos templates parciales ya (components.html). Pero el plan debe exigir ir más allá:
+ui_shell.html: Define el grid base del body, header, main, footer/bottom-bar. Incluye los scripts globales.
+ui_data_table.html: Un único template para TODOS los módulos. Recibe Columns (array de {Key, Label, Width, Priority, Type}) y Rows. Las columnas con Priority = 1 son las que permanecen visibles en 640px; el resto se ocultan o van al scroll horizontal. La subfila expandible usa ui_table_subrow.html.
+ui_form.html: Wrapper del formulario. El contenido se inyecta por bloques.
+ui_form_fieldset.html: Wrapper de sección con título, opcionalmente colapsable (<details>). En 640px, todos los fieldsets deben ser colapsables por defecto para ahorrar scroll.
+ui_input_field.html: Unifica text, date, number, monto. Recibe Type, Name, Label, Model, Directive, Placeholder, HelpText. Usa un switch en Go template para renderizar el input correcto.
+ui_action_button.html: Recibe Variant (primary, secondary, danger, ghost), Size (sm, md, lg), Icon (clase fas), Label, HTMXAttrs (mapa de atributos hx-), AlpineAttrs (mapa de eventos @). Esto elimina la redundancia de botones en toda la app.
+ui_badge.html: Recibe Variant y Label. Usado para estatus en tablas y Gantt.
+ui_empty_state.html: Icono + título + subtítulo. Usado en tablas vacías, pendientes vacíos, etc.
+ui_modal.html / ui_drawer.html: Recibe ID, Title, Size (sm, md, lg, full), BodyContent, FooterContent. En ≥960px se comporta como modal centrado; en <960px como drawer derecho. Implementado con CSS puro usando media queries y el mismo markup.
+ui_toast.html: Template para un item toast. El container es fijo.
+Refactorización crítica - detalles:
+a) Tablas:
+El resizer de columnas actual usa localStorage. Preservar la clave pero adaptar el JS para que solo funcione si window.innerWidth >= 960. En <960px, las columnas usan width: auto o minmax y el usuario no puede resize.
+Sticky: thead th { position: sticky; top: 0; }. La primera columna de acciones (expandir + editar + fijar) debe ser position: sticky; left: 0; background: var(--bg-surface); z-index: 20; para que al hacer scroll horizontal en 640px, siempre se vean las acciones.
+En 640px, ocultar columnas no esenciales mediante una clase .hidden-below-md que se active con media query. Las columnas esenciales son: Acciones, Documento, Descripción (truncada), Estatus. SOLPED, Gerencia, etc. pueden ir al scroll o al expandir subfila.
+La subfila actual ocupa mucho espacio. En 640px, al expandir una fila, en lugar de una subfila dentro de la tabla (que rompe el layout horizontal), abrir un drawer pequeño o un panel inline debajo de la fila con position: relative y ancho completo. O mantener la subfila pero asegurar que el colspan ocupe el ancho visible. Dado que es complejo, instruir al programador que en <960px, el click en la fila abra un "quick view drawer" en lugar de expandir la subfila. Esto es más limpio y ahorra espacio. Pero esto cambiaría la interacción... Quizás mejor mantener la subfila pero con un layout de grid más flexible. O usar un modal de "Detalle rápido" en <960px. Dado el principio de minimalismo funcional, un drawer de detalle rápido es mejor que una subfila que empuja todo. Sin embargo, el usuario quiere que preserve HTMX/Alpine. El toggle de subfila es Alpine (@click). Podría cambiarse a que en <960px abra un modal/drawer con el contenido de la subfila. Pero eso requiere más cambio de lógica. Mejor instruir que se preserve el toggle pero que la subfila en <960px use position: absolute o un layout que no rompa la tabla. En realidad, las subfilas con colspan en tablas con scroll horizontal son problemáticas. Quizás la solución DRY es que la subfila siempre sea un drawer/modal separado, independientemente del ancho. Pero eso rompe el patrón actual.
+Compromiso: En ≥960px, mantener subfila expandible inline. En <960px, el click en la fila abre un drawer de "Vista de detalle" que muestra el contenido de la subfila + observaciones. Esto elimina el colspan problemático en pantallas estrechas. El botón +/- se convierte en "Ver detalle" (fas fa-eye). Esto es una mejora funcional clara.
+b) Formularios:
+Los fieldsets actuales son pesados visualmente. Reemplazarlos por "cards" sin borde o con borde sutil, con un header que tenga título y opcionalmente un ícono (fas fa-chevron-down para colapsar).
+Layout: CSS Grid con grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)). En 1280px esto da 3-4 columnas. En 640px, 1-2 columnas (240px caben 2 veces en 640px con gap, pero mejor forzar 1 columna con media query para legibilidad).
+Observaciones: el textarea de observaciones auto-generadas debe ser claramente distinguible (fondo sutil diferente, borde dashed) para indicar que es de solo lectura.
+Preservar: x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}})" exactamente. Preservar todos los x-model, @change, @input, prepararObservaciones(), validarAntesGuardar(), toggleOrden(), etc.
+c) Gantt:
+Reemplazar la tabla HTML nativa del Gantt por un contenedor con display: grid y grid-template-columns: 180px repeat(var(--semanas), minmax(36px, 1fr)). Esto permite sticky left en la columna de proceso.
+Las celdas de día individuales dentro de cada semana pueden ser un sub-grid o flex.
+Colores de leyenda: mantener los hex del servidor pero aplicarlos como fondos de badges o celdas con opacidad reducida (ej. background-color: color; opacity: 0.8;) para no saturar.
+En 640px: la columna de proceso se reduce a 120px, las celdas de semana a 36px, texto 10px. El selector de hoja y botones de junta deben apilarse verticalmente.
+Preservar: todo el IIFE de JS, colorearCeldas(), toggleModal, jsonPost, reload(). Solo modificar los selectores DOM si cambian las clases/estructura, pero instruir al programador que mantenga los selectores existentes o los actualice consistentemente.
+d) Modales y Toasts:
+Sistema unificado: cada modal actual (form-modal, historial-modal, modal-ruta, modal-pendientes, modal-recientes, modal-frecuentes, export-modal, sumas-modal, crear-hoja-modal, etc.) debe usar el wrapper ui_modal.html.
+El wrapper debe detectar si es <960px y aplicar la clase de drawer (slide desde derecha) o modal centrado.
+El botón de cierre siempre visible (fas fa-times en top-right).
+Backdrop: background: rgba(15, 23, 42, 0.6) en claro, rgba(0,0,0,0.7) en oscuro. Blur opcional (backdrop-filter: blur(4px)).
+Toasts: container fijo. Cada toast es una card compacta con icono (fas fa-check-circle success, fas fa-exclamation-circle error, etc.), mensaje y botón cerrar. Auto-dismiss 3s. En <960px, ancho 100% con padding horizontal 12px, posicionados en bottom para no interferir con drawers superiores.
+Atributos a preservar (debo ser muy explícito):
+HTMX: Todos los endpoints (/api/abrir-bd, /api/cargar-expediente, /api/filtrar-expedientes, /api/cambiar-modulo, /api/ruta-procesos, /api/historial, /api/pendientes, /api/guardar-expediente, /api/eliminar-expediente, /api/exportar-excel, /api/columnas-modulo, /api/ruta-procesos-*). Todos los hx-target (#vista-tabla, #form-expediente, #pendientes-contenido, #historial-cuerpo, #ruta-contenido, etc.). Todos los hx-include. Todos los hx-vals. Todos los hx-trigger (especialmente input changed delay:200ms en búsqueda). Todos los hx-swap (default innerHTML).
+Alpine.js:
+Data components: appShell, bdRecientes, fijados, exportarExcel, calculadoraSumas, filtroSuperintendencias, formularioModulo.
+Stores: modals, toast, fijados.
+Directiva: x-currency.
+Eventos clave: @click en botones de módulo (aunque sean generados dinámicamente, HTMX los maneja, pero los de Alpine como toggle de fijados deben preservarse), @change en selects de gerencia/superintendencia, @change en fechas, @input en montos.
+Puente: alpine-htmx-bridge.js debe seguir escuchando htmx:afterSettle y htmx:afterSwap.
+Go Templates: Las funciones de template como rowGetStr, truncate, estatusClass, default, jsonEncode deben seguir funcionando.
+Ahora, la Hoja de Ruta. Debe ser secuencial y lógica. 10 pasos suenan bien.
+Debo asegurarme de que el tono sea el de un Arquitecto Senior: autoritativo, preciso, enfocado en sistemas y patrones, no en implementación detallada de cada línea.
+Voy a redactar el documento en español, como se solicita.
+Estructura final del plan.md:
+Markdown
+  
+Code
+Preview
+1.1 Principios Estéticos
+1.2 Estrategia DRY General
+1.3 Estrategia de Responsividad Extrema (1280px ↔ 640px)
+1. Visión del Rediseño (SaaS Dashboard Bimodal)
+2.1 Paleta de Colores Exacta
+2.2 Superficies y Elevación
+2.3 Espaciado y Densidad
+2.4 Tipografía
+2.5 Radios y Sombras
+2. Sistema de Diseño y Tokens (Variables CSS)
+3.1 Grid Base y appShell
+3.2 Navegación y Bottom Bar
+3.3 Auditoría de Redundancias y Unificación
+3. Estructura de Layout y Componentes DRY
+4.1 Tablas de Datos
+4.2 Formularios
+4.3 Diagrama de Gantt (Ruta de Procesos)
+4.4 Modales, Drawers y Toasts
+4.5 Atributos HTMX y Alpine.js Obligatoriamente Preservados
+4. Guía de Refactorización Crítica
+5. Hoja de Ruta de Ejecución (Step-by-Step)
+Plan de Rediseño Frontend: Modern SaaS Dashboard Bimodal
+Debo evitar bloques de código HTML/CSS. Puedo describir las variables CSS en listas, las estructuras de grid en texto, y los nombres de clases como referencia conceptual.
+Voy a generar el contenido completo ahora. Será extenso y detallado.
+Verificando que no pongo código HTML/CSS ejecutable:
+Puedo mencionar nombres de clases CSS como .ui-card o .ui-input, eso es diseño, no código.
+Puedo describir display: grid y grid-template-columns, eso es arquitectura CSS.
+No debo poner un bloque <div class="...">...</div> completo. Pero describir la estructura está bien.
+No debo poner bloques de CSS con selectores y propiedades. Pero describir las variables y su valor sí está permitido porque son tokens.
+El usuario dijo "NO ESCRIBAS NINGÚN CÓDIGO HTML NI CSS". Esto es estricto. Debo limitarme a descripciones, listas de tokens, arquitectura textual, y pseudocódigo de alto nivel. No bloques de código con sintaxis HTML o CSS.
+Es decir, esto está prohibido:
+css
+:root { --color: red; }
+HTML
+<div class="card">...</div>
+Pero esto está permitido:
+"Define la variable --bg-base con el valor #f8fafc en el tema claro."
+"El componente ui_card debe renderizar un contenedor con la clase ui-surface..."
+Es una línea fina. Para ser absolutamente seguro, evitaré las backticks para bloques de código. Usaré texto plano, listas y descripciones. O usaré bloques de pseudocódigo que no sean sintácticamente HTML/CSS.
+Voy a escribir el documento completo en formato Markdown puro, sin fenced code blocks de html/css. Usaré listas, tablas y párrafos descriptivos.
+Contenido detallado por sección:
+1. Visión del Rediseño
+Principios: Minimalismo funcional = cada pixel justificado. Sin bordes decorativos duplicados. Uso de espacio en blanco (en claro) o capas de opacidad (en oscuro) para separar. Radios consistentes: 6px para controles, 8px para tarjetas, 12px para paneles, 9999px para pills. Sombras sutiles en claro (elevation por luz), bordes sutiles + sombras oscuras en dark (elevation por profundidad). Jerarquía: tamaño de fuente + peso + color (no subrayados ni bordes gruesos).
+DRY:
+Sistema de componentes Go template: cada botón, input, badge, card, modal y fila de tabla debe ser generado por un template parcial único parametrizado. No puede haber más de una definición de "botón primario" en toda la base de código.
+Abstracción de layout: el contenedor de la tabla, el grid del formulario y el shell del modal deben ser templates de layout que reciban bloques de contenido.
+Unificación de módulos: los 9 módulos de datos deben converger en una única plantilla de tabla parametrizada por ModuloConfig. Las diferencias de columnas se resuelven mediante arrays de configuración, no mediante condicionales de markup repetido.
+Responsividad:
+El breakpoint crítico es 960px. Por debajo, la interfaz entra en modo "Panel Estrecho" (optimizado para 640px de ancho).
+En modo Panel Estrecho: el header reduce su altura a 44px y oculta los textos de los botones de acción global, mostrando solo iconos Font Awesome con tooltip nativo (atributo title). El input de búsqueda se colapsa a un icono de lupa que expande al focus.
+La tabla de datos no se adapta como lista de cards (eso desperdicia altura). En su lugar, se mantiene como tabla nativa con scroll horizontal obligatorio. Las columnas de acción (editar/fijar) y la columna de documento/descripción se vuelven sticky-left. Las demás columnas son accesibles mediante scroll. El resizer de columnas se desactiva por debajo de 960px.
+Las subfilas expandibles actuales deben transformarse: en modo Panel Estrecho, el click en una fila abre un drawer lateral de "Vista Rápida" en lugar de desplegar una subfila con colspan. Esto evita que el layout de tabla se rompa y aprovecha el ancho completo del panel de 640px.
+El formulario de registro debe dejar de ser un modal centrado para convertirse en un drawer derecho que ocupe el 100% del ancho disponible en modo Panel Estrecho, permitiendo su cierre rápido y maximizando el espacio para data entry. En ancho completo (1280px), puede seguir siendo un modal centrado o un panel inline deslizable.
+El bottom bar de módulos debe mantenerse como barra fija inferior, pero en modo Panel Estrecho debe mostrar solo iconos (sin texto) y, si el ancho no es suficiente para 10 botones, los últimos módulos deben agruparse bajo un botón "Más" (fas fa-ellipsis-h) que despliegue un menú flotante compacto.
+El Gantt de Ruta de Procesos en modo Panel Estrecho debe pasar a una vista de grid horizontal con scroll sincronizado: la columna de nombres de proceso sticky-left y la cabecera de semanas sticky-top. Las celdas de día se reducen a 32px de ancho.
+2. Sistema de Diseño y Tokens
+Describiré las variables en tablas de texto.
+Tema Claro (data-theme="light" o ausente):
+Superficies:
+bg-base: slate-50 (#f8fafc)
+bg-surface: white (#ffffff)
+bg-surface-elevated: white con sombra md
+bg-input: slate-100 (#f1f5f9)
+bg-hover: slate-100 (#f1f5f9)
+bg-active: slate-200 (#e2e8f0)
+Bordes:
+border-subtle: slate-200 (#e2e8f0)
+border-default: slate-300 (#cbd5e1)
+border-focus: teal-500 (#14b8a6)
+Texto:
+text-primary: slate-900 (#0f172a)
+text-secondary: slate-600 (#475569)
+text-tertiary: slate-400 (#94a3b8)
+text-inverse: white
+Acentos:
+primary: teal-600 (#0d9488)
+primary-hover: teal-500 (#14b8a6)
+primary-text: teal-500 (#14b8a6)
+success: emerald-500 (#10b981)
+warning: amber-500 (#f59e0b)
+danger: red-500 (#ef4444)
+info: blue-500 (#3b82f6)
+Tema Oscuro (data-theme="dark"):
+Superficies:
+bg-base: slate-950 (#020617) o gray-900 (#111827). Usar slate-950 para más profundidad.
+bg-surface: slate-900 (#0f172a)
+bg-surface-elevated: slate-800 (#1e293b)
+bg-input: slate-900 (#0f172a) con borde slate-700
+bg-hover: slate-800 (#1e293b)
+bg-active: slate-700 (#334155)
+Bordes:
+border-subtle: slate-800 (#1e293b)
+border-default: slate-700 (#334155)
+border-focus: teal-400 (#2dd4bf)
+Texto:
+text-primary: slate-50 (#f8fafc)
+text-secondary: slate-400 (#94a3b8)
+text-tertiary: slate-500 (#64748b)
+text-inverse: slate-900
+Acentos:
+primary: teal-500 (#14b8a6)
+primary-hover: teal-400 (#2dd4bf)
+primary-text: teal-400 (#2dd4bf)
+success: emerald-400 (#34d399)
+warning: amber-400 (#fbbf24)
+danger: red-400 (#f87171)
+info: blue-400 (#60a5fa)
+Espaciado compacto (optimizado 720p):
+Base 4px (0.25rem).
+Tokens: space-1 (4px), space-2 (8px), space-3 (12px), space-4 (16px), space-6 (24px).
+Padding de tarjetas: space-3 (12px).
+Gap entre elementos en grid: space-2 (8px).
+Altura mínima de inputs: 36px (2.25rem).
+Altura de botones con texto: 36px. Botones icono solamente: 32px.
+Padding horizontal de inputs: space-3 (12px). Vertical: space-2 (8px).
+Tipografía:
+Familia: Inter, system-ui, sans-serif.
+Tamaños: label-xs (10px), body-sm (13px), body-base (14px), heading-sm (16px), heading-md (18px), heading-lg (20px).
+Pesos: regular (400), medium (500) para labels, semibold (600) para headers y botones, bold (700) para títulos de sección.
+Line-height: tight (1.25) para tablas y datos densos, normal (1.5) para textos de ayuda y observaciones.
+Radios:
+sm: 4px (badges, tags, checkboxes).
+md: 6px (inputs, botones pequeños).
+lg: 8px (cards, modales, dropdowns).
+xl: 12px (drawers, paneles flotantes).
+full: 9999px (pills, toggles).
+Sombras (elevation):
+shadow-sm: 0 1px 2px rgba(0,0,0,0.05) - inputs, badges.
+shadow-md: 0 4px 6px rgba(0,0,0,0.07) - cards, dropdowns, bottom-bar.
+shadow-lg: 0 10px 15px rgba(0,0,0,0.1) - modales, drawers.
+shadow-xl: 0 20px 25px rgba(0,0,0,0.12) - toasts.
+En dark mode, incrementar opacidad de las sombras un 30% o usar tonos de la superficie elevada.
+3. Estructura de Layout y Componentes DRY
+appShell:
+El body debe utilizar un grid de tres filas: header, main-content, bottom-bar. Altura total 100vh. Overflow hidden en el body. El scroll debe ocurrir únicamente dentro de main-content y dentro de los drawers internos.
+El header debe tener altura fija de 48px (44px en <960px), flex entre brand/acciones izquierda y acciones globales derecha. Sin bordes inferiores gruesos; usar un borde sutil de 1px con border-subtle o una separación por sombra sm.
+El main-content debe tener padding space-3 y scroll vertical automático.
+El bottom-bar debe ser una barra fija de altura 52px (48px en <960px), con fondo bg-surface, borde superior sutil, y sombra md para separación. En <960px, los botones de módulo usan solo iconos Font Awesome.
+Navegación:
+Crear un template parcial único ui_module_button que reciba el nombre del módulo, el icono Font Awesome (ej. fas fa-folder), la ruta hx-get, el estado activo y un badge opcional. Este template se iterará para generar todos los botones del bottom bar. No puede existir markup duplicado para botones de módulo.
+Redundancias a unificar:
+Plantillas de input actuales (form_input_text_alpine, form_input_date_alpine, form_input_number_alpine, form_input_monto_alpine, form_input_spin_alpine) deben converger en un único template parcial ui_input_field. Este template debe recibir parámetros: tipo de input, nombre, etiqueta, modelo Alpine, directivas adicionales (como x-currency), clases de ancho, y un slot para elementos adjuntos (como los botones +/- del spin). La lógica de renderización interna se bifurca según el tipo, pero el wrapper visual es idéntico.
+Los botones de acción (Guardar, Eliminar, Cancelar, Exportar, Nuevo Registro) deben converger en ui_action_button, parametrizado por variante visual (primary, secondary, danger, ghost), tamaño, icono Font Awesome, etiqueta, y un mapa de atributos HTMX (hx-get, hx-post, hx-target, etc.) que se inyecten directamente en el elemento.
+Las 9 variantes de tabla (expedientes, requisiciones, etc.) deben ser generadas por un único template ui_data_table. La definición de columnas debe provenir exclusivamente del struct ModuloConfig en el backend. El template debe iterar sobre Columnas para generar los th y td, aplicando clases de alineación y ancho según metadatos. Las celdas de estatus deben usar ui_badge.
+Los 8 modales existentes (form, historial, ruta, pendientes, recientes, frecuentes, export, sumas) deben usar un único template de layout ui_modal_shell. Este shell define el backdrop, el contenedor centrado (o drawer en <960px), el header con título y botón de cierre (fas fa-times), el cuerpo con scroll interno, y el footer opcional. Cada modal concreto solo inyecta su contenido en los slots.
+Las subfilas de tabla (subrow_trazabilidad y subrow_observaciones_notas) deben unificarse en ui_table_detail_panel. En <960px, este panel se renderiza dentro de un drawer en lugar de un tr con colspan.
+Los fieldsets del formulario deben reemplazarse por ui_form_section, una tarjeta contenedora con título, icono Font Awesome opcional, y capacidad de colapsar (usando details/summary o Alpine) para ahorrar espacio vertical en 640px.
+4. Guía de Refactorización Crítica
+a) Tablas de datos:
+Reemplazar el contenedor de tabla actual por un wrapper con overflow-x-auto y un min-width explícito para forzar scroll horizontal en paneles estrechos.
+El thead debe usar position sticky top 0 con z-index 10 y fondo bg-surface para mantenerse visible al hacer scroll vertical.
+La primera columna (acciones: expandir, editar, fijar) debe ser position sticky left 0 con z-index 20 y fondo bg-surface para permanecer visible durante el scroll horizontal en 640px.
+El resizer de columnas debe encapsularse en una función initResizer que verifique window.innerWidth >= 960 antes de adjuntar listeners. Por debajo de ese ancho, las columnas usan ancho intrínseco o minmax definido en el struct de configuración.
+En <960px, ocultar columnas secundarias (ej. SOLPED, Gerencia, Fechas) mediante una clase de utilidad que responda al breakpoint, dejando visible solo: Acciones, Documento/Descripción (truncada con ellipsis), Estatus. Los datos ocultos se trasladan al drawer de vista rápida.
+La paginación debe extraerse a un template parcial ui_pagination. Los botones de página mantienen sus hx-get hacia /api/filtrar-expedientes con hx-vals y hx-target="#vista-tabla".
+Preservar obligatoriamente: hx-get en botones de módulo, hx-get en búsqueda con delay 200ms, hx-target="#vista-tabla", hx-include para filtros, hx-vals para paginación. Preservar el store Alpine fijados y su integración con localStorage. Preservar alpine-htmx-bridge.
+b) Formularios:
+El formulario debe envolverse en un grid CSS de una sola columna en <960px y máximo tres columnas en 1280px, usando repeat con minmax. Esto se logra con una clase de utilidad de grid que cambie en el breakpoint 960px.
+Cada fieldset actual debe convertirse en una instancia de ui_form_section. El título de la sección debe usar un icono Font Awesome representativo (ej. fas fa-info-circle para Información General, fas fa-dollar-sign para Presupuesto, fas fa-file-signature para Gestión). En <960px, todas las secciones deben iniciar colapsadas excepto la primera, para reducir el scroll inicial.
+Los inputs de monto con conversión USD/Bs deben agruparse visualmente en un contenedor flex de dos columnas con un separador de tipo de cambio en el centro, en lugar de estar dispersos en el grid.
+El textarea de observación auto-generada debe tener un fondo distintivo (bg-active con opacidad 50%) y un borde dashed para indicar que es de solo lectura, a diferencia del textarea de observaciones manuales.
+Preservar obligatoriamente: x-data="formularioModulo(...)" con sus parámetros exactos. Todos los x-model en inputs. Los @change en fechas que invocan validarFechas. Los @input en montos que invocan onMontoInput. La directiva x-currency en inputs monetarios. El método prepararObservaciones() invocado antes del submit HTMX. El hx-post="/api/guardar-expediente" y hx-post="/api/eliminar-expediente" con sus hx-include y hx-confirm respectivos. El toggleOrden() y el modo Excel.
+c) Diagrama de Gantt (Ruta de Procesos):
+Reestructurar el markup del Gantt para abandonar la tabla nativa HTML y adoptar un contenedor CSS Grid. Las columnas deben definirse como: 200px para nombres de proceso, y luego N columnas de 1fr para las semanas (cada semana internamente usa flex o sub-grid para 5 días).
+La columna de nombres de proceso debe ser sticky left. La cabecera de semanas y días debe ser sticky top.
+Las celdas de entrada del cronograma deben usar ui_badge con el color de la leyenda como fondo y texto blanco o contrastante.
+En <960px, reducir la columna de proceso a 140px y las celdas de día a 28px. La fuente de los headers de semana debe reducirse a 10px. El selector de hoja y los botones de gestión de juntas deben apilarse en un layout vertical de una columna en lugar de horizontal.
+Preservar obligatoriamente: el bloque IIFE de JavaScript vanilla, la variable data parseada del servidor, y todas las funciones internas (toggleModal, esc, jsonPost, reload, cambiarHoja, eliminarHojaActual, guardarJunta, etc.). Preservar las llamadas fetch POST a los endpoints /api/ruta-procesos-*. Preservar la función colorearCeldas() y su lógica de búsqueda de celdas por data-proc y data-fecha. Si se modifican las clases CSS de las celdas, actualizar los selectores de colorearCeldas consistentemente (de gantt-cell-empty a la nueva clase base, manteniendo gantt-cell-active o su equivalente). Preservar hx-get="/api/ruta-procesos" y hx-target="#ruta-contenido".
+d) Modales, Drawers y Toasts:
+Unificar todos los contenedores modales bajo ui_modal_shell. Este componente debe implementar un comportamiento híbrido:
+En ≥960px: centrado en pantalla con max-width proporcional al contenido (480px para formularios simples, 720px para formularios complejos, 960px para el Gantt), overlay con backdrop-filter blur(4px) y fondo semitransparente oscuro.
+En <960px: drawer fijo derecho que ocupa el 100% del viewport width (para aprovechar los 640px al máximo), con animación de slide-in desde la derecha. El overlay debe ser más oscuro para enfocar la atención.
+El botón de cierre siempre visible en la esquina superior derecha con icono fas fa-times.
+Los modales de historial, pendientes, recientes, frecuentes, exportar y sumas deben usar este shell. El modal de formulario, al ser el más complejo, también lo usa.
+Los toasts deben reposicionarse: en ≥960px, top-right con ancho máximo 360px. En <960px, bottom-center con ancho 100% menos space-6 de margen, para no interferir con el drawer ni el bottom bar. Cada toast debe incluir un icono Font Awesome según tipo: fas fa-check-circle para éxito, fas fa-exclamation-circle para error, fas fa-info-circle para info.
+Preservar obligatoriamente: Alpine.store('modals') con su stack, abrir, cerrar, toggle, cerrarClickFuera. Alpine.store('toast') con mostrar, error, success, info. Los hx-get que cargan contenido en modales (historial, pendientes, ruta) deben mantener sus hx-target originales (#historial-cuerpo, #pendientes-contenido, #ruta-contenido, #form-expediente). Los eventos de Alpine que cierran modales ($store.modals.cerrar) deben permanecer intactos.
+e) Atributos HTMX y Alpine.js a preservar (recopilación explícita):
+HTMX: Todos los atributos hx-get, hx-post, hx-target, hx-include, hx-vals, hx-trigger, hx-swap, hx-confirm existentes en el documento actual deben migrarse sin modificación de endpoint ni de valor de target. Específicamente: los triggers de búsqueda (input changed delay:200ms), los targets #vista-tabla, #form-expediente, #historial-cuerpo, #pendientes-contenido, #ruta-contenido, y todos los endpoints bajo /api/.
+Alpine.js: Todos los x-data iniciales (appShell, bdRecientes, fijados, calculadoraSumas, exportarExcel, filtroSuperintendencias, formularioModulo) deben permanecer en sus elementos raíz con los mismos parámetros. Los stores modals, toast y fijados deben seguir registrándose en alpine-app.js. La directiva personalizada x-currency debe seguir funcionando en alpine-directives.js. El puente alpine-htmx-bridge.js debe seguir escuchando htmx:afterSettle para Alpine.initTree y htmx:afterSwap para re-inicializar fijados. Los eventos @click, @change, @input y los métodos que invocan (toggle, onMontoInput, validarFechas, prepararObservaciones, spinFrente, etc.) no deben perderse ni cambiar de nombre.
+5. Hoja de Ruta de Ejecución
+Paso 1: Preparación y Backup. Crear copia de seguridad de templates/new/ y styles.css. Verificar que Alpine v3.14.8, HTMX y Font Awesome 7.3 estén cargados en index.html. No actualizar versiones de librerías a menos que sea estrictamente necesario.
+Paso 2: Fundación de Tokens CSS. Crear un nuevo archivo de tema (por ejemplo, theme.css) que contenga las variables :root, [data-theme="dark"], y las clases de utilidad del design system (ui-surface, ui-elevated, ui-input, ui-text-primary, etc.). Este archivo reemplazará progresivamente al styles.css monolítico actual. No eliminar styles.css todavía; superponer y luego deprecar.
+Paso 3: Templates Base DRY. Crear los templates parciales fundamentales en una carpeta components/: ui_button.html, ui_input.html, ui_badge.html, ui_card.html, ui_modal_shell.html, ui_empty_state.html. Estos deben ser parametrizados vía el sistema de templates de Go (usando dict y block).
+Paso 4: Refactorización del appShell (index.html). Reestructurar el body con el grid de tres filas. Implementar el header compacto con iconos solo en <960px. Implementar el bottom bar responsive con overflow menu. Integrar un toggle de tema claro/oscuro (un botón con fas fa-sun y fas fa-moon) que alterne data-theme en el HTML y persista en localStorage.
+Paso 5: Refactorización de la Tabla de Datos. Reemplazar tabla.html por ui_data_table.html unificado. Implementar sticky columns, scroll horizontal, y resizer condicional. Crear el ui_table_detail_panel para subfilas. En <960px, configurar el click de fila para abrir el drawer de detalle en lugar de expandir la subfila inline. Asegurar que los 9 módulos usen este único template.
+Paso 6: Refactorización del Sistema de Formularios. Reemplazar form.html y components.html por ui_form.html y ui_form_section.html. Unificar todos los tipos de input en ui_input_field. Implementar el grid responsive del formulario. Configurar el modal de formulario para que use ui_modal_shell con comportamiento drawer en <960px. Verificar que todos los x-model, @change y @input se trasladen correctamente.
+Paso 7: Refactorización de Modales Secundarios. Migrar historial, pendientes, recientes, frecuentes, exportar y sumas a ui_modal_shell. Asegurar que sus hx-get y hx-target originales se mantengan. Ajustar sus contenidos internos para usar ui_card, ui_badge y ui_empty_state donde aplique.
+Paso 8: Refactorización del Gantt. Modernizar ruta_procesos.html para usar CSS Grid en lugar de tabla nativa. Implementar sticky left en procesos y sticky top en semanas. Reducir densidad en <960px. Preservar el IIFE de JavaScript y todas las funciones de interacción. Actualizar únicamente los selectores de colorearCeldas si las clases CSS cambian.
+Paso 9: Sistema de Toasts y Micro-interacciones. Reemplazar el contenedor de toasts actual por el nuevo posicionamiento responsive. Añadir iconos Font Awesome a cada tipo de toast. Implementar transiciones de entrada/salida suaves (fade + slide). Verificar que Alpine.store('toast') siga siendo el punto de invocación.
+Paso 10: Pruebas de Responsividad y Depuración. Probar la interfaz en resoluciones 1280x720 y 640x720. Verificar que todos los flujos HTMX funcionan (cambio de módulo, búsqueda, guardado, eliminación). Verificar que Alpine inicializa correctamente tras cada swap de HTMX. Revisar contraste de colores en ambos temas. Eliminar clases obsoletas del styles.css antiguo una vez validada la estabilidad.
+Esto parece completo y detallado. Voy a redactarlo de forma pulcra, sin bloques de código HTML/CSS. Usaré tablas Markdown para los tokens, que no son código ejecutable sino especificación.
+Una última verificación: ¿el usuario pidió exactamente esas 5 secciones? Sí. Las tengo todas.
+Voy a generar la respuesta.
