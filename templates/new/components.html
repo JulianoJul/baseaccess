@@ -70,14 +70,14 @@
         <input type="text" inputmode="numeric" id="f-{{.Name}}" name="{{.Name}}"
                class="input rounded-r-none border-r-0 flex-1 min-w-0"
                x-model="registro.{{.Name}}">
-        <div class="flex flex-col border border-gray-600 border-l-0 rounded-r-lg overflow-hidden">
+        <div class="flex flex-col">
             <button type="button" @click="spinFrente(1)"
-                    class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 border-b border-gray-600 transition-colors">
-                <i class="fas fa-chevron-up leading-none"></i>
+                    class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-tr-lg border border-gray-600 border-l-0 border-b-0 transition-colors">
+                <i class="fas fa-plus leading-none"></i>
             </button>
             <button type="button" @click="spinFrente(-1)"
-                    class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
-                <i class="fas fa-chevron-down leading-none"></i>
+                    class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-br-lg border border-gray-600 border-l-0 transition-colors">
+                <i class="fas fa-minus leading-none"></i>
             </button>
         </div>
     </div>
