@@ -205,19 +205,319 @@ El Agente Programador debe eliminar las siguientes redundancias identificadas en
 - Los métodos `prepararObservaciones()`, `validarAntesGuardar()`, `toggleOrden()`, `appendDias()`, `spinFrente()` y el tracking de `lastSource` para conversión de moneda.
 - El `hx-confirm` en el botón de eliminar.
 
-### 4.3 Diagrama de Gantt (Ruta de Procesos)
+### 4.3 Diagrama de Gantt (Ruta de Procesos) — v2 Completo
 
-- **Abandono de Tabla Nativa.** Reestructurar el markup del Gantt para usar un contenedor CSS Grid en lugar de una tabla HTML. Las columnas del grid se definen como: una columna fija de 200px (140px en Panel Estrecho) para los nombres de proceso, seguida de N columnas de 1fr para las semanas. Cada celda de semana internamente usa flex o sub-grid para los 5 días.
-- **Sticky Estratégico.** La columna de nombres de proceso es sticky-left. La cabecera que contiene las fechas "desde", "al" y los días de la semana es sticky-top. Esto permite navegar cronogramas largos tanto en ancho como en alto sin perder contexto.
-- **Celdas de Entrada.** Las entradas del cronograma se renderizan como pequeños badges o barras de color dentro de la celda correspondiente, usando el color de la leyenda como fondo. Deben tener un mínimo de altura para ser clickeables (28px en ancho completo, 24px en Panel Estrecho).
-- **Densidad en Panel Estrecho.** Reducir la fuente de los headers de semana a 10px. Reducir el padding de celdas. Apilar verticalmente los controles de hoja y juntas.
+#### 4.3.1 Visión General
+
+La Ruta de Procesos es un módulo independiente de la BD principal (no referencia expedientes, requisiciones, etc.). Tiene sus propios procesos, juntas, semanas y leyendas. La UI se organiza en bloques verticales (scroll) donde cada junta es un bloque con: tabla de datos → Gantt → leyendas.
+
+```
+┌──────────────────────────────────────────────────────┐
+│  [Select Hoja ▼]  [+ Nueva Hoja] [🗑]               │  ← Barra superior
+├──────────────────────────────────────────────────────┤
+│                                                      │
+│  ┌─ JUNTA #1 ────────────────────────────────────┐   │
+│  │  TABLA (1 fila, editable)                      │   │
+│  │  JUNTA DIRECTIVA │ Nº │ CONSEC │ FECHA │ Guardar│  │
+│  │                                                │   │
+│  │  GANTT                                         │   │
+│  │  ┌────┬─────────┬──────────────┬──────────┬──┐ │   │
+│  │  │    │         │desde 01/06   │desde 08/06│  │ │   │  ← fila 1: desde
+│  │  │    │         │al 05/06      │al 12/06   │  │ │   │  ← fila 2: al
+│  │  │    │         │  SEMANA 1    │ SEMANA 2 │[+][-]│  │  ← fila 3: semanas + botones
+│  │  │    │         ├──────┬───────┼──────┬────┤  │ │   │
+│  │  │ N° │ Proceso │L M X J V│...│      │    │  │ │   │  ← fila 4: días
+│  │  ├────┼─────────┼──────┼───────┼──────┼────┤  │ │   │
+│  │  │ 1  │ Algo    │🔵🔴 │  🟢🟡  │      │    │  │ │   │  ← fila 5+: procesos
+│  │  │ 2  │ Otro    │🟢   │  🔵🔴🟡 │      │    │  │ │   │
+│  │  ├────┼─────────┴──────┴───────┴──────┴────┤  │ │   │
+│  │  │    │ [+] Añadir proceso                 │  │ │   │  ← fila extra al fondo
+│  │  └────┴────────────────────────────────────┴──┘ │   │
+│  │                                                │   │
+│  │  LEYENDAS                                      │   │
+│  │  🟢 Aprobado ▲▼  🔒  🟡 Espera ▲▼  🔒        │   │
+│  │  [+ Añadir leyenda] (ámbito: junta/hoja/global)│   │
+│  └────────────────────────────────────────────────┘   │
+│                                                      │
+│  ┌─ JUNTA #2 ────────────────────────────────────┐   │
+│  │  (misma estructura: tabla + Gantt + leyendas)  │   │
+│  └────────────────────────────────────────────────┘   │
+│                                                      │
+│              [+ NUEVA JUNTA]                          │  ← Botón grande al fondo
+└──────────────────────────────────────────────────────┘
+```
+
+#### 4.3.2 Modelo de Datos (7 tablas SQL)
+
+```sql
+-- 1. Hoja (mes)
+CREATE TABLE ruta_procesos_hoja (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL                -- ej: "Junio 2026"
+);
+
+-- 2. Junta Directiva (pertenece a una hoja)
+CREATE TABLE ruta_procesos_junta (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_hoja     INTEGER NOT NULL REFERENCES ruta_procesos_hoja(id) ON DELETE CASCADE,
+    numero      INTEGER NOT NULL,      -- nro reunión (NO autoincrement)
+    consecutiva INTEGER NOT NULL,      -- consecutivo
+    fecha       TEXT NOT NULL,         -- fecha única YYYY-MM-DD
+    UNIQUE(id_hoja, numero)
+);
+
+-- 3. Semanas del Gantt (dinámicas, por junta)
+CREATE TABLE ruta_procesos_junta_semana (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_junta     INTEGER NOT NULL REFERENCES ruta_procesos_junta(id) ON DELETE CASCADE,
+    numero       INTEGER NOT NULL,     -- 1, 2, 3... (se reenumera al borrar)
+    fecha_inicio TEXT NOT NULL,         -- YYYY-MM-DD (lunes)
+    fecha_fin    TEXT NOT NULL,         -- YYYY-MM-DD (viernes)
+    UNIQUE(id_junta, numero)
+);
+
+-- 4. Procesos de una junta (filas del Gantt)
+CREATE TABLE ruta_procesos_junta_proceso (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_junta  INTEGER NOT NULL REFERENCES ruta_procesos_junta(id) ON DELETE CASCADE,
+    numero    INTEGER NOT NULL,         -- nro secuencial (NO autoincrement)
+    proceso   TEXT NOT NULL,            -- nombre del proceso
+    UNIQUE(id_junta, numero)
+);
+
+-- 5. Cronograma diario de cada proceso
+CREATE TABLE ruta_procesos_cronograma (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_junta_proceso INTEGER NOT NULL REFERENCES ruta_procesos_junta_proceso(id) ON DELETE CASCADE,
+    fecha            TEXT NOT NULL,     -- YYYY-MM-DD
+    id_leyenda       INTEGER NOT NULL REFERENCES ruta_procesos_leyenda(id) ON DELETE RESTRICT,
+    nota             TEXT DEFAULT ''
+);
+
+-- 6. Leyendas (ámbito: junta | hoja | global)
+CREATE TABLE ruta_procesos_leyenda (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre    TEXT NOT NULL,
+    color     TEXT NOT NULL DEFAULT '#FFFFFF',
+    ambito    TEXT NOT NULL DEFAULT 'junta',   -- 'junta' | 'hoja' | 'global'
+    id_hoja   INTEGER REFERENCES ruta_procesos_hoja(id) ON DELETE CASCADE,  -- solo si ambito='hoja'
+    bloqueado INTEGER DEFAULT 0                -- 1 = no se puede eliminar
+);
+
+-- 7. Relación junta ↔ leyenda (con orden personalizable)
+CREATE TABLE ruta_procesos_junta_leyenda (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id_junta   INTEGER NOT NULL REFERENCES ruta_procesos_junta(id) ON DELETE CASCADE,
+    id_leyenda INTEGER NOT NULL REFERENCES ruta_procesos_leyenda(id) ON DELETE CASCADE,
+    orden      INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(id_junta, id_leyenda)
+);
+```
+
+**Leyendas base globales (10 predefinidas):**
+```sql
+INSERT INTO ruta_procesos_leyenda (id, nombre, color, ambito, id_hoja, bloqueado) VALUES
+(1, 'ACTIVIDADES PREVIAS (UNIDAD USUARIA)', '#FF4757', 'global', NULL, 0),
+(2, 'INICIO (CONTRATACIÓN)', '#2BCBBA', 'global', NULL, 0),
+(3, 'VENTA DE PLIEGO DE CONDICIONES (CONTRATACIÓN)', '#6C5CE7', 'global', NULL, 0),
+(4, 'INICIO (COMISIÓN)', '#FF6B81', 'global', NULL, 0),
+(5, 'APERTURA DE OFERTAS', '#FFA502', 'global', NULL, 0),
+(6, 'ANÁLISIS TÉCNICO', '#2ED573', 'global', NULL, 0),
+(7, 'ANÁLISIS ECONÓMICO', '#1E90FF', 'global', NULL, 0),
+(8, 'RESULTADOS', '#FDCB6E', 'global', NULL, 0),
+(9, 'APROBACIÓN PRESIDENCIA', '#A855F7', 'global', NULL, 0),
+(10, 'CONTROL DE DOCUMENTOS PRESIDENCIA', '#00D2D3', 'global', NULL, 0);
+```
+
+#### 4.3.3 Lógica de Ámbito de Leyendas
+
+- **`global`** → aparece en TODAS las juntas de TODAS las hojas. Al crearla, se inserta en `ruta_procesos_junta_leyenda` para todas las juntas existentes. Al crear una nueva junta, hereda las globales automáticamente.
+- **`hoja`** → aparece en todas las juntas de ESA hoja. Al crearla, se inserta en todas las juntas existentes de esa hoja. Al crear una nueva junta en esa hoja, hereda las de ámbito `hoja`.
+- **`junta`** → aparece solo en ESA junta. Al crearla, se inserta solo para la junta seleccionada.
+- **Eliminar leyenda** → CASCADE elimina sus filas en `ruta_procesos_junta_leyenda` de todas las juntas donde exista.
+- **Bloquear leyenda** → campo `bloqueado=1` impide eliminación. El botón 🔒 se muestra junto a la leyenda.
+
+#### 4.3.4 Gantt — Estructura de Filas
+
+```
+fila 1:  desde 01/06/2026      desde 08/06/2026     ← por semana
+fila 2:  al 05/06/2026         al 12/06/2026        ← por semana
+fila 3:  SEMANA 1              SEMANA 2         [+] [🗑]  ← encabezado + botones
+fila 4:  N° | Proceso | L M X J V | L M X J V |    ← columnas fijas + días
+fila 5+: 1  | Algo    | 🔵🔴   | 🟢🟡       |    ← datos de procesos
+fila N:  [ ] | [+] Añadir proceso             |    ← botón al fondo
+```
+
+- **Botón `[+]` (semanas):** Abre modal con fechas lunes→viernes precalculadas (consecutivas a la última semana). El usuario puede ajustarlas. Al confirmar, se inserta en `ruta_procesos_junta_semana`.
+- **Botón `[🗑]` (semanas):** Abre modal con checkboxes de semanas. Al eliminar, las restantes se **renumeran** (si borro semana 1, semana 2 pasa a ser 1).
+- **Botón `[+]` (procesos):** Fila al fondo del Gantt. Input de texto para nombre + botón agregar. El número se auto-incrementa (NO autoincrement DB, se calcula backend/frontend).
+- **"desde"/"al":** Calculados por semana (`fecha_inicio`/`fecha_fin` de `ruta_procesos_junta_semana`). Cada semana tiene su propio rango, NO es global.
+- **Días:** Cada semana tiene 5 columnas (L M X J V). Las fechas se calculan con `calcDiasSemana()` en Go que parte de `fecha_inicio` y genera 5 fechas consecutivas.
+- **Cronograma:** Al hacer click en una celda vacía, se abre modal para asignar una leyenda + nota. La entrada se guarda en `ruta_procesos_cronograma`. Las celdas con datos muestran badges de color (una o más entradas apiladas).
+
+#### 4.3.5 Tabla de Datos de la Junta (1 fila editable)
+
+| Campo | Tipo | Ejemplo |
+|-------|------|---------|
+| JUNTA DIRECTIVA | label fijo | "JUNTA DIRECTIVA" |
+| Nº REUNIÓN | input number | 1 |
+| CONSECUTIVA | input number | 100 |
+| FECHA | date picker | 01/06/2026 |
+
+Botón "Guardar" al lado. Los campos se persisten en `ruta_procesos_junta`. El botón de eliminar junta aparece si no está bloqueada.
+
+#### 4.3.6 Leyendas por Junta
+
+Debajo del Gantt, las leyendas específicas de esa junta (filtradas por `junta_leyenda`). Cada una muestra:
+- Círculo de color
+- Nombre
+- Botón ▲▼ para reordenar (`ruta_procesos_junta_leyenda.orden`)
+- Botón 🔒 si está bloqueada (no se puede eliminar)
+- Botón ✏️ para editar nombre/color
+- Botón ✖ para eliminar (si no está bloqueada)
+- Botón "Añadir leyenda" que abre modal con selector de **ámbito**: Esta junta / Esta hoja / Global
+
+#### 4.3.7 Datos del Servidor
+
+```go
+type RutaProcesosGanttData struct {
+    Hojas        []RutaProcesosHoja        `json:"hojas"`
+    CurrentHoja  *RutaProcesosHoja         `json:"current_hoja"`
+    Juntas       []RutaProcesosJunta       `json:"juntas"`
+    CurrentJunta *RutaProcesosJunta        `json:"current_junta"`
+    Semanas      []RutaProcesosJuntaSemana `json:"semanas"`
+    Procesos     []RutaProcesosJuntaProceso `json:"procesos"`
+    Legend       []RutaProcesosLegend      `json:"legend"`
+    JuntaLegend  []RutaProcesosJuntaLeyenda `json:"junta_legend"`
+}
+```
+
+**Leyendas filtradas:** Se cargan leyendas visibles para la junta actual:
+1. Todas las globales (`ambito='global'`)
+2. Las de esta hoja (`ambito='hoja' AND id_hoja=?`)
+3. Las que existen en `ruta_procesos_junta_leyenda WHERE id_junta=?` (que incluyen las de ámbito `junta`)
+
+Ordenadas por `ruta_procesos_junta_leyenda.orden`.
+
+#### 4.3.8 Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| GET | `/api/ruta-procesos` | Cargar Gantt completa (`?hoja=&junta=`) |
+| POST | `/api/ruta-procesos-hoja-crear` | Crear hoja (`nombre`) |
+| POST | `/api/ruta-procesos-hoja-eliminar` | Eliminar hoja (`id`) |
+| POST | `/api/ruta-procesos-junta-crear` | Crear junta (`id_hoja, numero, consecutiva, fecha`) |
+| POST | `/api/ruta-procesos-junta-actualizar` | Actualizar junta (`id, numero, consecutiva, fecha`) |
+| POST | `/api/ruta-procesos-junta-eliminar` | Eliminar junta (`id`) |
+| POST | `/api/ruta-procesos-semana-agregar` | Agregar semana (`id_junta, numero, fecha_inicio, fecha_fin`) |
+| POST | `/api/ruta-procesos-semana-eliminar` | Eliminar semanas (`id_junta, numeros[]`) con reenumeración |
+| POST | `/api/ruta-procesos-proceso-agregar` | Agregar proceso (`id_junta, numero, proceso`) |
+| POST | `/api/ruta-procesos-proceso-eliminar` | Eliminar proceso (`id`) |
+| POST | `/api/ruta-procesos-proceso-reordenar` | Reordenar proceso (`id_junta, id_proceso, direction`) |
+| POST | `/api/ruta-procesos-cronograma-guardar` | Guardar entrada diaria (`id_proceso, fecha, id_leyenda, nota`) |
+| POST | `/api/ruta-procesos-cronograma-eliminar` | Eliminar entrada (`id`) |
+| POST | `/api/ruta-procesos-leyenda-crear` | Crear leyenda (`nombre, color, ambito, id_hoja`) |
+| POST | `/api/ruta-procesos-leyenda-actualizar` | Actualizar leyenda (`id, nombre, color`) |
+| POST | `/api/ruta-procesos-leyenda-eliminar` | Eliminar leyenda (`id`) |
+| POST | `/api/ruta-procesos-leyenda-reordenar` | Reordenar leyenda (`id_junta, id_leyenda, direction`) |
+| POST | `/api/ruta-procesos-leyenda-bloquear` | Toggle bloquear leyenda (`id`) |
+
+#### 4.3.9 Funciones JavaScript (IIFE en `ruta_procesos.html`)
+
+```javascript
+// ─── Hoja ───
+toggleModal(id)
+cambiarHoja()                    // select hoja → reload
+eliminarHojaActual()             // confirm → POST hoja-eliminar → reload
+crearHoja()                      // input nombre → POST hoja-crear → reload
+
+// ─── Junta ───
+guardarJunta(id, btn)            // lee campos del DOM → POST junta-actualizar → toast + reload
+eliminarJunta(id)                // confirm → POST junta-eliminar → reload
+crearJunta()                     // POST junta-crear con numero auto → reload
+
+// ─── Semanas ───
+agregarSemana(idJunta)           // modal con fechas precalculadas (lunes→viernes)
+guardarSemana()                  // POST semana-agregar → cerrar modal, reload
+abrirEliminarSemanas(idJunta)    // modal con checkboxes por semana
+eliminarSemanasConfirmar()       // POST semana-eliminar (JSON array) → reload
+
+// ─── Procesos ───
+agregarProceso(idJunta)          // lee input nombre → POST proceso-agregar → reload
+eliminarProceso(id)              // confirm → POST proceso-eliminar → reload
+
+// ─── Leyendas ───
+abrirCrearLeyenda()              // abre modal de crear leyenda (resetea campos)
+editarLeyenda(id, nombre, color) // abre modal con datos precargados
+guardarLeyenda()                 // POST crear o actualizar según _editingLeyendaId
+eliminarLeyenda(id)              // confirm → POST leyenda-eliminar → reload
+moverLeyenda(idJunta, idLeyenda, dir) // POST leyenda-reordenar → reload
+toggleBloquearLeyenda(id)        // POST leyenda-bloquear → reload
+
+// ─── Cronograma ───
+abrirEditarCronograma(procId, fecha)  // modal con entradas existentes + select leyendas
+guardarCronoDia()                // POST cronograma-guardar → cerrar modal, reload
+eliminarCronoEntry(id)           // confirm → POST cronograma-eliminar → reload
+cerrarCronoModal()               // cierra modal
+
+// ─── Utilitarios ───
+esc(v)                           // escape HTML
+jsonPost(url, body)              // fetch POST → JSON
+reload()                         // htmx.ajax GET /api/ruta-procesos → re-render
+```
+
+#### 4.3.10 CSS Relevante (en `styles.css`)
+
+| Clase | Propósito |
+|-------|-----------|
+| `.gantt-table` | table-layout fixed, border-collapse, width max-content |
+| `.gantt-col-num` | Columna N° sticky 44px, bg-surface sólido |
+| `.gantt-col-day` | Columna de día 32px, altura 40px, padding 0 |
+| `.gantt-week-header` | 9px, texto teal, bg semi-transparente |
+| `.gantt-week-subheader` | 9px, texto más claro |
+| `.gantt-day-header` | 10px bold |
+| `.gantt-cell-empty` | bg transparente, cursor pointer |
+| `.gantt-cell-active` | Cursor pointer, posición relative |
+| `.gantt-cell-entries` | Flex column, gap 3px |
+| `.gantt-cell-entry` | min-height 12px, radius 3px |
+| `.gantt-legend-grid` | Grid 2 columnas (5 en desktop) |
+| `.gantt-legend-item` | Fila flex, card bg, efecto hover |
+| `.gantt-legend-circle` | Círculo de color 24px |
+| `.leyenda-color-wrap input[type="color"]` | Selector de color circular |
+
+#### 4.3.11 Cambios v1 → v2 (Resumen)
+
+| Aspecto | v1 | v2 |
+|---------|----|----|
+| Hojas | fecha_inicio + fecha_fin | Solo nombre (mes) |
+| Procesos | Vinculados a módulos (expedientes, etc.) | Independientes (solo nombre) |
+| Semanas | Generadas automáticamente del rango | Entidades DB, agregadas/borradas manualmente |
+| Leyendas | Globales únicas | 3 ámbitos: junta, hoja, global |
+| Deshacer semanas | No soportado | Renumera automáticamente |
+| Columnas Gantt | Solo días (L M X J V) | N° + Proceso + días por semana |
+| "desde"/"al" | Global del rango completo | Por semana |
+| Agregar proceso | Carga de módulos | Nombre libre, input inline |
+| Scroll | Lateral (offset weeks) | Vertical (todas las juntas visibles) |
+| Bloquear | No existía | 🔒 en leyendas |
 
 **Atributos obligatorios a preservar en el Gantt:**
 - El bloque IIFE de JavaScript vanilla y su parsing inicial de la variable `data` del servidor.
-- Todas las funciones internas del IIFE: `toggleModal`, `esc`, `jsonPost`, `reload`, `cambiarHoja`, `eliminarHojaActual`, `crearHoja`, `guardarJunta`, `eliminarJunta`, `crearJunta`, `agregarSemana`, `guardarSemana`, `abrirEliminarSemanas`, `eliminarSemanasConfirmar`, `agregarProceso`, `eliminarProceso`, y todo el sistema de leyendas y cronograma.
+- Todas las funciones internas del IIFE detalladas en 4.3.9.
 - Las llamadas fetch POST a todos los endpoints `/api/ruta-procesos-*`.
-- La función `colorearCeldas()` y su lógica de búsqueda de celdas por atributos `data-proc` y `data-fecha`. Si las clases CSS de las celdas cambian (por ejemplo, de `gantt-cell-empty` a una nueva clase base), el programador debe actualizar los selectores dentro de `colorearCeldas` consistentemente, manteniendo la lógica de reemplazo de clases y renderizado de entradas.
 - Los atributos HTMX: `hx-get="/api/ruta-procesos"` y `hx-target="#ruta-contenido"`.
+- La función `calcDiasSemana(inicio)` en Go que calcula 5 fechas L-V desde `fecha_inicio`.
+- Nota: la función `colorearCeldas()` del Gantt v1 fue eliminada en v2. El coloreo se hace directamente en el template Go con `onclick` y fechas inline. Si se migra a CSS Grid, se necesitará una función equivalente para aplicar colores basándose en `procesos[].timeline`.
+
+**Decisión de implementación:** El Gantt actual usa `<table class="gantt-table">` con `table-layout: fixed`. El plan recomienda migrar a CSS Grid para mayor control del layout, pero las clases CSS existentes (`.gantt-table`, `.gantt-col-num`, `.gantt-col-day`, etc.) están bien definidas en `styles.css` y funcionan correctamente. La migración a CSS Grid es opcional y puede hacerse en una fase posterior si el layout actual resulta limitante.
+
+#### 4.3.12 Densidad en Panel Estrecho
+
+- Columna de proceso: reducida a 140px
+- Celdas de día: 28px
+- Cabecera de semanas: sticky-top
+- Columna de procesos: sticky-left
+- Controles de hoja y juntas: apilados verticalmente
+- Fuente de headers de semana: 10px
 
 ### 4.4 Modales, Drawers y Toasts
 
@@ -561,7 +861,7 @@ El cambio afecta a los 9 módulos que usan `id_documento`. La tabla genérica `m
 
 **Paso 8: Refactorización de Modales Secundarios.** Migrar `historial.html`, `pendientes.html`, y los modales de recientes, frecuentes, exportar y sumas a `ui_modal_shell`. Asegurar que sus `hx-get` y `hx-target` originales se mantengan. Ajustar sus contenidos internos para usar `ui_card`, `ui_badge` y `ui_empty_state` donde aplique.
 
-**Paso 9: Refactorización del Gantt.** Modernizar `ruta_procesos.html` para usar CSS Grid en lugar de tabla nativa. Implementar sticky left en la columna de procesos y sticky top en la cabecera de semanas. Reducir densidad visual en <960px (celdas más angostas, fuentes más pequeñas, controles apilados). Preservar el IIFE de JavaScript vanilla y todas sus funciones. Actualizar únicamente los selectores de `colorearCeldas()` si las clases CSS base de las celdas cambian de nombre.
+**Paso 9: Refactorización del Gantt.** Modernizar `ruta_procesos.html` para usar CSS Grid en lugar de tabla nativa (opcional, puede deferirse si el layout actual con tabla funciona bien). Implementar sticky left en la columna de procesos y sticky top en la cabecera de semanas. Reducir densidad visual en <960px (celdas más angostas, fuentes más pequeñas, controles apilados). Preservar el IIFE de JavaScript vanilla y todas sus funciones. Si se migra a CSS Grid, crear una función `colorearCeldas()` que aplique colores de leyenda a las celdas basándose en `procesos[].timeline` (actualmente el coloreo se hace en el template Go con fechas inline).
 
 **Paso 10: Sistema de Toasts y Micro-interacciones.** Reemplazar el contenedor de toasts actual por el nuevo posicionamiento responsive. Añadir iconos Font Awesome a cada tipo de toast. Implementar transiciones de entrada y salida suaves (combinación de opacity y translate). Verificar que `Alpine.store('toast')` siga siendo el único punto de invocación desde el resto de la aplicación.
 
