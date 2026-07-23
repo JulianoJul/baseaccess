@@ -1,0 +1,23 @@
+{{define "ui_modal_shell"}}
+<div id="{{.id}}" class="modal fixed inset-0 z-50 bg-black/70 ui-modal-backdrop"
+     x-show="$store.modals.tiene('{{.id}}')"
+     @keydown.escape.window="$store.modals.cerrar('{{.id}}')"
+     @mousedown="$store.modals.cerrarClickFuera($event, '{{.id}}')">
+  <div class="ui-modal-panel {{.size_cls}}">
+    <div class="ui-modal-header">
+      <h2 class="text-base font-semibold" style="color:var(--text-primary)">{{.title}}</h2>
+      <button @click="$store.modals.cerrar('{{.id}}')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="ui-modal-body">
+      {{template "modal_body" .}}
+    </div>
+    {{if .has_footer}}
+    <div class="ui-modal-footer">
+      {{template "modal_footer" .}}
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}

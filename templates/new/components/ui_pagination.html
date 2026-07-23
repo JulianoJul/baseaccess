@@ -1,0 +1,89 @@
+{{define "ui_pagination"}}
+{{if gt .TotalPages 1}}
+<div class="flex items-center justify-center px-4 py-2 select-none border-t border-gray-700"
+     id="paginacion-controles">
+  <input type="hidden" id="pagina-actual-val" name="pagina" value="{{.CurrentPage}}">
+  <input type="hidden" id="page-size-val" name="page_size" value="{{.PageSize}}">
+
+  <div class="flex items-center gap-1.5">
+    {{$cur := .CurrentPage}}
+    {{$total := .TotalPages}}
+    {{$win := 2}}
+    {{$start := sub $cur $win}}{{if lt $start 1}}{{$start = 1}}{{end}}
+    {{$end := add $cur $win}}{{if gt $end $total}}{{$end = $total}}{{end}}
+
+    {{if gt $cur 1}}
+    <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 px-2"
+            hx-get="/api/filtrar-expedientes"
+            hx-target="#vista-tabla"
+            hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+            hx-vals='{"pagina": "1"}'
+            title="Primera página">
+      <i class="fas fa-angles-left text-xs"></i>
+    </button>
+    <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 px-2"
+            hx-get="/api/filtrar-expedientes"
+            hx-target="#vista-tabla"
+            hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+            hx-vals='{"pagina": "{{sub $cur 1}}"}'
+            title="Página anterior">
+      <i class="fas fa-angle-left text-xs"></i>
+    </button>
+    {{end}}
+
+    {{if gt $start 1}}
+    <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
+            hx-get="/api/filtrar-expedientes"
+            hx-target="#vista-tabla"
+            hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+            hx-vals='{"pagina": "1"}'>1</button>
+    {{if gt $start 2}}
+    <span class="btn btn-sm bg-transparent text-gray-500 px-2 cursor-default">...</span>
+    {{end}}
+    {{end}}
+
+    {{range $p := pagRange $cur $total $win}}
+      {{if eq $p $cur}}
+      <button class="btn btn-sm bg-teal-600 text-white font-bold px-3 cursor-default" disabled>{{$p}}</button>
+      {{else}}
+      <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
+              hx-get="/api/filtrar-expedientes"
+              hx-target="#vista-tabla"
+              hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+              hx-vals='{"pagina": "{{$p}}"}'>{{$p}}</button>
+      {{end}}
+    {{end}}
+
+    {{if lt $end $total}}
+      {{if lt $end (sub $total 1)}}
+      <span class="btn btn-sm bg-transparent text-gray-500 px-2 cursor-default">...</span>
+      {{end}}
+      <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-teal-600 hover:text-white px-3"
+              hx-get="/api/filtrar-expedientes"
+              hx-target="#vista-tabla"
+              hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+              hx-vals='{"pagina": "{{$total}}"}'>{{$total}}</button>
+    {{end}}
+
+    {{if lt $cur $total}}
+    <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 px-2"
+            hx-get="/api/filtrar-expedientes"
+            hx-target="#vista-tabla"
+            hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+            hx-vals='{"pagina": "{{add $cur 1}}"}'
+            title="Página siguiente">
+      <i class="fas fa-angle-right text-xs"></i>
+    </button>
+    <button class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 px-2"
+            hx-get="/api/filtrar-expedientes"
+            hx-target="#vista-tabla"
+            hx-include="#search, #sort-order, #sort-dir-val, #active-module-val, #page-size-val"
+            hx-vals='{"pagina": "{{$total}}"}'
+            title="Última página">
+      <i class="fas fa-angles-right text-xs"></i>
+    </button>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

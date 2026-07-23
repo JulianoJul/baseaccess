@@ -1,4 +1,4 @@
-<div class="modal-body space-y-6 overflow-y-auto max-h-[75vh]"
+<div class="modal-body" style="padding:1rem;overflow-y:auto;flex:1;"
      x-data="formularioModulo('{{.ActiveModule}}', {{jsonEncode .Registro}})">
     {{$modulo := .ActiveModule}}
     {{$idColumna := "id_expediente"}}
@@ -14,263 +14,344 @@
     {{if .Registro}}{{$idVal = rowGetStr .Registro $idColumna}}{{end}}
     {{template "form_hidden_id_alpine" dict "Registro" .Registro "IDColumna" $idColumna}}
 
-    <div class="flex justify-end mb-2">
-        <button type="button" @click="toggleOrden()"
-                class="btn btn-xs"
-                :class="ordenExcel ? 'btn-primary' : 'btn-secondary'">
-            <i class="fas" :class="ordenExcel ? 'fa-check-circle' : 'fa-list'"></i>
-            <span x-text="ordenExcel ? 'Orden Excel: ON' : 'Orden Excel: OFF'"></span>
+    <div class="flex items-center justify-between mb-3 gap-2">
+      <div class="flex items-center gap-1">
+        <button type="button" @click="deshacer()" :disabled="!puedeDeshacer"
+                class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-40" style="width:32px;height:32px;padding:0" title="Deshacer">
+          <i class="fas fa-undo text-xs"></i>
         </button>
+        <button type="button" @click="rehacer()" :disabled="!puedeRehacer"
+                class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600 disabled:opacity-40" style="width:32px;height:32px;padding:0" title="Rehacer">
+          <i class="fas fa-redo text-xs"></i>
+        </button>
+      </div>
+      <button type="button" @click="toggleOrden()" class="btn btn-xs" :class="ordenExcel ? 'btn-primary' : 'btn-secondary'">
+        <i class="fas" :class="ordenExcel ? 'fa-check-circle' : 'fa-list'"></i>
+        <span x-text="ordenExcel ? 'Orden Excel: ON' : 'Orden Excel: OFF'"></span>
+      </button>
     </div>
 
-    <!-- Información General (común) -->
-    <fieldset class="card" data-fieldset="general">
-        <legend class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información General</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_select_alpine" dict "Label" "Documento" "Name" "id_documento" "CatalogName" "documento" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_documento")}}
-            {{template "form_gerencia_superintendencia_alpine" dict "Catalogs" .Catalogs "Registro" .Registro "ExcelOrderGerencia" (excelOrder $modulo "id_gerencia") "ExcelOrderSuperintendencia" (excelOrder $modulo "id_superintendencia")}}
+    {{/* Sección: Información General */}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-teal"><i class="fas fa-clipboard-list mr-1"></i> Información General</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{template "form_select_alpine" dict "Label" "Documento" "Name" "id_documento" "CatalogName" "documento" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_documento")}}
+          {{template "form_gerencia_superintendencia_alpine" dict "Catalogs" .Catalogs "Registro" .Registro "ExcelOrderGerencia" (excelOrder $modulo "id_gerencia") "ExcelOrderSuperintendencia" (excelOrder $modulo "id_superintendencia")}}
 
-            {{if eq $modulo "expedientes"}}
-            {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Proceso" "Name" "nro_proceso" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proceso")}}
-            {{template "form_select_alpine" dict "Label" "Plan Contratación" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_plan")}}
-            {{template "form_select_alpine" dict "Label" "Modalidad" "Name" "id_modalidad" "CatalogName" "modalidad" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_modalidad")}}
-            {{template "form_select_alpine" dict "Label" "Art. Normativa" "Name" "id_art" "CatalogName" "art" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_art")}}
-            {{template "form_select_alpine" dict "Label" "Tipo Contrato" "Name" "id_tipo_contrato" "CatalogName" "tipo_contrato" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_tipo_contrato")}}
-            {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
-            {{end}}
+          {{if eq $modulo "expedientes"}}
+          {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Proceso" "Name" "nro_proceso" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proceso")}}
+          {{template "form_select_alpine" dict "Label" "Plan Contratación" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_plan")}}
+          {{template "form_select_alpine" dict "Label" "Modalidad" "Name" "id_modalidad" "CatalogName" "modalidad" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_modalidad")}}
+          {{template "form_select_alpine" dict "Label" "Art. Normativa" "Name" "id_art" "CatalogName" "art" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_art")}}
+          {{template "form_select_alpine" dict "Label" "Tipo Contrato" "Name" "id_tipo_contrato" "CatalogName" "tipo_contrato" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_tipo_contrato")}}
+          {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
+          {{end}}
 
-            {{if eq $modulo "requisiciones"}}
-            {{template "form_textarea_alpine" dict "Label" "Descripción de Materiales" "Name" "descripcion_materiales" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_materiales")}}
-            {{template "form_input_text_alpine" dict "Label" "Serial del Equipo" "Name" "serial_equipo" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "serial_equipo")}}
-            {{template "form_input_text_alpine" dict "Label" "Pase SICESMA" "Name" "pase_sicesma" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "pase_sicesma")}}
-            {{end}}
+          {{if eq $modulo "requisiciones"}}
+          {{template "form_textarea_alpine" dict "Label" "Descripción de Materiales" "Name" "descripcion_materiales" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_materiales")}}
+          {{template "form_input_text_alpine" dict "Label" "Serial del Equipo" "Name" "serial_equipo" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "serial_equipo")}}
+          {{template "form_input_text_alpine" dict "Label" "Pase SICESMA" "Name" "pase_sicesma" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "pase_sicesma")}}
+          {{end}}
 
-            {{if eq $modulo "memorandums"}}
-            {{template "form_textarea_alpine" dict "Label" "Asunto del Memorándum / Decisión" "Name" "asunto" "Registro" .Registro "Rows" "3" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "asunto")}}
-            {{end}}
+          {{if eq $modulo "memorandums"}}
+          {{template "form_textarea_alpine" dict "Label" "Asunto del Memorándum / Decisión" "Name" "asunto" "Registro" .Registro "Rows" "3" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "asunto")}}
+          {{end}}
 
-            {{if eq $modulo "recobros"}}
-            {{template "form_textarea_alpine" dict "Label" "Asunto del Recobro" "Name" "asunto" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "asunto")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha de Inicio" "Name" "fecha_inicio"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_inicio")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Final" "Name" "fecha_final"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_final")}}
-            {{end}}
+          {{if eq $modulo "recobros"}}
+          {{template "form_textarea_alpine" dict "Label" "Asunto del Recobro" "Name" "asunto" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "asunto")}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha de Inicio" "Name" "fecha_inicio"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_inicio")}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha Final" "Name" "fecha_final"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_final")}}
+          {{end}}
 
-            {{if eq $modulo "valuaciones"}}
-            {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Proceso" "Name" "nro_proceso" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proceso")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Proforma" "Name" "nro_proforma" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proforma")}}
-            {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
-            {{end}}
+          {{if eq $modulo "valuaciones"}}
+          {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Proceso" "Name" "nro_proceso" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proceso")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Proforma" "Name" "nro_proforma" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_proforma")}}
+          {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
+          {{end}}
 
-            {{if eq $modulo "aprobacion_jd"}}
-            {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
-            {{template "form_select_alpine" dict "Label" "Plan Contrataciones" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_plan")}}
-            {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "cantidad_frentes")}}
-            {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
-            {{end}}
+          {{if eq $modulo "aprobacion_jd"}}
+          {{template "form_input_text_alpine" dict "Label" "SOLPED" "Name" "solped" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "solped")}}
+          {{template "form_select_alpine" dict "Label" "Plan Contrataciones" "Name" "id_plan" "CatalogName" "plan_contratacion" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_plan")}}
+          {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "cantidad_frentes")}}
+          {{template "form_textarea_alpine" dict "Label" "Descripción del Proceso" "Name" "descripcion_proceso" "Registro" .Registro "Rows" "2" "GridSpan" "md:col-span-2 lg:col-span-3" "ExcelOrder" (excelOrder $modulo "descripcion_proceso")}}
+          {{end}}
 
-            {{if eq $modulo "vacaciones"}}
-            {{template "form_input_number_alpine" dict "Label" "Año Período" "Name" "anio" "Registro" .Registro "ExtraAttrs" "step=\"1\"" "ExcelOrder" (excelOrder $modulo "anio")}}
-            {{template "form_input_number_alpine" dict "Label" "Cantidad de Días" "Name" "cantidad_dias" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\"" "ExcelOrder" (excelOrder $modulo "cantidad_dias")}}
-            {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_desde")}}
-            {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_hasta")}}
-            {{end}}
+          {{if eq $modulo "vacaciones"}}
+          {{template "form_input_number_alpine" dict "Label" "Año Período" "Name" "anio" "Registro" .Registro "ExtraAttrs" "step=\"1\"" "ExcelOrder" (excelOrder $modulo "anio")}}
+          {{template "form_input_number_alpine" dict "Label" "Cantidad de Días" "Name" "cantidad_dias" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\"" "ExcelOrder" (excelOrder $modulo "cantidad_dias")}}
+          {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_desde")}}
+          {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_hasta")}}
+          {{end}}
 
-            {{if eq $modulo "reposos_medicos"}}
-            {{template "form_input_number_alpine" dict "Label" "Días Período" "Name" "dias_periodo" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\"" "ExcelOrder" (excelOrder $modulo "dias_periodo")}}
-            {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_desde")}}
-            {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_hasta")}}
-            {{end}}
+          {{if eq $modulo "reposos_medicos"}}
+          {{template "form_input_number_alpine" dict "Label" "Días Período" "Name" "dias_periodo" "Registro" .Registro "ExtraAttrs" "step=\"1\" min=\"1\"" "ExcelOrder" (excelOrder $modulo "dias_periodo")}}
+          {{template "form_input_date_alpine" dict "Label" "Desde" "Name" "fecha_desde"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_desde")}}
+          {{template "form_input_date_alpine" dict "Label" "Hasta" "Name" "fecha_hasta"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_hasta")}}
+          {{end}}
         </div>
-    </fieldset>
+      </div>
+    </div>
 
-    <!-- Presupuesto (solo expedientes) -->
+    {{/* Presupuesto (expedientes) */}}
     {{if eq $modulo "expedientes"}}
-    <fieldset class="card" data-fieldset="presupuesto">
-        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-            {{template "form_input_date_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_presupuesto_base")}}
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_usd")}}
-            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "tipo_cambio")}}
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_bs")}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="flex items-end gap-4 flex-wrap">
+          <div class="flex-1 min-w-[160px]">
+            <label class="label">Presupuesto Base (USD)</label>
+            <input type="text" class="input" x-currency x-model="registro.presupuesto_base_usd"
+                   @input="onMontoInput($event, 'usd_presup')">
+          </div>
+          <div class="flex items-center pb-2">
+            <span class="text-gray-500 text-xs font-mono px-2 py-1 bg-gray-700/40 rounded" x-text="registro.tipo_cambio || 'TC'"></span>
+          </div>
+          <div class="flex-1 min-w-[160px]">
+            <label class="label">Presupuesto Base (Bs)</label>
+            <input type="text" class="input" x-currency x-model="registro.presupuesto_base_bs"
+                   @input="onMontoInput($event, 'bs_presup')">
+          </div>
         </div>
-    </fieldset>
+        <div class="mt-2">
+          <label class="label">Tipo de Cambio</label>
+          <input type="text" class="input" style="max-width:180px" x-currency x-model="registro.tipo_cambio">
+        </div>
+        <div class="mt-2">
+          <label class="label">Fecha Presupuesto Base</label>
+          <input type="date" class="input" style="max-width:200px" :value="registro.fecha_presupuesto_base"
+                 @change="registro.fecha_presupuesto_base = $event.target.value; validarFechas()">
+        </div>
+      </div>
+    </div>
     {{end}}
 
-    <!-- Presupuesto (aprobacion_jd) -->
+    {{/* Presupuesto (aprobacion_jd) */}}
     {{if eq $modulo "aprobacion_jd"}}
-    <fieldset class="card" data-fieldset="presupuesto">
-        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto Base</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-3">
-            {{template "form_input_date_alpine" dict "Label" "Fecha Presupuesto Base" "Name" "fecha_presupuesto_base"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_presupuesto_base")}}
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_bs")}}
-            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "tipo_cambio")}}
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_usd")}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Presupuesto Base</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="flex items-end gap-4 flex-wrap">
+          <div class="flex-1 min-w-[160px]">
+            <label class="label">Presupuesto Base (Bs)</label>
+            <input type="text" class="input" x-currency x-model="registro.presupuesto_base_bs"
+                   @input="onMontoInput($event, 'bs_presup')">
+          </div>
+          <div class="flex items-center pb-2">
+            <span class="text-gray-500 text-xs font-mono px-2 py-1 bg-gray-700/40 rounded" x-text="registro.tipo_cambio || 'TC'"></span>
+          </div>
+          <div class="flex-1 min-w-[160px]">
+            <label class="label">Presupuesto Base (USD)</label>
+            <input type="text" class="input" x-currency x-model="registro.presupuesto_base_usd"
+                   @input="onMontoInput($event, 'usd_presup')">
+          </div>
         </div>
-    </fieldset>
+        <div class="mt-2"><label class="label">Tipo de Cambio</label><input type="text" class="input" style="max-width:180px" x-currency x-model="registro.tipo_cambio"></div>
+      </div>
+    </div>
     {{end}}
 
-    <!-- Costos (recobros) -->
-    {{if eq $modulo "recobros"}}
-    <fieldset class="card" data-fieldset="costos">
-        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Servicios</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
-            {{template "form_input_monto_alpine" dict "Label" "Costo del Servicio ($)" "Name" "costo_servicio_usd" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "costo_servicio_usd")}}
-            {{template "form_input_monto_alpine" dict "Label" "(-) Nota de Débito (Reverso)" "Name" "nota_debito_reverso" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nota_debito_reverso")}}
-            {{template "form_input_monto_alpine" dict "Label" "Servicios" "Name" "servicios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2" "ExcelOrder" (excelOrder $modulo "servicios")}}
-            {{template "form_input_monto_alpine" dict "Label" "Beneficios" "Name" "beneficios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2" "ExcelOrder" (excelOrder $modulo "beneficios")}}
-        </div>
-    </fieldset>
-    {{end}}
-
-    <!-- Costos y Montos (valuaciones) -->
-    {{if eq $modulo "valuaciones"}}
-    <fieldset class="card" data-fieldset="costos">
-        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (Bs)" "Name" "presupuesto_base_bs" "Origen" "bs_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_bs")}}
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base (USD)" "Name" "presupuesto_base_usd" "Origen" "usd_presup" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_usd")}}
-            {{template "form_input_number_alpine" dict "Label" "Tipo de Cambio" "Name" "tipo_cambio" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "tipo_cambio")}}
-            {{template "form_input_number_alpine" dict "Label" "Monto Valuación" "Name" "monto_valuacion" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_valuacion")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Origen" "bs_adj" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_adjudicado_bs")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Origen" "usd_adj" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_adjudicado_usd")}}
-        </div>
-    </fieldset>
-    {{end}}
-
-    <!-- Costos (certificacion_bdu) -->
-    {{if eq $modulo "certificacion_bdu"}}
-    <fieldset class="card" data-fieldset="costos">
-        <legend class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos Totales</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_input_monto_alpine" dict "Label" "Presupuesto Base Total ($)" "Name" "presupuesto_base_total_usd" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "presupuesto_base_total_usd")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado Total ($)" "Name" "monto_adjudicado_total_usd" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_adjudicado_total_usd")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto del Contrato" "Name" "monto_contrato" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_contrato")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Ejecutado" "Name" "monto_ejecutado" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_ejecutado")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Pagado" "Name" "monto_pagado" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_pagado")}}
-        </div>
-    </fieldset>
-    {{end}}
-
-    <!-- Gestión y Firmas (expedientes) -->
+    {{/* Gestión (expedientes) */}}
     {{if eq $modulo "expedientes"}}
-    <fieldset class="card" data-fieldset="gestion">
-        <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Gestión y Firmas</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_select_alpine" dict "Label" "Emisor / Remitente" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_emisor")}}
-            {{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_receptor")}}
-            {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_estatus")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_recibido")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_devuelto")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Acta Apertura" "Name" "nro_acta_apertura" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_acta_apertura")}}
-            {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "cantidad_frentes")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Resolución JD" "Name" "nro_resolucion_jd" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_resolucion_jd")}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> Gestion y Firmas</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{template "form_select_alpine" dict "Label" "Emisor / Remitente" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_emisor")}}
+          {{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_receptor")}}
+          {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_estatus")}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_recibido")}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_devuelto")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Acta Apertura" "Name" "nro_acta_apertura" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_acta_apertura")}}
+          {{template "form_input_spin_alpine" dict "Label" "Cant. Frentes" "Name" "cantidad_frentes" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "cantidad_frentes")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Resolución JD" "Name" "nro_resolucion_jd" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_resolucion_jd")}}
         </div>
-    </fieldset>
+      </div>
+    </div>
 
-    <fieldset class="card" data-fieldset="adjudicacion">
-        <legend class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_select_alpine" dict "Label" "Resultado Proceso" "Name" "id_resultado" "CatalogName" "resultado_proceso" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_resultado")}}
-            {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_empresa")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sicac")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sap")}}
-            <div class="input-wrapper" data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
-                <label class="label">Tiempo Ejecución</label>
-                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
-                       x-model="registro.tiempo_ejecucion"
-                       placeholder="ej: 120"
-                       @blur="appendDias()">
-            </div>
-            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (USD)" "Name" "monto_adjudicado_usd" "Origen" "usd_adj" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_adjudicado_usd")}}
-            {{template "form_input_monto_alpine" dict "Label" "Monto Adjudicado (Bs)" "Name" "monto_adjudicado_bs" "Origen" "bs_adj" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "monto_adjudicado_bs")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Firma Contrato" "Name" "fecha_firma_contrato"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_firma_contrato")}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{template "form_select_alpine" dict "Label" "Resultado Proceso" "Name" "id_resultado" "CatalogName" "resultado_proceso" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_resultado")}}
+          {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_empresa")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sicac")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sap")}}
+          <div data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
+            <label class="label">Tiempo Ejecución</label>
+            <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input" x-model="registro.tiempo_ejecucion" placeholder="ej: 120" @blur="appendDias()">
+          </div>
+          {{template "form_input_date_alpine" dict "Label" "Fecha Firma Contrato" "Name" "fecha_firma_contrato" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_firma_contrato")}}
         </div>
-    </fieldset>
+      </div>
+    </div>
     {{end}}
 
-    <!-- Trazabilidad (la mayoría de módulos) -->
+    {{/* Costos (recobros, valuaciones, certificacion_bdu) */}}
+    {{if eq $modulo "recobros"}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Servicios</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {{template "form_input_monto_alpine" dict "Label" "Costo del Servicio ($)" "Name" "costo_servicio_usd" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "costo_servicio_usd")}}
+          {{template "form_input_monto_alpine" dict "Label" "Nota de Débito (Reverso)" "Name" "nota_debito_reverso" "Origen" "" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nota_debito_reverso")}}
+          {{template "form_input_monto_alpine" dict "Label" "Servicios" "Name" "servicios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2" "ExcelOrder" (excelOrder $modulo "servicios")}}
+          {{template "form_input_monto_alpine" dict "Label" "Beneficios" "Name" "beneficios" "Origen" "" "Registro" .Registro "GridSpan" "md:col-span-2" "ExcelOrder" (excelOrder $modulo "beneficios")}}
+        </div>
+      </div>
+    </div>
+    {{end}}
+
+    {{if and (ne $modulo "recobros") (or (eq $modulo "valuaciones") (eq $modulo "certificacion_bdu"))}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-amber"><i class="fas fa-coins mr-1"></i> Costos y Montos</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="flex items-end gap-4 flex-wrap md:col-span-2">
+            <div class="flex-1 min-w-[140px]">
+              <label class="label">Presupuesto Base (Bs)</label>
+              <input type="text" class="input" x-currency x-model="registro.presupuesto_base_bs"
+                     @input="onMontoInput($event, 'bs_presup')">
+            </div>
+            <div class="flex items-center pb-2">
+              <span class="text-gray-500 text-xs font-mono px-2 py-1 bg-gray-700/40 rounded" x-text="registro.tipo_cambio || 'TC'"></span>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="label">Presupuesto Base (USD)</label>
+              <input type="text" class="input" x-currency x-model="registro.presupuesto_base_usd"
+                     @input="onMontoInput($event, 'usd_presup')">
+            </div>
+          </div>
+          <div><label class="label">Tipo de Cambio</label><input type="text" class="input" x-currency x-model="registro.tipo_cambio"></div>
+          <div><label class="label">Monto Valuación</label><input type="text" class="input" x-currency x-model="registro.monto_valuacion"></div>
+          <div class="flex items-end gap-4 flex-wrap md:col-span-2">
+            <div class="flex-1 min-w-[140px]">
+              <label class="label">Monto Adjudicado (Bs)</label>
+              <input type="text" class="input" x-currency x-model="registro.monto_adjudicado_bs"
+                     @input="onMontoInput($event, 'bs_adj')">
+            </div>
+            <div class="flex items-center pb-2">
+              <span class="text-gray-500 text-xs font-mono px-2 py-1 bg-gray-700/40 rounded" x-text="registro.tipo_cambio || 'TC'"></span>
+            </div>
+            <div class="flex-1 min-w-[140px]">
+              <label class="label">Monto Adjudicado (USD)</label>
+              <input type="text" class="input" x-currency x-model="registro.monto_adjudicado_usd"
+                     @input="onMontoInput($event, 'usd_adj')">
+            </div>
+          </div>
+          {{else}}
+          <div><label class="label">Presupuesto Base Total ($)</label><input type="text" class="input" x-currency x-model="registro.presupuesto_base_total_usd"></div>
+          <div><label class="label">Monto Adjudicado Total ($)</label><input type="text" class="input" x-currency x-model="registro.monto_adjudicado_total_usd"></div>
+          <div><label class="label">Monto del Contrato</label><input type="text" class="input" x-currency x-model="registro.monto_contrato"></div>
+          <div><label class="label">Monto Ejecutado</label><input type="text" class="input" x-currency x-model="registro.monto_ejecutado"></div>
+          <div><label class="label">Monto Pagado</label><input type="text" class="input" x-currency x-model="registro.monto_pagado"></div>
+          {{end}}
+        </div>
+      </div>
+    </div>
+    {{end}}
+
+    {{/* Trazabilidad (no expedientes) */}}
     {{if ne $modulo "expedientes"}}
-    <fieldset class="card" data-fieldset="trazabilidad">
-        <legend class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i>
-            {{if eq $modulo "requisiciones"}}Control de Firmas y Entrega{{else}}Trazabilidad y Firmas{{end}}
-        </legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{if ne $modulo "reposos_medicos"}}
-            {{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_emisor")}}
-            {{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_receptor")}}
-            {{else}}
-            {{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_emisor")}}
-            {{end}}
-            {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_estatus")}}
-            {{if eq $modulo "aprobacion_jd"}}
-            <div class="input-wrapper" data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
-                <label class="label">Tiempo de Ejecución</label>
-                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
-                       x-model="registro.tiempo_ejecucion"
-                       placeholder="ej: 120"
-                       @blur="appendDias()">
-            </div>
-            {{end}}
-            {{if ne $modulo "reposos_medicos"}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_recibido")}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_devuelto")}}
-            {{else}}
-            {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_recibido")}}
-            {{end}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-blue"><i class="fas fa-file-contract mr-1"></i> {{if eq $modulo "requisiciones"}}Control de Firmas y Entrega{{else}}Trazabilidad y Firmas{{end}}</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{template "form_select_alpine" dict "Label" "Emisor" "Name" "id_emisor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_emisor")}}
+          {{if ne $modulo "reposos_medicos"}}
+          {{template "form_select_alpine" dict "Label" "Receptor" "Name" "id_receptor" "CatalogName" "responsables" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_receptor")}}
+          {{end}}
+          {{template "form_select_alpine" dict "Label" "Estatus Detalle" "Name" "id_estatus" "CatalogName" "estatus_detalle" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_estatus")}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha Recibido" "Name" "fecha_recibido" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_recibido")}}
+          {{if ne $modulo "reposos_medicos"}}
+          {{template "form_input_date_alpine" dict "Label" "Fecha Devuelto" "Name" "fecha_devuelto" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "fecha_devuelto")}}
+          {{end}}
         </div>
-    </fieldset>
+      </div>
+    </div>
     {{end}}
 
-    <!-- Valuaciones: Trazabilidad extra + Adjudicación -->
+    {{/* Adjudicación (valuaciones) */}}
     {{if eq $modulo "valuaciones"}}
-    <fieldset class="card" data-fieldset="adjudicacion">
-        <legend class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</legend>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-3">
-            {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_empresa")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sicac")}}
-            {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sap")}}
-            <div data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
-                <label class="label">Tiempo Ejecución</label>
-                <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input"
-                       x-model="registro.tiempo_ejecucion"
-                       @blur="appendDias()">
-            </div>
-            {{template "form_input_date_alpine" dict "Label" "Período Valuación Desde" "Name" "periodo_valuacion_desde"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "periodo_valuacion_desde")}}
-            {{template "form_input_date_alpine" dict "Label" "Período Valuación Hasta" "Name" "periodo_valuacion_hasta"  "Registro" .Registro "ExcelOrder" (excelOrder $modulo "periodo_valuacion_hasta")}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-emerald"><i class="fas fa-building mr-1"></i> Adjudicación</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {{template "form_select_alpine" dict "Label" "Empresa Adjudicada" "Name" "id_empresa" "CatalogName" "empresas" "Catalogs" .Catalogs "Registro" .Registro "ExcelOrder" (excelOrder $modulo "id_empresa")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SICAC" "Name" "nro_contrato_sicac" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sicac")}}
+          {{template "form_input_text_alpine" dict "Label" "Nro. Contrato SAP" "Name" "nro_contrato_sap" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "nro_contrato_sap")}}
+          <div data-orden-excel="{{excelOrder $modulo "tiempo_ejecucion"}}">
+            <label class="label">Tiempo Ejecución</label>
+            <input type="text" id="f-tiempo_ejecucion" name="tiempo_ejecucion" class="input" x-model="registro.tiempo_ejecucion" @blur="appendDias()">
+          </div>
+          {{template "form_input_date_alpine" dict "Label" "Período Valuación Desde" "Name" "periodo_valuacion_desde" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "periodo_valuacion_desde")}}
+          {{template "form_input_date_alpine" dict "Label" "Período Valuación Hasta" "Name" "periodo_valuacion_hasta" "Registro" .Registro "ExcelOrder" (excelOrder $modulo "periodo_valuacion_hasta")}}
         </div>
-    </fieldset>
+      </div>
+    </div>
     {{end}}
 
-    <!-- Observaciones (todos los módulos) -->
-    <fieldset class="card" data-fieldset="observaciones">
-        <legend class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</legend>
-        <div class="mt-3" data-orden-excel="{{excelOrder $modulo "observaciones"}}">
-            <label class="label">Cambios automáticos</label>
-            <textarea class="input text-xs text-gray-400 bg-gray-900/40 cursor-default" rows="3" readonly
-                      x-show="autoObs" x-model="autoObs"></textarea>
+    {{/* Observaciones */}}
+    <div class="card mb-3" x-data="{ _open: true }">
+      <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+        <h4 class="legend legend-purple"><i class="fas fa-pencil-alt mr-1"></i> Observaciones</h4>
+        <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+      </div>
+      <div x-show="_open" x-collapse.duration.200ms class="mt-2 space-y-3">
+        {{if .Registro}}
+        <div>
+          <label class="label" style="font-size:0.7rem;color:var(--text-tertiary);">Cambios automáticos</label>
+          <textarea class="input" rows="2" readonly x-show="autoObs" x-model="autoObs"
+                    style="background:var(--bg-active);border-style:dashed;border-color:var(--border-subtle);color:var(--text-secondary);font-size:0.75rem;resize:none;"></textarea>
         </div>
-        <div class="mt-2">
-            {{if eq $modulo "requisiciones"}}
-            <label class="label">Observaciones de la Entrega</label>
-            <textarea id="f-observaciones_entrega" name="observaciones_entrega" rows="2" class="input" x-model="registro.observaciones_entrega"></textarea>
-            {{end}}
-            <div data-orden-excel="{{excelOrder $modulo "observaciones"}}">
-                <label class="label">Observaciones (libre)</label>
-                <textarea id="f-observaciones" name="observaciones" rows="2" class="input" x-model="registro.observaciones"></textarea>
-            </div>
+        {{end}}
+        {{if eq $modulo "requisiciones"}}
+        <div>
+          <label class="label" style="font-size:0.7rem;color:var(--text-secondary);">Observaciones de la Entrega</label>
+          <textarea id="f-observaciones_entrega" name="observaciones_entrega" rows="2" class="input" x-model="registro.observaciones_entrega"></textarea>
         </div>
-        <div class="mt-2">
-            <div data-orden-excel="{{excelOrder $modulo "notas"}}">
-                <label class="label">Notas</label>
-                <textarea id="f-notas" name="notas" rows="2" class="input" x-model="registro.notas"></textarea>
-            </div>
+        {{end}}
+        <div data-orden-excel="{{excelOrder $modulo "observaciones"}}">
+          <label class="label" style="font-size:0.7rem;color:var(--text-secondary);">Observaciones (libre)</label>
+          <textarea id="f-observaciones" name="observaciones" rows="2" class="input" x-model="registro.observaciones"></textarea>
         </div>
-    </fieldset>
+        <div data-orden-excel="{{excelOrder $modulo "notas"}}">
+          <label class="label" style="font-size:0.7rem;color:var(--text-secondary);">Notas</label>
+          <textarea id="f-notas" name="notas" rows="2" class="input" x-model="registro.notas"></textarea>
+        </div>
+      </div>
+    </div>
 
-    <!-- Flat container for Excel order -->
-    <div id="excel-order-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style="display: none;"></div>
+    <div id="excel-order-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" style="display:none;"></div>
 </div>
 
 {{template "form_buttons_alpine" dict "Registro" .Registro "Modulo" $modulo "IDColumna" $idColumna}}

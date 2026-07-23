@@ -1,0 +1,31 @@
+{{define "ui_button"}}
+{{- $variant := default "primary" .variant -}}
+{{- $size := default "md" .size -}}
+{{- $btnClass := "" -}}
+{{- if eq $variant "primary" -}}{{- $btnClass = "btn-primary" -}}
+{{- else if eq $variant "secondary" -}}{{- $btnClass = "btn-secondary" -}}
+{{- else if eq $variant "danger" -}}{{- $btnClass = "btn-danger" -}}
+{{- else if eq $variant "ghost" -}}{{- $btnClass = "btn-ghost" -}}
+{{- else if eq $variant "icon-only" -}}{{- $btnClass = "btn-icon-only" -}}
+{{- end -}}
+{{- if eq $size "sm" -}}{{- $btnClass = print $btnClass " btn-sm" -}}{{- end -}}
+<button class="btn {{$btnClass}} {{.extra_cls}}"
+  {{- if .hx_get }} hx-get="{{.hx_get}}"{{end}}
+  {{- if .hx_post }} hx-post="{{.hx_post}}"{{end}}
+  {{- if .hx_target }} hx-target="{{.hx_target}}"{{end}}
+  {{- if .hx_include }} hx-include="{{.hx_include}}"{{end}}
+  {{- if .hx_trigger }} hx-trigger="{{.hx_trigger}}"{{end}}
+  {{- if .hx_vals }} hx-vals="{{.hx_vals}}"{{end}}
+  {{- if .hx_confirm }} hx-confirm="{{.hx_confirm}}"{{end}}
+  {{- if .hx_indicator }} hx-indicator="{{.hx_indicator}}"{{end}}
+  {{- if .hx_swap }} hx-swap="{{.hx_swap}}"{{end}}
+  {{- if .x_model }} x-model="{{.x_model}}"{{end}}
+  {{- if .alpine_click }} @click="{{.alpine_click}}"{{end}}
+  {{- if .alpine_change }} @change="{{.alpine_change}}"{{end}}
+  {{- if .title }} title="{{.title}}"{{end}}
+  {{- if .id }} id="{{.id}}"{{end}}
+  {{- if .disabled }} disabled{{end}}>
+  {{- if .icon }}<i class="{{.icon}} {{if or .label (ne $variant "icon-only")}}mr-1{{end}}"></i>{{end}}
+  {{- if .label }}{{.label}}{{end}}
+</button>
+{{end}}

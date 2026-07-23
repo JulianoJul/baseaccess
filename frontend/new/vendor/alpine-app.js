@@ -57,8 +57,9 @@ document.addEventListener('alpine:init', () => {
   Alpine.store('toast', {
     mostrar(msg, tipo = 'info') {
       const el = document.createElement('div');
-      el.className = 'toast ' + tipo;
-      el.textContent = msg;
+      el.className = 'ui-toast ' + tipo;
+      const icons = { info: 'fa-info-circle', success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
+      el.innerHTML = '<i class="fas ' + (icons[tipo] || 'fa-info-circle') + '"></i> ' + msg;
       document.getElementById('toast-container')?.appendChild(el);
       requestAnimationFrame(() => el.classList.add('show'));
       setTimeout(() => {
@@ -66,7 +67,6 @@ document.addEventListener('alpine:init', () => {
         setTimeout(() => el.remove(), 300);
       }, 3000);
     },
-
     error(msg) { this.mostrar(msg, 'error'); },
     success(msg) { this.mostrar(msg, 'success'); },
     info(msg) { this.mostrar(msg, 'info'); }
@@ -473,6 +473,9 @@ document.addEventListener('alpine:init', () => {
     _pendingObs: {},
     ordenExcel: false,
     _fieldStructure: null,
+    history: [],
+    historyIndex: -1,
+    _historyTimer: null,
 
     init() {
       if (!this.registro.id_estatus) this.registro.id_estatus = '1';
@@ -488,12 +491,39 @@ document.addEventListener('alpine:init', () => {
         fecha_devuelto: this.registro.fecha_devuelto,
         id_estatus: this.registro.id_estatus
       };
+      this._pushSnapshot();
       this._obsReady = true;
+      this.$watch('registro', () => {
+        clearTimeout(this._historyTimer);
+        this._historyTimer = setTimeout(() => this._pushSnapshot(), 500);
+      }, { deep: true });
       this.$watch('registro.tipo_cambio', () => this._syncAll());
       this.$watch('registro.id_documento', (v, old) => this._obsCambio('Documento', old, v));
       this.$watch('registro.fecha_recibido', (v, old) => this._obsCambio('Fecha Recibido', old, v));
       this.$watch('registro.fecha_devuelto', (v, old) => this._obsCambio('Fecha Devuelto', old, v));
       this.$watch('registro.id_estatus', (v, old) => this._obsCambio('Estatus', old, v));
+    },
+
+    get puedeDeshacer() { return this.historyIndex > 0; },
+    get puedeRehacer() { return this.historyIndex < this.history.length - 1; },
+
+    deshacer() {
+      if (!this.puedeDeshacer) return;
+      this.historyIndex--;
+      Object.assign(this.registro, JSON.parse(JSON.stringify(this.history[this.historyIndex])));
+    },
+
+    rehacer() {
+      if (!this.puedeRehacer) return;
+      this.historyIndex++;
+      Object.assign(this.registro, JSON.parse(JSON.stringify(this.history[this.historyIndex])));
+    },
+
+    _pushSnapshot() {
+      this.history = this.history.slice(0, this.historyIndex + 1);
+      this.history.push(JSON.parse(JSON.stringify(this.registro)));
+      if (this.history.length > 50) this.history.shift();
+      this.historyIndex = this.history.length - 1;
     },
 
     _obsLineaCompleta() {

@@ -22,7 +22,7 @@ import (
 //go:embed all:frontend
 var frontendFS embed.FS
 
-//go:embed templates/*
+//go:embed all:templates
 var templateFS embed.FS
 
 type TemplateHandler struct {
@@ -51,6 +51,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		"seqFromTo":  seqFromTo,
 		"pagRange":   pagRange,
 		"dict":       dict,
+		"list":       list,
 		"rowGet":     rowGet,
 		"rowGetStr":  rowGetStr,
 		"rowGetNum":  rowGetNum,
@@ -86,7 +87,7 @@ func NewTemplateHandler(app *App) (*TemplateHandler, error) {
 		},
 	}
 
-	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html", "templates/new/*.html")
+	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html", "templates/new/*.html", "templates/new/components/*.html")
 	if err != nil {
 		return nil, err
 	}
@@ -168,6 +169,10 @@ func dict(values ...interface{}) map[string]interface{} {
 		}
 	}
 	return d
+}
+
+func list(values ...interface{}) []interface{} {
+	return values
 }
 
 func rowGet(r Row, key string) interface{} {

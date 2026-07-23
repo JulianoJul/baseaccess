@@ -1,6 +1,10 @@
 {{if eq (len .) 0}}
-    <p class="text-gray-500 italic">No hay documentos pendientes.</p>
+    <div class="text-center py-8 text-gray-500">
+        <i class="fas fa-clock text-2xl mb-2 block"></i>
+        <p class="text-sm">No hay documentos pendientes.</p>
+    </div>
 {{else}}
+    <div class="card">
     <div class="overflow-x-auto">
         <table class="w-full text-xs text-left border-collapse">
             <thead>
@@ -30,5 +34,6 @@
                 {{end}}
             </tbody>
         </table>
+    </div>
     </div>
 {{end}}

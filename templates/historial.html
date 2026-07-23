@@ -1,6 +1,10 @@
 {{if eq (len .Rows) 0}}
-    <p class="text-gray-500 italic">Sin movimientos registrados.</p>
+    <div class="text-center py-8 text-gray-500">
+        <i class="fas fa-hourglass-half text-2xl mb-2 block"></i>
+        <p class="text-sm">Sin movimientos registrados.</p>
+    </div>
 {{else}}
+    <div class="card">
     <table class="w-full text-left text-xs border-collapse">
         <thead>
             <tr class="bg-gray-700/60 text-teal-400 uppercase">
@@ -60,4 +64,5 @@
             {{end}}
         </tbody>
     </table>
+    </div>
 {{end}}

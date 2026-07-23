@@ -1,0 +1,16 @@
+{{define "ui_badge"}}
+{{- $color := default "gray" .color -}}
+{{- $cls := "" -}}
+{{- if eq $color "teal"}}{{$cls = "bg-teal-500/20 text-teal-400"}}
+{{- else if eq $color "emerald"}}{{$cls = "bg-emerald-500/20 text-emerald-400"}}
+{{- else if eq $color "amber"}}{{$cls = "bg-amber-500/20 text-amber-400"}}
+{{- else if eq $color "red"}}{{$cls = "bg-red-500/20 text-red-400"}}
+{{- else if eq $color "blue"}}{{$cls = "bg-blue-500/20 text-blue-400"}}
+{{- else if eq $color "purple"}}{{$cls = "bg-purple-500/20 text-purple-400"}}
+{{- else}}{{$cls = "bg-gray-700 text-gray-300"}}
+{{- end -}}
+<span class="px-2 py-1 rounded text-xs whitespace-nowrap {{$cls}} {{.extra_cls}}">
+  {{- if .icon}}<i class="{{.icon}} mr-1"></i>{{end}}
+  {{- .text}}
+</span>
+{{end}}

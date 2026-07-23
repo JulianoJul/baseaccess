@@ -1,0 +1,55 @@
+{{define "ui_input"}}
+{{- $type := default "text" .type -}}
+<div class="{{.grid_span}}">
+  {{if .label}}<label class="label" for="f-{{.name}}">{{.label}}</label>{{end}}
+  <div class="flex items-stretch">
+    <input type="{{if eq $type "date"}}date{{else}}text{{end}}"
+           id="f-{{.name}}"
+           name="{{.name}}"
+           inputmode="{{if eq $type "number"}}decimal{{else if eq $type "numeric"}}numeric{{else}}text{{end}}"
+           class="input{{if eq $type "date"}} date{{end}}{{if eq .type "spin"}} rounded-r-none border-r-0{{end}} {{.extra_cls}}"
+           x-model="registro.{{.name}}"
+      {{- if eq $type "monto"}} x-currency @input="onMontoInput($event, '{{.origen}}')" :value="registro.{{.name}}"{{end}}
+      {{- if eq $type "number"}} x-currency{{end}}
+      {{- if eq $type "date"}} :value="registro.{{.name}}" @change="registro.{{.name}} = $event.target.value; validarFechas()"{{end}}
+      {{- if .placeholder }} placeholder="{{.placeholder}}"{{end}}
+      {{- if .disabled }} disabled{{end}}>
+    {{if eq .type "spin"}}
+    <div class="flex flex-col">
+      <button type="button" @click="spinFrente(1)" class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-tr-lg border border-gray-600 border-l-0 border-b-0 transition-colors">
+        <i class="fas fa-chevron-up leading-none"></i>
+      </button>
+      <button type="button" @click="spinFrente(-1)" class="flex-1 flex items-center justify-center px-2.5 text-[10px] bg-gray-700 hover:bg-gray-600 text-gray-300 rounded-br-lg border border-gray-600 border-l-0 transition-colors">
+        <i class="fas fa-chevron-down leading-none"></i>
+      </button>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+
+{{define "ui_select"}}
+<div class="{{.grid_span}}">
+  {{if .label}}<label class="label" for="f-{{.name}}">{{.label}}</label>{{end}}
+  <select id="f-{{.name}}" name="{{.name}}" class="input"
+    x-model="registro.{{.name}}"
+    {{- if .alpine_change}} @change="{{.alpine_change}}"{{end}}
+    {{- if .disabled}} disabled{{end}}>
+    <option value=""></option>
+    {{range .options}}
+    <option value="{{.ID}}"{{if .DataAttr}} data-{{.DataAttr.Key}}="{{.DataAttr.Val}}"{{end}}>{{.Nombre}}</option>
+    {{end}}
+  </select>
+</div>
+{{end}}
+
+{{define "ui_textarea"}}
+<div class="{{.grid_span}}">
+  {{if .label}}<label class="label" for="f-{{.name}}">{{.label}}</label>{{end}}
+  <textarea id="f-{{.name}}" name="{{.name}}" rows="{{default "2" .rows}}"
+            class="input{{if .readonly}} textarea-readonly{{end}}"
+    x-model="registro.{{.name}}"
+    {{- if .readonly}} readonly{{end}}
+    {{- if .disabled}} disabled{{end}}></textarea>
+</div>
+{{end}}
