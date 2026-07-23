@@ -310,7 +310,17 @@ Debajo del Gantt, las leyendas específicas de esa junta. Cada una muestra:
 - Controles de hoja y juntas: apilados verticalmente
 - Fuente de headers de semana: 10px
 
-#### 4.3.7 Atributos Obligatorios a Preservar
+#### 4.3.7 Correcciones de Comportamiento Identificadas
+
+Estas correcciones deben implementarse junto con la modernización del Gantt:
+
+1. **Primera semana toma fecha de la junta como referencia.** Al crear la primera semana de una junta, la fecha de inicio (`fecha_inicio`) debe ser la fecha de la junta (`ruta_procesos_junta.fecha`), no una fecha arbitraria o el lunes más cercano. Las semanas subsiguientes continúan desde el viernes de la semana anterior (lunes siguiente). El botón `[+]` de semanas debe precalcular `fecha_inicio` y `fecha_fin` (viernes) usando la fecha de la junta como origen para la primera semana.
+
+2. **Nombre de la junta editable después de crear.** Actualmente, una vez creada una junta, su nombre no se puede modificar. Esto debe corregirse: el campo `nombre` debe ser editable en todo momento. El botón "Guardar" de la junta debe actualizar el nombre en la BD mediante `POST /api/ruta-procesos-junta-actualizar`. Los campos `numero`, `consecutiva` y `fecha` ya son editables actualmente.
+
+3. **Previsualización del color de la leyenda en navegación normal.** En el modo de edición (modal), el color ya se muestra correctamente. El problema es en la navegación normal del Gantt: las leyendas en la sección de cada junta no muestran el color de forma prominente. El círculo de color debe ser más grande o tener un fondo de color más visible para que el usuario identifique rápidamente cada leyenda sin necesidad de abrirla en modo edición.
+
+#### 4.3.8 Atributos Obligatorios a Preservar
 
 - El bloque IIFE de JavaScript vanilla y su parsing inicial de la variable `data` del servidor.
 - Todas las funciones internas del IIFE: `toggleModal`, `cambiarHoja`, `eliminarHojaActual`, `crearHoja`, `guardarJunta`, `eliminarJunta`, `crearJunta`, `agregarSemana`, `guardarSemana`, `abrirEliminarSemanas`, `eliminarSemanasConfirmar`, `agregarProceso`, `eliminarProceso`, `abrirCrearLeyenda`, `editarLeyenda`, `guardarLeyenda`, `eliminarLeyenda`, `moverLeyenda`, `toggleBloquearLeyenda`, `abrirEditarCronograma`, `guardarCronoDia`, `eliminarCronoEntry`, `cerrarCronoModal`, `esc`, `jsonPost`, `reload`.

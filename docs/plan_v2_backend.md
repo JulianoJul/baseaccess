@@ -233,6 +233,12 @@ Ya implementada. Calcula 5 fechas L-V desde `fecha_inicio`. Usada en el Gantt v2
 
 Ya reescrita para v2. Recibe `(idHoja, idJunta)` en lugar de `(idHoja, offsetWeeks)`.
 
+### 4.3 Correcciones de Comportamiento del Gantt
+
+1. **Primera semana toma fecha de la junta.** En `AgregarRutaProcesosSemana` (app.go), al calcular `fecha_inicio` de la primera semana de una junta, usar `ruta_procesos_junta.fecha` como origen. Actualmente la lógica puede estar usando una fecha arbitraria o el lunes más cercano a hoy. La corrección debe: consultar la fecha de la junta, calcular el lunes de esa semana (`fecha_inicio`), y el viernes correspondiente (`fecha_fin`). Las semanas subsiguientes continúan desde el lunes siguiente al viernes de la semana anterior.
+
+2. **Junta editable después de crear.** Verificar que `ActualizarRutaProcesosJunta` (app.go) actualiza correctamente el campo `nombre` además de `numero`, `consecutiva` y `fecha`. El endpoint `POST /api/ruta-procesos-junta-actualizar` debe recibir el `nombre` y actualizarlo en la BD. Actualmente el nombre no se puede modificar después de crear la junta.
+
 ---
 
 ## 5. Hoja de Ruta Backend (Step-by-Step para DeepSeek Flash)
