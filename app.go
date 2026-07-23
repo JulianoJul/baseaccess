@@ -722,6 +722,19 @@ func (a *App) ObtenerFilasPaginado(moduloKey, orden string, pagina, pageSize int
 		return nil, 0, err
 	}
 
+	for i := range filas {
+		row := filas[i]
+		idVal := row[cfg.IDColumna]
+		if idVal == nil {
+			continue
+		}
+		if docs, err := a.queryRows(
+			`SELECT d.id, d.nombre FROM modulo_documento md JOIN cat_documento d ON md.id_documento = d.id WHERE md.modulo = ? AND md.id_registro = ?`,
+			moduloKey, idVal); err == nil && len(docs) > 0 {
+			filas[i]["documentos"] = docs
+		}
+	}
+
 	return filas, totalPages, nil
 }
 
@@ -742,7 +755,13 @@ func (a *App) ObtenerFilaPorId(moduloKey string, id int) (Row, error) {
 	if len(rows) == 0 {
 		return nil, fmt.Errorf("registro %d no encontrado en %s", id, moduloKey)
 	}
-	return rows[0], nil
+	row := rows[0]
+	if docs, err := a.queryRows(
+		`SELECT d.id, d.nombre FROM modulo_documento md JOIN cat_documento d ON md.id_documento = d.id WHERE md.modulo = ? AND md.id_registro = ?`,
+		moduloKey, row[cfg.IDColumna]); err == nil && len(docs) > 0 {
+		row["documentos"] = docs
+	}
+	return row, nil
 }
 
 func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64, error) {
@@ -821,6 +840,9 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 		if err != nil {
 			return 0, fmt.Errorf("error al actualizar: %w", err)
 		}
+		if err := a.saveDocumentos(moduloKey, id, data); err != nil {
+			return 0, err
+		}
 		return id, nil
 	}
 
@@ -849,7 +871,34 @@ func (a *App) GuardarFila(moduloKey string, data map[string]interface{}) (int64,
 	if err != nil {
 		return 0, fmt.Errorf("error obteniendo id insertado: %w", err)
 	}
+	if err := a.saveDocumentos(moduloKey, id, data); err != nil {
+		return 0, err
+	}
 	return id, nil
+}
+
+func (a *App) saveDocumentos(moduloKey string, id int64, data map[string]interface{}) error {
+	docs, ok := data["id_documento"]
+	if !ok || docs == nil {
+		return nil
+	}
+	docIDs, ok := docs.([]string)
+	if !ok || len(docIDs) == 0 {
+		return nil
+	}
+	if _, err := a.db.Exec(`DELETE FROM modulo_documento WHERE modulo = ? AND id_registro = ?`, moduloKey, id); err != nil {
+		return fmt.Errorf("error limpiando documentos: %w", err)
+	}
+	for _, docID := range docIDs {
+		did, err := strconv.ParseInt(docID, 10, 64)
+		if err != nil || did <= 0 {
+			continue
+		}
+		if _, err := a.db.Exec(`INSERT INTO modulo_documento (modulo, id_registro, id_documento) VALUES (?, ?, ?)`, moduloKey, id, did); err != nil {
+			return fmt.Errorf("error insertando documento: %w", err)
+		}
+	}
+	return nil
 }
 
 func (a *App) withTx(fn func(tx *sql.Tx) error) error {

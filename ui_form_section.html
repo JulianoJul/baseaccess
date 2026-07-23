@@ -1,0 +1,13 @@
+{{define "ui_form_section"}}
+{{- $startOpen := default true .start_open -}}
+{{- $color := default "teal" .color -}}
+<div class="card mb-3" x-data="{ _open: {{$startOpen}} }">
+  <div class="flex items-center justify-between cursor-pointer select-none" @click="_open = !_open">
+    <h4 class="legend legend-{{$color}}"><i class="{{default "fas fa-circle" .icon}} mr-1"></i>{{.title}}</h4>
+    <i class="fas fa-chevron-down transition-transform duration-200" :class="_open ? '' : '-rotate-90'"></i>
+  </div>
+  <div x-show="_open" x-collapse.duration.200ms class="mt-2">
+    {{.body}}
+  </div>
+</div>
+{{end}}

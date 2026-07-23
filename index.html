@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <link href="vendor/tailwind.min.css" rel="stylesheet">
+    <link href="vendor/fontawesome.min.css" rel="stylesheet">
+    <link href="vendor/styles.css" rel="stylesheet">
+    <script src="vendor/htmx.min.js"></script>
+    <script src="new/vendor/alpine-app.js" defer></script>
+    <script src="new/vendor/alpine-directives.js" defer></script>
+    <script src="new/vendor/alpine.min.js" defer></script>
+    <script src="new/vendor/alpine-htmx-bridge.js" defer></script>
+</head>
+<body id="body" class="bg-gray-900 text-gray-100 min-h-screen p-4 font-sans{{if .HasDB}} has-db{{end}}"
+      x-data="appShell"
+      x-on:dragover.window.prevent="dragOver = true"
+      x-on:dragleave.window="dragOver = false"
+      x-on:drop.window.prevent="onDrop($event)"
+      :class="{ 'drag-over': dragOver }"
+      @keydown.escape.window="$store.modals.cerrar($store.modals.stack[$store.modals.stack.length - 1])">
+
+    <script>
+        window.PAGE_DATA = {
+            hasDB: {{.HasDB}},
+            dbPath: {{jsonEncode .DBPath}},
+            catalogs: {{jsonEncode .Catalogs}},
+            modulos: {{jsonEncode .Modulos}},
+            filas: {{jsonEncode .Filas}},
+            totalPages: {{.TotalPages}},
+            currentPage: {{.CurrentPage}},
+            pageSize: {{.PageSize}},
+            ActiveModule: {{jsonEncode .ActiveModule}},
+            CatalogFilters: {{jsonEncode .CatalogFilters}}
+        };
+    </script>
+
+    <div class="w-full">
+        <header class="mb-4 border-b border-gray-700 pb-4 flex flex-wrap items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
+                <input type="file" id="dbfile" accept=".db,.sqlite" class="hidden">
+                <button @click="abrirBaseDatos()" class="btn btn-primary" id="btn-abrir-bd" title="Abrir Base de Datos">
+                    <i class="fas fa-folder-open mr-1"></i> <span class="btn-label">Abrir Base de Datos</span>
+                </button>
+                <div x-data="bdRecientes">
+                    <button @click="$store.modals.abrir('modal-recientes')" class="btn btn-primary" id="btn-recientes" title="BD Recientes">
+                        <i class="fas fa-history mr-1"></i> <span class="btn-label">Recientes</span>
+                    </button>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap ml-auto">
+                <button id="btn-nuevo"
+                        hx-get="/api/cargar-expediente"
+                        hx-target="#form-expediente"
+                        hx-include="#active-module-val"
+                        x-on:htmx:after-request="$store.modals.abrir('form-modal')"
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary">
+                    <i class="fas fa-plus mr-1"></i> Nuevo Registro
+                </button>
+                <button hx-get="/api/pendientes"
+                        hx-target="#pendientes-contenido"
+                        x-on:htmx:after-request="$store.modals.abrir('modal-pendientes')"
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary btn-amber-outline" id="btn-pendientes">
+                    <i class="fas fa-clock mr-1"></i> Pendientes
+                </button>
+                <button @click="$store.modals.abrir('export-modal')"
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-exportar">
+                    <i class="fas fa-file-excel mr-1"></i> Exportar Excel
+                </button>
+                <div x-data="fijados">
+                    <button @click="$store.modals.abrir('modal-frecuentes')"
+                            {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-frecuentes">
+                        <i class="fas fa-thumbtack rotate-45 mr-1"></i> Fijados
+                    </button>
+                </div>
+                <button @click="$store.modals.abrir('sumas-modal')"
+                        {{if not .HasDB}}disabled{{end}} class="btn btn-primary" id="btn-sumas">
+                    <i class="fas fa-calculator mr-1"></i> Sumas
+                </button>
+            </div>
+        </header>
+
+        <div class="w-full space-y-4">
+            <div class="sticky z-10 bg-gray-900 pb-3" style="top: 0;">
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-3 text-xs shrink-0">
+                        <select id="sort-order" name="sort" class="input input-auto text-xs"
+                                hx-get="/api/filtrar-expedientes"
+                                hx-target="#vista-tabla"
+                                hx-include="#search, #sort-dir-val, #active-module-val"
+                                hx-trigger="change"
+                                title="Ordenar" {{if not .HasDB}}disabled{{end}}>
+                            <option value="" selected>Ordenar por</option>
+                            <option value="fecha_creacion" {{if isSelected .SortColumn "fecha_creacion"}}selected{{end}}>Creación</option>
+                            <option value="fecha_actualizacion" {{if isSelected .SortColumn "fecha_actualizacion"}}selected{{end}}>Modificación</option>
+                        </select>
+                        <input type="hidden" id="sort-dir-val" name="dir" value="{{default .SortDir "DESC"}}">
+                        <button id="sort-dir" @click="
+                            const valEl = document.getElementById('sort-dir-val');
+                            const dir = valEl.value === 'ASC' ? 'DESC' : 'ASC';
+                            valEl.value = dir;
+                            const icon = document.querySelector('#sort-dir i');
+                            if (dir === 'ASC') {
+                                icon.className = 'fas fa-arrow-up-short-wide';
+                                document.getElementById('sort-dir').title = 'Cambiar dirección (Ascendente)';
+                            } else {
+                                icon.className = 'fas fa-arrow-down-wide-short';
+                                document.getElementById('sort-dir').title = 'Cambiar dirección (Descendente)';
+                            }
+                            htmx.trigger('#sort-order', 'change');
+                        " class="btn btn-sm bg-gray-700 text-gray-300 hover:bg-gray-600" title="Cambiar dirección (Descendente)" {{if not .HasDB}}disabled{{end}}>
+                            <i class="fas {{if eq .SortDir "ASC"}}fa-arrow-up-short-wide{{else}}fa-arrow-down-wide-short{{end}}"></i>
+                        </button>
+                    </div>
+                    <i class="fas fa-search text-teal-400 text-sm"></i>
+                    <input type="text" id="search" name="q" placeholder="Filtrar al instante..." class="input input-lg flex-1"
+                           hx-get="/api/filtrar-expedientes"
+                           hx-trigger="input changed delay:200ms, search"
+                           hx-target="#vista-tabla"
+                           hx-include="#sort-order, #sort-dir-val, #active-module-val"
+                           {{if not .HasDB}}disabled{{end}}>
+                </div>
+            </div>
+
+            <div id="vista-tabla" class="mt-3 w-full">
+                {{if not .HasDB}}
+                <div class="bg-gray-800 rounded-xl shadow-xl overflow-hidden border border-gray-700 w-full p-12 text-center text-gray-500">
+                    Por favor, selecciona tu archivo de base de datos (.db o .sqlite) arriba.
+                </div>
+                {{else}}
+                    {{if .Error}}
+                    <div class="bg-red-900/30 rounded-xl shadow-xl overflow-hidden border border-red-700/60 w-full p-8 text-center">
+                        <p class="text-red-400 font-semibold mb-2"><i class="fas fa-triangle-exclamation mr-2"></i>Error al cargar datos</p>
+                        <p class="text-red-300 text-sm">{{.Error}}</p>
+                    </div>
+                    {{else}}
+                        {{if eq .ActiveModule "expedientes"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "requisiciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "memorandums"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "recobros"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "valuaciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "aprobacion_jd"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "certificacion_bdu"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "vacaciones"}}{{template "tabla.html" .}}{{end}}
+                        {{if eq .ActiveModule "reposos_medicos"}}{{template "tabla.html" .}}{{end}}
+                    {{end}}
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    {{if .HasDB}}
+    <div id="bottom-bar">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center inner-bar" id="modulo-botones">
+                <div class="flex">
+                    {{range $key, $config := .Modulos}}
+                    <button hx-get="/api/cambiar-modulo?modulo={{$key}}"
+                            hx-target="#vista-tabla"
+                            hx-include="#search, #sort-order, #sort-dir-val"
+                            hx-indicator="#spinner-overlay"
+                            x-on:htmx:after-request="document.querySelectorAll('#modulo-botones .btn-mod').forEach(b => { b.classList.remove('btn-primary'); b.classList.add('btn-secondary'); }); $el.classList.remove('btn-secondary'); $el.classList.add('btn-primary'); history.replaceState(null, '', '?modulo={{$key}}')"
+                            class="btn btn-mod {{if eq $.ActiveModule $key}}btn-primary{{else}}btn-secondary{{end}}"
+                            {{if not $.HasDB}}disabled{{end}}>
+                        {{$config.Nombre}}
+                    </button>
+                    {{end}}
+                </div>
+            </div>
+            <button hx-get="/api/ruta-procesos"
+                    hx-target="#ruta-contenido"
+                    x-on:htmx:after-request="$store.modals.abrir('modal-ruta')"
+                    class="btn btn-mod btn-secondary ruta-mod ml-3">
+                <i class="fas fa-route mr-1"></i> Ruta Procesos
+            </button>
+        </div>
+    </div>
+    {{end}}
+
+    <!-- Modal Formulario -->
+    <div id="form-modal" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('form-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'form-modal')">
+        <div class="ui-modal-panel max-w-4xl">
+            <div class="ui-modal-header">
+                <h2 id="form-titulo" class="text-base font-semibold" style="color:var(--primary-text)">Nuevo Registro</h2>
+                <button @click="$store.modals.cerrar('form-modal')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="form-expediente" class="ui-modal-body" onsubmit="return false;"></form>
+        </div>
+    </div>
+
+    <!-- Modal Historial -->
+    <div id="historial-modal" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('historial-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'historial-modal')">
+        <div class="ui-modal-panel max-w-5xl">
+            <div class="ui-modal-header">
+                <h2 id="historial-titulo" class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-hourglass-half mr-2"></i>Historial Completo</h2>
+                <button @click="$store.modals.cerrar('historial-modal')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div id="historial-cuerpo" class="ui-modal-body"></div>
+            <div class="ui-modal-footer">
+                <button @click="$store.modals.cerrar('historial-modal')" class="btn btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Ruta Procesos -->
+    <div id="modal-ruta" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('modal-ruta')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-ruta')">
+        <div class="ui-modal-panel max-w-5xl">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-route mr-2"></i>Ruta de Procesos</h2>
+                <button @click="$store.modals.cerrar('modal-ruta')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body" id="ruta-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Modal Pendientes -->
+    <div id="modal-pendientes" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('modal-pendientes')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-pendientes')">
+        <div class="ui-modal-panel max-w-4xl">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--amber)"><i class="fas fa-clock mr-2"></i>Documentos Pendientes</h2>
+                <button @click="$store.modals.cerrar('modal-pendientes')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body" id="pendientes-contenido"></div>
+        </div>
+    </div>
+
+    <!-- Modal BD Recientes -->
+    <div id="modal-recientes" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('modal-recientes')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-recientes')"
+         x-data="bdRecientes">
+        <div class="ui-modal-panel max-w-4xl">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-history mr-2"></i>BD Recientes</h2>
+                <button @click="$store.modals.cerrar('modal-recientes')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body">
+                <template x-if="lista.length === 0">
+                    <p class="text-gray-500 text-center py-8 italic">Sin bases de datos recientes.</p>
+                </template>
+                <div class="flex flex-col gap-2" x-show="lista.length > 0">
+                    <template x-for="(r, i) in lista" :key="r.path">
+                        <div @click="abrir(r.path)"
+                             class="reciente-item flex items-center gap-2 px-4 py-3 cursor-pointer rounded-lg bg-gray-900/60 border border-gray-700/60 hover:border-teal-500/60 transition-all">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-sm text-gray-200 truncate font-semibold" x-text="r.nombre"></div>
+                                <div class="text-xs text-gray-500 truncate" x-text="r.path"></div>
+                            </div>
+                            <button @click.stop="eliminarPorIndex(i)" class="text-xs text-gray-400 hover:text-red-400 shrink-0 p-1" title="Quitar de recientes"><i class="fas fa-times"></i></button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Fijados (Acceso Rápido) -->
+    <div id="modal-frecuentes" class="ui-modal-backdrop"
+         x-show="$store.modals.tiene('modal-frecuentes')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'modal-frecuentes')"
+         x-data="fijados">
+        <div class="ui-modal-panel max-w-4xl">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-thumbtack rotate-45 mr-2"></i>Acceso Rápido (Fijados)</h2>
+                <button @click="$store.modals.cerrar('modal-frecuentes')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px" title="Cerrar"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body">
+                <template x-if="lista.length === 0">
+                    <div class="text-center py-12 text-gray-500 space-y-2">
+                        <i class="fas fa-thumbtack text-gray-600 text-2xl rotate-45 animate-pulse"></i>
+                        <p class="text-sm italic">Sin expedientes fijados.</p>
+                        <p class="text-xs text-gray-600">Haz clic en el pin de un registro en la tabla para anclarlo aquí.</p>
+                    </div>
+                </template>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3" x-show="lista.length > 0">
+                    <template x-for="(item, idx) in lista" :key="item.id">
+                        <div @click="$store.modals.cerrar('modal-frecuentes'); htmx.ajax('GET', '/api/cargar-expediente?modulo=' + (item.modulo || 'expedientes') + '&id=' + item.id, {target: '#form-expediente'}).then(() => { $store.modals.abrir('form-modal'); })"
+                             class="flex items-center justify-between bg-gray-900/60 hover:bg-gray-900 border border-gray-700/60 hover:border-teal-500/30 rounded-xl p-4 cursor-pointer transition-all duration-200">
+                            <div class="min-w-0 flex-1">
+                                <div class="text-[10px] text-gray-500 uppercase font-bold tracking-wider">SOLPED</div>
+                                <div class="text-sm text-gray-200 font-bold truncate" x-text="item.solped || 'SIN SOLPED'"></div>
+                            </div>
+                            <button @click.stop="eliminar(idx)" class="text-gray-500 hover:text-red-400 p-2 rounded-lg hover:bg-gray-800 transition-all duration-200" title="Desanclar">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Exportar Excel Modal -->
+    <div id="export-modal" class="ui-modal-backdrop ui-bottom-sheet"
+         x-show="$store.modals.tiene('export-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'export-modal')"
+         x-data="exportarExcel">
+        <div class="ui-modal-panel max-w-2xl">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-file-excel mr-2"></i>Exportar a Excel</h2>
+                <button @click="$store.modals.cerrar('export-modal')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+                <div>
+                    <label class="label">Hoja a exportar</label>
+                    <select x-model="modulo" @change="cargarColumnas()" class="input">
+                        {{range $key, $cfg := .Modulos}}
+                        <option value="{{$key}}">{{$cfg.Nombre}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div id="exp-filtros-dinamicos" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="label">Fecha Creación Desde</label><input type="date" x-model="fechaDesde" class="input" @change="validarFechas()"></div>
+                    <div><label class="label">Fecha Creación Hasta</label><input type="date" x-model="fechaHasta" class="input" @change="validarFechas()"></div>
+                </div>
+                <div>
+                    <label class="label">Columnas a exportar</label>
+                    <div class="flex gap-2 mb-2">
+                        <button type="button" @click="columnas.forEach(c => c.seleccionada = true)" class="btn btn-secondary text-xs">Seleccionar todas</button>
+                        <button type="button" @click="columnas.forEach(c => c.seleccionada = false)" class="btn btn-secondary text-xs">Limpiar</button>
+                    </div>
+                    <div id="exp-columnas" class="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border border-gray-700 rounded-lg"></div>
+                </div>
+            </div>
+            <div class="ui-modal-footer">
+                <button @click="$store.modals.cerrar('export-modal')" class="btn btn-secondary">Cancelar</button>
+                <button @click="exportar()" class="btn btn-primary"><i class="fas fa-download mr-1"></i> Descargar XLSX</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sumas Modal -->
+    <div id="sumas-modal" class="ui-modal-backdrop ui-bottom-sheet"
+         x-show="$store.modals.tiene('sumas-modal')"
+         @mousedown="$store.modals.cerrarClickFuera($event, 'sumas-modal')"
+         x-data="calculadoraSumas">
+        <div class="ui-modal-panel max-w-md">
+            <div class="ui-modal-header">
+                <h2 class="text-base font-semibold" style="color:var(--primary-text)"><i class="fas fa-calculator mr-2"></i>Sumas</h2>
+                <button @click="$store.modals.cerrar('sumas-modal')" class="btn-icon" style="color:var(--text-tertiary);width:36px;height:36px"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="ui-modal-body" style="display:flex;flex-direction:column;gap:1rem;">
+                <div class="space-y-3">
+                    <template x-for="(fila, idx) in filas" :key="idx">
+                        <div class="suma-fila flex items-center gap-3 w-full">
+                            <input type="text" inputmode="decimal" placeholder="0,00"
+                                   class="input flex-1 suma-input"
+                                   :value="fila.valor"
+                                   @input="onInput(idx, $event)"
+                                   @blur="onBlur(idx, $event)"
+                                   @keydown.enter.prevent="añadirFila()">
+                            <button @click="quitarFila(idx)"
+                                    class="w-8 h-8 shrink-0 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-gray-700/50 rounded-lg transition-colors" title="Quitar">
+                                <i class="fas fa-times text-sm"></i>
+                            </button>
+                        </div>
+                    </template>
+                </div>
+                <button @click="añadirFila()" class="btn btn-secondary">
+                    <i class="fas fa-plus mr-1"></i> Añadir número
+                </button>
+                <div class="flex items-center justify-between gap-2 pt-4 border-t border-gray-700">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-center text-lg font-bold">
+                            <span class="text-gray-300">Resultado:</span>
+                            <span class="text-teal-400" x-text="formatearResultado()">0,00</span>
+                        </div>
+                    </div>
+                    <button @click="fijarResultado()" :disabled="!resultado" class="btn btn-secondary text-xs shrink-0" :class="resultado ? '' : 'opacity-40'">
+                        <i class="fas fa-thumbtack mr-1"></i> Fijar
+                    </button>
+                </div>
+                <template x-if="fijados.length > 0">
+                    <div class="border-t border-gray-700 pt-3 space-y-2">
+                        <div class="flex items-center justify-between text-xs text-gray-400 uppercase tracking-wider">
+                            <span><i class="fas fa-thumbtack mr-1"></i> Fijados</span>
+                            <span class="text-teal-400 font-bold" x-text="'Total: ' + formatearNum(totalFijados)"></span>
+                        </div>
+                        <template x-for="(val, idx) in fijados" :key="idx">
+                            <div class="flex items-center justify-between bg-gray-900/60 rounded-lg px-3 py-2 text-sm">
+                                <span class="text-gray-300" x-text="formatearNum(val)"></span>
+                                <button @click="quitarFijado(idx)" class="text-gray-500 hover:text-red-400 text-xs"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+            </div>
+            <div class="modal-panel-footer rounded-b-xl">
+                <button @click="limpiar()" class="btn btn-secondary"><i class="fas fa-eraser mr-1"></i> Limpiar todo</button>
+                <button @click="$store.modals.cerrar('sumas-modal')" class="btn btn-primary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Spinner + Toast -->
+    <div id="spinner-overlay" class="hidden fixed inset-0 z-spinner flex items-center justify-center bg-black/70">
+        <div class="bg-gray-800 rounded-xl p-6 shadow-2xl flex items-center gap-3 border border-gray-700">
+            <svg class="animate-spin h-5 w-5 text-teal-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <span id="spinner-text" class="text-sm text-gray-200">Procesando...</span>
+        </div>
+    </div>
+    <div id="toast-container" class="ui-toast-container"></div>
+
+    <script>
+        // --- Mínimo JS para abrir BD (Wails dialog + fallback input file) ---
+        const $ = id => document.getElementById(id);
+
+        async function abrirBaseDatos() {
+            let path;
+            try {
+                if (window.go && window.go.main && window.go.main.App) {
+                    path = await window.go.main.App.AbrirDialogoBD();
+                } else if (window.runtime) {
+                    path = await window.runtime.OpenFileDialog({
+                        Title: 'Seleccionar base de datos',
+                        Filters: [{ DisplayName: 'SQLite DB', Pattern: '*.db;*.sqlite' }]
+                    });
+                }
+                if (path) {
+                    const res = await fetch('/api/abrir-bd', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'path=' + encodeURIComponent(path)
+                    });
+                    if (!res.ok) {
+                        const text = await res.text();
+                        Alpine.store('toast').error('Error abriendo BD: ' + text);
+                        return;
+                    }
+                    location.reload();
+                }
+            } catch(e) {
+                $('dbfile').click();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const dbfile = $('dbfile');
+            if (dbfile) {
+                dbfile.addEventListener('change', async function(e) {
+                    const f = e.target.files[0];
+                    if (!f) return;
+                    const path = f.path || f.name;
+                    try {
+                        const res = await fetch('/api/abrir-bd', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: 'path=' + encodeURIComponent(path)
+                        });
+                        if (!res.ok) {
+                            const text = await res.text();
+                            Alpine.store('toast').error('Error abriendo BD: ' + text);
+                            return;
+                        }
+                        location.reload();
+                    } catch(err) {
+                        Alpine.store('toast').error('Error de conexión al abrir BD: ' + err);
+                    }
+                });
+            }
+
+        });
+
+
+    </script>
+</body>
+</html>

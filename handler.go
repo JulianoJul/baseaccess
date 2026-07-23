@@ -571,6 +571,15 @@ func (h *TemplateHandler) handleGuardarExpediente(w http.ResponseWriter, r *http
 
 	data := make(map[string]interface{})
 	for _, col := range cfg.Columnas {
+		if col == "id_documento" {
+			docs := r.Form["id_documento"]
+			if len(docs) > 0 {
+				data["id_documento"] = docs
+			} else {
+				data["id_documento"] = nil
+			}
+			continue
+		}
 		v := r.FormValue(col)
 		if v == "" {
 			data[col] = nil

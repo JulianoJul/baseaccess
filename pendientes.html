@@ -1,0 +1,39 @@
+{{if eq (len .) 0}}
+    <div class="text-center py-8 text-gray-500">
+        <i class="fas fa-clock text-2xl mb-2 block"></i>
+        <p class="text-sm">No hay documentos pendientes.</p>
+    </div>
+{{else}}
+    <div class="card">
+    <div class="overflow-x-auto">
+        <table class="w-full text-xs text-left border-collapse">
+            <thead>
+                <tr class="bg-gray-700/60 text-amber-400 uppercase">
+                    <th class="p-2 whitespace-nowrap">SOLPED</th>
+                    <th class="p-2">Descripción</th>
+                    <th class="p-2 whitespace-nowrap">Estatus</th>
+                    <th class="p-2 whitespace-nowrap">Receptor</th>
+                    <th class="p-2 whitespace-nowrap">Proceso</th>
+                    <th class="p-2 whitespace-nowrap">Empresa</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {{range .}}
+                <tr class="hover:bg-gray-700/20">
+                    <td class="p-2 font-semibold whitespace-nowrap">{{rowGetStr . "solped"}}</td>
+                    <td class="p-2">{{truncate (rowGetStr . "descripcion_proceso") 50}}</td>
+                    <td class="p-2 whitespace-nowrap">
+                        <span class="px-1.5 py-0.5 rounded whitespace-nowrap {{estatusClass (rowGetStr . "estatus_detalle")}}">
+                            {{default (rowGetStr . "estatus_detalle") "-"}}
+                        </span>
+                    </td>
+                    <td class="p-2 whitespace-nowrap">{{default (rowGetStr . "receptor") "-"}}</td>
+                    <td class="p-2 font-mono whitespace-nowrap">{{default (rowGetStr . "nro_proceso") "-"}}</td>
+                    <td class="p-2 whitespace-nowrap">{{default (rowGetStr . "empresa_adjudicada") "-"}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+    </div>
+{{end}}

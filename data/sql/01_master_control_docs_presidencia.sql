@@ -147,6 +147,18 @@ CREATE INDEX IF NOT EXISTS idx_hist_mov_emisor         ON historial_movimientos(
 CREATE INDEX IF NOT EXISTS idx_hist_mov_receptor       ON historial_movimientos(id_receptor);
 
 -- ==========================================
+-- 🔹 5. TABLA DE DOCUMENTOS MÚLTIPLES
+-- ==========================================
+CREATE TABLE IF NOT EXISTS modulo_documento (
+    id_modulo_documento INTEGER PRIMARY KEY AUTOINCREMENT,
+    modulo              TEXT NOT NULL,
+    id_registro         INTEGER NOT NULL,
+    id_documento        INTEGER NOT NULL REFERENCES cat_documento(id),
+    UNIQUE(modulo, id_registro, id_documento)
+);
+CREATE INDEX IF NOT EXISTS idx_mod_doc_mod_reg ON modulo_documento(modulo, id_registro);
+
+-- ==========================================
 -- 🔹 6. TRIGGERS DE AUDITORÍA
 -- ==========================================
 
